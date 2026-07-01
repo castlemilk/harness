@@ -9,6 +9,7 @@
     "test": "pnpm -r test",
     "db:generate": "pnpm --filter @omega/db generate",
     "db:migrate": "pnpm --filter @omega/db migrate",
+    "db:seed": "pnpm --filter @omega/db seed",
     "prepare": "pnpm db:generate && pnpm build"
   },
   "devDependencies": {

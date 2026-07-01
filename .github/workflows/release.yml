@@ -20,6 +20,8 @@ jobs:
           node-version: 20
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
       - run: pnpm build
       - run: pnpm test
       - name: Create GitHub Release

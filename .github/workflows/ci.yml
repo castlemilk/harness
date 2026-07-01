@@ -20,5 +20,6 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate
+      - run: pnpm db:seed
       - run: pnpm build
       - run: pnpm test

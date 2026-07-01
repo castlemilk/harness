@@ -1,5 +1,7 @@
 # Omega Harness
 
+[![Release](https://img.shields.io/github/v/release/castlemilk/harness)](https://github.com/castlemilk/harness/releases/latest)
+
 A local-first, model-agnostic harness for scheduling work across projects, routing tasks to the right model by capability, and managing everything through a sidepanel web UI or a CLI.
 
 ## Features
@@ -40,6 +42,8 @@ pnpm db:seed
 ```
 
 `pnpm install` will also build all workspace packages so the CLI and server are ready to run.
+
+Or download the latest release tarball from https://github.com/castlemilk/harness/releases/latest and run the same commands inside the extracted directory.
 
 ## Getting started
 

@@ -27,15 +27,21 @@ packages/
   skills/     SKILL.md parser & adapter generator
 ```
 
-## Getting started
+## Install from source
 
 Requirements: Node.js >=20, pnpm.
 
 ```bash
+git clone https://github.com/castlemilk/harness.git
+cd harness
 pnpm install
 pnpm db:migrate
 pnpm db:seed
 ```
+
+`pnpm install` will also build all workspace packages so the CLI and server are ready to run.
+
+## Getting started
 
 ### Run the web UI
 

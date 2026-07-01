@@ -1,0 +1,28 @@
+{
+  "name": "@omega/db",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "generate": "DATABASE_URL='file:./db.sqlite' prisma generate",
+    "migrate": "DATABASE_URL='file:./db.sqlite' prisma migrate dev --name init",
+    "seed": "DATABASE_URL='file:./db.sqlite' tsx src/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.14.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "prisma": "^5.14.0",
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.0"
+  }
+}

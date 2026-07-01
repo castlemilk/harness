@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  path        String   @unique
+  repoUrl     String?
+  description String?
+  env         String? // JSON
+  createdAt   DateTime @default(now())
+  tasks       Task[]
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      String   @default("todo")
+  complexity  String   @default("simple")
+  tags        String? // JSON array
+  provider    String?
+  model       String?
+  result      String?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ProviderConfig {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  kind         String
+  baseUrl      String?
+  apiKey       String?
+  defaultModel String
+  capabilities String // JSON
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+model SkillArtifact {
+  id            String   @id @default(uuid())
+  name          String   @unique
+  sourcePath    String
+  generatedPath String
+  manifest      String // JSON
+  registeredAt  DateTime @default(now())
+}

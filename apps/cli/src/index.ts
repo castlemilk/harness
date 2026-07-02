@@ -5,6 +5,7 @@ import { taskCmd } from './commands/task.js';
 import { uiCmd } from './commands/ui.js';
 import { consoleCmd } from './commands/console.js';
 import { skillCmd } from './commands/skill.js';
+import { agentCmd } from './commands/agent.js';
 
 program
   .name('harness')
@@ -17,5 +18,6 @@ program.addCommand(taskCmd);
 program.addCommand(uiCmd);
 program.addCommand(consoleCmd);
 program.addCommand(skillCmd);
+program.addCommand(agentCmd);
 
 program.parse();

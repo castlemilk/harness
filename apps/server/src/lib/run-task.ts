@@ -1,5 +1,6 @@
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
+import { runAgentTask } from '@omega/agent';
 import type { PrismaClient } from '@omega/db';
 import type { ProviderConfig as CoreProviderConfig, Task } from '@omega/core';
 
@@ -26,13 +27,23 @@ function toCoreConfig(row: {
 }
 
 export async function runTask(prisma: PrismaClient, taskId: string) {
-  const task = await prisma.task.findUnique({ where: { id: taskId } });
+  const task = await prisma.task.findUnique({ where: { id: taskId }, include: { project: true } });
   if (!task) throw new Error('Task not found');
 
   await prisma.task.update({
     where: { id: taskId },
     data: { status: 'in_progress', error: null, result: null },
   });
+
+  const tags: string[] = task.tags ? (JSON.parse(task.tags) as string[]) : [];
+  if (tags.includes('agent') || tags.includes('self-improve')) {
+    const agentResult = await runAgentTask(prisma, taskId, {
+      projectPath: task.project.path,
+      projectName: task.project.name,
+      autoPublish: tags.includes('publish'),
+    });
+    return agentResult.task;
+  }
 
   const configs = await prisma.providerConfig.findMany();
   const coreConfigs = configs.map(toCoreConfig);

@@ -11,6 +11,7 @@
     "test": "DATABASE_URL='file:./db.sqlite' vitest run"
   },
   "dependencies": {
+    "@omega/agent": "workspace:*",
     "@omega/core": "workspace:*",
     "@omega/db": "workspace:*",
     "@omega/providers": "workspace:*",

@@ -22,7 +22,7 @@ async function main() {
       create: {
         name: 'kimi',
         kind: 'kimi',
-        baseUrl: 'https://api.moonshot.ai/v1',
+        baseUrl: 'https://api.moonshot.cn/v1',
         apiKey: process.env.KIMI_API_KEY,
         defaultModel: 'moonshot-v1-8k',
         capabilities: JSON.stringify([{ name: 'moonshot-v1-8k', level: 'advanced' }]),

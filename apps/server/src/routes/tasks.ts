@@ -72,5 +72,41 @@ export function taskRoutes(prisma: PrismaClient): Router {
     res.status(204).send();
   }));
 
+  r.get('/:id/steps', asyncHandler(async (req, res) => {
+    const steps = await prisma.taskStep.findMany({
+      where: { taskId: req.params.id },
+      orderBy: { idx: 'asc' },
+    });
+    res.json(steps);
+  }));
+
+  r.get('/:id/traces', asyncHandler(async (req, res) => {
+    const traces = await prisma.taskTrace.findMany({
+      where: { taskId: req.params.id },
+      orderBy: { createdAt: 'asc' },
+    });
+    res.json(traces);
+  }));
+
+  r.get('/:id/diffs', asyncHandler(async (req, res) => {
+    const diffs = await prisma.taskDiff.findMany({
+      where: { taskId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(diffs);
+  }));
+
+  r.get('/:id/agent-run', asyncHandler(async (req, res) => {
+    const run = await prisma.agentRun.findFirst({
+      where: { taskId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!run) {
+      res.status(404).json({ error: 'Agent run not found' });
+      return;
+    }
+    res.json(run);
+  }));
+
   return r;
 }

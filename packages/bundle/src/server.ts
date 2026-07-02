@@ -10,7 +10,13 @@ import * as protoLoader from '@grpc/proto-loader';
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
 import type { RoutingRule } from '@omega/router';
-import type { ProviderConfig, Task, Project, Capability } from '@omega/core';
+import type { ProviderConfig, Task, Project, Capability, ToolDefinition } from '@omega/core';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -289,10 +295,162 @@ function isValidComplexity(value: string): value is 'simple' | 'medium' | 'compl
   return ['simple', 'medium', 'complex'].includes(value);
 }
 
+const AGENT_TOOLS: ToolDefinition[] = [
+  {
+    name: 'read_file',
+    description: 'Read a file relative to project root.',
+    parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] },
+  },
+  {
+    name: 'write_file',
+    description: 'Write content to a file relative to project root.',
+    parameters: {
+      type: 'object',
+      properties: { path: { type: 'string' }, content: { type: 'string' } },
+      required: ['path', 'content'],
+    },
+  },
+  {
+    name: 'run_command',
+    description: 'Run a shell command in the project root.',
+    parameters: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] },
+  },
+  {
+    name: 'finish',
+    description: 'Mark the task complete.',
+    parameters: {
+      type: 'object',
+      properties: { summary: { type: 'string' }, success: { type: 'boolean' } },
+      required: ['summary', 'success'],
+    },
+  },
+];
+
+const AGENT_SYSTEM_PROMPT = `You are Omega, an autonomous software engineering agent. Respond with JSON: {"tool_calls":[{"id":"1","name":"tool_name","arguments":{}}]}. Available tools: read_file, write_file, run_command, finish. Work in small steps, run tests, and finish when done.`;
+
+function argString(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return value.toString();
+  return JSON.stringify(value);
+}
+
+async function executeBundleTool(
+  projectPath: string,
+  name: string,
+  args: Record<string, unknown>
+): Promise<{ success: boolean; output: string }> {
+  const target = (file: string) => {
+    const resolved = path.resolve(projectPath, file);
+    if (!resolved.startsWith(path.resolve(projectPath))) throw new Error('Path traversal blocked');
+    return resolved;
+  };
+  try {
+    switch (name) {
+      case 'read_file': {
+        const content = await fs.readFile(target(argString(args.path)), 'utf-8');
+        return { success: true, output: content };
+      }
+      case 'write_file': {
+        const p = target(argString(args.path));
+        await fs.mkdir(path.dirname(p), { recursive: true });
+        await fs.writeFile(p, argString(args.content), 'utf-8');
+        return { success: true, output: `Wrote ${argString(args.path)}` };
+      }
+      case 'run_command': {
+        const [cmd, ...cmdArgs] = argString(args.command).split(' ');
+        const { stdout, stderr } = await execFileAsync(cmd, cmdArgs, {
+          cwd: projectPath,
+          timeout: 120_000,
+          shell: false,
+        });
+        return { success: true, output: stdout + stderr };
+      }
+      default:
+        return { success: false, output: `Unknown tool: ${name}` };
+    }
+  } catch (err: unknown) {
+    return { success: false, output: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+function parseBundleToolCalls(raw: string): { id: string; name: string; arguments: Record<string, unknown> }[] {
+  try {
+    const cleaned = raw.trim().replace(/^```[a-z]*\n?/, '').replace(/\n?```$/, '');
+    const parsed = JSON.parse(cleaned) as { tool_calls?: unknown[] };
+    if (!Array.isArray(parsed.tool_calls)) return [];
+    const calls = parsed.tool_calls as { id?: string; name?: string; arguments?: Record<string, unknown> }[];
+    return calls
+      .filter((t): t is { id: string; name: string; arguments: Record<string, unknown> } => Boolean(t.id && t.name))
+      .map((t) => ({ id: t.id, name: t.name, arguments: t.arguments }));
+  } catch {
+    return [];
+  }
+}
+
+async function executeAgentTask(task: Task) {
+  task.status = 'in_progress';
+  task.error = undefined;
+  task.result = undefined;
+
+  const project = projects.find((p) => p.id === task.projectId);
+  if (!project) {
+    task.status = 'failed';
+    task.error = 'Project not found for agent task';
+    return;
+  }
+
+  const selection = selectProvider(providerConfigs, rules, task);
+  if (!selection) {
+    task.status = 'failed';
+    task.error = 'No provider available for this task';
+    return;
+  }
+
+  try {
+    const provider = createProvider(selection.provider);
+    const prompt = [task.title, task.description].filter(Boolean).join('\n\n');
+    let response: string;
+    if ('sendWithTools' in provider && typeof provider.sendWithTools === 'function') {
+      response = await provider.sendWithTools(prompt, AGENT_TOOLS, {
+        system: AGENT_SYSTEM_PROMPT,
+        model: selection.model,
+      });
+    } else {
+      response = await provider.send(prompt, { system: AGENT_SYSTEM_PROMPT, model: selection.model });
+    }
+
+    const calls = parseBundleToolCalls(response);
+    const results: string[] = [];
+    for (const call of calls) {
+      if (call.name === 'finish') {
+        task.status = call.arguments.success ? 'done' : 'failed';
+        const summaryArg = call.arguments.summary;
+        task.result = typeof summaryArg === 'string' ? summaryArg : '';
+        break;
+      }
+      const result = await executeBundleTool(project.path, call.name, call.arguments);
+      results.push(`${call.name}: ${result.output}`);
+    }
+    if (calls.length > 0 && calls.every((c) => c.name !== 'finish')) {
+      task.status = 'done';
+      task.result = results.join('\n');
+    }
+    task.assignedModel = { provider: selection.provider.name, model: selection.model };
+  } catch (err: unknown) {
+    task.status = 'failed';
+    task.error = err instanceof Error ? err.message : String(err);
+  }
+}
+
 async function executeTask(task: Task) {
   task.status = 'in_progress';
   task.error = undefined;
   task.result = undefined;
+
+  if (task.tags.includes('agent') || task.tags.includes('self-improve')) {
+    return executeAgentTask(task);
+  }
 
   const selection = selectProvider(providerConfigs, rules, task);
   if (!selection) {

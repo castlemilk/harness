@@ -93,6 +93,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@omega/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@omega/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -176,6 +179,31 @@ importers:
       vite:
         specifier: ^5.3.1
         version: 5.4.21(@types/node@20.19.43)
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@20.19.43)
+
+  packages/agent:
+    dependencies:
+      '@omega/core':
+        specifier: workspace:*
+        version: link:../core
+      '@omega/db':
+        specifier: workspace:*
+        version: link:../db
+      '@omega/providers':
+        specifier: workspace:*
+        version: link:../providers
+      '@omega/router':
+        specifier: workspace:*
+        version: link:../router
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.43
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
       vitest:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.43)

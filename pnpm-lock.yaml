@@ -167,9 +167,15 @@ importers:
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
+      ink:
+        specifier: ^7.1.0
+        version: 7.1.0(@types/react@19.2.17)(react@19.2.7)
       open:
         specifier: ^10.1.0
         version: 10.2.0
+      react:
+        specifier: ^19.2.7
+        version: 19.2.7
       yaml:
         specifier: ^2.4.0
         version: 2.9.0

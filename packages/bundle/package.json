@@ -12,14 +12,20 @@
     "dist"
   ],
   "scripts": {
-    "build": "esbuild ../../apps/cli/src/index.ts --bundle --platform=node --format=esm --outfile=dist/cli.js --external:commander --external:open --external:gray-matter --external:yaml --alias:@omega/core=../../packages/core/src/index.ts --alias:@omega/skills=../../packages/skills/src/index.ts",
+    "build:cli": "esbuild ../../apps/cli/src/index.ts --bundle --platform=node --format=esm --outfile=dist/cli.js --external:commander --external:open --external:gray-matter --external:yaml --alias:@omega/core=../../packages/core/src/index.ts --alias:@omega/skills=../../packages/skills/src/index.ts",
+    "build:server": "esbuild src/server.ts --bundle --platform=node --format=esm --outfile=dist/server.js --external:express --external:cors --external:zod --alias:@omega/core=../../packages/core/src/index.ts --alias:@omega/providers=../../packages/providers/src/index.ts --alias:@omega/router=../../packages/router/src/index.ts",
+    "copy:web": "cp -R ../../apps/web/dist dist/web",
+    "build": "pnpm build:cli && pnpm build:server && pnpm copy:web",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "commander": "^12.1.0",
-    "open": "^10.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
     "gray-matter": "^4.0.3",
-    "yaml": "^2.4.0"
+    "open": "^10.1.0",
+    "yaml": "^2.4.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "esbuild": "^0.23.0"

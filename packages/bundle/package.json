@@ -12,7 +12,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "esbuild ../../apps/cli/src/index.ts --bundle --platform=node --format=esm --outfile=dist/cli.js --external:commander --external:open --external:gray-matter --external:yaml",
+    "build": "esbuild ../../apps/cli/src/index.ts --bundle --platform=node --format=esm --outfile=dist/cli.js --external:commander --external:open --external:gray-matter --external:yaml --alias:@omega/core=../../packages/core/src/index.ts --alias:@omega/skills=../../packages/skills/src/index.ts",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {

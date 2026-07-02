@@ -75,10 +75,11 @@ function startMockLlmServer(): Promise<{ server: http.Server; port: number; requ
 describe('harness e2e with Kimi', () => {
   let server: ReturnType<typeof spawn> | undefined;
   let mockLlm: Awaited<ReturnType<typeof startMockLlmServer>> | undefined;
-  const dbPath = `/tmp/harness-e2e-${Date.now()}.sqlite`;
+  const dbDir = `/tmp/harness-e2e-${Date.now()}`;
   const env = {
     ...process.env,
-    DATABASE_URL: `file:${dbPath}`,
+    DATABASE_URL: 'postgresql://localhost:5432/omega',
+    DATABASE_DIR: dbDir,
     PORT: '4001',
     // Use a blank KIMI_API_KEY so the seeder does not create a real Kimi provider.
     // The e2e suite creates its own mock Kimi provider pointed at a local LLM stub.
@@ -116,7 +117,7 @@ describe('harness e2e with Kimi', () => {
       }),
     });
     expect(providerRes.status).toBe(201);
-  });
+  }, 120000);
 
   afterAll(async () => {
     if (server) {

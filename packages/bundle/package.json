@@ -1,12 +1,12 @@
 {
   "name": "@castlemilk/omega",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Omega Harness CLI - installable via npx",
   "type": "module",
   "main": "./dist/cli.js",
   "bin": {
-    "harness": "./dist/cli.js",
-    "omega-harness": "./dist/cli.js"
+    "harness": "dist/cli.js",
+    "omega-harness": "dist/cli.js"
   },
   "files": [
     "dist"

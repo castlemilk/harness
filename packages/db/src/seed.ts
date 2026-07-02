@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma, pglite } from './client.js';
 
-const prisma = new PrismaClient();
-
-async function main() {
+export async function seedDefaults(): Promise<void> {
   await prisma.providerConfig.upsert({
     where: { name: 'ollama-local' },
     update: {},
@@ -22,7 +20,7 @@ async function main() {
       create: {
         name: 'kimi',
         kind: 'kimi',
-        baseUrl: 'https://api.moonshot.cn/v1',
+        baseUrl: 'https://api.kimi.com/coding/v1',
         apiKey: process.env.KIMI_API_KEY,
         defaultModel: 'moonshot-v1-8k',
         capabilities: JSON.stringify([{ name: 'moonshot-v1-8k', level: 'advanced' }]),
@@ -34,11 +32,15 @@ async function main() {
   console.log('Seeded default providers.');
 }
 
-main()
-  .catch((e: unknown) => {
+async function main(): Promise<void> {
+  await seedDefaults();
+  await prisma.$disconnect();
+  await pglite.close();
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((e: unknown) => {
     console.error(e);
     process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
   });
+}

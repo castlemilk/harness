@@ -6,9 +6,9 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "DATABASE_URL='file:./db.sqlite' tsx watch src/index.ts",
-    "start": "DATABASE_URL='file:./db.sqlite' node dist/index.js",
-    "test": "DATABASE_URL='file:./db.sqlite' vitest run"
+    "dev": "DATABASE_URL='postgresql://localhost:5432/omega' DATABASE_DIR='./pglite-data' tsx watch src/index.ts",
+    "start": "DATABASE_URL='postgresql://localhost:5432/omega' DATABASE_DIR='./pglite-data' node dist/index.js",
+    "test": "DATABASE_URL='postgresql://localhost:5432/omega' DATABASE_DIR='./pglite-data' vitest run"
   },
   "dependencies": {
     "@omega/agent": "workspace:*",

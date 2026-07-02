@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import { app } from './app.js';
-import { prisma } from '@omega/db';
+import { prisma, applyMigrations, seedDefaults } from '@omega/db';
 
 describe('API', () => {
   beforeAll(async () => {
+    await applyMigrations();
+    await seedDefaults();
     await prisma.task.deleteMany();
     await prisma.project.deleteMany();
   });

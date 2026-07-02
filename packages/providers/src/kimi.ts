@@ -5,7 +5,7 @@ export class KimiProvider extends OpenAIProvider implements Provider {
   constructor(public readonly config: ProviderConfig) {
     super({
       ...config,
-      baseUrl: config.baseUrl ?? 'https://api.moonshot.cn/v1',
+      baseUrl: config.baseUrl ?? 'https://api.kimi.com/coding/v1',
     });
   }
 }

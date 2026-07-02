@@ -7,3 +7,4 @@ db.sqlite
 *.sqlite
 .DS_Store
 packages/skills/src/generated/
+pglite-data/

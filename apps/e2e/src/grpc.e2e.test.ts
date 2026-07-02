@@ -71,10 +71,11 @@ function startMockLlmServer(): Promise<{ server: http.Server; port: number }> {
 describe('harness gRPC task ingestion', () => {
   let server: ReturnType<typeof spawn> | undefined;
   let grpcClient: TaskIngestionClient;
-  const dbPath = `/tmp/harness-grpc-e2e-${Date.now()}.sqlite`;
+  const dbDir = `/tmp/harness-grpc-e2e-${Date.now()}`;
   const env = {
     ...process.env,
-    DATABASE_URL: `file:${dbPath}`,
+    DATABASE_URL: 'postgresql://localhost:5432/omega',
+    DATABASE_DIR: dbDir,
     PORT: '4002',
     GRPC_PORT: '50052',
     KIMI_API_KEY: '',
@@ -91,7 +92,7 @@ describe('harness gRPC task ingestion', () => {
     await waitForApi();
 
     grpcClient = new proto.omega.TaskIngestion(GRPC_TARGET, grpc.credentials.createInsecure()) as unknown as TaskIngestionClient;
-  });
+  }, 120000);
 
   afterAll(async () => {
     if (server) {

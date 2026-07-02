@@ -106,11 +106,12 @@ async function createTempGitRepo(repoPath: string): Promise<void> {
 describe('harness agent loop', () => {
   let server: ReturnType<typeof spawn> | undefined;
   let mockLlm: Awaited<ReturnType<typeof startMockLlmServer>> | undefined;
-  const dbPath = `/tmp/harness-agent-e2e-${Date.now()}.sqlite`;
+  const dbDir = `/tmp/harness-agent-e2e-${Date.now()}`;
   const repoPath = `/tmp/harness-agent-e2e-${Date.now()}`;
   const env = {
     ...process.env,
-    DATABASE_URL: `file:${dbPath}`,
+    DATABASE_URL: 'postgresql://localhost:5432/omega',
+    DATABASE_DIR: dbDir,
     PORT: '4003',
     GRPC_PORT: '50053',
     KIMI_API_KEY: '',

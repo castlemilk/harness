@@ -13,12 +13,14 @@
   "scripts": {
     "build": "tsc",
     "generate": "prisma generate",
-    "migrate": "DATABASE_URL=${DATABASE_URL:-file:./db.sqlite} prisma migrate dev --name init",
-    "migrate:deploy": "DATABASE_URL=${DATABASE_URL:-file:./db.sqlite} prisma migrate deploy",
-    "seed": "DATABASE_URL=${DATABASE_URL:-file:./db.sqlite} tsx src/seed.ts"
+    "migrate": "DATABASE_URL=postgresql://localhost:5432/omega DATABASE_DIR=${DATABASE_DIR:-./pglite-data} tsx src/migrate.ts",
+    "migrate:deploy": "DATABASE_URL=postgresql://localhost:5432/omega DATABASE_DIR=${DATABASE_DIR:-./pglite-data} tsx src/migrate.ts",
+    "seed": "DATABASE_URL=postgresql://localhost:5432/omega DATABASE_DIR=${DATABASE_DIR:-./pglite-data} tsx src/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^5.14.0"
+    "@electric-sql/pglite": "^0.5.3",
+    "@prisma/client": "^5.14.0",
+    "pglite-prisma-adapter": "^0.3.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

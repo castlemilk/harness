@@ -45,6 +45,17 @@ pnpm db:seed
 
 Or download the latest release tarball from https://github.com/castlemilk/harness/releases/latest and run the same commands inside the extracted directory.
 
+### npx install
+
+Once published to npm, you can run the CLI without installing:
+
+```bash
+npx omega-harness --help
+npx omega-harness ui
+```
+
+The npm package `omega-harness` is built from `packages/bundle` and bundles the workspace CLI with its runtime dependencies.
+
 ## Getting started
 
 ### Run the web UI

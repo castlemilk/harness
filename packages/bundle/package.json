@@ -1,0 +1,35 @@
+{
+  "name": "omega-harness",
+  "version": "0.1.1",
+  "description": "Omega Harness CLI - installable via npx",
+  "type": "module",
+  "main": "./dist/cli.js",
+  "bin": {
+    "harness": "./dist/cli.js",
+    "omega-harness": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "esbuild ../../apps/cli/src/index.ts --bundle --platform=node --format=esm --outfile=dist/cli.js --external:commander --external:open --external:gray-matter --external:yaml",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "open": "^10.1.0",
+    "gray-matter": "^4.0.3",
+    "yaml": "^2.4.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/castlemilk/harness.git"
+  }
+}

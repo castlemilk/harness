@@ -10,7 +10,7 @@ A local-first, model-agnostic harness for scheduling work across projects, routi
 - **Projects** – register directories/repos and schedule work across them.
 - **Tasks / TODOs** – create tasks, assign complexity and tags, run them through the router.
 - **Intelligence routing** – capability-based router picks the best model/provider for each task.
-- **Pluggable providers** – OpenAI, Anthropic, Ollama, Gemini, and any OpenAI-compatible endpoint (glm, kimi, etc.).
+- **Pluggable providers** – OpenAI, Anthropic, Ollama, Gemini, Kimi (Moonshot), and any OpenAI-compatible endpoint (glm, etc.).
 - **Web UI** – project sidebar, task board, provider settings, and routing preview sidepanel.
 - **CLI** – `harness` command for projects, tasks, UI, and skill artifact generation.
 - **Skill artifacts** – point the CLI at a `SKILL.md` to generate a harness-compatible TypeScript adapter.
@@ -40,7 +40,9 @@ npx @castlemilk/omega --help
 npx @castlemilk/omega ui
 ```
 
-This starts the API server on http://localhost:4000 and opens the web UI in your default browser. When you run `npx @castlemilk/omega ui` inside a repo, it automatically adds the current directory as a project.
+This starts the API server on http://localhost:4000 and opens the web UI in your default browser.
+
+When you run `npx @castlemilk/omega ui` inside a repo, it automatically adds the current directory as a project. If a server is already running on `:4000`, the CLI reuses it instead of starting a second one.
 
 > The npm package name is `@castlemilk/omega`, but the command it installs is `harness`.
 
@@ -155,7 +157,7 @@ curl -X POST http://localhost:4000/providers \
   }'
 ```
 
-For OpenAI-compatible endpoints such as glm or kimi, use `kind: "generic"` and set `baseUrl`.
+For Kimi, use `kind: "kimi"`. For other OpenAI-compatible endpoints such as glm, use `kind: "generic"` and set `baseUrl`.
 
 ## Adding skills
 
@@ -194,8 +196,8 @@ The generated TypeScript adapter is written to `packages/skills/src/generated/` 
 Pushing a `v*` tag publishes `@castlemilk/omega` to npm and creates a GitHub release:
 
 ```bash
-git tag -a v0.1.4 -m "next release"
-git push origin v0.1.4
+git tag -a v0.1.6 -m "next release"
+git push origin v0.1.6
 ```
 
 The `NPM_TOKEN` secret must be set at https://github.com/castlemilk/harness/settings/secrets/actions.

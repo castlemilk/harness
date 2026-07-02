@@ -16,7 +16,7 @@ export class OllamaProvider implements Provider {
   async listModels(): Promise<string[]> {
     const res = await fetch(`${this.baseUrl}/api/tags`);
     if (!res.ok) return [this.config.defaultModel];
-    const data = (await res.json()) as { models?: Array<{ name: string }> };
+    const data = (await res.json()) as { models?: { name: string }[] };
     return data.models?.map((m) => m.name) ?? [this.config.defaultModel];
   }
 
@@ -35,7 +35,7 @@ export class OllamaProvider implements Provider {
       }),
     });
     if (!res.ok) {
-      throw new Error(`Ollama request failed: ${res.status} ${res.statusText}`);
+      throw new Error(`Ollama request failed: ${res.status.toString()} ${res.statusText}`);
     }
     const data = (await res.json()) as { message?: { content?: string } };
     return data.message?.content ?? '';

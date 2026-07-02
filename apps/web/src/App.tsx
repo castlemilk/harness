@@ -31,8 +31,10 @@ function App() {
   }
 
   useEffect(() => {
-    loadProjects();
-    loadProviders();
+    void (async () => {
+      await loadProjects();
+      await loadProviders();
+    })();
   }, []);
 
   return (
@@ -41,7 +43,7 @@ function App() {
         projects={projects}
         selectedId={selectedProjectId}
         onSelect={setSelectedProjectId}
-        onChange={loadProjects}
+        onChange={() => { void loadProjects(); }}
       />
 
       <TaskBoard projectId={selectedProjectId} />
@@ -52,7 +54,7 @@ function App() {
             {error}
           </div>
         )}
-        <ProviderSettings providers={providers} onChange={loadProviders} />
+        <ProviderSettings providers={providers} onChange={() => { void loadProviders(); }} />
         <RouterPanel />
       </aside>
     </div>

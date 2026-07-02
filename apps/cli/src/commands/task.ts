@@ -11,7 +11,7 @@ taskCmd
   .option('--description <text>', 'task description')
   .option('--complexity <level>', 'simple | medium | complex', 'simple')
   .option('--tags <tags>', 'comma-separated tags')
-  .action(async (opts) => {
+  .action(async (opts: { project: string; title: string; description?: string; complexity: string; tags?: string }) => {
     const task = await apiFetch('/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -30,7 +30,7 @@ taskCmd
   .command('list')
   .description('List tasks')
   .option('--project <id>', 'filter by project id')
-  .action(async (opts) => {
+  .action(async (opts: { project?: string }) => {
     const query = opts.project ? `?projectId=${opts.project}` : '';
     const tasks = await apiFetch(`/tasks${query}`);
     console.log(JSON.stringify(tasks, null, 2));
@@ -40,7 +40,7 @@ taskCmd
   .command('run')
   .description('Run a task through the router')
   .argument('<id>', 'task id')
-  .action(async (id) => {
+  .action(async (id: string) => {
     const result = await apiFetch(`/tasks/${id}/run`, { method: 'POST' });
     console.log(JSON.stringify(result, null, 2));
   });

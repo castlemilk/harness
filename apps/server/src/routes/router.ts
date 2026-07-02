@@ -3,6 +3,7 @@ import type { PrismaClient } from '@omega/db';
 import { z } from 'zod';
 import { selectProvider } from '@omega/router';
 import type { ProviderConfig as CoreProviderConfig, Task } from '@omega/core';
+import { asyncHandler } from '../lib/async-handler.js';
 
 const selectSchema = z.object({
   title: z.string().min(1),
@@ -27,7 +28,7 @@ function toCoreConfig(row: {
     baseUrl: row.baseUrl ?? undefined,
     apiKey: row.apiKey ?? undefined,
     defaultModel: row.defaultModel,
-    capabilities: JSON.parse(row.capabilities),
+    capabilities: JSON.parse(row.capabilities) as CoreProviderConfig['capabilities'],
     enabled: row.enabled,
   };
 }
@@ -35,7 +36,7 @@ function toCoreConfig(row: {
 export function routerRoutes(prisma: PrismaClient): Router {
   const r = Router();
 
-  r.post('/select', async (req, res) => {
+  r.post('/select', asyncHandler(async (req, res) => {
     const body = selectSchema.parse(req.body);
     const configs = await prisma.providerConfig.findMany();
     const coreConfigs = configs.map(toCoreConfig);
@@ -55,7 +56,7 @@ export function routerRoutes(prisma: PrismaClient): Router {
       return;
     }
     res.json({ provider: selection.provider.name, model: selection.model });
-  });
+  }));
 
   return r;
 }

@@ -22,7 +22,7 @@ skillCmd
   .command('generate')
   .description('Generate a harness adapter from a SKILL.md file')
   .argument('<source>', 'path to SKILL.md')
-  .action(async (source) => {
+  .action(async (source: string) => {
     const outputDir = getOutputDir();
     const manifest = await registerSkill(path.resolve(source), outputDir);
     console.log(`Generated adapter for skill: ${manifest.name}`);

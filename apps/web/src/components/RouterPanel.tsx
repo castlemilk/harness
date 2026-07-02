@@ -29,18 +29,18 @@ export function RouterPanel() {
   return (
     <div className="p-4">
       <h3 className="font-semibold text-sm mb-3">Route preview</h3>
-      <form onSubmit={handleSubmit} className="space-y-2">
+      <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-2">
         <input
           className="w-full border rounded px-2 py-1 text-xs"
           placeholder="Task title"
           value={form.title}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          onChange={(e) => { setForm({ ...form, title: e.target.value }); }}
           required
         />
         <select
           className="w-full border rounded px-2 py-1 text-xs"
           value={form.complexity}
-          onChange={(e) => setForm({ ...form, complexity: e.target.value })}
+          onChange={(e) => { setForm({ ...form, complexity: e.target.value }); }}
         >
           <option value="simple">Simple</option>
           <option value="medium">Medium</option>
@@ -50,7 +50,7 @@ export function RouterPanel() {
           className="w-full border rounded px-2 py-1 text-xs"
           placeholder="Tags (comma separated)"
           value={form.tags}
-          onChange={(e) => setForm({ ...form, tags: e.target.value })}
+          onChange={(e) => { setForm({ ...form, tags: e.target.value }); }}
         />
         <button
           type="submit"

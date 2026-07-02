@@ -22,17 +22,17 @@ export function parseSkill(md: string): SkillManifest {
 
     args = frontmatter.args.map((entry, index) => {
       if (typeof entry !== 'object' || entry === null) {
-        throw new Error(`SKILL.md arg at index ${index} must be an object`);
+        throw new Error(`SKILL.md arg at index ${index.toString()} must be an object`);
       }
 
       const arg = entry as Record<string, unknown>;
 
       if (typeof arg.name !== 'string' || arg.name.trim() === '') {
-        throw new Error(`SKILL.md arg at index ${index} must have a non-empty "name"`);
+        throw new Error(`SKILL.md arg at index ${index.toString()} must have a non-empty "name"`);
       }
 
       if (typeof arg.type !== 'string' || arg.type.trim() === '') {
-        throw new Error(`SKILL.md arg at index ${index} must have a non-empty "type"`);
+        throw new Error(`SKILL.md arg at index ${index.toString()} must have a non-empty "type"`);
       }
 
       return {

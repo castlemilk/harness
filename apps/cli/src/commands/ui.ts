@@ -10,7 +10,7 @@ import { TuiApp } from './tui.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const API = process.env.HARNESS_API_URL || 'http://localhost:4000';
+const API = process.env.HARNESS_API_URL ?? 'http://localhost:4000';
 
 function startBundledServer() {
   const serverPath = path.resolve(__dirname, 'server.js');
@@ -44,7 +44,7 @@ async function ensureProject() {
 
   try {
     const listRes = await fetch(`${API}/projects`);
-    const projects = (await listRes.json()) as Array<{ id: string; path: string }>;
+    const projects = (await listRes.json()) as { id: string; path: string }[];
     const existing = projects.find((p) => p.path === cwd);
     if (existing) {
       console.log(`Using existing project: ${name}`);
@@ -72,7 +72,7 @@ export const uiCmd = new Command('ui')
   .action(async (options: { tui: boolean }) => {
     let server = undefined;
     const alreadyRunning = await isApiReady();
-    const useTui = options.tui !== false;
+    const useTui = options.tui;
 
     if (!alreadyRunning) {
       server = startBundledServer() ??

@@ -28,6 +28,6 @@ export function createProvider(config: ProviderConfig): Provider {
     case 'generic':
       return new GenericProvider(config);
     default:
-      throw new Error(`Unknown provider kind: ${(config as ProviderConfig).kind}`);
+      throw new Error(`Unknown provider kind: ${String(config.kind)}`);
   }
 }

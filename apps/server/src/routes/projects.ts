@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import { z } from 'zod';
+import { asyncHandler } from '../lib/async-handler.js';
 
 const createSchema = z.object({
   name: z.string().min(1),
@@ -12,15 +13,15 @@ const createSchema = z.object({
 export function projectRoutes(prisma: PrismaClient): Router {
   const r = Router();
 
-  r.get('/', async (_req, res) => {
+  r.get('/', asyncHandler(async (_req, res) => {
     const projects = await prisma.project.findMany({
       include: { _count: { select: { tasks: true } } },
       orderBy: { createdAt: 'desc' },
     });
     res.json(projects);
-  });
+  }));
 
-  r.get('/:id', async (req, res) => {
+  r.get('/:id', asyncHandler(async (req, res) => {
     const project = await prisma.project.findUnique({
       where: { id: req.params.id },
       include: { tasks: true },
@@ -30,18 +31,18 @@ export function projectRoutes(prisma: PrismaClient): Router {
       return;
     }
     res.json(project);
-  });
+  }));
 
-  r.post('/', async (req, res) => {
+  r.post('/', asyncHandler(async (req, res) => {
     const body = createSchema.parse(req.body);
     const project = await prisma.project.create({ data: body });
     res.status(201).json(project);
-  });
+  }));
 
-  r.delete('/:id', async (req, res) => {
+  r.delete('/:id', asyncHandler(async (req, res) => {
     await prisma.project.delete({ where: { id: req.params.id } });
     res.status(204).send();
-  });
+  }));
 
   return r;
 }

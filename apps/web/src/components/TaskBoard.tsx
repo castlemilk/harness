@@ -41,7 +41,7 @@ export function TaskBoard({ projectId }: Props) {
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, [projectId]);
 
   async function handleCreate(e: React.FormEvent) {
@@ -66,7 +66,7 @@ export function TaskBoard({ projectId }: Props) {
   function tagsList(t: Task): string[] {
     if (!t.tags) return [];
     try {
-      return JSON.parse(t.tags);
+      return JSON.parse(t.tags) as string[];
     } catch {
       return [];
     }
@@ -87,24 +87,24 @@ export function TaskBoard({ projectId }: Props) {
       </header>
 
       <div className="p-4 bg-gray-50 border-b border-gray-200">
-        <form onSubmit={handleCreate} className="flex flex-wrap gap-2 items-end">
+        <form onSubmit={(e) => { void handleCreate(e); }} className="flex flex-wrap gap-2 items-end">
           <input
             className="border rounded px-3 py-1.5 text-sm flex-1 min-w-[200px]"
             placeholder="Task title"
             value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            onChange={(e) => { setForm({ ...form, title: e.target.value }); }}
             required
           />
           <input
             className="border rounded px-3 py-1.5 text-sm flex-1 min-w-[200px]"
             placeholder="Description"
             value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            onChange={(e) => { setForm({ ...form, description: e.target.value }); }}
           />
           <select
             className="border rounded px-3 py-1.5 text-sm"
             value={form.complexity}
-            onChange={(e) => setForm({ ...form, complexity: e.target.value })}
+            onChange={(e) => { setForm({ ...form, complexity: e.target.value }); }}
           >
             <option value="simple">Simple</option>
             <option value="medium">Medium</option>
@@ -114,7 +114,7 @@ export function TaskBoard({ projectId }: Props) {
             className="border rounded px-3 py-1.5 text-sm w-32"
             placeholder="Tags"
             value={form.tags}
-            onChange={(e) => setForm({ ...form, tags: e.target.value })}
+            onChange={(e) => { setForm({ ...form, tags: e.target.value }); }}
           />
           <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
             Add task
@@ -162,7 +162,7 @@ export function TaskBoard({ projectId }: Props) {
                         )}
                         {status !== 'in_progress' && (
                           <button
-                            onClick={() => handleRun(t.id)}
+                            onClick={() => { void handleRun(t.id); }}
                             className="w-full px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
                           >
                             Run

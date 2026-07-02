@@ -203,6 +203,8 @@ The generated TypeScript adapter is written to `packages/skills/src/generated/` 
 - `pnpm dev` – start server and web UI
 - `pnpm build` – build all packages
 - `pnpm test` – run all tests
+- `pnpm lint` – run ESLint 9 + TypeScript across the monorepo
+- `pnpm lint:fix` – auto-fix ESLint issues
 - `pnpm db:migrate` – apply Prisma migrations
 - `pnpm db:seed` – seed default providers
 

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import { z } from 'zod';
+import { asyncHandler } from '../lib/async-handler.js';
 
 const providerKinds = z.enum(['openai', 'anthropic', 'ollama', 'gemini', 'kimi', 'generic']);
 
@@ -30,12 +31,12 @@ function normalizeCapabilities(input: unknown): string {
 export function providerRoutes(prisma: PrismaClient): Router {
   const r = Router();
 
-  r.get('/', async (_req, res) => {
+  r.get('/', asyncHandler(async (_req, res) => {
     const providers = await prisma.providerConfig.findMany({ orderBy: { createdAt: 'desc' } });
     res.json(providers);
-  });
+  }));
 
-  r.post('/', async (req, res) => {
+  r.post('/', asyncHandler(async (req, res) => {
     const body = createSchema.parse(req.body);
     const provider = await prisma.providerConfig.create({
       data: {
@@ -45,9 +46,9 @@ export function providerRoutes(prisma: PrismaClient): Router {
       },
     });
     res.status(201).json(provider);
-  });
+  }));
 
-  r.patch('/:id/toggle', async (req, res) => {
+  r.patch('/:id/toggle', asyncHandler(async (req, res) => {
     const existing = await prisma.providerConfig.findUnique({ where: { id: req.params.id } });
     if (!existing) {
       res.status(404).json({ error: 'Provider not found' });
@@ -58,12 +59,12 @@ export function providerRoutes(prisma: PrismaClient): Router {
       data: { enabled: !existing.enabled },
     });
     res.json(provider);
-  });
+  }));
 
-  r.delete('/:id', async (req, res) => {
+  r.delete('/:id', asyncHandler(async (req, res) => {
     await prisma.providerConfig.delete({ where: { id: req.params.id } });
     res.status(204).send();
-  });
+  }));
 
   return r;
 }

@@ -7,14 +7,22 @@
     "dev": "pnpm --filter @omega/server dev & pnpm --filter @omega/web dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "db:generate": "pnpm --filter @omega/db generate",
     "db:migrate": "pnpm --filter @omega/db migrate",
     "db:seed": "pnpm --filter @omega/db seed",
     "prepare": "pnpm db:generate && pnpm build"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9.39.4",
+    "globals": "^17.7.0",
     "typescript": "^5.4.0",
+    "typescript-eslint": "^8.62.1",
     "vitest": "^1.6.0"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

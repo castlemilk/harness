@@ -39,7 +39,7 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onChange }: Pro
         {projects.map((p) => (
           <button
             key={p.id}
-            onClick={() => onSelect(p.id)}
+            onClick={() => { onSelect(p.id); }}
             className={`w-full text-left px-3 py-2 rounded-md text-sm ${
               selectedId === p.id ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-100'
             }`}
@@ -56,32 +56,32 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onChange }: Pro
       <div className="p-3 border-t border-gray-200">
         {!open ? (
           <button
-            onClick={() => setOpen(true)}
+            onClick={() => { setOpen(true); }}
             className="w-full px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
           >
             + Add project
           </button>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-2">
+          <form onSubmit={(e) => { void handleSubmit(e); }} className="space-y-2">
             <input
               className="w-full border rounded px-2 py-1 text-sm"
               placeholder="Name"
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => { setForm({ ...form, name: e.target.value }); }}
               required
             />
             <input
               className="w-full border rounded px-2 py-1 text-sm"
               placeholder="Path"
               value={form.path}
-              onChange={(e) => setForm({ ...form, path: e.target.value })}
+              onChange={(e) => { setForm({ ...form, path: e.target.value }); }}
               required
             />
             <input
               className="w-full border rounded px-2 py-1 text-sm"
               placeholder="Repo URL (optional)"
               value={form.repoUrl}
-              onChange={(e) => setForm({ ...form, repoUrl: e.target.value })}
+              onChange={(e) => { setForm({ ...form, repoUrl: e.target.value }); }}
             />
             <div className="flex gap-2">
               <button type="submit" className="flex-1 px-3 py-1 bg-blue-600 text-white rounded text-sm">
@@ -89,7 +89,7 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onChange }: Pro
               </button>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => { setOpen(false); }}
                 className="flex-1 px-3 py-1 bg-gray-200 rounded text-sm"
               >
                 Cancel

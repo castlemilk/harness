@@ -179,8 +179,8 @@ describe('createProvider', () => {
   });
 
   it('throws for unknown provider kind', () => {
-    expect(() => createProvider({ ...openaiConfig, kind: 'unknown' as any })).toThrow(
-      'Unknown provider kind'
-    );
+    expect(() =>
+      createProvider({ ...openaiConfig, kind: 'unknown' as ProviderConfig['kind'] })
+    ).toThrow('Unknown provider kind');
   });
 });

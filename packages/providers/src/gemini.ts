@@ -18,7 +18,7 @@ export class GeminiProvider implements Provider {
     if (this.config.apiKey) url.searchParams.set('key', this.config.apiKey);
     const res = await fetch(url.toString());
     if (!res.ok) return [this.config.defaultModel];
-    const data = (await res.json()) as { models?: Array<{ name: string }> };
+    const data = (await res.json()) as { models?: { name: string }[] };
     return data.models?.map((m) => m.name.replace(/^models\//, '')) ?? [this.config.defaultModel];
   }
 
@@ -43,10 +43,10 @@ export class GeminiProvider implements Provider {
       body: JSON.stringify(body),
     });
     if (!res.ok) {
-      throw new Error(`Gemini request failed: ${res.status} ${res.statusText}`);
+      throw new Error(`Gemini request failed: ${res.status.toString()} ${res.statusText}`);
     }
     const data = (await res.json()) as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
     };
     return data.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') ?? '';
   }

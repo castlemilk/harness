@@ -66,11 +66,13 @@ export function selectProvider(
 
   for (const rule of matchingRules) {
     const provider = rule.then.provider
-      ? enabled.find((cfg) => cfg.id === rule.then.provider || cfg.name === rule.then.provider)
+      ? enabled.find(
+          (cfg) => cfg.id === rule.then.provider || cfg.name === rule.then.provider
+        )
       : enabled[0];
 
     if (provider) {
-      return { provider, model: rule.then.model || provider.defaultModel };
+      return { provider, model: rule.then.model ?? provider.defaultModel };
     }
   }
 

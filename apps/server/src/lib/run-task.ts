@@ -20,7 +20,7 @@ function toCoreConfig(row: {
     baseUrl: row.baseUrl ?? undefined,
     apiKey: row.apiKey ?? undefined,
     defaultModel: row.defaultModel,
-    capabilities: JSON.parse(row.capabilities),
+    capabilities: JSON.parse(row.capabilities) as CoreProviderConfig['capabilities'],
     enabled: row.enabled,
   };
 }
@@ -44,7 +44,7 @@ export async function runTask(prisma: PrismaClient, taskId: string) {
     description: task.description ?? undefined,
     status: task.status as Task['status'],
     complexity: task.complexity as Task['complexity'],
-    tags: task.tags ? JSON.parse(task.tags) : [],
+    tags: task.tags ? (JSON.parse(task.tags) as Task['tags']) : [],
     assignedModel:
       task.provider && task.model ? { provider: task.provider, model: task.model } : undefined,
     result: task.result ?? undefined,

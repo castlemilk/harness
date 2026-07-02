@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ProviderConfig, Task } from '@omega/core';
-import { rankCapabilityForTask, RoutingRule, selectProvider } from './rules.js';
+import type { RoutingRule} from './rules.js';
+import { rankCapabilityForTask, selectProvider } from './rules.js';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {

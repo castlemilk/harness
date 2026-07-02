@@ -95,8 +95,8 @@ describe('harness e2e with Kimi', () => {
     // Start server
     server = spawn('node', ['apps/server/dist/index.js'], { cwd: root, env, stdio: 'pipe' });
 
-    server.stdout?.on('data', (data) => console.log(`server: ${data}`));
-    server.stderr?.on('data', (data) => console.error(`server err: ${data}`));
+    server.stdout?.on('data', (data) => { console.log(`server: ${data}`); });
+    server.stderr?.on('data', (data) => { console.error(`server err: ${data}`); });
 
     await waitForApi();
 
@@ -160,10 +160,17 @@ describe('harness e2e with Kimi', () => {
     }
     expect(ran.status).toBe('done');
     expect(ran.result).toBeTruthy();
-    expect(ran.result!.length).toBeGreaterThan(10);
+    expect(ran.result?.length).toBeGreaterThan(10);
     expect(ran.error).toBeFalsy();
 
     // Confirm the mock LLM actually received the chat completion request.
-    expect(mockLlm?.requests.some((r: any) => r.model === 'moonshot-v1-8k')).toBe(true);
+    expect(
+      mockLlm?.requests.some(
+        (r: unknown) =>
+          typeof r === 'object' &&
+          r !== null &&
+          (r as Record<string, unknown>).model === 'moonshot-v1-8k'
+      )
+    ).toBe(true);
   });
 });

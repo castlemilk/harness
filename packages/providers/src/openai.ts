@@ -18,7 +18,7 @@ export class OpenAIProvider implements Provider {
       headers: this.authHeaders(),
     });
     if (!res.ok) return [this.config.defaultModel];
-    const data = (await res.json()) as { data?: Array<{ id: string }> };
+    const data = (await res.json()) as { data?: { id: string }[] };
     return data.data?.map((m) => m.id) ?? [this.config.defaultModel];
   }
 
@@ -39,10 +39,10 @@ export class OpenAIProvider implements Provider {
       }),
     });
     if (!res.ok) {
-      throw new Error(`OpenAI request failed: ${res.status} ${res.statusText}`);
+      throw new Error(`OpenAI request failed: ${res.status.toString()} ${res.statusText}`);
     }
     const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+      choices?: { message?: { content?: string } }[];
     };
     return data.choices?.[0]?.message?.content ?? '';
   }

@@ -1,14 +1,25 @@
 #!/usr/bin/env node
 import express from 'express';
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { z } from 'zod';
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
-import type { ProviderConfig, Task, Project, RoutingRule } from '@omega/core';
+import type { RoutingRule } from '@omega/router';
+import type { ProviderConfig, Task, Project, Capability } from '@omega/core';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+function asyncHandler(
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
+): RequestHandler {
+  return (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
 
 const app = express();
 app.use(cors());
@@ -45,25 +56,50 @@ const rules: RoutingRule[] = [];
 
 // Helpers
 function newId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `${Date.now().toString()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function now() {
   return new Date();
 }
 
-function toProviderConfig(row: any): ProviderConfig {
-  return {
-    id: row.id,
-    name: row.name,
-    kind: row.kind,
-    baseUrl: row.baseUrl,
-    apiKey: row.apiKey,
-    defaultModel: row.defaultModel,
-    capabilities: Array.isArray(row.capabilities) ? row.capabilities : JSON.parse(row.capabilities || '[]'),
-    enabled: row.enabled ?? true,
-  };
+function parseCapabilities(value: unknown): Capability[] {
+  if (Array.isArray(value)) return value as Capability[];
+  if (typeof value === 'string') return JSON.parse(value) as Capability[];
+  return [];
 }
+
+const projectCreateSchema = z.object({
+  name: z.string().min(1),
+  path: z.string().min(1),
+  repoUrl: z.string().optional(),
+  description: z.string().optional(),
+  env: z.record(z.string()).optional(),
+});
+
+const taskCreateSchema = z.object({
+  projectId: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().optional(),
+  complexity: z.enum(['simple', 'medium', 'complex']).default('simple'),
+  tags: z.array(z.string()).default([]),
+});
+
+const providerCreateSchema = z.object({
+  name: z.string().min(1),
+  kind: z.enum(['openai', 'anthropic', 'ollama', 'gemini', 'kimi', 'generic']),
+  baseUrl: z.string().optional(),
+  apiKey: z.string().optional(),
+  defaultModel: z.string().min(1),
+  capabilities: z.union([z.string(), z.array(z.any())]).optional(),
+  enabled: z.boolean().optional(),
+});
+
+const routerSelectSchema = z.object({
+  title: z.string().min(1),
+  complexity: z.enum(['simple', 'medium', 'complex']).default('simple'),
+  tags: z.array(z.string()).default([]),
+});
 
 // Projects
 app.get('/projects', (_req, res) => {
@@ -76,14 +112,10 @@ app.get('/projects', (_req, res) => {
 });
 
 app.post('/projects', (req, res) => {
-  const body = req.body;
+  const body = projectCreateSchema.parse(req.body);
   const project: Project = {
     id: newId(),
-    name: body.name,
-    path: body.path,
-    repoUrl: body.repoUrl,
-    description: body.description,
-    env: body.env,
+    ...body,
     createdAt: now(),
   };
   projects.push(project);
@@ -98,20 +130,16 @@ app.delete('/projects/:id', (req, res) => {
 
 // Tasks
 app.get('/tasks', (req, res) => {
-  const projectId = req.query.projectId as string | undefined;
+  const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
   res.json(tasks.filter((t) => (projectId ? t.projectId === projectId : true)));
 });
 
 app.post('/tasks', (req, res) => {
-  const body = req.body;
+  const body = taskCreateSchema.parse(req.body);
   const task: Task = {
     id: newId(),
-    projectId: body.projectId,
-    title: body.title,
-    description: body.description,
+    ...body,
     status: 'todo',
-    complexity: body.complexity || 'simple',
-    tags: body.tags || [],
     createdAt: now(),
     updatedAt: now(),
   };
@@ -126,9 +154,12 @@ app.patch('/tasks/:id', (req, res) => {
   res.json(task);
 });
 
-app.post('/tasks/:id/run', async (req, res) => {
+app.post('/tasks/:id/run', asyncHandler(async (req, res) => {
   const task = tasks.find((t) => t.id === req.params.id);
-  if (!task) return res.status(404).json({ error: 'Task not found' });
+  if (!task) {
+    res.status(404).json({ error: 'Task not found' });
+    return;
+  }
 
   task.status = 'in_progress';
   task.error = undefined;
@@ -138,7 +169,8 @@ app.post('/tasks/:id/run', async (req, res) => {
   if (!selection) {
     task.status = 'failed';
     task.error = 'No provider available for this task';
-    return res.json(task);
+    res.json(task);
+    return;
   }
 
   try {
@@ -154,7 +186,7 @@ app.post('/tasks/:id/run', async (req, res) => {
   }
 
   res.json(task);
-});
+}));
 
 // Providers
 app.get('/providers', (_req, res) => {
@@ -162,15 +194,11 @@ app.get('/providers', (_req, res) => {
 });
 
 app.post('/providers', (req, res) => {
-  const body = req.body;
+  const body = providerCreateSchema.parse(req.body);
   const cfg: ProviderConfig = {
     id: newId(),
-    name: body.name,
-    kind: body.kind,
-    baseUrl: body.baseUrl,
-    apiKey: body.apiKey,
-    defaultModel: body.defaultModel,
-    capabilities: Array.isArray(body.capabilities) ? body.capabilities : JSON.parse(body.capabilities || '[]'),
+    ...body,
+    capabilities: parseCapabilities(body.capabilities),
     enabled: body.enabled ?? true,
   };
   providerConfigs.push(cfg);
@@ -191,14 +219,12 @@ app.delete('/providers/:id', (req, res) => {
 
 // Router preview
 app.post('/router/select', (req, res) => {
-  const body = req.body;
+  const body = routerSelectSchema.parse(req.body);
   const task: Task = {
     id: 'preview',
     projectId: 'preview',
-    title: body.title,
+    ...body,
     status: 'todo',
-    complexity: body.complexity || 'simple',
-    tags: body.tags || [],
     createdAt: now(),
     updatedAt: now(),
   };
@@ -214,7 +240,7 @@ app.get('*', (_req, res) => {
   res.sendFile(path.join(webDir, 'index.html'));
 });
 
-const PORT = process.env.PORT || 4000;
+const PORT = Number(process.env.PORT ?? 4000);
 app.listen(PORT, () => {
-  console.log(`Omega harness server on http://localhost:${PORT}`);
+  console.log(`Omega harness server on http://localhost:${PORT.toString()}`);
 });

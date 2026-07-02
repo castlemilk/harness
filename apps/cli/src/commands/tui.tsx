@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useApp, useInput, useWindowSize } from 'ink';
 
-const API = process.env.HARNESS_API_URL || 'http://localhost:4000';
+const API = process.env.HARNESS_API_URL ?? 'http://localhost:4000';
 
-type Task = {
+interface Task {
   id: string;
   projectId: string;
   title: string;
@@ -17,13 +17,13 @@ type Task = {
   model?: string;
   createdAt: string;
   updatedAt: string;
-};
+}
 
-type LogEntry = {
+interface LogEntry {
   time: string;
   message: string;
   level: 'info' | 'success' | 'warning' | 'error';
-};
+}
 
 function formatTime(d: Date) {
   return d.toLocaleTimeString('en-US', { hour12: false });
@@ -59,7 +59,7 @@ function useTasks(pollMs = 1000) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [connected, setConnected] = useState(false);
-  const previousTasks = useRef<Record<string, Task>>({});
+  const previousTasks = useRef<Record<string, Task | undefined>>({});
 
   const addLog = (message: string, level: LogEntry['level'] = 'info') => {
     setLogs((prev) => {
@@ -74,11 +74,11 @@ function useTasks(pollMs = 1000) {
     const tick = async () => {
       try {
         const res = await fetch(`${API}/tasks`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status.toString()}`);
         const data = (await res.json()) as Task[];
         setConnected(true);
 
-        const current: Record<string, Task> = {};
+        const current: Record<string, Task | undefined> = {};
         for (const task of data) {
           current[task.id] = task;
           const prev = previousTasks.current[task.id];
@@ -86,8 +86,8 @@ function useTasks(pollMs = 1000) {
             addLog(`New task queued: "${task.title}"`, 'info');
           } else if (prev.status !== task.status) {
             if (task.status === 'in_progress') {
-              const provider = task.provider || 'unknown';
-              const model = task.model || 'unknown';
+              const provider = task.provider ?? 'unknown';
+              const model = task.model ?? 'unknown';
               addLog(`LLM picked up "${task.title}" → ${provider}/${model}`, 'info');
             } else if (task.status === 'done') {
               addLog(`Completed: "${task.title}"`, 'success');
@@ -98,8 +98,9 @@ function useTasks(pollMs = 1000) {
         }
 
         for (const id of Object.keys(previousTasks.current)) {
-          if (!current[id] && !id.startsWith('__')) {
-            addLog(`Task removed: "${previousTasks.current[id].title}"`, 'warning');
+          const removed = previousTasks.current[id];
+          if (!current[id] && !id.startsWith('__') && removed) {
+            addLog(`Task removed: "${removed.title}"`, 'warning');
           }
         }
 
@@ -108,17 +109,17 @@ function useTasks(pollMs = 1000) {
       } catch (err) {
         setConnected(false);
         const message = err instanceof Error ? err.message : String(err);
-        if (message !== previousTasks.current['__last_error']?.title) {
+        if (message !== previousTasks.current.__last_error?.title) {
           addLog(`Connection lost: ${message}`, 'error');
-          previousTasks.current['__last_error'] = { title: message } as Task;
+          previousTasks.current.__last_error = { title: message } as Task;
         }
       }
       if (!cancelled) {
-        setTimeout(tick, pollMs);
+        setTimeout(() => { void tick(); }, pollMs);
       }
     };
 
-    tick();
+    void tick();
     return () => {
       cancelled = true;
     };
@@ -170,7 +171,7 @@ function TaskList({
   tasks,
   height,
   collapsed,
-  toggle,
+  toggle: _toggle,
   columns,
 }: {
   tasks: Task[];
@@ -213,7 +214,7 @@ function TaskList({
       {header}
       {visible.length === 0 && <Text dimColor>No tasks yet. Create one in the web UI.</Text>}
       {visible.map((task) => {
-        const providerText = task.provider ? `${task.provider}/${task.model}` : '-';
+        const providerText = task.provider ? `${task.provider}/${task.model ?? ''}` : '-';
         const titleMax = Math.max(10, columns - 50);
         return (
           <Box key={task.id} flexDirection="row" gap={1}>
@@ -311,7 +312,7 @@ export function TuiApp() {
           tasks={tasks}
           height={taskListHeight}
           collapsed={tasksCollapsed}
-          toggle={() => setTasksCollapsed((c) => !c)}
+          toggle={() => { setTasksCollapsed((c) => !c); }}
           columns={taskListWidth ?? columns}
         />
         <ConsoleLog logs={logs} height={consoleHeight} columns={columns} />

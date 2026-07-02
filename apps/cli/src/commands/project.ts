@@ -10,7 +10,7 @@ projectCmd
   .requiredOption('--path <path>', 'project directory path')
   .option('--repoUrl <url>', 'repository URL')
   .option('--description <text>', 'project description')
-  .action(async (opts) => {
+  .action(async (opts: { name: string; path: string; repoUrl?: string; description?: string }) => {
     const project = await apiFetch('/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -36,7 +36,7 @@ projectCmd
   .command('remove')
   .description('Remove a project')
   .argument('<id>', 'project id')
-  .action(async (id) => {
+  .action(async (id: string) => {
     await apiFetch(`/projects/${id}`, { method: 'DELETE' });
     console.log('Project removed.');
   });

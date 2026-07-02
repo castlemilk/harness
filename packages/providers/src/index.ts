@@ -2,6 +2,7 @@ export { OpenAIProvider } from './openai.js';
 export { AnthropicProvider } from './anthropic.js';
 export { OllamaProvider } from './ollama.js';
 export { GeminiProvider } from './gemini.js';
+export { KimiProvider } from './kimi.js';
 export { GenericProvider } from './generic.js';
 
 import type { Provider, ProviderConfig } from '@omega/core';
@@ -9,6 +10,7 @@ import { OpenAIProvider } from './openai.js';
 import { AnthropicProvider } from './anthropic.js';
 import { OllamaProvider } from './ollama.js';
 import { GeminiProvider } from './gemini.js';
+import { KimiProvider } from './kimi.js';
 import { GenericProvider } from './generic.js';
 
 export function createProvider(config: ProviderConfig): Provider {
@@ -21,6 +23,8 @@ export function createProvider(config: ProviderConfig): Provider {
       return new OllamaProvider(config);
     case 'gemini':
       return new GeminiProvider(config);
+    case 'kimi':
+      return new KimiProvider(config);
     case 'generic':
       return new GenericProvider(config);
     default:

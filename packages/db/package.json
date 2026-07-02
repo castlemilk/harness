@@ -12,9 +12,10 @@
   },
   "scripts": {
     "build": "tsc",
-    "generate": "DATABASE_URL='file:./db.sqlite' prisma generate",
-    "migrate": "DATABASE_URL='file:./db.sqlite' prisma migrate dev --name init",
-    "seed": "DATABASE_URL='file:./db.sqlite' tsx src/seed.ts"
+    "generate": "prisma generate",
+    "migrate": "DATABASE_URL=${DATABASE_URL:-file:./db.sqlite} prisma migrate dev --name init",
+    "migrate:deploy": "DATABASE_URL=${DATABASE_URL:-file:./db.sqlite} prisma migrate deploy",
+    "seed": "DATABASE_URL=${DATABASE_URL:-file:./db.sqlite} tsx src/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0"

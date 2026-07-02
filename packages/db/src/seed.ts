@@ -15,6 +15,22 @@ async function main() {
     },
   });
 
+  if (process.env.KIMI_API_KEY) {
+    await prisma.providerConfig.upsert({
+      where: { name: 'kimi' },
+      update: {},
+      create: {
+        name: 'kimi',
+        kind: 'kimi',
+        baseUrl: 'https://api.moonshot.ai/v1',
+        apiKey: process.env.KIMI_API_KEY,
+        defaultModel: 'moonshot-v1-8k',
+        capabilities: JSON.stringify([{ name: 'moonshot-v1-8k', level: 'advanced' }]),
+      },
+    });
+    console.log('Seeded Kimi provider.');
+  }
+
   console.log('Seeded default providers.');
 }
 

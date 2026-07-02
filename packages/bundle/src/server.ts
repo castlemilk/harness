@@ -28,6 +28,19 @@ let providerConfigs: ProviderConfig[] = [
     enabled: true,
   },
 ];
+
+if (process.env.KIMI_API_KEY) {
+  providerConfigs.push({
+    id: 'default-kimi',
+    name: 'kimi',
+    kind: 'kimi',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    apiKey: process.env.KIMI_API_KEY,
+    defaultModel: 'moonshot-v1-8k',
+    capabilities: [{ name: 'moonshot-v1-8k', level: 'advanced' }],
+    enabled: true,
+  });
+}
 const rules: RoutingRule[] = [];
 
 // Helpers

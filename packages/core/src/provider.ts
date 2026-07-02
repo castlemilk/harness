@@ -13,7 +13,7 @@ export interface Capability {
   supportsTools?: boolean;
 }
 
-export type ProviderKind = 'openai' | 'anthropic' | 'ollama' | 'gemini' | 'generic';
+export type ProviderKind = 'openai' | 'anthropic' | 'ollama' | 'gemini' | 'kimi' | 'generic';
 
 export interface ProviderConfig {
   id: string;

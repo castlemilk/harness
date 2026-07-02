@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import { z } from 'zod';
 
-const providerKinds = z.enum(['openai', 'anthropic', 'ollama', 'gemini', 'generic']);
+const providerKinds = z.enum(['openai', 'anthropic', 'ollama', 'gemini', 'kimi', 'generic']);
 
 const createSchema = z.object({
   name: z.string().min(1),

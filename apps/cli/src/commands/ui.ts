@@ -17,15 +17,19 @@ function startBundledServer() {
   return undefined;
 }
 
+async function isApiReady(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API}/projects`);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 async function waitForApi(maxMs = 15000): Promise<void> {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
-    try {
-      const res = await fetch(`${API}/projects`);
-      if (res.ok) return;
-    } catch {
-      // server not ready yet
-    }
+    if (await isApiReady()) return;
     await new Promise((r) => setTimeout(r, 300));
   }
   throw new Error('Server did not become ready in time');
@@ -62,15 +66,22 @@ async function ensureProject() {
 export const uiCmd = new Command('ui')
   .description('Open the harness web UI')
   .action(async () => {
-    const server = startBundledServer() ??
-      spawn('pnpm', ['--filter', '@omega/server', 'dev'], {
-        stdio: 'inherit',
-        shell: true,
-      });
+    let server = undefined;
+    const alreadyRunning = await isApiReady();
 
-    server.on('exit', (code) => {
-      process.exit(code ?? 0);
-    });
+    if (!alreadyRunning) {
+      server = startBundledServer() ??
+        spawn('pnpm', ['--filter', '@omega/server', 'dev'], {
+          stdio: 'inherit',
+          shell: true,
+        });
+
+      server.on('exit', (code) => {
+        process.exit(code ?? 0);
+      });
+    } else {
+      console.log('Using existing harness server on port 4000');
+    }
 
     try {
       await waitForApi();
@@ -78,7 +89,7 @@ export const uiCmd = new Command('ui')
       await open(API);
     } catch (err) {
       console.error(err);
-      server.kill();
+      server?.kill();
       process.exit(1);
     }
   });

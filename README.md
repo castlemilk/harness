@@ -40,7 +40,7 @@ npx @castlemilk/omega --help
 npx @castlemilk/omega ui
 ```
 
-This starts the API server on http://localhost:4000 and opens the web UI in your default browser.
+This starts the API server on http://localhost:4000 and opens the web UI in your default browser. When you run `npx @castlemilk/omega ui` inside a repo, it automatically adds the current directory as a project.
 
 > The npm package name is `@castlemilk/omega`, but the command it installs is `harness`.
 

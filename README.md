@@ -1,6 +1,7 @@
 # Omega Harness
 
 [![Release](https://img.shields.io/github/v/release/castlemilk/harness)](https://github.com/castlemilk/harness/releases/latest)
+[![npm](https://img.shields.io/npm/v/@castlemilk/omega)](https://www.npmjs.com/package/@castlemilk/omega)
 
 A local-first, model-agnostic harness for scheduling work across projects, routing tasks to the right model by capability, and managing everything through a sidepanel web UI or a CLI.
 
@@ -27,7 +28,21 @@ packages/
   providers/  OpenAI, Anthropic, Ollama, Gemini, generic adapters
   router/     capability-based intelligence router
   skills/     SKILL.md parser & adapter generator
+  bundle/     npm-publishable CLI package (@castlemilk/omega)
 ```
+
+## Quick start (npx)
+
+The fastest way to run the harness CLI is via npm:
+
+```bash
+npx @castlemilk/omega --help
+npx @castlemilk/omega ui
+```
+
+This starts the API server on http://localhost:4000 and opens the web UI in your default browser.
+
+> The npm package name is `@castlemilk/omega`, but the command it installs is `harness`.
 
 ## Install from source
 
@@ -41,24 +56,31 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
-`pnpm install` will also build all workspace packages so the CLI and server are ready to run.
+`pnpm install` runs `prepare`, which generates the Prisma client and builds all workspace packages.
 
-Or download the latest release tarball from https://github.com/castlemilk/harness/releases/latest and run the same commands inside the extracted directory.
+You can also download a release tarball from https://github.com/castlemilk/harness/releases/latest and run the same commands inside the extracted directory.
 
-### npx install
+## Running the harness
 
-Once published to npm, you can run the CLI without installing:
+### 1. Start the API server
 
 ```bash
-npx @castlemilk/omega --help
-npx @castlemilk/omega ui
+pnpm --filter @omega/server start
 ```
 
-The npm package `@castlemilk/omega` is built from `packages/bundle` and bundles the workspace CLI with its runtime dependencies.
+The server runs on http://localhost:4000. It stores projects, tasks, and provider configs in a local SQLite database.
 
-## Getting started
+### 2. Start the web UI
 
-### Run the web UI
+In another terminal:
+
+```bash
+pnpm --filter @omega/web dev
+```
+
+Open http://localhost:5173.
+
+Or start both together:
 
 ```bash
 pnpm dev
@@ -66,17 +88,18 @@ pnpm dev
 ./scripts/dev.sh
 ```
 
-The server starts on http://localhost:4000 and the web UI opens on http://localhost:5173.
+### 3. Use the CLI
 
-### Run the CLI
+From the repo:
 
 ```bash
-# from the repo
 pnpm --filter @omega/cli exec harness --help
+```
 
-# or after building and linking
-pnpm --filter @omega/cli build
-./apps/cli/dist/index.js --help
+From npm:
+
+```bash
+npx @castlemilk/omega --help
 ```
 
 ## CLI usage
@@ -98,9 +121,27 @@ harness ui
 harness skill generate ./path/to/SKILL.md
 ```
 
+## Configuration
+
+Copy `.env.example` to `.env` and fill in any cloud provider API keys you want to use:
+
+```bash
+cp .env.example .env
+```
+
+The harness reads provider API keys from the database (`ProviderConfig` rows), so you can also add providers through the web UI or API without `.env`.
+
+### Default local provider
+
+`pnpm db:seed` creates a default Ollama provider pointing at http://localhost:11434. Make sure Ollama is running and has a model like `llama3` available, or add another provider.
+
 ## Adding providers
 
-Use the web UI sidepanel or POST to `/providers`:
+### Web UI
+
+Open the right-hand sidepanel, click **+ Add** under Providers, and enter the provider details.
+
+### API
 
 ```bash
 curl -X POST http://localhost:4000/providers \
@@ -132,13 +173,13 @@ args:
 Summarize the following text concisely.
 ```
 
-Then run:
+Then generate the adapter:
 
 ```bash
 harness skill generate ./skills/summarize/SKILL.md
 ```
 
-The generated adapter is written to `packages/skills/src/generated/` and can be imported by the harness.
+The generated TypeScript adapter is written to `packages/skills/src/generated/` (or `./harness-skills/` when running from npm) and can be imported by the harness.
 
 ## Development scripts
 
@@ -147,6 +188,17 @@ The generated adapter is written to `packages/skills/src/generated/` and can be 
 - `pnpm test` – run all tests
 - `pnpm db:migrate` – apply Prisma migrations
 - `pnpm db:seed` – seed default providers
+
+## Releasing
+
+Pushing a `v*` tag publishes `@castlemilk/omega` to npm and creates a GitHub release:
+
+```bash
+git tag -a v0.1.4 -m "next release"
+git push origin v0.1.4
+```
+
+The `NPM_TOKEN` secret must be set at https://github.com/castlemilk/harness/settings/secrets/actions.
 
 ## Testing
 

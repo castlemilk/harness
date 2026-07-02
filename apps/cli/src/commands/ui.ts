@@ -4,6 +4,9 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import open from 'open';
+import { render } from 'ink';
+import React from 'react';
+import { TuiApp } from './tui.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -65,9 +68,11 @@ async function ensureProject() {
 
 export const uiCmd = new Command('ui')
   .description('Open the harness web UI')
-  .action(async () => {
+  .option('--no-tui', 'Do not open the terminal console alongside the web UI')
+  .action(async (options: { tui: boolean }) => {
     let server = undefined;
     const alreadyRunning = await isApiReady();
+    const useTui = options.tui !== false;
 
     if (!alreadyRunning) {
       server = startBundledServer() ??
@@ -91,5 +96,17 @@ export const uiCmd = new Command('ui')
       console.error(err);
       server?.kill();
       process.exit(1);
+    }
+
+    if (useTui) {
+      if (!process.stdin.isTTY) {
+        console.log('Terminal is not interactive; skipping TUI. Open the web UI above.');
+        return;
+      }
+      const { waitUntilExit } = render(React.createElement(TuiApp));
+      await waitUntilExit();
+      if (server && !alreadyRunning) {
+        server.kill();
+      }
     }
   });

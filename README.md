@@ -12,7 +12,8 @@ A local-first, model-agnostic harness for scheduling work across projects, routi
 - **Intelligence routing** – capability-based router picks the best model/provider for each task.
 - **Pluggable providers** – OpenAI, Anthropic, Ollama, Gemini, Kimi (Moonshot), and any OpenAI-compatible endpoint (glm, etc.).
 - **Web UI** – project sidebar, task board, provider settings, and routing preview sidepanel.
-- **CLI** – `harness` command for projects, tasks, UI, and skill artifact generation.
+- **CLI** – `harness` command for projects, tasks, UI, TUI console, and skill artifact generation.
+- **TUI console** – terminal dashboard that shows tasks being picked up and routed to models in real time.
 - **Skill artifacts** – point the CLI at a `SKILL.md` to generate a harness-compatible TypeScript adapter.
 
 ## Architecture
@@ -40,9 +41,15 @@ npx @castlemilk/omega --help
 npx @castlemilk/omega ui
 ```
 
-This starts the API server on http://localhost:4000 and opens the web UI in your default browser.
+This starts the API server on http://localhost:4000, opens the web UI in your default browser, **and launches the TUI console in your terminal** so you can watch the LLM pick up jobs as they run.
 
 When you run `npx @castlemilk/omega ui` inside a repo, it automatically adds the current directory as a project. If a server is already running on `:4000`, the CLI reuses it instead of starting a second one.
+
+To open only the web UI (no terminal console):
+
+```bash
+npx @castlemilk/omega ui --no-tui
+```
 
 > The npm package name is `@castlemilk/omega`, but the command it installs is `harness`.
 
@@ -96,12 +103,14 @@ From the repo:
 
 ```bash
 pnpm --filter @omega/cli exec harness --help
+pnpm --filter @omega/cli exec harness console
 ```
 
 From npm:
 
 ```bash
 npx @castlemilk/omega --help
+npx @castlemilk/omega console
 ```
 
 ## CLI usage
@@ -116,8 +125,14 @@ harness task create --project <id> --title "Summarize README" --complexity simpl
 harness task list --project <id>
 harness task run <id>
 
-# Web UI
+# Web UI + TUI console
 harness ui
+
+# TUI console only
+harness console
+
+# Web UI only
+harness ui --no-tui
 
 # Skill artifact
 harness skill generate ./path/to/SKILL.md
@@ -190,6 +205,18 @@ The generated TypeScript adapter is written to `packages/skills/src/generated/` 
 - `pnpm test` – run all tests
 - `pnpm db:migrate` – apply Prisma migrations
 - `pnpm db:seed` – seed default providers
+
+## TUI console
+
+The `harness console` command opens a live terminal dashboard that polls the harness API and shows:
+
+- Tasks queued from the web UI or CLI
+- Which provider/model picked up each job
+- Status changes (todo → in_progress → done/failed)
+- A scrolling console log of routing events
+- Aggregated stats across all tasks
+
+It is also launched automatically when running `harness ui`. Press `q` or `Esc` to close the console.
 
 ## Releasing
 

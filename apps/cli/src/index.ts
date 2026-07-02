@@ -3,6 +3,7 @@ import { program } from 'commander';
 import { projectCmd } from './commands/project.js';
 import { taskCmd } from './commands/task.js';
 import { uiCmd } from './commands/ui.js';
+import { consoleCmd } from './commands/console.js';
 import { skillCmd } from './commands/skill.js';
 
 program
@@ -14,6 +15,7 @@ program
 program.addCommand(projectCmd);
 program.addCommand(taskCmd);
 program.addCommand(uiCmd);
+program.addCommand(consoleCmd);
 program.addCommand(skillCmd);
 
 program.parse();

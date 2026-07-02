@@ -5,6 +5,8 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { z } from 'zod';
+import * as grpc from '@grpc/grpc-js';
+import * as protoLoader from '@grpc/proto-loader';
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
 import type { RoutingRule } from '@omega/router';
@@ -244,3 +246,152 @@ const PORT = Number(process.env.PORT ?? 4000);
 app.listen(PORT, () => {
   console.log(`Omega harness server on http://localhost:${PORT.toString()}`);
 });
+
+const GRPC_PORT = Number(process.env.GRPC_PORT ?? 50051);
+const GRPC_PROTO_PATH = path.join(__dirname, 'proto/tasks.proto');
+
+const grpcPackageDef = protoLoader.loadSync(GRPC_PROTO_PATH, {
+  keepCase: true,
+  longs: String,
+  enums: String,
+  defaults: true,
+  oneofs: true,
+});
+
+const grpcProto = grpc.loadPackageDefinition(grpcPackageDef) as unknown as {
+  omega: {
+    TaskIngestion: grpc.ServiceClientConstructor;
+  };
+};
+
+interface SubmitTaskRequest {
+  project_id: string;
+  title: string;
+  description?: string;
+  complexity?: string;
+  tags?: string[];
+  auto_run?: boolean;
+}
+
+function parseGrpcRequest(req: unknown): SubmitTaskRequest {
+  const r = req as Record<string, unknown>;
+  return {
+    project_id: typeof r.project_id === 'string' ? r.project_id : '',
+    title: typeof r.title === 'string' ? r.title : '',
+    description: typeof r.description === 'string' ? r.description : undefined,
+    complexity: typeof r.complexity === 'string' ? r.complexity : undefined,
+    tags: Array.isArray(r.tags) ? r.tags.filter((t): t is string => typeof t === 'string') : undefined,
+    auto_run: typeof r.auto_run === 'boolean' ? r.auto_run : undefined,
+  };
+}
+
+function isValidComplexity(value: string): value is 'simple' | 'medium' | 'complex' {
+  return ['simple', 'medium', 'complex'].includes(value);
+}
+
+async function executeTask(task: Task) {
+  task.status = 'in_progress';
+  task.error = undefined;
+  task.result = undefined;
+
+  const selection = selectProvider(providerConfigs, rules, task);
+  if (!selection) {
+    task.status = 'failed';
+    task.error = 'No provider available for this task';
+    return;
+  }
+
+  try {
+    const provider = createProvider(selection.provider);
+    const prompt = [task.title, task.description].filter(Boolean).join('\n\n');
+    const result = await provider.send(prompt, { model: selection.model });
+    task.status = 'done';
+    task.result = result;
+    task.assignedModel = { provider: selection.provider.name, model: selection.model };
+  } catch (err: unknown) {
+    task.status = 'failed';
+    task.error = err instanceof Error ? err.message : String(err);
+  }
+}
+
+const grpcServer = new grpc.Server();
+grpcServer.addService(grpcProto.omega.TaskIngestion.service, {
+  submitTask: (call: grpc.ServerUnaryCall<unknown, unknown>, callback: grpc.sendUnaryData<unknown>) => {
+    void (async () => {
+      try {
+        const req = parseGrpcRequest(call.request);
+        if (!req.project_id || !req.title) {
+          callback(
+            { code: grpc.status.INVALID_ARGUMENT, message: 'project_id and title are required' },
+            null
+          );
+          return;
+        }
+
+        const complexity = isValidComplexity(req.complexity ?? '') ? req.complexity : 'simple';
+        const task: Task = {
+          id: newId(),
+          projectId: req.project_id,
+          title: req.title,
+          description: req.description ?? undefined,
+          status: 'todo',
+          complexity,
+          tags: req.tags ?? [],
+          createdAt: now(),
+          updatedAt: now(),
+        };
+        tasks.push(task);
+
+        if (req.auto_run) {
+          await executeTask(task);
+        }
+
+        callback(null, { id: task.id, status: task.status, error: task.error ?? '' });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        callback({ code: grpc.status.INTERNAL, message }, null);
+      }
+    })();
+  },
+
+  streamTasks: (call: grpc.ServerWritableStream<unknown, unknown>) => {
+    const req = call.request as { project_id?: string };
+    const projectId = req.project_id;
+    let cancelled = false;
+
+    const interval = setInterval(() => {
+      if (cancelled) return;
+      const filtered = projectId ? tasks.filter((t) => t.projectId === projectId) : tasks;
+      for (const task of filtered.slice(-20)) {
+        call.write({
+          id: task.id,
+          title: task.title,
+          status: task.status,
+          provider: task.assignedModel?.provider ?? '',
+          model: task.assignedModel?.model ?? '',
+          result: task.result ?? '',
+          error: task.error ?? '',
+        });
+      }
+    }, 1000);
+
+    call.on('cancelled', () => {
+      cancelled = true;
+      clearInterval(interval);
+    });
+
+    call.on('error', () => {
+      cancelled = true;
+      clearInterval(interval);
+    });
+  },
+});
+
+grpcServer.bindAsync(`0.0.0.0:${GRPC_PORT.toString()}`, grpc.ServerCredentials.createInsecure(), (err) => {
+  if (err) {
+    console.error('gRPC server failed to start:', err);
+    return;
+  }
+  console.log(`gRPC task ingestion on 0.0.0.0:${GRPC_PORT.toString()}`);
+});
+

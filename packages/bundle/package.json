@@ -1,6 +1,6 @@
 {
   "name": "@castlemilk/omega",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Omega Harness CLI - installable via npx",
   "type": "module",
   "main": "./dist/cli.js",
@@ -12,13 +12,16 @@
     "dist"
   ],
   "scripts": {
-    "build:cli": "esbuild ../../apps/cli/src/index.ts --bundle --platform=node --format=esm --outfile=dist/cli.js --external:commander --external:open --external:gray-matter --external:yaml --external:ink --external:react --alias:@omega/core=../../packages/core/src/index.ts --alias:@omega/skills=../../packages/skills/src/index.ts",
-    "build:server": "esbuild src/server.ts --bundle --platform=node --format=esm --outfile=dist/server.js --external:express --external:cors --external:zod --alias:@omega/core=../../packages/core/src/index.ts --alias:@omega/providers=../../packages/providers/src/index.ts --alias:@omega/router=../../packages/router/src/index.ts",
+    "build:cli": "esbuild ../../apps/cli/src/index.ts --bundle --platform=node --format=esm --outfile=dist/cli.js --external:commander --external:open --external:gray-matter --external:yaml --external:ink --external:react --external:@grpc/grpc-js --external:@grpc/proto-loader --alias:@omega/core=../../packages/core/src/index.ts --alias:@omega/skills=../../packages/skills/src/index.ts",
+    "build:server": "esbuild src/server.ts --bundle --platform=node --format=esm --outfile=dist/server.js --external:express --external:cors --external:zod --external:@grpc/grpc-js --external:@grpc/proto-loader --alias:@omega/core=../../packages/core/src/index.ts --alias:@omega/providers=../../packages/providers/src/index.ts --alias:@omega/router=../../packages/router/src/index.ts",
     "copy:web": "cp -R ../../apps/web/dist dist/web",
-    "build": "pnpm build:cli && pnpm build:server && pnpm copy:web",
+    "copy:proto": "mkdir -p dist/proto && cp ../../proto/tasks.proto dist/proto/tasks.proto",
+    "build": "pnpm build:cli && pnpm build:server && pnpm copy:web && pnpm copy:proto",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
+    "@grpc/grpc-js": "^1.14.4",
+    "@grpc/proto-loader": "^0.8.1",
     "commander": "^12.1.0",
     "cors": "^2.8.5",
     "express": "^4.19.2",

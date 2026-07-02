@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package omega;
+
+service TaskIngestion {
+  rpc SubmitTask (TaskRequest) returns (TaskResponse);
+  rpc StreamTasks (TaskStreamRequest) returns (stream TaskEvent);
+}
+
+message TaskRequest {
+  string project_id = 1;
+  string title = 2;
+  string description = 3;
+  string complexity = 4;
+  repeated string tags = 5;
+  bool auto_run = 6;
+}
+
+message TaskResponse {
+  string id = 1;
+  string status = 2;
+  string error = 3;
+}
+
+message TaskStreamRequest {
+  string project_id = 1;
+}
+
+message TaskEvent {
+  string id = 1;
+  string title = 2;
+  string status = 3;
+  string provider = 4;
+  string model = 5;
+  string result = 6;
+  string error = 7;
+}

@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { apiFetch } from '../api.js';
+import { taskFeedCmd } from './task-feed.js';
 
 export const taskCmd = new Command('task').description('Manage tasks');
 
@@ -44,3 +45,5 @@ taskCmd
     const result = await apiFetch(`/tasks/${id}/run`, { method: 'POST' });
     console.log(JSON.stringify(result, null, 2));
   });
+
+taskCmd.addCommand(taskFeedCmd);

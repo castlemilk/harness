@@ -6,6 +6,8 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@grpc/grpc-js": "^1.14.4",
+    "@grpc/proto-loader": "^0.8.1",
     "@types/node": "^20.14.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"

@@ -125,6 +125,9 @@ harness task create --project <id> --title "Summarize README" --complexity simpl
 harness task list --project <id>
 harness task run <id>
 
+# Feed tasks via gRPC (auto-runs through the router)
+harness task feed --project <id> --title "Summarize README" --complexity simple --auto-run
+
 # Web UI + TUI console
 harness ui
 
@@ -173,6 +176,26 @@ curl -X POST http://localhost:4000/providers \
 ```
 
 For Kimi, use `kind: "kimi"`. For other OpenAI-compatible endpoints such as glm, use `kind: "generic"` and set `baseUrl`.
+
+## gRPC task ingestion
+
+The harness exposes a gRPC service (`TaskIngestion`) on port `50051` (configurable via `GRPC_PORT`). You can submit tasks programmatically and they will appear in the web UI/TUI and be scheduled by the router.
+
+```bash
+# Start the harness
+npx @castlemilk/omega ui
+
+# In another terminal, feed a task
+npx @castlemilk/omega task feed \
+  --project <project-id> \
+  --title "Summarize the README" \
+  --complexity simple \
+  --auto-run
+```
+
+Without `--auto-run`, the task is created with status `todo` and can be run later from the UI or CLI. With `--auto-run`, the router picks a provider immediately and executes the task.
+
+The gRPC proto is defined in `proto/tasks.proto`.
 
 ## Adding skills
 

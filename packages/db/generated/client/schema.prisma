@@ -1,0 +1,119 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../generated/client"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  path        String   @unique
+  repoUrl     String?
+  description String?
+  env         String? // JSON
+  createdAt   DateTime @default(now())
+  tasks       Task[]
+}
+
+model Task {
+  id          String      @id @default(uuid())
+  projectId   String
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      String      @default("todo")
+  complexity  String      @default("simple")
+  tags        String? // JSON array
+  provider    String?
+  model       String?
+  result      String?
+  error       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  steps       TaskStep[]
+  traces      TaskTrace[]
+  diffs       TaskDiff[]
+  agentRuns   AgentRun[]
+}
+
+model TaskStep {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  idx       Int
+  name      String
+  status    String   @default("pending")
+  input     String? // JSON or free text
+  output    String?
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId])
+}
+
+model TaskTrace {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  stepId    String?
+  role      String // system | user | assistant | tool
+  content   String?
+  toolCalls String? // JSON
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model TaskDiff {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  branch    String
+  commitSha String?
+  patch     String
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+model AgentRun {
+  id                String   @id @default(uuid())
+  taskId            String
+  task              Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  branch            String
+  baseCommit        String
+  resultStatus      String   @default("running")
+  validationSummary String? // JSON
+  publishedVersion  String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([taskId])
+}
+
+model ProviderConfig {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  kind         String
+  baseUrl      String?
+  apiKey       String?
+  defaultModel String
+  capabilities String // JSON
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+model SkillArtifact {
+  id            String   @id @default(uuid())
+  name          String   @unique
+  sourcePath    String
+  generatedPath String
+  manifest      String // JSON
+  registeredAt  DateTime @default(now())
+}

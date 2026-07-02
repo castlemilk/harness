@@ -10,14 +10,18 @@ export default ts.config(
       '**/coverage/**',
       '**/.git/**',
       'packages/db/prisma/generated/**',
+      'packages/db/generated/**',
     ],
   },
   js.configs.recommended,
-  ...ts.configs.recommendedTypeChecked,
-  ...ts.configs.strictTypeChecked,
-  ...ts.configs.stylisticTypeChecked,
+  ...ts.configs.recommended,
   {
     files: ['**/*.ts', '**/*.tsx'],
+    extends: [
+      ...ts.configs.recommendedTypeChecked,
+      ...ts.configs.strictTypeChecked,
+      ...ts.configs.stylisticTypeChecked,
+    ],
     languageOptions: {
       parserOptions: {
         projectService: true,
@@ -54,13 +58,21 @@ export default ts.config(
   },
   {
     files: [
+      '**/*.js',
+      '**/*.mjs',
+      '**/*.cjs',
+      '**/*.jsx',
       '**/*.config.ts',
       '**/*.config.js',
       '**/*.test.ts',
       '**/*.test.tsx',
       'scripts/**/*.js',
       'scripts/**/*.ts',
+      'scripts/**/*.mjs',
     ],
     extends: [ts.configs.disableTypeChecked],
+    languageOptions: {
+      globals: globals.node,
+    },
   }
 );

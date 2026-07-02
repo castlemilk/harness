@@ -16,14 +16,18 @@ export async function seedDefaults(): Promise<void> {
   if (process.env.KIMI_API_KEY) {
     await prisma.providerConfig.upsert({
       where: { name: 'kimi' },
-      update: {},
+      update: {
+        apiKey: process.env.KIMI_API_KEY,
+      },
       create: {
         name: 'kimi',
         kind: 'kimi',
         baseUrl: 'https://api.kimi.com/coding/v1',
         apiKey: process.env.KIMI_API_KEY,
         defaultModel: 'moonshot-v1-8k',
-        capabilities: JSON.stringify([{ name: 'moonshot-v1-8k', level: 'advanced' }]),
+        capabilities: JSON.stringify([
+          { name: 'moonshot-v1-8k', level: 'advanced', supportsTools: true },
+        ]),
       },
     });
     console.log('Seeded Kimi provider.');

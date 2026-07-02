@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-07-02T14:36:48.511Z",
+  "httpPort": 4000,
+  "grpcPort": 50051,
+  "measurements": {
+    "httpCreateTaskMs": 3,
+    "grpcSubmitTaskMs": 33,
+    "taskRunTotalMs": 7,
+    "taskStatus": "done",
+    "grpcTaskStatus": "done"
+  }
+}

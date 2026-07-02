@@ -35,7 +35,11 @@ export function projectRoutes(prisma: PrismaClient): Router {
 
   r.post('/', asyncHandler(async (req, res) => {
     const body = createSchema.parse(req.body);
-    const project = await prisma.project.create({ data: body });
+    const project = await prisma.project.upsert({
+      where: { path: body.path },
+      update: {},
+      create: body,
+    });
     res.status(201).json(project);
   }));
 

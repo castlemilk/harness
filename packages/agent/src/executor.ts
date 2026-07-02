@@ -405,16 +405,98 @@ function extractToolCalls(text: string): { content?: string; toolCalls?: string 
   } catch {
     // not JSON
   }
+  const markdown = parseMarkdownActions(text);
+  if (markdown.length > 0) {
+    return { content: text, toolCalls: JSON.stringify(markdown) };
+  }
   return { content: text };
+}
+
+function parseMarkdownActions(text: string): ToolCall[] {
+  const actions: ToolCall[] = [];
+  const actionHeader = /^###\s*Action:\s*(\w+)\s*$/gim;
+  let match: RegExpExecArray | null;
+  while ((match = actionHeader.exec(text)) !== null) {
+    const name = match[1];
+    const start = match.index + match[0].length;
+    const next = actionHeader.exec(text);
+    actionHeader.lastIndex = start;
+    const end = next ? next.index : text.length;
+    const block = text.slice(start, end).trim();
+
+    if (name === 'finish') {
+      actions.push({
+        id: `md-${actions.length.toString()}`,
+        name,
+        arguments: { summary: block, success: !/fail|error/i.test(block) },
+      });
+      continue;
+    }
+
+    if (name === 'think') {
+      actions.push({ id: `md-${actions.length.toString()}`, name, arguments: { thought: block } });
+      continue;
+    }
+
+    if (name === 'run_command') {
+      const cmd = extractCodeBlock(block, 'bash') ?? extractCodeBlock(block) ?? block;
+      actions.push({ id: `md-${actions.length.toString()}`, name, arguments: { command: cmd.trim() } });
+      continue;
+    }
+
+    if (name === 'write_file') {
+      const code = extractCodeBlock(block);
+      if (!code) continue;
+      const firstLine = block.split('\n')[0] ?? '';
+      const pathRe = /^\s*[`\\/]?([^\n`]+?)[`]?\s*$/;
+      pathRe.lastIndex = 0;
+      const pathMatch = pathRe.exec(firstLine);
+      const path = pathMatch?.[1] ?? extractFilePathFromFence(block);
+      if (path) {
+        actions.push({ id: `md-${actions.length.toString()}`, name, arguments: { path, content: code } });
+      }
+      continue;
+    }
+
+    if (name === 'read_file') {
+      const path = block.trim().split('\n')[0]?.trim() ?? '';
+      if (path) {
+        actions.push({ id: `md-${actions.length.toString()}`, name, arguments: { path } });
+      }
+    }
+  }
+  return actions;
+}
+
+function extractCodeBlock(text: string, lang?: string): string | undefined {
+  const pattern = lang
+    ? new RegExp(`\\\`\\\`\\\`${lang}\\n([\\s\\S]*?)\\n\\\`\\\`\\\``, 'i')
+    : /```(?:[a-z]+)?\n?([\s\S]*?)\n?```/i;
+  pattern.lastIndex = 0;
+  const m = pattern.exec(text);
+  return m?.[1];
+}
+
+function extractFilePathFromFence(text: string): string | undefined {
+  const re = /```(?:[a-z]+)?:?\s*([^\n]+)/i;
+  re.lastIndex = 0;
+  const m = re.exec(text);
+  return m?.[1]?.trim();
 }
 
 function parseToolCalls(raw: string | undefined): ToolCall[] {
   if (!raw) return [];
   try {
-    const parsed = JSON.parse(raw) as { id?: string; name?: string; arguments?: Record<string, unknown> }[];
+    const parsed = JSON.parse(raw) as {
+      id?: unknown;
+      name?: unknown;
+      arguments?: unknown;
+    }[];
     return parsed
-      .filter((t): t is { id: string; name: string; arguments: Record<string, unknown> } =>
-        Boolean(t.id && t.name)
+      .filter(
+        (t): t is { id: string; name: string; arguments: Record<string, unknown> } =>
+          typeof t.id === 'string' && typeof t.name === 'string' &&
+          typeof t.arguments === 'object' && t.arguments !== null
       )
       .map((t) => ({ id: t.id, name: t.name, arguments: t.arguments }));
   } catch {

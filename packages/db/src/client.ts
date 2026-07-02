@@ -1,6 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 import { PrismaPGlite } from 'pglite-prisma-adapter';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/client/index.js';
 
 const databaseDir = process.env.DATABASE_DIR ?? './pglite-data';
 

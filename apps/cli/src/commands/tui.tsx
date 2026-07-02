@@ -70,6 +70,7 @@ function useTasks(pollMs = 1000) {
 
   useEffect(() => {
     let cancelled = false;
+    let timer: NodeJS.Timeout | undefined;
 
     const tick = async () => {
       try {
@@ -115,13 +116,16 @@ function useTasks(pollMs = 1000) {
         }
       }
       if (!cancelled) {
-        setTimeout(() => { void tick(); }, pollMs);
+        timer = setTimeout(() => {
+          void tick();
+        }, pollMs);
       }
     };
 
     void tick();
     return () => {
       cancelled = true;
+      if (timer) clearTimeout(timer);
     };
   }, [pollMs]);
 
@@ -171,13 +175,11 @@ function TaskList({
   tasks,
   height,
   collapsed,
-  toggle: _toggle,
   columns,
 }: {
   tasks: Task[];
   height: number;
   collapsed: boolean;
-  toggle: () => void;
   columns: number;
 }) {
   const sorted = useMemo(
@@ -210,12 +212,19 @@ function TaskList({
   const visible = sorted.slice(0, availableLines);
 
   return (
-    <Box borderStyle="single" paddingX={1} flexDirection="column" height={height} flexShrink={0}>
+    <Box
+      borderStyle="single"
+      paddingX={1}
+      flexDirection="column"
+      height={height}
+      flexShrink={0}
+    >
       {header}
       {visible.length === 0 && <Text dimColor>No tasks yet. Create one in the web UI.</Text>}
       {visible.map((task) => {
         const providerText = task.provider ? `${task.provider}/${task.model ?? ''}` : '-';
-        const titleMax = Math.max(10, columns - 50);
+        // Fit columns: timestamp(20) + gap(1) + status(12) + gap(1) + provider(24) + gaps(4) = ~62
+        const titleMax = Math.max(10, columns - 62);
         return (
           <Box key={task.id} flexDirection="row" gap={1}>
             <Text color={statusColor(task.status)}>{statusSymbol(task.status)}</Text>
@@ -281,7 +290,7 @@ export function TuiApp() {
   const { tasks, logs, connected } = useTasks();
   const { columns, rows } = useWindowSize();
   const [tasksCollapsed, setTasksCollapsed] = useState(false);
-  const [sidebar, setSidebar] = useState(false);
+  const [sidebar, setSidebar] = useState(() => columns >= 100);
 
   useInput((input, key) => {
     if (input === 'q' || key.escape) {
@@ -295,16 +304,28 @@ export function TuiApp() {
     }
   });
 
-  // Reserve space for header (3), stats (3), footer (1), gaps (2)
+  // Keep a sane default layout when the terminal is resized.
+  useEffect(() => {
+    if (columns >= 100 && !sidebar) setSidebar(true);
+    if (columns < 80 && sidebar) setSidebar(false);
+  }, [columns, sidebar]);
+
+  // In sidebar mode, allocate ~40% width to the task list (min 30 cols).
+  const taskListWidth = sidebar ? Math.max(30, Math.floor(columns * 0.4)) : columns;
+  const consoleColumns = sidebar ? Math.max(20, columns - taskListWidth - 1) : columns;
+
+  // Reserve fixed-height rows for header (3), stats (3), footer (1) and gaps (3).
   const mainHeight = Math.max(6, rows - 9);
 
-  // In sidebar mode, split width between task list and console.
-  const taskListWidth = sidebar ? Math.max(30, Math.floor(columns * 0.4)) : undefined;
-  const taskListHeight = sidebar ? mainHeight : tasksCollapsed ? 3 : Math.max(3, Math.floor(mainHeight * 0.45));
-  const consoleHeight = sidebar ? mainHeight : mainHeight - taskListHeight;
+  const taskListHeight = sidebar
+    ? mainHeight
+    : tasksCollapsed
+      ? 3
+      : Math.max(6, Math.floor(mainHeight * 0.45));
+  const consoleHeight = sidebar ? mainHeight : Math.max(3, mainHeight - taskListHeight);
 
   return (
-    <Box flexDirection="column" height={rows} width={columns} gap={1} padding={1}>
+    <Box flexDirection="column" height={rows} width={columns} gap={1}>
       <Header connected={connected} />
       <Stats tasks={tasks} />
       <Box flexDirection={sidebar ? 'row' : 'column'} gap={1} flexGrow={1}>
@@ -312,12 +333,11 @@ export function TuiApp() {
           tasks={tasks}
           height={taskListHeight}
           collapsed={tasksCollapsed}
-          toggle={() => { setTasksCollapsed((c) => !c); }}
-          columns={taskListWidth ?? columns}
+          columns={taskListWidth}
         />
-        <ConsoleLog logs={logs} height={consoleHeight} columns={columns} />
+        <ConsoleLog logs={logs} height={consoleHeight} columns={consoleColumns} />
       </Box>
-      <Box height={1}>
+      <Box height={1} flexShrink={0}>
         <Text dimColor>q/esc quit  •  t toggle tasks  •  s toggle sidebar</Text>
       </Box>
     </Box>

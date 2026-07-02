@@ -12,6 +12,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DEFAULT_PORT = 4000;
 const MAX_PORT = 4010;
+const DEFAULT_GRPC_PORT = 50051;
+const MAX_GRPC_PORT = 50061;
 
 function findAvailablePort(preferred = DEFAULT_PORT, max = MAX_PORT): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -40,9 +42,14 @@ function findAvailablePort(preferred = DEFAULT_PORT, max = MAX_PORT): Promise<nu
 }
 
 function startBundledServer(env: NodeJS.ProcessEnv) {
-  const serverPath = path.resolve(__dirname, 'server.js');
-  if (existsSync(serverPath)) {
-    return spawn(process.execPath, [serverPath], { stdio: 'inherit', env });
+  const realServerPath = path.resolve(__dirname, 'server/dist/index.js');
+  if (existsSync(realServerPath)) {
+    return spawn(process.execPath, [realServerPath], { stdio: 'inherit', env });
+  }
+  // Fallback to the legacy single-file server for older builds.
+  const legacyServerPath = path.resolve(__dirname, 'server.js');
+  if (existsSync(legacyServerPath)) {
+    return spawn(process.execPath, [legacyServerPath], { stdio: 'inherit', env });
   }
   return undefined;
 }
@@ -105,10 +112,16 @@ export const uiCmd = new Command('ui')
 
     if (!alreadyRunning) {
       const port = await findAvailablePort();
+      const grpcPort = await findAvailablePort(DEFAULT_GRPC_PORT, MAX_GRPC_PORT);
       apiUrl = `http://localhost:${port.toString()}`;
       process.env.HARNESS_API_URL = apiUrl;
 
-      const env = { ...process.env, PORT: port.toString(), HARNESS_API_URL: apiUrl };
+      const env = {
+        ...process.env,
+        PORT: port.toString(),
+        GRPC_PORT: grpcPort.toString(),
+        HARNESS_API_URL: apiUrl,
+      };
       server = startBundledServer(env) ??
         spawn('pnpm', ['--filter', '@omega/server', 'dev'], {
           stdio: 'inherit',

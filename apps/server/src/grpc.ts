@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as grpc from '@grpc/grpc-js';
@@ -8,7 +9,22 @@ import { runTask } from './lib/run-task.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PROTO_PATH = path.resolve(__dirname, '../../../proto/tasks.proto');
+function resolveProtoPath(): string {
+  const candidates = [
+    process.env.OMEGA_PROTO_PATH,
+    path.resolve(__dirname, '../../../proto/tasks.proto'),
+    path.resolve(__dirname, '../../proto/tasks.proto'),
+    path.resolve(__dirname, '../proto/tasks.proto'),
+    path.resolve(process.cwd(), 'proto/tasks.proto'),
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return candidates[0] ?? path.resolve(__dirname, '../../../proto/tasks.proto');
+}
+
+const PROTO_PATH = resolveProtoPath();
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,

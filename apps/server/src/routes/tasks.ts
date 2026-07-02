@@ -32,6 +32,15 @@ export function taskRoutes(prisma: PrismaClient): Router {
     res.json(tasks);
   }));
 
+  r.get('/:id', asyncHandler(async (req, res) => {
+    const task = await prisma.task.findUnique({ where: { id: req.params.id } });
+    if (!task) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    res.json(task);
+  }));
+
   r.post('/', asyncHandler(async (req, res) => {
     const body = createSchema.parse(req.body);
     const task = await prisma.task.create({

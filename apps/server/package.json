@@ -11,13 +11,18 @@
     "test": "DATABASE_URL='postgresql://localhost:5432/omega' DATABASE_DIR='./pglite-data' vitest run"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.3",
+    "@grpc/grpc-js": "^1.14.4",
+    "@grpc/proto-loader": "^0.8.1",
     "@omega/agent": "workspace:*",
     "@omega/core": "workspace:*",
     "@omega/db": "workspace:*",
     "@omega/providers": "workspace:*",
     "@omega/router": "workspace:*",
+    "@prisma/client": "^5.14.0",
     "cors": "^2.8.5",
     "express": "^4.19.2",
+    "pglite-prisma-adapter": "^0.3.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

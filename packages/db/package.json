@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "prebuild": "prisma generate",
     "generate": "prisma generate",
     "migrate": "DATABASE_URL=postgresql://localhost:5432/omega DATABASE_DIR=${DATABASE_DIR:-./pglite-data} tsx src/migrate.ts",
     "migrate:deploy": "DATABASE_URL=postgresql://localhost:5432/omega DATABASE_DIR=${DATABASE_DIR:-./pglite-data} tsx src/migrate.ts",

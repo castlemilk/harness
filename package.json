@@ -1,7 +1,7 @@
 {
   "name": "omega-harness",
   "private": true,
-  "version": "0.5.2",
+  "version": "0.6.4",
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @omega/server dev & pnpm --filter @omega/web dev",
@@ -11,8 +11,7 @@
     "lint:fix": "eslint . --fix",
     "db:generate": "pnpm --filter @omega/db generate",
     "db:migrate": "pnpm --filter @omega/db migrate",
-    "db:seed": "pnpm --filter @omega/db seed",
-    "prepare": "pnpm db:generate && pnpm build"
+    "db:seed": "pnpm --filter @omega/db seed"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

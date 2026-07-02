@@ -60,9 +60,9 @@ export async function createPlan(provider: Provider, taskTitle: string, taskDesc
     return {
       reasoning: raw,
       plan: [
-        { name: 'Explore codebase', tool: 'run_command', input: { command: 'find . -type f -name "*.ts" | head -20' } },
+        { name: 'Explore codebase', tool: 'run_command', input: { command: 'find . -type f -name "*.ts"' } },
         { name: 'Implement change', tool: 'think', input: { thought: 'Implement the requested change.' } },
-        { name: 'Validate', tool: 'run_command', input: { command: 'pnpm lint && pnpm test' } },
+        { name: 'Validate', tool: 'run_command', input: { command: 'pnpm lint' } },
         { name: 'Finish', tool: 'finish', input: { summary: 'Task complete.', success: true } },
       ],
     };

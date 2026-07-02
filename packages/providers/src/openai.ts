@@ -68,6 +68,8 @@ export class OpenAIProvider implements Provider {
           type: 'function',
           function: { name: t.name, description: t.description, parameters: t.parameters },
         })),
+        tool_choice: 'auto',
+        parallel_tool_calls: false,
         ...(this.supportsTemperature && opts?.temperature !== undefined
           ? { temperature: opts.temperature }
           : {}),

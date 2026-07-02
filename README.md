@@ -50,11 +50,11 @@ Or download the latest release tarball from https://github.com/castlemilk/harnes
 Once published to npm, you can run the CLI without installing:
 
 ```bash
-npx omega-harness --help
-npx omega-harness ui
+npx @flaggr/harness --help
+npx @flaggr/harness ui
 ```
 
-The npm package `omega-harness` is built from `packages/bundle` and bundles the workspace CLI with its runtime dependencies.
+The npm package `@flaggr/harness` is built from `packages/bundle` and bundles the workspace CLI with its runtime dependencies.
 
 ## Getting started
 

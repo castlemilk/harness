@@ -53,7 +53,7 @@ if (process.env.KIMI_API_KEY) {
     id: 'default-kimi',
     name: 'kimi',
     kind: 'kimi',
-    baseUrl: 'https://api.moonshot.cn/v1',
+    baseUrl: 'https://api.kimi.com/coding/v1',
     apiKey: process.env.KIMI_API_KEY,
     defaultModel: 'moonshot-v1-8k',
     capabilities: [{ name: 'moonshot-v1-8k', level: 'advanced' }],

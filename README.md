@@ -216,7 +216,7 @@ The `harness console` command opens a live terminal dashboard that polls the har
 - A scrolling console log of routing events
 - Aggregated stats across all tasks
 
-It is also launched automatically when running `harness ui`. Press `q` or `Esc` to close the console.
+It is also launched automatically when running `harness ui`. Press `q` or `Esc` to close the console, `t` to collapse/expand the task list, and `s` to switch between stacked and sidebar layouts.
 
 ## Releasing
 

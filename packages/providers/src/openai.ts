@@ -13,6 +13,8 @@ export class OpenAIProvider implements Provider {
     return (this.config.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, '');
   }
 
+  protected readonly supportsTemperature: boolean = true;
+
   async listModels(): Promise<string[]> {
     const res = await fetch(`${this.baseUrl}/models`, {
       headers: this.authHeaders(),
@@ -35,7 +37,9 @@ export class OpenAIProvider implements Provider {
           ...(opts?.system ? [{ role: 'system', content: opts.system }] : []),
           { role: 'user', content: prompt },
         ],
-        temperature: opts?.temperature,
+        ...(this.supportsTemperature && opts?.temperature !== undefined
+          ? { temperature: opts.temperature }
+          : {}),
       }),
     });
     if (!res.ok) {
@@ -64,7 +68,9 @@ export class OpenAIProvider implements Provider {
           type: 'function',
           function: { name: t.name, description: t.description, parameters: t.parameters },
         })),
-        temperature: opts?.temperature,
+        ...(this.supportsTemperature && opts?.temperature !== undefined
+          ? { temperature: opts.temperature }
+          : {}),
       }),
     });
     if (!res.ok) {

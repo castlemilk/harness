@@ -8,4 +8,6 @@ export class KimiProvider extends OpenAIProvider implements Provider {
       baseUrl: config.baseUrl ?? 'https://api.kimi.com/coding/v1',
     });
   }
+
+  protected override readonly supportsTemperature: boolean = false;
 }

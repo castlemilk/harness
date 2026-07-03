@@ -42,6 +42,16 @@ Rules:
 - Do not expose secrets or run destructive commands.
 - Finish only when done. Use summary, not message.`;
 
+export function buildSystemPrompt(context?: string): string {
+  if (!context || context.trim().length === 0) return AGENT_SYSTEM_PROMPT;
+  return `${AGENT_SYSTEM_PROMPT}\n\n---\n${context}\n---`;
+}
+
+export function buildTextToolsSystemPrompt(context?: string): string {
+  if (!context || context.trim().length === 0) return TEXT_TOOLS_SYSTEM_PROMPT;
+  return `${TEXT_TOOLS_SYSTEM_PROMPT}\n\n---\n${context}\n---`;
+}
+
 export function buildTaskPrompt(title: string, description?: string): string {
   const parts = [`Task: ${title}`];
   if (description) parts.push(`Description: ${description}`);

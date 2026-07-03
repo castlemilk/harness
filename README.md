@@ -15,6 +15,9 @@ A local-first, model-agnostic harness for scheduling work across projects, routi
 - **CLI** – `harness` command for projects, tasks, UI, TUI console, and skill artifact generation.
 - **TUI console** – terminal dashboard that shows tasks being picked up and routed to models in real time.
 - **Skill artifacts** – point the CLI at a `SKILL.md` to generate a harness-compatible TypeScript adapter.
+- **Trace flow** – per-task OpenTelemetry-style spans for planning, provider calls, tool execution, and validation, visible in the UI and API.
+- **Benchmarks** – run lightweight synthetic suites or load DeepSWE tasks to measure pass-rate, runtime, and span counts.
+- **Trace-driven prompts** – the agent injects recent failure patterns from trace data into its system prompt to avoid repeating mistakes.
 
 ## Architecture
 
@@ -29,6 +32,8 @@ packages/
   providers/  OpenAI, Anthropic, Ollama, Gemini, generic adapters
   router/     capability-based intelligence router
   skills/     SKILL.md parser & adapter generator
+  agent/      autonomous agent executor with tracing
+  bench/      benchmark runner, synthetic suite, DeepSWE adapter
   bundle/     npm-publishable CLI package (@castlemilk/omega)
 ```
 
@@ -139,6 +144,15 @@ harness ui --no-tui
 
 # Skill artifact
 harness skill generate ./path/to/SKILL.md
+
+# Benchmarks
+harness bench run                           # lightweight synthetic suite
+harness bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 10
+harness bench optimise                      # create self-improve task from latest report
+
+# Trace flow (per-task spans)
+# Open a task in the web UI and click the "Trace flow" tab, or use:
+harness agent traces <task-id>
 ```
 
 ## Configuration
@@ -220,6 +234,33 @@ harness skill generate ./skills/summarize/SKILL.md
 ```
 
 The generated TypeScript adapter is written to `packages/skills/src/generated/` (or `./harness-skills/` when running from npm) and can be imported by the harness.
+
+## Benchmarks
+
+The harness can evaluate itself against lightweight synthetic tasks or against DeepSWE task descriptions.
+
+```bash
+# Synthetic suite (no external dependencies)
+harness bench run
+
+# DeepSWE subset (requires cloning https://github.com/datacurve-ai/deep-swe)
+git clone https://github.com/datacurve-ai/deep-swe.git
+harness bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 10 --sample-seed 0
+```
+
+Reports are written to `.omega/reports/benchmark-<timestamp>.json` and `.md`. The latest report is surfaced in the web UI metrics panel.
+
+`harness bench optimise` reads the latest report and the trace-flow of a failed task, then creates a `self-improve` task you can run to edit `packages/agent/src/prompts.ts` based on the observed failures.
+
+## Trace-driven prompts
+
+Before each agent run, the harness queries recent `AgentRun`s and `TraceSpan`s for the project and appends a compact context block to the system prompt. This gives the model up-to-date information about:
+
+- The most common failing validation step (lint/test/build).
+- Tool error rates and average durations.
+- Recent `edit_file` misses.
+
+The context is also surfaced as a `promptContextUsed` attribute on the root `agent.task` span.
 
 ## Development scripts
 

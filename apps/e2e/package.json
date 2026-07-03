@@ -5,6 +5,9 @@
   "scripts": {
     "test": "vitest run"
   },
+  "dependencies": {
+    "@omega/bench": "workspace:*"
+  },
   "devDependencies": {
     "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.1",

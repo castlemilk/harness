@@ -9,10 +9,11 @@ import { publishOmega, type PublishResult } from './publisher.js';
 import {
   buildTaskPrompt,
   buildToolResultPrompt,
-  AGENT_SYSTEM_PROMPT,
+  buildSystemPrompt,
+  buildTextToolsSystemPrompt,
   FORCE_ACTION_PROMPT,
-  TEXT_TOOLS_SYSTEM_PROMPT,
 } from './prompts.js';
+import { buildPromptContext } from './prompt-context.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
 import { logger } from './logger.js';
 import { Tracer, type Span } from './tracer.js';
@@ -51,6 +52,8 @@ interface AgentContext {
   modifiedFiles: Set<string>;
   tracer: Tracer;
   rootSpan: Span;
+  systemPrompt: string;
+  promptContext?: string;
 }
 
 function toCoreTask(row: {
@@ -146,6 +149,9 @@ export async function runAgentTask(
     },
   });
 
+  const promptContext = await buildPromptContext(prisma, task.projectId, { lookbackRuns: 5 });
+  const systemPrompt = buildSystemPrompt(promptContext.text);
+
   const tracer = new Tracer(prisma, taskId, taskId);
   const rootSpan = tracer.startSpan('agent.task');
   rootSpan.setAttributes({
@@ -153,6 +159,8 @@ export async function runAgentTask(
     provider: provider.config.name,
     model: selection.model,
     autoPublish: options.autoPublish ?? false,
+    promptContextUsed: promptContext.text.length > 0,
+    runsAnalysed: promptContext.runsAnalysed,
   });
 
   const ctx: AgentContext = {
@@ -170,6 +178,8 @@ export async function runAgentTask(
     modifiedFiles: new Set<string>(),
     tracer,
     rootSpan,
+    systemPrompt,
+    promptContext: promptContext.text,
   };
 
   logger.info('Agent task started', {
@@ -219,11 +229,16 @@ export async function runAgentTask(
 
 async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   // Initial planning trace
-  await addTrace(ctx, 'system', AGENT_SYSTEM_PROMPT);
+  await addTrace(ctx, 'system', ctx.systemPrompt);
   await addTrace(ctx, 'user', buildTaskPrompt(ctx.task.title, ctx.task.description ?? undefined));
 
   const planSpan = ctx.tracer.startSpan('agent.plan', ctx.rootSpan.toContext());
-  const plan = await createPlan(ctx.provider, ctx.task.title, ctx.task.description ?? undefined);
+  const plan = await createPlan(
+    ctx.provider,
+    ctx.task.title,
+    ctx.task.description ?? undefined,
+    ctx.promptContext
+  );
   planSpan.setAttributes({ planSteps: plan.plan.length });
   planSpan.addEvent('plan.created');
   await planSpan.end('ok');
@@ -419,7 +434,7 @@ async function sendToProvider(
     // Prefer native tool calls when the provider supports them (including Kimi).
     if (typeof provider.sendWithTools === 'function') {
       const raw = await provider.sendWithTools(prompt, AGENT_TOOLS, {
-        system: AGENT_SYSTEM_PROMPT,
+        system: ctx.systemPrompt,
         model: ctx.model,
         temperature: 0.3,
       });
@@ -431,7 +446,7 @@ async function sendToProvider(
 
     // Fallback to text-mode JSON tool calls for providers without native tool support.
     const raw = await provider.send(prompt, {
-      system: TEXT_TOOLS_SYSTEM_PROMPT,
+      system: buildTextToolsSystemPrompt(ctx.promptContext),
       model: ctx.model,
     });
     span.addEvent('provider.response.received');

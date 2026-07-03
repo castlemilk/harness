@@ -43,8 +43,14 @@ ${toolDescriptions}
 
 If a step does not need a tool, omit tool/input. Use edit_file for small file changes.`;
 
-export async function createPlan(provider: Provider, taskTitle: string, taskDescription?: string): Promise<PlannerResult> {
-  const prompt = `${PLAN_PROMPT}\n\nTask: ${taskTitle}\n${taskDescription ? `Description: ${taskDescription}\n` : ''}`;
+export async function createPlan(
+  provider: Provider,
+  taskTitle: string,
+  taskDescription?: string,
+  context?: string
+): Promise<PlannerResult> {
+  const contextBlock = context ? `\n\nProject context:\n${context}` : '';
+  const prompt = `${PLAN_PROMPT}${contextBlock}\n\nTask: ${taskTitle}\n${taskDescription ? `Description: ${taskDescription}\n` : ''}`;
   // Try tool-aware path first, fall back to plain send.
   let raw: string;
   if ('sendWithTools' in provider && typeof provider.sendWithTools === 'function') {

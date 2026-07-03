@@ -12,6 +12,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@omega/bench": "workspace:*",
     "@omega/core": "workspace:*",
     "@omega/skills": "workspace:*",
     "commander": "^12.1.0",

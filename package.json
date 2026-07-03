@@ -1,7 +1,7 @@
 {
   "name": "omega-harness",
   "private": true,
-  "version": "0.6.6",
+  "version": "0.6.7",
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @omega/server dev & pnpm --filter @omega/web dev",

@@ -15,7 +15,7 @@ Omega is a multi-project task harness. It can:
 ## Install / run
 
 ```bash
-# Run the published package from anywhere
+# Run the published package from anywhere (current release: 0.6.6)
 npx @castlemilk/omega ui
 
 # Or run from source

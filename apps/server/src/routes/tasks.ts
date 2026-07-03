@@ -117,5 +117,35 @@ export function taskRoutes(prisma: PrismaClient): Router {
     res.json(run);
   }));
 
+  r.get('/:id/trace-flow', asyncHandler(async (req, res) => {
+    const spans = await prisma.traceSpan.findMany({
+      where: { taskId: req.params.id },
+      orderBy: { startTime: 'asc' },
+    });
+
+    const byParent: Record<string, typeof spans> = {};
+    for (const span of spans) {
+      const parent = span.parentId ?? '__root__';
+      byParent[parent] = byParent[parent] ?? [];
+      byParent[parent].push(span);
+    }
+
+    function buildTree(parentId: string | null): unknown[] {
+      const key = parentId ?? '__root__';
+      const children = byParent[key] ?? [];
+      return children.map((s) => ({
+        ...s,
+        attributes: s.attributes ? JSON.parse(s.attributes) : undefined,
+        events: s.events ? JSON.parse(s.events) : undefined,
+        children: buildTree(s.spanId),
+      }));
+    }
+
+    res.json({
+      traceId: spans[0]?.traceId,
+      spans: buildTree(null),
+    });
+  }));
+
   return r;
 }

@@ -216,5 +216,22 @@ describe('harness agent loop', () => {
     const agentRun = (await agentRunRes.json()) as { resultStatus: string; branch: string };
     expect(agentRun.resultStatus).toBe('done');
     expect(agentRun.branch).toContain(task.id);
+
+    const traceFlowRes = await fetch(`${API}/tasks/${task.id}/trace-flow`);
+    expect(traceFlowRes.status).toBe(200);
+    const traceFlow = (await traceFlowRes.json()) as {
+      traceId: string;
+      spans: { name: string; status: string; children: unknown[] }[];
+    };
+    expect(traceFlow.traceId).toBeTruthy();
+    function collectNames(spans: typeof traceFlow.spans): string[] {
+      return spans.flatMap((s) => [s.name, ...collectNames(s.children as typeof traceFlow.spans)]);
+    }
+    const spanNames = collectNames(traceFlow.spans);
+    expect(spanNames).toContain('agent.task');
+    expect(spanNames).toContain('agent.plan');
+    expect(spanNames).toContain('provider.send');
+    expect(spanNames).toContain('agent.tool.write_file');
+    expect(traceFlow.spans.some((s) => s.status === 'ok')).toBe(true);
   }, 120000);
 });

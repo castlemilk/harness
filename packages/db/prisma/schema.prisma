@@ -39,6 +39,7 @@ model Task {
   traces      TaskTrace[]
   diffs       TaskDiff[]
   agentRuns   AgentRun[]
+  traceSpans  TraceSpan[]
 }
 
 model TaskStep {
@@ -94,6 +95,24 @@ model AgentRun {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  @@index([taskId])
+}
+
+model TraceSpan {
+  id        String   @id @default(uuid())
+  traceId   String
+  spanId    String
+  parentId  String?
+  taskId    String?
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  name      String
+  startTime DateTime @default(now())
+  endTime   DateTime?
+  status    String   @default("ok") // ok | error
+  attributes String? // JSON
+  events    String? // JSON
+
+  @@index([traceId])
   @@index([taskId])
 }
 

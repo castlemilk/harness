@@ -15,6 +15,7 @@ import {
 } from './prompts.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
 import { logger } from './logger.js';
+import { Tracer, type Span } from './tracer.js';
 import {
   getCurrentBranch,
   getCurrentCommit,
@@ -48,6 +49,8 @@ interface AgentContext {
   autoPublish: boolean;
   maxSteps: number;
   modifiedFiles: Set<string>;
+  tracer: Tracer;
+  rootSpan: Span;
 }
 
 function toCoreTask(row: {
@@ -143,6 +146,15 @@ export async function runAgentTask(
     },
   });
 
+  const tracer = new Tracer(prisma, taskId, taskId);
+  const rootSpan = tracer.startSpan('agent.task');
+  rootSpan.setAttributes({
+    project: options.projectName,
+    provider: provider.config.name,
+    model: selection.model,
+    autoPublish: options.autoPublish ?? false,
+  });
+
   const ctx: AgentContext = {
     prisma,
     task: toCoreTask(task),
@@ -156,11 +168,15 @@ export async function runAgentTask(
     autoPublish: options.autoPublish ?? false,
     maxSteps: options.maxSteps ?? 30,
     modifiedFiles: new Set<string>(),
+    tracer,
+    rootSpan,
   };
 
   logger.info('Agent task started', {
     taskId: ctx.task.id,
     agentRunId: ctx.agentRunId,
+    traceId: tracer.traceId,
+    spanId: rootSpan.spanId,
     provider: ctx.provider.config.name,
     model: ctx.model,
     project: ctx.projectName,
@@ -168,15 +184,25 @@ export async function runAgentTask(
 
   try {
     const result = await executeAgentLoop(ctx);
+    rootSpan.addEvent('task.finished', { status: result.task.status });
+    await rootSpan.end(result.task.status === 'done' ? 'ok' : 'error');
     logger.info('Agent task finished', {
       taskId: ctx.task.id,
       agentRunId: ctx.agentRunId,
+      traceId: tracer.traceId,
       status: result.task.status,
     });
     return result;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    logger.error('Agent task failed', { taskId, agentRunId: agentRun.id, error: message });
+    rootSpan.recordError(err);
+    await rootSpan.end('error');
+    logger.error('Agent task failed', {
+      taskId,
+      agentRunId: agentRun.id,
+      traceId: tracer.traceId,
+      error: message,
+    });
     await failTask(prisma, taskId, message);
     await prisma.agentRun.update({
       where: { id: agentRun.id },
@@ -196,7 +222,11 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   await addTrace(ctx, 'system', AGENT_SYSTEM_PROMPT);
   await addTrace(ctx, 'user', buildTaskPrompt(ctx.task.title, ctx.task.description ?? undefined));
 
+  const planSpan = ctx.tracer.startSpan('agent.plan', ctx.rootSpan.toContext());
   const plan = await createPlan(ctx.provider, ctx.task.title, ctx.task.description ?? undefined);
+  planSpan.setAttributes({ planSteps: plan.plan.length });
+  planSpan.addEvent('plan.created');
+  await planSpan.end('ok');
   await addTrace(ctx, 'assistant', `Plan: ${JSON.stringify(plan)}`);
 
   // Record plan as steps
@@ -205,9 +235,9 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       data: {
         taskId: ctx.task.id,
         idx: i,
-        name: plan.plan[i]?.name ?? `step-${i.toString()}`, 
+        name: plan.plan[i].name,
         status: 'pending',
-        input: plan.plan[i]?.tool ? JSON.stringify(plan.plan[i]?.input ?? {}) : undefined,
+        input: plan.plan[i].tool ? JSON.stringify(plan.plan[i].input) : undefined,
       },
     });
   }
@@ -261,21 +291,27 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
             data: { status: success ? 'done' : 'failed', output: summary },
           });
         }
+        ctx.rootSpan.addEvent('agent.finish', { success, summary });
         toolResults.push({ toolCallId: call.id, output: summary });
         break;
       }
 
       if (call.name === 'publish') {
+        const publishSpan = ctx.tracer.startSpan('agent.validate', ctx.rootSpan.toContext());
         const validation = await validateProject(ctx.projectPath);
         await ctx.prisma.agentRun.update({
           where: { id: ctx.agentRunId },
           data: { validationSummary: JSON.stringify(validation) },
         });
+        publishSpan.setAttributes({ allPassed: validation.allPassed });
 
         let publishResult: PublishResult | undefined;
         if (ctx.autoPublish && validation.allPassed) {
+          publishSpan.addEvent('agent.publish.start');
           publishResult = await publishOmega(ctx.projectPath, call.arguments.version as string | undefined);
+          publishSpan.setAttributes({ publishedVersion: publishResult.version ?? 'none' });
         }
+        await publishSpan.end(validation.allPassed ? 'ok' : 'error');
 
         toolResults.push({
           toolCallId: call.id,
@@ -302,13 +338,19 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
         ctx.modifiedFiles.add(call.arguments.path);
       }
 
+      const toolSpan = ctx.tracer.startSpan(`agent.tool.${call.name}`, ctx.rootSpan.toContext());
+      toolSpan.setAttributes({ tool: call.name });
       const result = await executeTool(ctx.projectPath, call.name, call.arguments);
+      toolSpan.setAttributes({ success: result.success });
       logger.info(`Tool ${call.name} executed`, {
         taskId: ctx.task.id,
         agentRunId: ctx.agentRunId,
+        traceId: ctx.tracer.traceId,
+        spanId: toolSpan.spanId,
         tool: call.name,
         success: result.success,
       });
+      await toolSpan.end(result.success ? 'ok' : 'error');
       if (stepId) {
         await ctx.prisma.taskStep.update({
           where: { id: stepId },
@@ -369,24 +411,38 @@ async function sendToProvider(
   ctx: AgentContext,
   prompt: string
 ): Promise<{ content?: string; toolCalls?: string }> {
+  const span = ctx.tracer.startSpan('provider.send', ctx.rootSpan.toContext());
+  span.setAttributes({ provider: ctx.provider.config.name, model: ctx.model });
   const provider = ctx.provider as Provider & { sendWithTools?: (prompt: string, tools: ToolDefinition[], opts?: SendOptions) => Promise<string> };
 
-  // Prefer native tool calls when the provider supports them (including Kimi).
-  if (typeof provider.sendWithTools === 'function') {
-    const raw = await provider.sendWithTools(prompt, AGENT_TOOLS, {
-      system: AGENT_SYSTEM_PROMPT,
-      model: ctx.model,
-      temperature: 0.3,
-    });
-    return parseProviderResponse(raw);
-  }
+  try {
+    // Prefer native tool calls when the provider supports them (including Kimi).
+    if (typeof provider.sendWithTools === 'function') {
+      const raw = await provider.sendWithTools(prompt, AGENT_TOOLS, {
+        system: AGENT_SYSTEM_PROMPT,
+        model: ctx.model,
+        temperature: 0.3,
+      });
+      span.addEvent('provider.response.received');
+      const parsed = parseProviderResponse(raw);
+      await span.end('ok');
+      return parsed;
+    }
 
-  // Fallback to text-mode JSON tool calls for providers without native tool support.
-  const raw = await provider.send(prompt, {
-    system: TEXT_TOOLS_SYSTEM_PROMPT,
-    model: ctx.model,
-  });
-  return parseProviderResponse(raw);
+    // Fallback to text-mode JSON tool calls for providers without native tool support.
+    const raw = await provider.send(prompt, {
+      system: TEXT_TOOLS_SYSTEM_PROMPT,
+      model: ctx.model,
+    });
+    span.addEvent('provider.response.received');
+    const parsed = parseProviderResponse(raw);
+    await span.end('ok');
+    return parsed;
+  } catch (err) {
+    span.recordError(err);
+    await span.end('error');
+    throw err;
+  }
 }
 
 function parseProviderResponse(raw: string): { content?: string; toolCalls?: string } {

@@ -44,6 +44,11 @@ export type TaskDiff = $Result.DefaultSelection<Prisma.$TaskDiffPayload>
  */
 export type AgentRun = $Result.DefaultSelection<Prisma.$AgentRunPayload>
 /**
+ * Model TraceSpan
+ * 
+ */
+export type TraceSpan = $Result.DefaultSelection<Prisma.$TraceSpanPayload>
+/**
  * Model ProviderConfig
  * 
  */
@@ -236,6 +241,16 @@ export class PrismaClient<
     * ```
     */
   get agentRun(): Prisma.AgentRunDelegate<ExtArgs>;
+
+  /**
+   * `prisma.traceSpan`: Exposes CRUD operations for the **TraceSpan** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more TraceSpans
+    * const traceSpans = await prisma.traceSpan.findMany()
+    * ```
+    */
+  get traceSpan(): Prisma.TraceSpanDelegate<ExtArgs>;
 
   /**
    * `prisma.providerConfig`: Exposes CRUD operations for the **ProviderConfig** model.
@@ -703,6 +718,7 @@ export namespace Prisma {
     TaskTrace: 'TaskTrace',
     TaskDiff: 'TaskDiff',
     AgentRun: 'AgentRun',
+    TraceSpan: 'TraceSpan',
     ProviderConfig: 'ProviderConfig',
     SkillArtifact: 'SkillArtifact'
   };
@@ -720,7 +736,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "providerConfig" | "skillArtifact"
+      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "skillArtifact"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1144,6 +1160,76 @@ export namespace Prisma {
           }
         }
       }
+      TraceSpan: {
+        payload: Prisma.$TraceSpanPayload<ExtArgs>
+        fields: Prisma.TraceSpanFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.TraceSpanFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TraceSpanPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.TraceSpanFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TraceSpanPayload>
+          }
+          findFirst: {
+            args: Prisma.TraceSpanFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TraceSpanPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.TraceSpanFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TraceSpanPayload>
+          }
+          findMany: {
+            args: Prisma.TraceSpanFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TraceSpanPayload>[]
+          }
+          create: {
+            args: Prisma.TraceSpanCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TraceSpanPayload>
+          }
+          createMany: {
+            args: Prisma.TraceSpanCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.TraceSpanCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TraceSpanPayload>[]
+          }
+          delete: {
+            args: Prisma.TraceSpanDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TraceSpanPayload>
+          }
+          update: {
+            args: Prisma.TraceSpanUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TraceSpanPayload>
+          }
+          deleteMany: {
+            args: Prisma.TraceSpanDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.TraceSpanUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.TraceSpanUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$TraceSpanPayload>
+          }
+          aggregate: {
+            args: Prisma.TraceSpanAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateTraceSpan>
+          }
+          groupBy: {
+            args: Prisma.TraceSpanGroupByArgs<ExtArgs>
+            result: $Utils.Optional<TraceSpanGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.TraceSpanCountArgs<ExtArgs>
+            result: $Utils.Optional<TraceSpanCountAggregateOutputType> | number
+          }
+        }
+      }
       ProviderConfig: {
         payload: Prisma.$ProviderConfigPayload<ExtArgs>
         fields: Prisma.ProviderConfigFieldRefs
@@ -1484,6 +1570,7 @@ export namespace Prisma {
     traces: number
     diffs: number
     agentRuns: number
+    traceSpans: number
   }
 
   export type TaskCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -1491,6 +1578,7 @@ export namespace Prisma {
     traces?: boolean | TaskCountOutputTypeCountTracesArgs
     diffs?: boolean | TaskCountOutputTypeCountDiffsArgs
     agentRuns?: boolean | TaskCountOutputTypeCountAgentRunsArgs
+    traceSpans?: boolean | TaskCountOutputTypeCountTraceSpansArgs
   }
 
   // Custom InputTypes
@@ -1530,6 +1618,13 @@ export namespace Prisma {
    */
   export type TaskCountOutputTypeCountAgentRunsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: AgentRunWhereInput
+  }
+
+  /**
+   * TaskCountOutputType without action
+   */
+  export type TaskCountOutputTypeCountTraceSpansArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: TraceSpanWhereInput
   }
 
 
@@ -2742,6 +2837,7 @@ export namespace Prisma {
     traces?: boolean | Task$tracesArgs<ExtArgs>
     diffs?: boolean | Task$diffsArgs<ExtArgs>
     agentRuns?: boolean | Task$agentRunsArgs<ExtArgs>
+    traceSpans?: boolean | Task$traceSpansArgs<ExtArgs>
     _count?: boolean | TaskCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["task"]>
 
@@ -2784,6 +2880,7 @@ export namespace Prisma {
     traces?: boolean | Task$tracesArgs<ExtArgs>
     diffs?: boolean | Task$diffsArgs<ExtArgs>
     agentRuns?: boolean | Task$agentRunsArgs<ExtArgs>
+    traceSpans?: boolean | Task$traceSpansArgs<ExtArgs>
     _count?: boolean | TaskCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type TaskIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -2798,6 +2895,7 @@ export namespace Prisma {
       traces: Prisma.$TaskTracePayload<ExtArgs>[]
       diffs: Prisma.$TaskDiffPayload<ExtArgs>[]
       agentRuns: Prisma.$AgentRunPayload<ExtArgs>[]
+      traceSpans: Prisma.$TraceSpanPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -3182,6 +3280,7 @@ export namespace Prisma {
     traces<T extends Task$tracesArgs<ExtArgs> = {}>(args?: Subset<T, Task$tracesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TaskTracePayload<ExtArgs>, T, "findMany"> | Null>
     diffs<T extends Task$diffsArgs<ExtArgs> = {}>(args?: Subset<T, Task$diffsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TaskDiffPayload<ExtArgs>, T, "findMany"> | Null>
     agentRuns<T extends Task$agentRunsArgs<ExtArgs> = {}>(args?: Subset<T, Task$agentRunsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AgentRunPayload<ExtArgs>, T, "findMany"> | Null>
+    traceSpans<T extends Task$traceSpansArgs<ExtArgs> = {}>(args?: Subset<T, Task$traceSpansArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TraceSpanPayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3619,6 +3718,26 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: AgentRunScalarFieldEnum | AgentRunScalarFieldEnum[]
+  }
+
+  /**
+   * Task.traceSpans
+   */
+  export type Task$traceSpansArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TraceSpan
+     */
+    select?: TraceSpanSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TraceSpanInclude<ExtArgs> | null
+    where?: TraceSpanWhereInput
+    orderBy?: TraceSpanOrderByWithRelationInput | TraceSpanOrderByWithRelationInput[]
+    cursor?: TraceSpanWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: TraceSpanScalarFieldEnum | TraceSpanScalarFieldEnum[]
   }
 
   /**
@@ -7547,6 +7666,1026 @@ export namespace Prisma {
 
 
   /**
+   * Model TraceSpan
+   */
+
+  export type AggregateTraceSpan = {
+    _count: TraceSpanCountAggregateOutputType | null
+    _min: TraceSpanMinAggregateOutputType | null
+    _max: TraceSpanMaxAggregateOutputType | null
+  }
+
+  export type TraceSpanMinAggregateOutputType = {
+    id: string | null
+    traceId: string | null
+    spanId: string | null
+    parentId: string | null
+    taskId: string | null
+    name: string | null
+    startTime: Date | null
+    endTime: Date | null
+    status: string | null
+    attributes: string | null
+    events: string | null
+  }
+
+  export type TraceSpanMaxAggregateOutputType = {
+    id: string | null
+    traceId: string | null
+    spanId: string | null
+    parentId: string | null
+    taskId: string | null
+    name: string | null
+    startTime: Date | null
+    endTime: Date | null
+    status: string | null
+    attributes: string | null
+    events: string | null
+  }
+
+  export type TraceSpanCountAggregateOutputType = {
+    id: number
+    traceId: number
+    spanId: number
+    parentId: number
+    taskId: number
+    name: number
+    startTime: number
+    endTime: number
+    status: number
+    attributes: number
+    events: number
+    _all: number
+  }
+
+
+  export type TraceSpanMinAggregateInputType = {
+    id?: true
+    traceId?: true
+    spanId?: true
+    parentId?: true
+    taskId?: true
+    name?: true
+    startTime?: true
+    endTime?: true
+    status?: true
+    attributes?: true
+    events?: true
+  }
+
+  export type TraceSpanMaxAggregateInputType = {
+    id?: true
+    traceId?: true
+    spanId?: true
+    parentId?: true
+    taskId?: true
+    name?: true
+    startTime?: true
+    endTime?: true
+    status?: true
+    attributes?: true
+    events?: true
+  }
+
+  export type TraceSpanCountAggregateInputType = {
+    id?: true
+    traceId?: true
+    spanId?: true
+    parentId?: true
+    taskId?: true
+    name?: true
+    startTime?: true
+    endTime?: true
+    status?: true
+    attributes?: true
+    events?: true
+    _all?: true
+  }
+
+  export type TraceSpanAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which TraceSpan to aggregate.
+     */
+    where?: TraceSpanWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TraceSpans to fetch.
+     */
+    orderBy?: TraceSpanOrderByWithRelationInput | TraceSpanOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: TraceSpanWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TraceSpans from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TraceSpans.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned TraceSpans
+    **/
+    _count?: true | TraceSpanCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: TraceSpanMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: TraceSpanMaxAggregateInputType
+  }
+
+  export type GetTraceSpanAggregateType<T extends TraceSpanAggregateArgs> = {
+        [P in keyof T & keyof AggregateTraceSpan]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateTraceSpan[P]>
+      : GetScalarType<T[P], AggregateTraceSpan[P]>
+  }
+
+
+
+
+  export type TraceSpanGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: TraceSpanWhereInput
+    orderBy?: TraceSpanOrderByWithAggregationInput | TraceSpanOrderByWithAggregationInput[]
+    by: TraceSpanScalarFieldEnum[] | TraceSpanScalarFieldEnum
+    having?: TraceSpanScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: TraceSpanCountAggregateInputType | true
+    _min?: TraceSpanMinAggregateInputType
+    _max?: TraceSpanMaxAggregateInputType
+  }
+
+  export type TraceSpanGroupByOutputType = {
+    id: string
+    traceId: string
+    spanId: string
+    parentId: string | null
+    taskId: string | null
+    name: string
+    startTime: Date
+    endTime: Date | null
+    status: string
+    attributes: string | null
+    events: string | null
+    _count: TraceSpanCountAggregateOutputType | null
+    _min: TraceSpanMinAggregateOutputType | null
+    _max: TraceSpanMaxAggregateOutputType | null
+  }
+
+  type GetTraceSpanGroupByPayload<T extends TraceSpanGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<TraceSpanGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof TraceSpanGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], TraceSpanGroupByOutputType[P]>
+            : GetScalarType<T[P], TraceSpanGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type TraceSpanSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    traceId?: boolean
+    spanId?: boolean
+    parentId?: boolean
+    taskId?: boolean
+    name?: boolean
+    startTime?: boolean
+    endTime?: boolean
+    status?: boolean
+    attributes?: boolean
+    events?: boolean
+    task?: boolean | TraceSpan$taskArgs<ExtArgs>
+  }, ExtArgs["result"]["traceSpan"]>
+
+  export type TraceSpanSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    traceId?: boolean
+    spanId?: boolean
+    parentId?: boolean
+    taskId?: boolean
+    name?: boolean
+    startTime?: boolean
+    endTime?: boolean
+    status?: boolean
+    attributes?: boolean
+    events?: boolean
+    task?: boolean | TraceSpan$taskArgs<ExtArgs>
+  }, ExtArgs["result"]["traceSpan"]>
+
+  export type TraceSpanSelectScalar = {
+    id?: boolean
+    traceId?: boolean
+    spanId?: boolean
+    parentId?: boolean
+    taskId?: boolean
+    name?: boolean
+    startTime?: boolean
+    endTime?: boolean
+    status?: boolean
+    attributes?: boolean
+    events?: boolean
+  }
+
+  export type TraceSpanInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    task?: boolean | TraceSpan$taskArgs<ExtArgs>
+  }
+  export type TraceSpanIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    task?: boolean | TraceSpan$taskArgs<ExtArgs>
+  }
+
+  export type $TraceSpanPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "TraceSpan"
+    objects: {
+      task: Prisma.$TaskPayload<ExtArgs> | null
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      traceId: string
+      spanId: string
+      parentId: string | null
+      taskId: string | null
+      name: string
+      startTime: Date
+      endTime: Date | null
+      status: string
+      attributes: string | null
+      events: string | null
+    }, ExtArgs["result"]["traceSpan"]>
+    composites: {}
+  }
+
+  type TraceSpanGetPayload<S extends boolean | null | undefined | TraceSpanDefaultArgs> = $Result.GetResult<Prisma.$TraceSpanPayload, S>
+
+  type TraceSpanCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<TraceSpanFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: TraceSpanCountAggregateInputType | true
+    }
+
+  export interface TraceSpanDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['TraceSpan'], meta: { name: 'TraceSpan' } }
+    /**
+     * Find zero or one TraceSpan that matches the filter.
+     * @param {TraceSpanFindUniqueArgs} args - Arguments to find a TraceSpan
+     * @example
+     * // Get one TraceSpan
+     * const traceSpan = await prisma.traceSpan.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends TraceSpanFindUniqueArgs>(args: SelectSubset<T, TraceSpanFindUniqueArgs<ExtArgs>>): Prisma__TraceSpanClient<$Result.GetResult<Prisma.$TraceSpanPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one TraceSpan that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {TraceSpanFindUniqueOrThrowArgs} args - Arguments to find a TraceSpan
+     * @example
+     * // Get one TraceSpan
+     * const traceSpan = await prisma.traceSpan.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends TraceSpanFindUniqueOrThrowArgs>(args: SelectSubset<T, TraceSpanFindUniqueOrThrowArgs<ExtArgs>>): Prisma__TraceSpanClient<$Result.GetResult<Prisma.$TraceSpanPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first TraceSpan that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TraceSpanFindFirstArgs} args - Arguments to find a TraceSpan
+     * @example
+     * // Get one TraceSpan
+     * const traceSpan = await prisma.traceSpan.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends TraceSpanFindFirstArgs>(args?: SelectSubset<T, TraceSpanFindFirstArgs<ExtArgs>>): Prisma__TraceSpanClient<$Result.GetResult<Prisma.$TraceSpanPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first TraceSpan that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TraceSpanFindFirstOrThrowArgs} args - Arguments to find a TraceSpan
+     * @example
+     * // Get one TraceSpan
+     * const traceSpan = await prisma.traceSpan.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends TraceSpanFindFirstOrThrowArgs>(args?: SelectSubset<T, TraceSpanFindFirstOrThrowArgs<ExtArgs>>): Prisma__TraceSpanClient<$Result.GetResult<Prisma.$TraceSpanPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more TraceSpans that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TraceSpanFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all TraceSpans
+     * const traceSpans = await prisma.traceSpan.findMany()
+     * 
+     * // Get first 10 TraceSpans
+     * const traceSpans = await prisma.traceSpan.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const traceSpanWithIdOnly = await prisma.traceSpan.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends TraceSpanFindManyArgs>(args?: SelectSubset<T, TraceSpanFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TraceSpanPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a TraceSpan.
+     * @param {TraceSpanCreateArgs} args - Arguments to create a TraceSpan.
+     * @example
+     * // Create one TraceSpan
+     * const TraceSpan = await prisma.traceSpan.create({
+     *   data: {
+     *     // ... data to create a TraceSpan
+     *   }
+     * })
+     * 
+     */
+    create<T extends TraceSpanCreateArgs>(args: SelectSubset<T, TraceSpanCreateArgs<ExtArgs>>): Prisma__TraceSpanClient<$Result.GetResult<Prisma.$TraceSpanPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many TraceSpans.
+     * @param {TraceSpanCreateManyArgs} args - Arguments to create many TraceSpans.
+     * @example
+     * // Create many TraceSpans
+     * const traceSpan = await prisma.traceSpan.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends TraceSpanCreateManyArgs>(args?: SelectSubset<T, TraceSpanCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many TraceSpans and returns the data saved in the database.
+     * @param {TraceSpanCreateManyAndReturnArgs} args - Arguments to create many TraceSpans.
+     * @example
+     * // Create many TraceSpans
+     * const traceSpan = await prisma.traceSpan.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many TraceSpans and only return the `id`
+     * const traceSpanWithIdOnly = await prisma.traceSpan.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends TraceSpanCreateManyAndReturnArgs>(args?: SelectSubset<T, TraceSpanCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TraceSpanPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a TraceSpan.
+     * @param {TraceSpanDeleteArgs} args - Arguments to delete one TraceSpan.
+     * @example
+     * // Delete one TraceSpan
+     * const TraceSpan = await prisma.traceSpan.delete({
+     *   where: {
+     *     // ... filter to delete one TraceSpan
+     *   }
+     * })
+     * 
+     */
+    delete<T extends TraceSpanDeleteArgs>(args: SelectSubset<T, TraceSpanDeleteArgs<ExtArgs>>): Prisma__TraceSpanClient<$Result.GetResult<Prisma.$TraceSpanPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one TraceSpan.
+     * @param {TraceSpanUpdateArgs} args - Arguments to update one TraceSpan.
+     * @example
+     * // Update one TraceSpan
+     * const traceSpan = await prisma.traceSpan.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends TraceSpanUpdateArgs>(args: SelectSubset<T, TraceSpanUpdateArgs<ExtArgs>>): Prisma__TraceSpanClient<$Result.GetResult<Prisma.$TraceSpanPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more TraceSpans.
+     * @param {TraceSpanDeleteManyArgs} args - Arguments to filter TraceSpans to delete.
+     * @example
+     * // Delete a few TraceSpans
+     * const { count } = await prisma.traceSpan.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends TraceSpanDeleteManyArgs>(args?: SelectSubset<T, TraceSpanDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more TraceSpans.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TraceSpanUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many TraceSpans
+     * const traceSpan = await prisma.traceSpan.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends TraceSpanUpdateManyArgs>(args: SelectSubset<T, TraceSpanUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one TraceSpan.
+     * @param {TraceSpanUpsertArgs} args - Arguments to update or create a TraceSpan.
+     * @example
+     * // Update or create a TraceSpan
+     * const traceSpan = await prisma.traceSpan.upsert({
+     *   create: {
+     *     // ... data to create a TraceSpan
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the TraceSpan we want to update
+     *   }
+     * })
+     */
+    upsert<T extends TraceSpanUpsertArgs>(args: SelectSubset<T, TraceSpanUpsertArgs<ExtArgs>>): Prisma__TraceSpanClient<$Result.GetResult<Prisma.$TraceSpanPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of TraceSpans.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TraceSpanCountArgs} args - Arguments to filter TraceSpans to count.
+     * @example
+     * // Count the number of TraceSpans
+     * const count = await prisma.traceSpan.count({
+     *   where: {
+     *     // ... the filter for the TraceSpans we want to count
+     *   }
+     * })
+    **/
+    count<T extends TraceSpanCountArgs>(
+      args?: Subset<T, TraceSpanCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], TraceSpanCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a TraceSpan.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TraceSpanAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends TraceSpanAggregateArgs>(args: Subset<T, TraceSpanAggregateArgs>): Prisma.PrismaPromise<GetTraceSpanAggregateType<T>>
+
+    /**
+     * Group by TraceSpan.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {TraceSpanGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends TraceSpanGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: TraceSpanGroupByArgs['orderBy'] }
+        : { orderBy?: TraceSpanGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, TraceSpanGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetTraceSpanGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the TraceSpan model
+   */
+  readonly fields: TraceSpanFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for TraceSpan.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__TraceSpanClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    task<T extends TraceSpan$taskArgs<ExtArgs> = {}>(args?: Subset<T, TraceSpan$taskArgs<ExtArgs>>): Prisma__TaskClient<$Result.GetResult<Prisma.$TaskPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the TraceSpan model
+   */ 
+  interface TraceSpanFieldRefs {
+    readonly id: FieldRef<"TraceSpan", 'String'>
+    readonly traceId: FieldRef<"TraceSpan", 'String'>
+    readonly spanId: FieldRef<"TraceSpan", 'String'>
+    readonly parentId: FieldRef<"TraceSpan", 'String'>
+    readonly taskId: FieldRef<"TraceSpan", 'String'>
+    readonly name: FieldRef<"TraceSpan", 'String'>
+    readonly startTime: FieldRef<"TraceSpan", 'DateTime'>
+    readonly endTime: FieldRef<"TraceSpan", 'DateTime'>
+    readonly status: FieldRef<"TraceSpan", 'String'>
+    readonly attributes: FieldRef<"TraceSpan", 'String'>
+    readonly events: FieldRef<"TraceSpan", 'String'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * TraceSpan findUnique
+   */
+  export type TraceSpanFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TraceSpan
+     */
+    select?: TraceSpanSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TraceSpanInclude<ExtArgs> | null
+    /**
+     * Filter, which TraceSpan to fetch.
+     */
+    where: TraceSpanWhereUniqueInput
+  }
+
+  /**
+   * TraceSpan findUniqueOrThrow
+   */
+  export type TraceSpanFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TraceSpan
+     */
+    select?: TraceSpanSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TraceSpanInclude<ExtArgs> | null
+    /**
+     * Filter, which TraceSpan to fetch.
+     */
+    where: TraceSpanWhereUniqueInput
+  }
+
+  /**
+   * TraceSpan findFirst
+   */
+  export type TraceSpanFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TraceSpan
+     */
+    select?: TraceSpanSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TraceSpanInclude<ExtArgs> | null
+    /**
+     * Filter, which TraceSpan to fetch.
+     */
+    where?: TraceSpanWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TraceSpans to fetch.
+     */
+    orderBy?: TraceSpanOrderByWithRelationInput | TraceSpanOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for TraceSpans.
+     */
+    cursor?: TraceSpanWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TraceSpans from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TraceSpans.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of TraceSpans.
+     */
+    distinct?: TraceSpanScalarFieldEnum | TraceSpanScalarFieldEnum[]
+  }
+
+  /**
+   * TraceSpan findFirstOrThrow
+   */
+  export type TraceSpanFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TraceSpan
+     */
+    select?: TraceSpanSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TraceSpanInclude<ExtArgs> | null
+    /**
+     * Filter, which TraceSpan to fetch.
+     */
+    where?: TraceSpanWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TraceSpans to fetch.
+     */
+    orderBy?: TraceSpanOrderByWithRelationInput | TraceSpanOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for TraceSpans.
+     */
+    cursor?: TraceSpanWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TraceSpans from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TraceSpans.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of TraceSpans.
+     */
+    distinct?: TraceSpanScalarFieldEnum | TraceSpanScalarFieldEnum[]
+  }
+
+  /**
+   * TraceSpan findMany
+   */
+  export type TraceSpanFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TraceSpan
+     */
+    select?: TraceSpanSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TraceSpanInclude<ExtArgs> | null
+    /**
+     * Filter, which TraceSpans to fetch.
+     */
+    where?: TraceSpanWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of TraceSpans to fetch.
+     */
+    orderBy?: TraceSpanOrderByWithRelationInput | TraceSpanOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing TraceSpans.
+     */
+    cursor?: TraceSpanWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` TraceSpans from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` TraceSpans.
+     */
+    skip?: number
+    distinct?: TraceSpanScalarFieldEnum | TraceSpanScalarFieldEnum[]
+  }
+
+  /**
+   * TraceSpan create
+   */
+  export type TraceSpanCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TraceSpan
+     */
+    select?: TraceSpanSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TraceSpanInclude<ExtArgs> | null
+    /**
+     * The data needed to create a TraceSpan.
+     */
+    data: XOR<TraceSpanCreateInput, TraceSpanUncheckedCreateInput>
+  }
+
+  /**
+   * TraceSpan createMany
+   */
+  export type TraceSpanCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many TraceSpans.
+     */
+    data: TraceSpanCreateManyInput | TraceSpanCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * TraceSpan createManyAndReturn
+   */
+  export type TraceSpanCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TraceSpan
+     */
+    select?: TraceSpanSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many TraceSpans.
+     */
+    data: TraceSpanCreateManyInput | TraceSpanCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TraceSpanIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * TraceSpan update
+   */
+  export type TraceSpanUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TraceSpan
+     */
+    select?: TraceSpanSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TraceSpanInclude<ExtArgs> | null
+    /**
+     * The data needed to update a TraceSpan.
+     */
+    data: XOR<TraceSpanUpdateInput, TraceSpanUncheckedUpdateInput>
+    /**
+     * Choose, which TraceSpan to update.
+     */
+    where: TraceSpanWhereUniqueInput
+  }
+
+  /**
+   * TraceSpan updateMany
+   */
+  export type TraceSpanUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update TraceSpans.
+     */
+    data: XOR<TraceSpanUpdateManyMutationInput, TraceSpanUncheckedUpdateManyInput>
+    /**
+     * Filter which TraceSpans to update
+     */
+    where?: TraceSpanWhereInput
+  }
+
+  /**
+   * TraceSpan upsert
+   */
+  export type TraceSpanUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TraceSpan
+     */
+    select?: TraceSpanSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TraceSpanInclude<ExtArgs> | null
+    /**
+     * The filter to search for the TraceSpan to update in case it exists.
+     */
+    where: TraceSpanWhereUniqueInput
+    /**
+     * In case the TraceSpan found by the `where` argument doesn't exist, create a new TraceSpan with this data.
+     */
+    create: XOR<TraceSpanCreateInput, TraceSpanUncheckedCreateInput>
+    /**
+     * In case the TraceSpan was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<TraceSpanUpdateInput, TraceSpanUncheckedUpdateInput>
+  }
+
+  /**
+   * TraceSpan delete
+   */
+  export type TraceSpanDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TraceSpan
+     */
+    select?: TraceSpanSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TraceSpanInclude<ExtArgs> | null
+    /**
+     * Filter which TraceSpan to delete.
+     */
+    where: TraceSpanWhereUniqueInput
+  }
+
+  /**
+   * TraceSpan deleteMany
+   */
+  export type TraceSpanDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which TraceSpans to delete
+     */
+    where?: TraceSpanWhereInput
+  }
+
+  /**
+   * TraceSpan.task
+   */
+  export type TraceSpan$taskArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Task
+     */
+    select?: TaskSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TaskInclude<ExtArgs> | null
+    where?: TaskWhereInput
+  }
+
+  /**
+   * TraceSpan without action
+   */
+  export type TraceSpanDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the TraceSpan
+     */
+    select?: TraceSpanSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TraceSpanInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Model ProviderConfig
    */
 
@@ -9464,6 +10603,23 @@ export namespace Prisma {
   export type AgentRunScalarFieldEnum = (typeof AgentRunScalarFieldEnum)[keyof typeof AgentRunScalarFieldEnum]
 
 
+  export const TraceSpanScalarFieldEnum: {
+    id: 'id',
+    traceId: 'traceId',
+    spanId: 'spanId',
+    parentId: 'parentId',
+    taskId: 'taskId',
+    name: 'name',
+    startTime: 'startTime',
+    endTime: 'endTime',
+    status: 'status',
+    attributes: 'attributes',
+    events: 'events'
+  };
+
+  export type TraceSpanScalarFieldEnum = (typeof TraceSpanScalarFieldEnum)[keyof typeof TraceSpanScalarFieldEnum]
+
+
   export const ProviderConfigScalarFieldEnum: {
     id: 'id',
     name: 'name',
@@ -9673,6 +10829,7 @@ export namespace Prisma {
     traces?: TaskTraceListRelationFilter
     diffs?: TaskDiffListRelationFilter
     agentRuns?: AgentRunListRelationFilter
+    traceSpans?: TraceSpanListRelationFilter
   }
 
   export type TaskOrderByWithRelationInput = {
@@ -9694,6 +10851,7 @@ export namespace Prisma {
     traces?: TaskTraceOrderByRelationAggregateInput
     diffs?: TaskDiffOrderByRelationAggregateInput
     agentRuns?: AgentRunOrderByRelationAggregateInput
+    traceSpans?: TraceSpanOrderByRelationAggregateInput
   }
 
   export type TaskWhereUniqueInput = Prisma.AtLeast<{
@@ -9718,6 +10876,7 @@ export namespace Prisma {
     traces?: TaskTraceListRelationFilter
     diffs?: TaskDiffListRelationFilter
     agentRuns?: AgentRunListRelationFilter
+    traceSpans?: TraceSpanListRelationFilter
   }, "id">
 
   export type TaskOrderByWithAggregationInput = {
@@ -10040,6 +11199,91 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
   }
 
+  export type TraceSpanWhereInput = {
+    AND?: TraceSpanWhereInput | TraceSpanWhereInput[]
+    OR?: TraceSpanWhereInput[]
+    NOT?: TraceSpanWhereInput | TraceSpanWhereInput[]
+    id?: StringFilter<"TraceSpan"> | string
+    traceId?: StringFilter<"TraceSpan"> | string
+    spanId?: StringFilter<"TraceSpan"> | string
+    parentId?: StringNullableFilter<"TraceSpan"> | string | null
+    taskId?: StringNullableFilter<"TraceSpan"> | string | null
+    name?: StringFilter<"TraceSpan"> | string
+    startTime?: DateTimeFilter<"TraceSpan"> | Date | string
+    endTime?: DateTimeNullableFilter<"TraceSpan"> | Date | string | null
+    status?: StringFilter<"TraceSpan"> | string
+    attributes?: StringNullableFilter<"TraceSpan"> | string | null
+    events?: StringNullableFilter<"TraceSpan"> | string | null
+    task?: XOR<TaskNullableRelationFilter, TaskWhereInput> | null
+  }
+
+  export type TraceSpanOrderByWithRelationInput = {
+    id?: SortOrder
+    traceId?: SortOrder
+    spanId?: SortOrder
+    parentId?: SortOrderInput | SortOrder
+    taskId?: SortOrderInput | SortOrder
+    name?: SortOrder
+    startTime?: SortOrder
+    endTime?: SortOrderInput | SortOrder
+    status?: SortOrder
+    attributes?: SortOrderInput | SortOrder
+    events?: SortOrderInput | SortOrder
+    task?: TaskOrderByWithRelationInput
+  }
+
+  export type TraceSpanWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: TraceSpanWhereInput | TraceSpanWhereInput[]
+    OR?: TraceSpanWhereInput[]
+    NOT?: TraceSpanWhereInput | TraceSpanWhereInput[]
+    traceId?: StringFilter<"TraceSpan"> | string
+    spanId?: StringFilter<"TraceSpan"> | string
+    parentId?: StringNullableFilter<"TraceSpan"> | string | null
+    taskId?: StringNullableFilter<"TraceSpan"> | string | null
+    name?: StringFilter<"TraceSpan"> | string
+    startTime?: DateTimeFilter<"TraceSpan"> | Date | string
+    endTime?: DateTimeNullableFilter<"TraceSpan"> | Date | string | null
+    status?: StringFilter<"TraceSpan"> | string
+    attributes?: StringNullableFilter<"TraceSpan"> | string | null
+    events?: StringNullableFilter<"TraceSpan"> | string | null
+    task?: XOR<TaskNullableRelationFilter, TaskWhereInput> | null
+  }, "id">
+
+  export type TraceSpanOrderByWithAggregationInput = {
+    id?: SortOrder
+    traceId?: SortOrder
+    spanId?: SortOrder
+    parentId?: SortOrderInput | SortOrder
+    taskId?: SortOrderInput | SortOrder
+    name?: SortOrder
+    startTime?: SortOrder
+    endTime?: SortOrderInput | SortOrder
+    status?: SortOrder
+    attributes?: SortOrderInput | SortOrder
+    events?: SortOrderInput | SortOrder
+    _count?: TraceSpanCountOrderByAggregateInput
+    _max?: TraceSpanMaxOrderByAggregateInput
+    _min?: TraceSpanMinOrderByAggregateInput
+  }
+
+  export type TraceSpanScalarWhereWithAggregatesInput = {
+    AND?: TraceSpanScalarWhereWithAggregatesInput | TraceSpanScalarWhereWithAggregatesInput[]
+    OR?: TraceSpanScalarWhereWithAggregatesInput[]
+    NOT?: TraceSpanScalarWhereWithAggregatesInput | TraceSpanScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"TraceSpan"> | string
+    traceId?: StringWithAggregatesFilter<"TraceSpan"> | string
+    spanId?: StringWithAggregatesFilter<"TraceSpan"> | string
+    parentId?: StringNullableWithAggregatesFilter<"TraceSpan"> | string | null
+    taskId?: StringNullableWithAggregatesFilter<"TraceSpan"> | string | null
+    name?: StringWithAggregatesFilter<"TraceSpan"> | string
+    startTime?: DateTimeWithAggregatesFilter<"TraceSpan"> | Date | string
+    endTime?: DateTimeNullableWithAggregatesFilter<"TraceSpan"> | Date | string | null
+    status?: StringWithAggregatesFilter<"TraceSpan"> | string
+    attributes?: StringNullableWithAggregatesFilter<"TraceSpan"> | string | null
+    events?: StringNullableWithAggregatesFilter<"TraceSpan"> | string | null
+  }
+
   export type ProviderConfigWhereInput = {
     AND?: ProviderConfigWhereInput | ProviderConfigWhereInput[]
     OR?: ProviderConfigWhereInput[]
@@ -10261,6 +11505,7 @@ export namespace Prisma {
     traces?: TaskTraceCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateInput = {
@@ -10281,6 +11526,7 @@ export namespace Prisma {
     traces?: TaskTraceUncheckedCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUpdateInput = {
@@ -10301,6 +11547,7 @@ export namespace Prisma {
     traces?: TaskTraceUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateInput = {
@@ -10321,6 +11568,7 @@ export namespace Prisma {
     traces?: TaskTraceUncheckedUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskCreateManyInput = {
@@ -10674,6 +11922,103 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type TraceSpanCreateInput = {
+    id?: string
+    traceId: string
+    spanId: string
+    parentId?: string | null
+    name: string
+    startTime?: Date | string
+    endTime?: Date | string | null
+    status?: string
+    attributes?: string | null
+    events?: string | null
+    task?: TaskCreateNestedOneWithoutTraceSpansInput
+  }
+
+  export type TraceSpanUncheckedCreateInput = {
+    id?: string
+    traceId: string
+    spanId: string
+    parentId?: string | null
+    taskId?: string | null
+    name: string
+    startTime?: Date | string
+    endTime?: Date | string | null
+    status?: string
+    attributes?: string | null
+    events?: string | null
+  }
+
+  export type TraceSpanUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    traceId?: StringFieldUpdateOperationsInput | string
+    spanId?: StringFieldUpdateOperationsInput | string
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    startTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    attributes?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: NullableStringFieldUpdateOperationsInput | string | null
+    task?: TaskUpdateOneWithoutTraceSpansNestedInput
+  }
+
+  export type TraceSpanUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    traceId?: StringFieldUpdateOperationsInput | string
+    spanId?: StringFieldUpdateOperationsInput | string
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    startTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    attributes?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TraceSpanCreateManyInput = {
+    id?: string
+    traceId: string
+    spanId: string
+    parentId?: string | null
+    taskId?: string | null
+    name: string
+    startTime?: Date | string
+    endTime?: Date | string | null
+    status?: string
+    attributes?: string | null
+    events?: string | null
+  }
+
+  export type TraceSpanUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    traceId?: StringFieldUpdateOperationsInput | string
+    spanId?: StringFieldUpdateOperationsInput | string
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    startTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    attributes?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TraceSpanUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    traceId?: StringFieldUpdateOperationsInput | string
+    spanId?: StringFieldUpdateOperationsInput | string
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    startTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    attributes?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
   export type ProviderConfigCreateInput = {
     id?: string
     name: string
@@ -10986,6 +12331,12 @@ export namespace Prisma {
     none?: AgentRunWhereInput
   }
 
+  export type TraceSpanListRelationFilter = {
+    every?: TraceSpanWhereInput
+    some?: TraceSpanWhereInput
+    none?: TraceSpanWhereInput
+  }
+
   export type TaskStepOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -10999,6 +12350,10 @@ export namespace Prisma {
   }
 
   export type AgentRunOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type TraceSpanOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -11222,6 +12577,78 @@ export namespace Prisma {
     updatedAt?: SortOrder
   }
 
+  export type DateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
+  export type TaskNullableRelationFilter = {
+    is?: TaskWhereInput | null
+    isNot?: TaskWhereInput | null
+  }
+
+  export type TraceSpanCountOrderByAggregateInput = {
+    id?: SortOrder
+    traceId?: SortOrder
+    spanId?: SortOrder
+    parentId?: SortOrder
+    taskId?: SortOrder
+    name?: SortOrder
+    startTime?: SortOrder
+    endTime?: SortOrder
+    status?: SortOrder
+    attributes?: SortOrder
+    events?: SortOrder
+  }
+
+  export type TraceSpanMaxOrderByAggregateInput = {
+    id?: SortOrder
+    traceId?: SortOrder
+    spanId?: SortOrder
+    parentId?: SortOrder
+    taskId?: SortOrder
+    name?: SortOrder
+    startTime?: SortOrder
+    endTime?: SortOrder
+    status?: SortOrder
+    attributes?: SortOrder
+    events?: SortOrder
+  }
+
+  export type TraceSpanMinOrderByAggregateInput = {
+    id?: SortOrder
+    traceId?: SortOrder
+    spanId?: SortOrder
+    parentId?: SortOrder
+    taskId?: SortOrder
+    name?: SortOrder
+    startTime?: SortOrder
+    endTime?: SortOrder
+    status?: SortOrder
+    attributes?: SortOrder
+    events?: SortOrder
+  }
+
+  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  }
+
   export type BoolFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolFilter<$PrismaModel> | boolean
@@ -11386,6 +12813,13 @@ export namespace Prisma {
     connect?: AgentRunWhereUniqueInput | AgentRunWhereUniqueInput[]
   }
 
+  export type TraceSpanCreateNestedManyWithoutTaskInput = {
+    create?: XOR<TraceSpanCreateWithoutTaskInput, TraceSpanUncheckedCreateWithoutTaskInput> | TraceSpanCreateWithoutTaskInput[] | TraceSpanUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: TraceSpanCreateOrConnectWithoutTaskInput | TraceSpanCreateOrConnectWithoutTaskInput[]
+    createMany?: TraceSpanCreateManyTaskInputEnvelope
+    connect?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
+  }
+
   export type TaskStepUncheckedCreateNestedManyWithoutTaskInput = {
     create?: XOR<TaskStepCreateWithoutTaskInput, TaskStepUncheckedCreateWithoutTaskInput> | TaskStepCreateWithoutTaskInput[] | TaskStepUncheckedCreateWithoutTaskInput[]
     connectOrCreate?: TaskStepCreateOrConnectWithoutTaskInput | TaskStepCreateOrConnectWithoutTaskInput[]
@@ -11412,6 +12846,13 @@ export namespace Prisma {
     connectOrCreate?: AgentRunCreateOrConnectWithoutTaskInput | AgentRunCreateOrConnectWithoutTaskInput[]
     createMany?: AgentRunCreateManyTaskInputEnvelope
     connect?: AgentRunWhereUniqueInput | AgentRunWhereUniqueInput[]
+  }
+
+  export type TraceSpanUncheckedCreateNestedManyWithoutTaskInput = {
+    create?: XOR<TraceSpanCreateWithoutTaskInput, TraceSpanUncheckedCreateWithoutTaskInput> | TraceSpanCreateWithoutTaskInput[] | TraceSpanUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: TraceSpanCreateOrConnectWithoutTaskInput | TraceSpanCreateOrConnectWithoutTaskInput[]
+    createMany?: TraceSpanCreateManyTaskInputEnvelope
+    connect?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
   }
 
   export type ProjectUpdateOneRequiredWithoutTasksNestedInput = {
@@ -11478,6 +12919,20 @@ export namespace Prisma {
     deleteMany?: AgentRunScalarWhereInput | AgentRunScalarWhereInput[]
   }
 
+  export type TraceSpanUpdateManyWithoutTaskNestedInput = {
+    create?: XOR<TraceSpanCreateWithoutTaskInput, TraceSpanUncheckedCreateWithoutTaskInput> | TraceSpanCreateWithoutTaskInput[] | TraceSpanUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: TraceSpanCreateOrConnectWithoutTaskInput | TraceSpanCreateOrConnectWithoutTaskInput[]
+    upsert?: TraceSpanUpsertWithWhereUniqueWithoutTaskInput | TraceSpanUpsertWithWhereUniqueWithoutTaskInput[]
+    createMany?: TraceSpanCreateManyTaskInputEnvelope
+    set?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
+    disconnect?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
+    delete?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
+    connect?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
+    update?: TraceSpanUpdateWithWhereUniqueWithoutTaskInput | TraceSpanUpdateWithWhereUniqueWithoutTaskInput[]
+    updateMany?: TraceSpanUpdateManyWithWhereWithoutTaskInput | TraceSpanUpdateManyWithWhereWithoutTaskInput[]
+    deleteMany?: TraceSpanScalarWhereInput | TraceSpanScalarWhereInput[]
+  }
+
   export type TaskStepUncheckedUpdateManyWithoutTaskNestedInput = {
     create?: XOR<TaskStepCreateWithoutTaskInput, TaskStepUncheckedCreateWithoutTaskInput> | TaskStepCreateWithoutTaskInput[] | TaskStepUncheckedCreateWithoutTaskInput[]
     connectOrCreate?: TaskStepCreateOrConnectWithoutTaskInput | TaskStepCreateOrConnectWithoutTaskInput[]
@@ -11532,6 +12987,20 @@ export namespace Prisma {
     update?: AgentRunUpdateWithWhereUniqueWithoutTaskInput | AgentRunUpdateWithWhereUniqueWithoutTaskInput[]
     updateMany?: AgentRunUpdateManyWithWhereWithoutTaskInput | AgentRunUpdateManyWithWhereWithoutTaskInput[]
     deleteMany?: AgentRunScalarWhereInput | AgentRunScalarWhereInput[]
+  }
+
+  export type TraceSpanUncheckedUpdateManyWithoutTaskNestedInput = {
+    create?: XOR<TraceSpanCreateWithoutTaskInput, TraceSpanUncheckedCreateWithoutTaskInput> | TraceSpanCreateWithoutTaskInput[] | TraceSpanUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: TraceSpanCreateOrConnectWithoutTaskInput | TraceSpanCreateOrConnectWithoutTaskInput[]
+    upsert?: TraceSpanUpsertWithWhereUniqueWithoutTaskInput | TraceSpanUpsertWithWhereUniqueWithoutTaskInput[]
+    createMany?: TraceSpanCreateManyTaskInputEnvelope
+    set?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
+    disconnect?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
+    delete?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
+    connect?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
+    update?: TraceSpanUpdateWithWhereUniqueWithoutTaskInput | TraceSpanUpdateWithWhereUniqueWithoutTaskInput[]
+    updateMany?: TraceSpanUpdateManyWithWhereWithoutTaskInput | TraceSpanUpdateManyWithWhereWithoutTaskInput[]
+    deleteMany?: TraceSpanScalarWhereInput | TraceSpanScalarWhereInput[]
   }
 
   export type TaskCreateNestedOneWithoutStepsInput = {
@@ -11596,6 +13065,26 @@ export namespace Prisma {
     upsert?: TaskUpsertWithoutAgentRunsInput
     connect?: TaskWhereUniqueInput
     update?: XOR<XOR<TaskUpdateToOneWithWhereWithoutAgentRunsInput, TaskUpdateWithoutAgentRunsInput>, TaskUncheckedUpdateWithoutAgentRunsInput>
+  }
+
+  export type TaskCreateNestedOneWithoutTraceSpansInput = {
+    create?: XOR<TaskCreateWithoutTraceSpansInput, TaskUncheckedCreateWithoutTraceSpansInput>
+    connectOrCreate?: TaskCreateOrConnectWithoutTraceSpansInput
+    connect?: TaskWhereUniqueInput
+  }
+
+  export type NullableDateTimeFieldUpdateOperationsInput = {
+    set?: Date | string | null
+  }
+
+  export type TaskUpdateOneWithoutTraceSpansNestedInput = {
+    create?: XOR<TaskCreateWithoutTraceSpansInput, TaskUncheckedCreateWithoutTraceSpansInput>
+    connectOrCreate?: TaskCreateOrConnectWithoutTraceSpansInput
+    upsert?: TaskUpsertWithoutTraceSpansInput
+    disconnect?: TaskWhereInput | boolean
+    delete?: TaskWhereInput | boolean
+    connect?: TaskWhereUniqueInput
+    update?: XOR<XOR<TaskUpdateToOneWithWhereWithoutTraceSpansInput, TaskUpdateWithoutTraceSpansInput>, TaskUncheckedUpdateWithoutTraceSpansInput>
   }
 
   export type BoolFieldUpdateOperationsInput = {
@@ -11738,6 +13227,31 @@ export namespace Prisma {
     not?: NestedFloatFilter<$PrismaModel> | number
   }
 
+  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
+  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  }
+
   export type NestedBoolFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolFilter<$PrismaModel> | boolean
@@ -11768,6 +13282,7 @@ export namespace Prisma {
     traces?: TaskTraceCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateWithoutProjectInput = {
@@ -11787,6 +13302,7 @@ export namespace Prisma {
     traces?: TaskTraceUncheckedCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskCreateOrConnectWithoutProjectInput = {
@@ -11979,6 +13495,42 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type TraceSpanCreateWithoutTaskInput = {
+    id?: string
+    traceId: string
+    spanId: string
+    parentId?: string | null
+    name: string
+    startTime?: Date | string
+    endTime?: Date | string | null
+    status?: string
+    attributes?: string | null
+    events?: string | null
+  }
+
+  export type TraceSpanUncheckedCreateWithoutTaskInput = {
+    id?: string
+    traceId: string
+    spanId: string
+    parentId?: string | null
+    name: string
+    startTime?: Date | string
+    endTime?: Date | string | null
+    status?: string
+    attributes?: string | null
+    events?: string | null
+  }
+
+  export type TraceSpanCreateOrConnectWithoutTaskInput = {
+    where: TraceSpanWhereUniqueInput
+    create: XOR<TraceSpanCreateWithoutTaskInput, TraceSpanUncheckedCreateWithoutTaskInput>
+  }
+
+  export type TraceSpanCreateManyTaskInputEnvelope = {
+    data: TraceSpanCreateManyTaskInput | TraceSpanCreateManyTaskInput[]
+    skipDuplicates?: boolean
+  }
+
   export type ProjectUpsertWithoutTasksInput = {
     update: XOR<ProjectUpdateWithoutTasksInput, ProjectUncheckedUpdateWithoutTasksInput>
     create: XOR<ProjectCreateWithoutTasksInput, ProjectUncheckedCreateWithoutTasksInput>
@@ -12130,6 +13682,39 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
   }
 
+  export type TraceSpanUpsertWithWhereUniqueWithoutTaskInput = {
+    where: TraceSpanWhereUniqueInput
+    update: XOR<TraceSpanUpdateWithoutTaskInput, TraceSpanUncheckedUpdateWithoutTaskInput>
+    create: XOR<TraceSpanCreateWithoutTaskInput, TraceSpanUncheckedCreateWithoutTaskInput>
+  }
+
+  export type TraceSpanUpdateWithWhereUniqueWithoutTaskInput = {
+    where: TraceSpanWhereUniqueInput
+    data: XOR<TraceSpanUpdateWithoutTaskInput, TraceSpanUncheckedUpdateWithoutTaskInput>
+  }
+
+  export type TraceSpanUpdateManyWithWhereWithoutTaskInput = {
+    where: TraceSpanScalarWhereInput
+    data: XOR<TraceSpanUpdateManyMutationInput, TraceSpanUncheckedUpdateManyWithoutTaskInput>
+  }
+
+  export type TraceSpanScalarWhereInput = {
+    AND?: TraceSpanScalarWhereInput | TraceSpanScalarWhereInput[]
+    OR?: TraceSpanScalarWhereInput[]
+    NOT?: TraceSpanScalarWhereInput | TraceSpanScalarWhereInput[]
+    id?: StringFilter<"TraceSpan"> | string
+    traceId?: StringFilter<"TraceSpan"> | string
+    spanId?: StringFilter<"TraceSpan"> | string
+    parentId?: StringNullableFilter<"TraceSpan"> | string | null
+    taskId?: StringNullableFilter<"TraceSpan"> | string | null
+    name?: StringFilter<"TraceSpan"> | string
+    startTime?: DateTimeFilter<"TraceSpan"> | Date | string
+    endTime?: DateTimeNullableFilter<"TraceSpan"> | Date | string | null
+    status?: StringFilter<"TraceSpan"> | string
+    attributes?: StringNullableFilter<"TraceSpan"> | string | null
+    events?: StringNullableFilter<"TraceSpan"> | string | null
+  }
+
   export type TaskCreateWithoutStepsInput = {
     id?: string
     title: string
@@ -12147,6 +13732,7 @@ export namespace Prisma {
     traces?: TaskTraceCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateWithoutStepsInput = {
@@ -12166,6 +13752,7 @@ export namespace Prisma {
     traces?: TaskTraceUncheckedCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskCreateOrConnectWithoutStepsInput = {
@@ -12201,6 +13788,7 @@ export namespace Prisma {
     traces?: TaskTraceUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateWithoutStepsInput = {
@@ -12220,6 +13808,7 @@ export namespace Prisma {
     traces?: TaskTraceUncheckedUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskCreateWithoutTracesInput = {
@@ -12239,6 +13828,7 @@ export namespace Prisma {
     steps?: TaskStepCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateWithoutTracesInput = {
@@ -12258,6 +13848,7 @@ export namespace Prisma {
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskCreateOrConnectWithoutTracesInput = {
@@ -12293,6 +13884,7 @@ export namespace Prisma {
     steps?: TaskStepUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateWithoutTracesInput = {
@@ -12312,6 +13904,7 @@ export namespace Prisma {
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskCreateWithoutDiffsInput = {
@@ -12331,6 +13924,7 @@ export namespace Prisma {
     steps?: TaskStepCreateNestedManyWithoutTaskInput
     traces?: TaskTraceCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateWithoutDiffsInput = {
@@ -12350,6 +13944,7 @@ export namespace Prisma {
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
     traces?: TaskTraceUncheckedCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskCreateOrConnectWithoutDiffsInput = {
@@ -12385,6 +13980,7 @@ export namespace Prisma {
     steps?: TaskStepUpdateManyWithoutTaskNestedInput
     traces?: TaskTraceUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateWithoutDiffsInput = {
@@ -12404,6 +14000,7 @@ export namespace Prisma {
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
     traces?: TaskTraceUncheckedUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskCreateWithoutAgentRunsInput = {
@@ -12423,6 +14020,7 @@ export namespace Prisma {
     steps?: TaskStepCreateNestedManyWithoutTaskInput
     traces?: TaskTraceCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateWithoutAgentRunsInput = {
@@ -12442,6 +14040,7 @@ export namespace Prisma {
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
     traces?: TaskTraceUncheckedCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskCreateOrConnectWithoutAgentRunsInput = {
@@ -12477,6 +14076,7 @@ export namespace Prisma {
     steps?: TaskStepUpdateManyWithoutTaskNestedInput
     traces?: TaskTraceUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateWithoutAgentRunsInput = {
@@ -12496,6 +14096,103 @@ export namespace Prisma {
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
     traces?: TaskTraceUncheckedUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
+  }
+
+  export type TaskCreateWithoutTraceSpansInput = {
+    id?: string
+    title: string
+    description?: string | null
+    status?: string
+    complexity?: string
+    tags?: string | null
+    provider?: string | null
+    model?: string | null
+    result?: string | null
+    error?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    project: ProjectCreateNestedOneWithoutTasksInput
+    steps?: TaskStepCreateNestedManyWithoutTaskInput
+    traces?: TaskTraceCreateNestedManyWithoutTaskInput
+    diffs?: TaskDiffCreateNestedManyWithoutTaskInput
+    agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
+  }
+
+  export type TaskUncheckedCreateWithoutTraceSpansInput = {
+    id?: string
+    projectId: string
+    title: string
+    description?: string | null
+    status?: string
+    complexity?: string
+    tags?: string | null
+    provider?: string | null
+    model?: string | null
+    result?: string | null
+    error?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
+    traces?: TaskTraceUncheckedCreateNestedManyWithoutTaskInput
+    diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
+    agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
+  }
+
+  export type TaskCreateOrConnectWithoutTraceSpansInput = {
+    where: TaskWhereUniqueInput
+    create: XOR<TaskCreateWithoutTraceSpansInput, TaskUncheckedCreateWithoutTraceSpansInput>
+  }
+
+  export type TaskUpsertWithoutTraceSpansInput = {
+    update: XOR<TaskUpdateWithoutTraceSpansInput, TaskUncheckedUpdateWithoutTraceSpansInput>
+    create: XOR<TaskCreateWithoutTraceSpansInput, TaskUncheckedCreateWithoutTraceSpansInput>
+    where?: TaskWhereInput
+  }
+
+  export type TaskUpdateToOneWithWhereWithoutTraceSpansInput = {
+    where?: TaskWhereInput
+    data: XOR<TaskUpdateWithoutTraceSpansInput, TaskUncheckedUpdateWithoutTraceSpansInput>
+  }
+
+  export type TaskUpdateWithoutTraceSpansInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    complexity?: StringFieldUpdateOperationsInput | string
+    tags?: NullableStringFieldUpdateOperationsInput | string | null
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    result?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
+    steps?: TaskStepUpdateManyWithoutTaskNestedInput
+    traces?: TaskTraceUpdateManyWithoutTaskNestedInput
+    diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
+    agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
+  }
+
+  export type TaskUncheckedUpdateWithoutTraceSpansInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    complexity?: StringFieldUpdateOperationsInput | string
+    tags?: NullableStringFieldUpdateOperationsInput | string | null
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    result?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
+    traces?: TaskTraceUncheckedUpdateManyWithoutTaskNestedInput
+    diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
+    agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskCreateManyProjectInput = {
@@ -12530,6 +14227,7 @@ export namespace Prisma {
     traces?: TaskTraceUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateWithoutProjectInput = {
@@ -12549,6 +14247,7 @@ export namespace Prisma {
     traces?: TaskTraceUncheckedUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateManyWithoutProjectInput = {
@@ -12604,6 +14303,19 @@ export namespace Prisma {
     publishedVersion?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+  }
+
+  export type TraceSpanCreateManyTaskInput = {
+    id?: string
+    traceId: string
+    spanId: string
+    parentId?: string | null
+    name: string
+    startTime?: Date | string
+    endTime?: Date | string | null
+    status?: string
+    attributes?: string | null
+    events?: string | null
   }
 
   export type TaskStepUpdateWithoutTaskInput = {
@@ -12726,6 +14438,45 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type TraceSpanUpdateWithoutTaskInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    traceId?: StringFieldUpdateOperationsInput | string
+    spanId?: StringFieldUpdateOperationsInput | string
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    startTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    attributes?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TraceSpanUncheckedUpdateWithoutTaskInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    traceId?: StringFieldUpdateOperationsInput | string
+    spanId?: StringFieldUpdateOperationsInput | string
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    startTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    attributes?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type TraceSpanUncheckedUpdateManyWithoutTaskInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    traceId?: StringFieldUpdateOperationsInput | string
+    spanId?: StringFieldUpdateOperationsInput | string
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    startTime?: DateTimeFieldUpdateOperationsInput | Date | string
+    endTime?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    attributes?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
 
 
   /**
@@ -12763,6 +14514,10 @@ export namespace Prisma {
      * @deprecated Use AgentRunDefaultArgs instead
      */
     export type AgentRunArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = AgentRunDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use TraceSpanDefaultArgs instead
+     */
+    export type TraceSpanArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = TraceSpanDefaultArgs<ExtArgs>
     /**
      * @deprecated Use ProviderConfigDefaultArgs instead
      */

@@ -7,7 +7,7 @@ import http from 'http';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, '../../..');
-const API = 'http://localhost:4001';
+const API = 'http://localhost:4004';
 
 async function waitForApi(maxMs = 30000) {
   const deadline = Date.now() + maxMs;
@@ -80,7 +80,8 @@ describe('harness e2e with Kimi', () => {
     ...process.env,
     DATABASE_URL: 'postgresql://localhost:5432/omega',
     DATABASE_DIR: dbDir,
-    PORT: '4001',
+    PORT: '4004',
+    GRPC_PORT: '50054',
     // Use a blank KIMI_API_KEY so the seeder does not create a real Kimi provider.
     // The e2e suite creates its own mock Kimi provider pointed at a local LLM stub.
     KIMI_API_KEY: '',

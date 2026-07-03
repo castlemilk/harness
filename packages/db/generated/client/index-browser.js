@@ -192,6 +192,20 @@ exports.Prisma.AgentRunScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.TraceSpanScalarFieldEnum = {
+  id: 'id',
+  traceId: 'traceId',
+  spanId: 'spanId',
+  parentId: 'parentId',
+  taskId: 'taskId',
+  name: 'name',
+  startTime: 'startTime',
+  endTime: 'endTime',
+  status: 'status',
+  attributes: 'attributes',
+  events: 'events'
+};
+
 exports.Prisma.ProviderConfigScalarFieldEnum = {
   id: 'id',
   name: 'name',
@@ -236,6 +250,7 @@ exports.Prisma.ModelName = {
   TaskTrace: 'TaskTrace',
   TaskDiff: 'TaskDiff',
   AgentRun: 'AgentRun',
+  TraceSpan: 'TraceSpan',
   ProviderConfig: 'ProviderConfig',
   SkillArtifact: 'SkillArtifact'
 };

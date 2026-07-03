@@ -59,4 +59,5 @@ export const api = {
   getTaskTraces: (id: string) => request(`/tasks/${id}/traces`),
   getTaskDiffs: (id: string) => request(`/tasks/${id}/diffs`),
   getTaskAgentRun: (id: string) => request(`/tasks/${id}/agent-run`),
+  getTraceFlow: (id: string) => request(`/tasks/${id}/trace-flow`),
 };

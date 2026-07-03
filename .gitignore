@@ -8,3 +8,7 @@ db.sqlite
 .DS_Store
 packages/skills/src/generated/
 pglite-data/
+.omega/
+packages/db/generated/
+packages/bundle/*.tgz
+packages/bundle/dist/

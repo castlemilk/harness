@@ -1,4 +1,5 @@
 import type { Provider, ToolDefinition } from '@omega/core';
+import { AGENT_TOOLS } from './tool-definitions.js';
 
 export interface PlanStep {
   name: string;
@@ -23,6 +24,10 @@ const PLANNING_TOOLS: ToolDefinition[] = [
   },
 ];
 
+const toolDescriptions = AGENT_TOOLS.map(
+  (t) => `- ${t.name}: ${t.description}`
+).join('\n');
+
 const PLAN_PROMPT = `You are a planning assistant. Given a task, produce a concise step-by-step plan.
 
 Respond with strict JSON in this exact shape (no markdown):
@@ -33,8 +38,10 @@ Respond with strict JSON in this exact shape (no markdown):
   ]
 }
 
-Available tool names: read_file, write_file, run_command, think, finish, publish.
-If a step does not need a tool, omit tool/input.`;
+Available tools:
+${toolDescriptions}
+
+If a step does not need a tool, omit tool/input. Use edit_file for small file changes.`;
 
 export async function createPlan(provider: Provider, taskTitle: string, taskDescription?: string): Promise<PlannerResult> {
   const prompt = `${PLAN_PROMPT}\n\nTask: ${taskTitle}\n${taskDescription ? `Description: ${taskDescription}\n` : ''}`;

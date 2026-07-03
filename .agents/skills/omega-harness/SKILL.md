@@ -15,7 +15,7 @@ Omega is a multi-project task harness. It can:
 ## Install / run
 
 ```bash
-# Run the published package from anywhere (current release: 0.6.6)
+# Run the published package from anywhere (current release: 0.6.8)
 npx @castlemilk/omega ui
 
 # Or run from source
@@ -121,7 +121,7 @@ Tasks tagged with `self-improve` are routed to `packages/agent/src/executor.ts`,
 
 1. Selects a provider using `packages/router`.
 2. Creates a plan.
-3. Uses tools (`read_file`, `write_file`, `run_command`, `think`, `finish`, optionally `publish`).
+3. Uses tools (`read_file`, `write_file`, `edit_file`, `run_command`, `think`, `finish`, optionally `publish`).
 4. Records every turn in `taskTrace`.
 5. Captures the diff in `taskDiff`.
 6. Commits to `agent/<task-id>`.

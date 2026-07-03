@@ -13,6 +13,7 @@ import {
   FORCE_ACTION_PROMPT,
   TEXT_TOOLS_SYSTEM_PROMPT,
 } from './prompts.js';
+import { AGENT_TOOLS } from './tool-definitions.js';
 import {
   getCurrentBranch,
   getCurrentCommit,
@@ -25,63 +26,6 @@ import {
   stashAll,
   popStash,
 } from './git.js';
-
-const ALL_TOOLS = [
-  {
-    name: 'read_file',
-    description: 'Read a file relative to project root.',
-    parameters: {
-      type: 'object',
-      properties: { path: { type: 'string' } },
-      required: ['path'],
-    },
-  },
-  {
-    name: 'write_file',
-    description: 'Write content to a file relative to project root.',
-    parameters: {
-      type: 'object',
-      properties: { path: { type: 'string' }, content: { type: 'string' } },
-      required: ['path', 'content'],
-    },
-  },
-  {
-    name: 'run_command',
-    description: 'Run a shell command in the project root.',
-    parameters: {
-      type: 'object',
-      properties: { command: { type: 'string' } },
-      required: ['command'],
-    },
-  },
-  {
-    name: 'think',
-    description: 'Record reasoning.',
-    parameters: {
-      type: 'object',
-      properties: { thought: { type: 'string' } },
-      required: ['thought'],
-    },
-  },
-  {
-    name: 'finish',
-    description: 'Mark the task complete.',
-    parameters: {
-      type: 'object',
-      properties: { summary: { type: 'string' }, success: { type: 'boolean' } },
-      required: ['summary', 'success'],
-    },
-  },
-  {
-    name: 'publish',
-    description: 'Build, validate, and publish the project.',
-    parameters: {
-      type: 'object',
-      properties: { version: { type: 'string' } },
-      required: [],
-    },
-  },
-];
 
 export interface AgentResult {
   task: Task;
@@ -289,8 +233,13 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       if (call.name === 'finish') {
         finished = true;
         success = Boolean(call.arguments.success);
-        const summaryArg = call.arguments.summary;
-        summary = typeof summaryArg === 'string' ? summaryArg : '';
+        const summaryArg =
+          typeof call.arguments.summary === 'string'
+            ? call.arguments.summary
+            : typeof call.arguments.message === 'string'
+              ? call.arguments.message
+              : '';
+        summary = summaryArg;
         if (stepId) {
           await ctx.prisma.taskStep.update({
             where: { id: stepId },
@@ -354,7 +303,7 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       stepIndex++;
     }
 
-    prompt = buildToolResultPrompt(toolResults);
+    prompt = buildToolResultPrompt(ctx.task, toolResults);
   }
 
   // Capture diff
@@ -401,8 +350,9 @@ async function sendToProvider(
 ): Promise<{ content?: string; toolCalls?: string }> {
   const provider = ctx.provider as Provider & { sendWithTools?: (prompt: string, tools: ToolDefinition[], opts?: SendOptions) => Promise<string> };
 
-  if (provider.config.kind !== 'kimi' && typeof provider.sendWithTools === 'function') {
-    const raw = await provider.sendWithTools(prompt, ALL_TOOLS, {
+  // Prefer native tool calls when the provider supports them (including Kimi).
+  if (typeof provider.sendWithTools === 'function') {
+    const raw = await provider.sendWithTools(prompt, AGENT_TOOLS, {
       system: AGENT_SYSTEM_PROMPT,
       model: ctx.model,
       temperature: 0.3,
@@ -410,6 +360,7 @@ async function sendToProvider(
     return parseProviderResponse(raw);
   }
 
+  // Fallback to text-mode JSON tool calls for providers without native tool support.
   const raw = await provider.send(prompt, {
     system: TEXT_TOOLS_SYSTEM_PROMPT,
     model: ctx.model,
@@ -524,11 +475,22 @@ function parseToolCalls(raw: string | undefined): ToolCall[] {
     }[];
     return parsed
       .filter(
-        (t): t is { id: string; name: string; arguments: Record<string, unknown> } =>
-          typeof t.id === 'string' && typeof t.name === 'string' &&
-          typeof t.arguments === 'object' && t.arguments !== null
+        (t): t is { id: string; name: string; arguments?: unknown } =>
+          typeof t.id === 'string' && typeof t.name === 'string'
       )
-      .map((t) => ({ id: t.id, name: t.name, arguments: t.arguments }));
+      .map((t) => {
+        let args: Record<string, unknown> = {};
+        if (typeof t.arguments === 'string') {
+          try {
+            args = JSON.parse(t.arguments) as Record<string, unknown>;
+          } catch {
+            args = { raw: t.arguments };
+          }
+        } else if (typeof t.arguments === 'object' && t.arguments !== null) {
+          args = t.arguments as Record<string, unknown>;
+        }
+        return { id: t.id, name: t.name, arguments: args };
+      });
   } catch {
     return [];
   }

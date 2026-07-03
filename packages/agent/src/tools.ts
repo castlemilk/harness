@@ -60,6 +60,29 @@ export async function writeFile(
   }
 }
 
+export async function editFile(
+  projectPath: string,
+  filePath: string,
+  oldString: string,
+  newString: string
+): Promise<ToolResult> {
+  const target = path.resolve(projectPath, filePath);
+  if (!target.startsWith(path.resolve(projectPath))) {
+    return { success: false, output: 'Path traversal blocked' };
+  }
+  try {
+    const content = await fs.readFile(target, 'utf-8');
+    if (!content.includes(oldString)) {
+      return { success: false, output: `old_string not found in ${filePath}` };
+    }
+    const updated = content.replace(oldString, newString);
+    await fs.writeFile(target, updated, 'utf-8');
+    return { success: true, output: `Edited ${filePath}` };
+  } catch (err) {
+    return { success: false, output: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 export async function runCommand(projectPath: string, command: string): Promise<ToolResult> {
   try {
     sanitizeCommand(command);
@@ -97,6 +120,13 @@ export async function executeTool(
       return readFile(projectPath, argString(arguments_.path));
     case 'write_file':
       return writeFile(projectPath, argString(arguments_.path), argString(arguments_.content));
+    case 'edit_file':
+      return editFile(
+        projectPath,
+        argString(arguments_.path),
+        argString(arguments_.old_string),
+        argString(arguments_.new_string)
+      );
     case 'run_command':
       return runCommand(projectPath, argString(arguments_.command));
     case 'think':

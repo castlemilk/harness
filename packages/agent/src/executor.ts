@@ -16,7 +16,7 @@ import {
   getCurrentCommit,
   createBranch,
   hasChanges,
-  stageAll,
+  stageFiles,
   commit,
   getDiff,
   checkoutBranch,
@@ -98,6 +98,7 @@ interface AgentContext {
   agentRunId: string;
   autoPublish: boolean;
   maxSteps: number;
+  modifiedFiles: Set<string>;
 }
 
 function toCoreTask(row: {
@@ -198,6 +199,7 @@ export async function runAgentTask(
     agentRunId: agentRun.id,
     autoPublish: options.autoPublish ?? false,
     maxSteps: options.maxSteps ?? 30,
+    modifiedFiles: new Set<string>(),
   };
 
   try {
@@ -309,6 +311,10 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
         break;
       }
 
+      if (call.name === 'write_file' && typeof call.arguments.path === 'string') {
+        ctx.modifiedFiles.add(call.arguments.path);
+      }
+
       const result = await executeTool(ctx.projectPath, call.name, call.arguments);
       if (stepId) {
         await ctx.prisma.taskStep.update({
@@ -329,8 +335,8 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   }
 
   // Capture diff
-  if (await hasChanges(ctx.projectPath)) {
-    await stageAll(ctx.projectPath);
+  if (ctx.modifiedFiles.size > 0 || (await hasChanges(ctx.projectPath))) {
+    await stageFiles(ctx.projectPath, Array.from(ctx.modifiedFiles));
     await commit(ctx.projectPath, `agent: ${ctx.task.title}`);
   }
   const diff = await getDiff(ctx.projectPath, ctx.baseCommit);

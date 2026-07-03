@@ -51,6 +51,11 @@ export async function stageAll(projectPath: string): Promise<GitResult> {
   return git(projectPath, ['add', '.']);
 }
 
+export async function stageFiles(projectPath: string, files: string[]): Promise<GitResult> {
+  if (files.length === 0) return { success: true, output: 'no files to stage' };
+  return git(projectPath, ['add', '--', ...files]);
+}
+
 export async function commit(projectPath: string, message: string): Promise<GitResult> {
   return git(projectPath, ['commit', '-m', message]);
 }

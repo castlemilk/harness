@@ -53,4 +53,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  getMetrics: () => request('/metrics'),
+  getTaskSteps: (id: string) => request(`/tasks/${id}/steps`),
+  getTaskTraces: (id: string) => request(`/tasks/${id}/traces`),
+  getTaskDiffs: (id: string) => request(`/tasks/${id}/diffs`),
+  getTaskAgentRun: (id: string) => request(`/tasks/${id}/agent-run`),
 };

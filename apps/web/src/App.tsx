@@ -4,6 +4,7 @@ import { ProjectSidebar, type Project } from './components/ProjectSidebar.js';
 import { TaskBoard } from './components/TaskBoard.js';
 import { ProviderSettings, type Provider } from './components/ProviderSettings.js';
 import { RouterPanel } from './components/RouterPanel.js';
+import { MetricsPanel } from './components/MetricsPanel.js';
 
 function App() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -56,6 +57,7 @@ function App() {
         )}
         <ProviderSettings providers={providers} onChange={() => { void loadProviders(); }} />
         <RouterPanel />
+        <MetricsPanel />
       </aside>
     </div>
   );

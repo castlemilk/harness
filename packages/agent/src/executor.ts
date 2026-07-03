@@ -14,6 +14,7 @@ import {
   TEXT_TOOLS_SYSTEM_PROMPT,
 } from './prompts.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
+import { logger } from './logger.js';
 import {
   getCurrentBranch,
   getCurrentCommit,
@@ -157,11 +158,25 @@ export async function runAgentTask(
     modifiedFiles: new Set<string>(),
   };
 
+  logger.info('Agent task started', {
+    taskId: ctx.task.id,
+    agentRunId: ctx.agentRunId,
+    provider: ctx.provider.config.name,
+    model: ctx.model,
+    project: ctx.projectName,
+  });
+
   try {
     const result = await executeAgentLoop(ctx);
+    logger.info('Agent task finished', {
+      taskId: ctx.task.id,
+      agentRunId: ctx.agentRunId,
+      status: result.task.status,
+    });
     return result;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    logger.error('Agent task failed', { taskId, agentRunId: agentRun.id, error: message });
     await failTask(prisma, taskId, message);
     await prisma.agentRun.update({
       where: { id: agentRun.id },
@@ -288,6 +303,12 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       }
 
       const result = await executeTool(ctx.projectPath, call.name, call.arguments);
+      logger.info(`Tool ${call.name} executed`, {
+        taskId: ctx.task.id,
+        agentRunId: ctx.agentRunId,
+        tool: call.name,
+        success: result.success,
+      });
       if (stepId) {
         await ctx.prisma.taskStep.update({
           where: { id: stepId },

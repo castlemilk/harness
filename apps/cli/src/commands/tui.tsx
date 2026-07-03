@@ -25,6 +25,13 @@ interface LogEntry {
   level: 'info' | 'success' | 'warning' | 'error';
 }
 
+interface Step {
+  id: string;
+  idx: number;
+  name: string;
+  status: string;
+}
+
 function formatTime(d: Date) {
   return d.toLocaleTimeString('en-US', { hour12: false });
 }
@@ -60,6 +67,7 @@ function useTasks(pollMs = 1000) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [connected, setConnected] = useState(false);
   const previousTasks = useRef<Record<string, Task | undefined>>({});
+  const previousSteps = useRef<Record<string, Step | undefined>>({});
 
   const addLog = (message: string, level: LogEntry['level'] = 'info') => {
     setLogs((prev) => {
@@ -107,6 +115,40 @@ function useTasks(pollMs = 1000) {
 
         previousTasks.current = current;
         setTasks(data);
+
+        // Poll steps for in-progress tasks so the console shows live agent work.
+        const inProgressIds = data.filter((t) => t.status === 'in_progress').map((t) => t.id);
+        if (inProgressIds.length > 0) {
+          const stepResults = await Promise.all(
+            inProgressIds.map(async (id) => {
+              try {
+                const res = await fetch(`${API}/tasks/${id}/steps`);
+                if (!res.ok) return [] as Step[];
+                return (await res.json()) as Step[];
+              } catch {
+                return [] as Step[];
+              }
+            })
+          );
+          for (let i = 0; i < inProgressIds.length; i++) {
+            const taskId = inProgressIds[i];
+            const taskTitle = current[taskId]?.title ?? taskId;
+            for (const step of stepResults[i] ?? []) {
+              const key = `${taskId}:${step.id}`;
+              const prev = previousSteps.current[key];
+              if (!prev) {
+                addLog(`Step started [${taskTitle}]: ${step.name}`, 'info');
+              } else if (prev.status !== step.status) {
+                if (step.status === 'done') {
+                  addLog(`Step done [${taskTitle}]: ${step.name}`, 'success');
+                } else if (step.status === 'failed') {
+                  addLog(`Step failed [${taskTitle}]: ${step.name}`, 'error');
+                }
+              }
+              previousSteps.current[key] = step;
+            }
+          }
+        }
       } catch (err) {
         setConnected(false);
         const message = err instanceof Error ? err.message : String(err);

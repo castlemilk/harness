@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
+import { TaskDetail } from './TaskDetail.js';
 
 export interface Task {
   id: string;
@@ -31,6 +32,7 @@ export function TaskBoard({ projectId }: Props) {
     complexity: 'simple',
     tags: '',
   });
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
 
   async function load() {
     if (!projectId) return;
@@ -160,14 +162,23 @@ export function TaskBoard({ projectId }: Props) {
                             {t.result}
                           </div>
                         )}
-                        {status !== 'in_progress' && (
+                        <div className="flex gap-2">
                           <button
-                            onClick={() => { void handleRun(t.id); }}
-                            className="w-full px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                            onClick={() => { setExpandedTaskId(expandedTaskId === t.id ? null : t.id); }}
+                            className="flex-1 px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200"
                           >
-                            Run
+                            {expandedTaskId === t.id ? 'Hide details' : 'Details'}
                           </button>
-                        )}
+                          {status !== 'in_progress' && (
+                            <button
+                              onClick={() => { void handleRun(t.id); }}
+                              className="flex-1 px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                            >
+                              Run
+                            </button>
+                          )}
+                        </div>
+                        {expandedTaskId === t.id && <TaskDetail taskId={t.id} />}
                       </div>
                     ))}
                 </div>

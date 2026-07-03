@@ -106,8 +106,9 @@ async function createTempGitRepo(repoPath: string): Promise<void> {
 describe('harness agent loop', () => {
   let server: ReturnType<typeof spawn> | undefined;
   let mockLlm: Awaited<ReturnType<typeof startMockLlmServer>> | undefined;
-  const dbDir = `/tmp/harness-agent-e2e-${Date.now()}`;
-  const repoPath = `/tmp/harness-agent-e2e-${Date.now()}`;
+  const testId = Date.now();
+  const dbDir = `/tmp/harness-agent-e2e-db-${testId}`;
+  const repoPath = `/tmp/harness-agent-e2e-repo-${testId}`;
   const env = {
     ...process.env,
     DATABASE_URL: 'postgresql://localhost:5432/omega',
@@ -135,7 +136,7 @@ describe('harness agent loop', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: 'agent-mock',
-        kind: 'kimi',
+        kind: 'generic',
         baseUrl: `http://localhost:${mockLlm.port}/v1`,
         apiKey: 'test-key',
         defaultModel: 'moonshot-v1-8k',

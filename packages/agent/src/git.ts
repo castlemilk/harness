@@ -70,6 +70,14 @@ export async function hasChanges(projectPath: string): Promise<boolean> {
   return result.success && result.output.trim().length > 0;
 }
 
+export async function stashAll(projectPath: string, message = 'omega-agent-stash'): Promise<GitResult> {
+  return git(projectPath, ['stash', 'push', '-u', '-m', message]);
+}
+
+export async function popStash(projectPath: string): Promise<GitResult> {
+  return git(projectPath, ['stash', 'pop']);
+}
+
 export async function createTag(projectPath: string, tag: string, message?: string): Promise<GitResult> {
   const args = message ? ['tag', '-a', tag, '-m', message] : ['tag', tag];
   return git(projectPath, args);

@@ -66,12 +66,13 @@ async function ensureProject() {
 async function submitSelfImproveTask(projectId) {
   const tags = ['self-improve'];
   if (config.autoPublish) tags.push('publish');
+  const title = config.defaultPrompt.length > 120 ? `${config.defaultPrompt.slice(0, 120)}...` : config.defaultPrompt;
   const res = await fetch(`${config.apiUrl}/tasks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       projectId,
-      title: 'Self-improvement pass',
+      title,
       description: config.defaultPrompt,
       complexity: 'complex',
       tags,

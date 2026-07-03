@@ -18,15 +18,23 @@ export async function seedDefaults(): Promise<void> {
       where: { name: 'kimi' },
       update: {
         apiKey: process.env.KIMI_API_KEY,
+        defaultModel: 'moonshot-v1-32k',
+        capabilities: JSON.stringify([
+          { name: 'moonshot-v1-32k', level: 'advanced', supportsTools: true },
+          { name: 'moonshot-v1-128k', level: 'advanced', supportsTools: true },
+          { name: 'moonshot-v1-8k', level: 'capable', supportsTools: true },
+        ]),
       },
       create: {
         name: 'kimi',
         kind: 'kimi',
         baseUrl: 'https://api.kimi.com/coding/v1',
         apiKey: process.env.KIMI_API_KEY,
-        defaultModel: 'moonshot-v1-8k',
+        defaultModel: 'moonshot-v1-32k',
         capabilities: JSON.stringify([
-          { name: 'moonshot-v1-8k', level: 'advanced', supportsTools: true },
+          { name: 'moonshot-v1-32k', level: 'advanced', supportsTools: true },
+          { name: 'moonshot-v1-128k', level: 'advanced', supportsTools: true },
+          { name: 'moonshot-v1-8k', level: 'capable', supportsTools: true },
         ]),
       },
     });

@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@omega/db';
-import type { Provider, ProviderConfig, Task, AgentOptions, ToolCall } from '@omega/core';
+import type { Provider, ProviderConfig, Task, AgentOptions, ToolCall, SendOptions, ToolDefinition } from '@omega/core';
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
 import { createPlan } from './planner.js';
@@ -10,6 +10,8 @@ import {
   buildTaskPrompt,
   buildToolResultPrompt,
   AGENT_SYSTEM_PROMPT,
+  FORCE_ACTION_PROMPT,
+  TEXT_TOOLS_SYSTEM_PROMPT,
 } from './prompts.js';
 import {
   getCurrentBranch,
@@ -20,6 +22,8 @@ import {
   commit,
   getDiff,
   checkoutBranch,
+  stashAll,
+  popStash,
 } from './git.js';
 
 const ALL_TOOLS = [
@@ -172,7 +176,14 @@ export async function runAgentTask(
     throw new Error('Not a git repository');
   }
 
-  const branchResult = await createBranch(options.projectPath, branch, options.baseBranch ?? baseBranch.output);
+  // Stash any uncommitted changes so the agent starts from a clean base.
+  let stashed = false;
+  if (await hasChanges(options.projectPath)) {
+    const stashResult = await stashAll(options.projectPath);
+    stashed = stashResult.success;
+  }
+
+  const branchResult = await createBranch(options.projectPath, branch, baseCommit.output);
   if (!branchResult.success) {
     // Branch may already exist; try to checkout.
     await checkoutBranch(options.projectPath, branch);
@@ -213,6 +224,11 @@ export async function runAgentTask(
       data: { resultStatus: 'failed' },
     });
     throw err;
+  } finally {
+    await checkoutBranch(options.projectPath, baseBranch.output);
+    if (stashed) {
+      await popStash(options.projectPath);
+    }
   }
 }
 
@@ -241,6 +257,7 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   let finished = false;
   let success = false;
   let summary = '';
+  let noActionCount = 0;
 
   // Start the first turn with a think/plan step.
   let prompt = `Plan created: ${JSON.stringify(plan)}\n\nExecute the plan. Use tools to make changes and run validation.`;
@@ -250,9 +267,15 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
     await addTrace(ctx, 'assistant', response.content ?? '', response.toolCalls);
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
-      prompt = 'No tool calls detected. Please respond with a JSON object containing tool_calls.';
+      noActionCount++;
+      if (noActionCount >= 2) {
+        prompt = FORCE_ACTION_PROMPT;
+      } else {
+        prompt = 'No tool calls detected. Please respond with a JSON object containing tool_calls.';
+      }
       continue;
     }
+    noActionCount = 0;
 
     const toolCalls = parseToolCalls(response.toolCalls);
     const toolResults: { toolCallId: string; output: string }[] = [];
@@ -376,8 +399,10 @@ async function sendToProvider(
   ctx: AgentContext,
   prompt: string
 ): Promise<{ content?: string; toolCalls?: string }> {
-  if ('sendWithTools' in ctx.provider && typeof ctx.provider.sendWithTools === 'function') {
-    const raw = await ctx.provider.sendWithTools(prompt, ALL_TOOLS, {
+  const provider = ctx.provider as Provider & { sendWithTools?: (prompt: string, tools: ToolDefinition[], opts?: SendOptions) => Promise<string> };
+
+  if (provider.config.kind !== 'kimi' && typeof provider.sendWithTools === 'function') {
+    const raw = await provider.sendWithTools(prompt, ALL_TOOLS, {
       system: AGENT_SYSTEM_PROMPT,
       model: ctx.model,
       temperature: 0.3,
@@ -385,10 +410,9 @@ async function sendToProvider(
     return parseProviderResponse(raw);
   }
 
-  const raw = await ctx.provider.send(prompt, {
-    system: AGENT_SYSTEM_PROMPT,
+  const raw = await provider.send(prompt, {
+    system: TEXT_TOOLS_SYSTEM_PROMPT,
     model: ctx.model,
-    temperature: 0.3,
   });
   return parseProviderResponse(raw);
 }

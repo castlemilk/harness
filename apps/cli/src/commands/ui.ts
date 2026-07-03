@@ -63,7 +63,7 @@ async function isApiReady(apiUrl: string): Promise<boolean> {
   }
 }
 
-async function waitForApi(apiUrl: string, maxMs = 15000): Promise<void> {
+async function waitForApi(apiUrl: string, maxMs = 30000): Promise<void> {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
     if (await isApiReady(apiUrl)) return;

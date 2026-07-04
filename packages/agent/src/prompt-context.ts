@@ -27,10 +27,58 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+function extractTaskKeywords(description?: string | null): string[] {
+  if (!description) return [];
+  const keywords: string[] = [];
+  const lower = description.toLowerCase();
+  const patterns: Record<string, string[]> = {
+    async: ['async', 'await', 'promise', 'callback', 'queue', 'event loop', 'timers'],
+    validation: ['throw', 'error', 'invalid', 'validate', 'constructor'],
+    geometry: ['intersection', 'observer', 'viewport', 'rect', 'margin'],
+    slicing: ['slice', 'range', 'index', 'array', 'string'],
+    parsing: ['parse', 'token', 'lexer', 'ast', 'grammar'],
+    types: ['typescript', 'type', 'generic', 'interface'],
+    frontend: ['react', 'component', 'dom', 'css', 'html'],
+    testing: ['test', 'mock', 'stub', 'jest', 'vitest'],
+  };
+  for (const [hint, terms] of Object.entries(patterns)) {
+    if (terms.some((t) => lower.includes(t))) {
+      keywords.push(hint);
+    }
+  }
+  return [...new Set(keywords)];
+}
+
+function buildTaskSpecificHints(keywords: string[]): string {
+  if (keywords.length === 0) return '';
+  const hints: Record<string, string> = {
+    async:
+      'Async behaviour: ensure callbacks are deferred (setImmediate/nextTick), never invoked synchronously. Verify timers are cleaned up.',
+    validation:
+      'Validation: throw explicit errors for invalid constructor arguments, out-of-range values, and wrong types. Check error messages match specs exactly.',
+    geometry:
+      'Geometry: compute rectangles deterministically. Handle zero-area targets, rootMargin expansion, and viewport vs element roots.',
+    slicing:
+      'Slicing: preserve two-part range behaviour while adding three-part step support. Handle negative step and omitted components.',
+    parsing:
+      'Parsing: keep grammar changes minimal. Update both parser and AST stringification. Add targeted parser tests.',
+    types:
+      'Types: prefer incremental type changes. Run tsc after edits to catch inference regressions.',
+    frontend:
+      'Frontend: preserve component contracts. Verify with component tests and visual/layout assertions.',
+    testing:
+      'Testing: run the relevant focused test suite first, then the full suite. Read failing test output carefully.',
+  };
+  return keywords
+    .map((k) => hints[k])
+    .filter(Boolean)
+    .join('\n');
+}
+
 export async function buildPromptContext(
   prisma: PrismaClient,
   projectId: string,
-  options: { lookbackRuns?: number } = {}
+  options: { lookbackRuns?: number; taskDescription?: string | null } = {}
 ): Promise<PromptContextSummary> {
   const lookback = options.lookbackRuns ?? 5;
 
@@ -38,16 +86,20 @@ export async function buildPromptContext(
     where: { task: { projectId } },
     orderBy: { createdAt: 'desc' },
     take: lookback,
-    include: { task: { select: { id: true } } },
+    include: { task: { select: { id: true, description: true, title: true } } },
   });
 
   if (recentRuns.length === 0) {
-    return { text: '', runsAnalysed: 0 };
+    const hints = buildTaskSpecificHints(extractTaskKeywords(options.taskDescription));
+    return {
+      text: hints ? `Task-specific guidance:\n${hints}` : '',
+      runsAnalysed: 0,
+    };
   }
 
   const taskIds = recentRuns.map((r) => r.task.id);
 
-  const [toolSpans, failedSteps] = await Promise.all([
+  const [toolSpans, failedSteps, recentFailedTasks] = await Promise.all([
     prisma.traceSpan.groupBy({
       by: ['name', 'status'],
       where: {
@@ -61,8 +113,18 @@ export async function buildPromptContext(
         taskId: { in: taskIds },
         status: 'failed',
       },
-      select: { name: true, error: true },
+      select: { name: true, error: true, taskId: true },
+      orderBy: { createdAt: 'desc' },
       take: 20,
+    }),
+    prisma.task.findMany({
+      where: {
+        id: { in: taskIds },
+        status: 'failed',
+      },
+      select: { id: true, title: true, result: true, error: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 3,
     }),
   ]);
 
@@ -125,6 +187,18 @@ export async function buildPromptContext(
     .slice(0, 3)
     .map((s) => s.error?.split('\n')[0] ?? s.name);
 
+  // Build failure pattern summary from failed task results and last failed steps.
+  const failurePatterns: string[] = [];
+  for (const task of recentFailedTasks) {
+    const lastFailedSteps = failedSteps
+      .filter((s) => s.taskId === task.id)
+      .slice(0, 2)
+      .map((s) => s.name)
+      .join(', ');
+    const detail = task.error ?? task.result ?? 'no detail';
+    failurePatterns.push(`- ${task.title}: ${detail.slice(0, 160)}${detail.length > 160 ? '...' : ''} (failed steps: ${lastFailedSteps || 'unknown'})`);
+  }
+
   const lines: string[] = [];
   lines.push('Recent project context (last few runs):');
   lines.push(`- Agent runs analysed: ${String(recentRuns.length)}`);
@@ -146,12 +220,23 @@ export async function buildPromptContext(
     lines.push(...toolLines);
   }
 
+  if (failurePatterns.length > 0) {
+    lines.push('- Recent failures to avoid repeating:');
+    lines.push(...failurePatterns);
+  }
+
   if (editMisses.length > 0) {
     lines.push('- Recent edit_file misses:');
     for (const miss of editMisses) {
       lines.push(`  * ${miss}`);
     }
     lines.push('  When using edit_file, read the file first and copy the exact old_string.');
+  }
+
+  const taskHints = buildTaskSpecificHints(extractTaskKeywords(options.taskDescription));
+  if (taskHints) {
+    lines.push('- Task-specific guidance:');
+    lines.push(taskHints);
   }
 
   lines.push('Use this context to avoid repeating failures and to prioritise high-impact edits.');

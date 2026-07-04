@@ -11,9 +11,11 @@ import {
   buildToolResultPrompt,
   buildSystemPrompt,
   buildTextToolsSystemPrompt,
+  buildReflectionPrompt,
   FORCE_ACTION_PROMPT,
 } from './prompts.js';
 import { buildPromptContext } from './prompt-context.js';
+import { resolveSkills, formatSkillContext } from './skill-resolver.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
 import { logger } from './logger.js';
 import { Tracer, type Span } from './tracer.js';
@@ -149,8 +151,14 @@ export async function runAgentTask(
     },
   });
 
-  const promptContext = await buildPromptContext(prisma, task.projectId, { lookbackRuns: 5 });
-  const systemPrompt = buildSystemPrompt(promptContext.text);
+  const promptContext = await buildPromptContext(prisma, task.projectId, {
+    lookbackRuns: 5,
+    taskDescription: task.description,
+  });
+  const skills = await resolveSkills(prisma, options.projectPath, task.description);
+  const skillContext = formatSkillContext(skills);
+  const combinedContext = [promptContext.text, skillContext].filter(Boolean).join('\n\n');
+  const systemPrompt = buildSystemPrompt(combinedContext);
 
   const tracer = new Tracer(prisma, taskId, taskId);
   const rootSpan = tracer.startSpan('agent.task');
@@ -159,8 +167,9 @@ export async function runAgentTask(
     provider: provider.config.name,
     model: selection.model,
     autoPublish: options.autoPublish ?? false,
-    promptContextUsed: promptContext.text.length > 0,
+    promptContextUsed: combinedContext.length > 0,
     runsAnalysed: promptContext.runsAnalysed,
+    skillsInjected: skills.map((s) => s.name),
   });
 
   const ctx: AgentContext = {
@@ -179,7 +188,7 @@ export async function runAgentTask(
     tracer,
     rootSpan,
     systemPrompt,
-    promptContext: promptContext.text,
+    promptContext: combinedContext,
   };
 
   logger.info('Agent task started', {
@@ -227,6 +236,51 @@ export async function runAgentTask(
   }
 }
 
+async function reflectOnTrace(ctx: AgentContext, maxTurns: number): Promise<string | undefined> {
+  const recentTraces = await ctx.prisma.taskTrace.findMany({
+    where: { taskId: ctx.task.id },
+    orderBy: { createdAt: 'desc' },
+    take: maxTurns * 3,
+  });
+  if (recentTraces.length === 0) return undefined;
+
+  const summary = recentTraces
+    .reverse()
+    .map((t) => {
+      const prefix = `[${t.role}]`;
+      const content = (t.content ?? '').slice(0, 400);
+      return `${prefix} ${content}`;
+    })
+    .join('\n');
+
+  const reflectionSpan = ctx.tracer.startSpan('agent.reflect', ctx.rootSpan.toContext());
+  try {
+    const raw = await ctx.provider.send(
+      buildReflectionPrompt(ctx.task, summary),
+      { system: ctx.systemPrompt, model: ctx.model }
+    );
+    reflectionSpan.addEvent('reflection.received');
+    const parsed = parseProviderResponse(raw);
+    const thinkCall = parsed.toolCalls
+      ? parseToolCalls(parsed.toolCalls).find((c) => c.name === 'think')
+      : undefined;
+    const thinkThought =
+      thinkCall &&
+      typeof thinkCall.arguments === 'object' &&
+      'thought' in thinkCall.arguments &&
+      typeof thinkCall.arguments.thought === 'string'
+        ? thinkCall.arguments.thought
+        : undefined;
+    const critique = parsed.content?.trim() ?? thinkThought;
+    await reflectionSpan.end('ok');
+    return critique && critique.length > 0 ? critique : undefined;
+  } catch (err) {
+    reflectionSpan.recordError(err);
+    await reflectionSpan.end('error');
+    return undefined;
+  }
+}
+
 async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   // Initial planning trace
   await addTrace(ctx, 'system', ctx.systemPrompt);
@@ -262,18 +316,22 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   let success = false;
   let summary = '';
   let noActionCount = 0;
+  let turnCount = 0;
+  let lastTurnHadFailure = false;
 
   // Start the first turn with a think/plan step.
   let prompt = `Plan created: ${JSON.stringify(plan)}\n\nExecute the plan. Use tools to make changes and run validation.`;
 
   while (stepIndex < ctx.maxSteps && !finished) {
+    turnCount++;
     const response = await sendToProvider(ctx, prompt);
     await addTrace(ctx, 'assistant', response.content ?? '', response.toolCalls);
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
       noActionCount++;
       if (noActionCount >= 2) {
-        prompt = FORCE_ACTION_PROMPT;
+        const reflection = await reflectOnTrace(ctx, 8);
+        prompt = reflection ? `${FORCE_ACTION_PROMPT}\n\n${reflection}` : FORCE_ACTION_PROMPT;
       } else {
         prompt = 'No tool calls detected. Please respond with a JSON object containing tool_calls.';
       }
@@ -283,6 +341,7 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
 
     const toolCalls = parseToolCalls(response.toolCalls);
     const toolResults: { toolCallId: string; output: string }[] = [];
+    let turnHadFailure = false;
 
     for (const call of toolCalls) {
       const step = await ctx.prisma.taskStep.findFirst({
@@ -366,6 +425,9 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
         success: result.success,
       });
       await toolSpan.end(result.success ? 'ok' : 'error');
+      if (!result.success) {
+        turnHadFailure = true;
+      }
       if (stepId) {
         await ctx.prisma.taskStep.update({
           where: { id: stepId },
@@ -379,6 +441,18 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       await addTrace(ctx, 'tool', result.output, undefined, stepId);
       toolResults.push({ toolCallId: call.id, output: result.output });
       stepIndex++;
+    }
+
+    const shouldReflect =
+      turnHadFailure || lastTurnHadFailure || (turnCount > 0 && turnCount % 8 === 0);
+    lastTurnHadFailure = turnHadFailure;
+
+    if (shouldReflect && !finished) {
+      const reflection = await reflectOnTrace(ctx, 6);
+      if (reflection) {
+        await addTrace(ctx, 'assistant', `Reflection: ${reflection}`);
+        toolResults.push({ toolCallId: 'reflection', output: reflection });
+      }
     }
 
     prompt = buildToolResultPrompt(ctx.task, toolResults);

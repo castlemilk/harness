@@ -98,7 +98,7 @@ export function startGrpcServer(prisma: PrismaClient, port = 50051): grpc.Server
           });
 
           if (req.auto_run) {
-            await runTask(prisma, task.id);
+            await runTask(prisma, task.id, { detached: true });
           }
 
           const updated = await prisma.task.findUnique({ where: { id: task.id } });

@@ -26,7 +26,7 @@ function toCoreConfig(row: {
   };
 }
 
-export async function runTask(prisma: PrismaClient, taskId: string) {
+export async function runTask(prisma: PrismaClient, taskId: string, options: { detached?: boolean } = {}) {
   const task = await prisma.task.findUnique({ where: { id: taskId }, include: { project: true } });
   if (!task) throw new Error('Task not found');
 
@@ -37,6 +37,21 @@ export async function runTask(prisma: PrismaClient, taskId: string) {
 
   const tags: string[] = task.tags ? (JSON.parse(task.tags) as string[]) : [];
   if (tags.includes('agent') || tags.includes('self-improve')) {
+    if (options.detached) {
+      void (async () => {
+        try {
+          await runAgentTask(prisma, taskId, {
+            projectPath: task.project.path,
+            projectName: task.project.name,
+            autoPublish: tags.includes('publish'),
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`Detached agent task ${taskId} failed:`, message);
+        }
+      })();
+      return { status: 'in_progress', taskId };
+    }
     const agentResult = await runAgentTask(prisma, taskId, {
       projectPath: task.project.path,
       projectName: task.project.name,

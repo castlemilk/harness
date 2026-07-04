@@ -70,8 +70,8 @@ export function taskRoutes(prisma: PrismaClient): Router {
 
   r.post('/:id/run', asyncHandler(async (req, res) => {
     try {
-      const result = await runTask(prisma, req.params.id);
-      res.json(result);
+      const result = await runTask(prisma, req.params.id, { detached: true });
+      res.status(202).json(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       res.status(500).json({ error: message });

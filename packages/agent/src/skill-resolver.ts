@@ -144,10 +144,7 @@ async function detectProjectSignature(projectPath: string): Promise<FileSignatur
     const lang = EXTENSION_LANGUAGE[ext];
     if (lang) {
       languages.add(lang);
-      const derived = FRAMEWORK_MARKERS[lang];
-      if (derived) {
-        for (const fw of derived) frameworks.add(fw);
-      }
+      for (const fw of FRAMEWORK_MARKERS[lang] ?? []) frameworks.add(fw);
     }
   }
 

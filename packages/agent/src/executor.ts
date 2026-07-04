@@ -39,6 +39,19 @@ export interface AgentResult {
   publish?: PublishResult;
 }
 
+function maxStepsForComplexity(complexity: string | undefined): number {
+  switch (complexity) {
+    case 'simple':
+      return 25;
+    case 'medium':
+      return 45;
+    case 'complex':
+      return 75;
+    default:
+      return 35;
+  }
+}
+
 interface AgentContext {
   prisma: PrismaClient;
   task: Task;
@@ -183,7 +196,7 @@ export async function runAgentTask(
     baseCommit: baseCommit.output,
     agentRunId: agentRun.id,
     autoPublish: options.autoPublish ?? false,
-    maxSteps: options.maxSteps ?? 30,
+    maxSteps: options.maxSteps ?? maxStepsForComplexity(task.complexity),
     modifiedFiles: new Set<string>(),
     tracer,
     rootSpan,

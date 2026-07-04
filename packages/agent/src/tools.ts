@@ -10,7 +10,7 @@ export interface ToolResult {
   output: string;
 }
 
-const FORBIDDEN_COMMANDS = [
+const FORBIDDEN_PATTERNS = [
   'rm -rf',
   'git reset --hard',
   'git clean',
@@ -19,14 +19,71 @@ const FORBIDDEN_COMMANDS = [
   '> /',
 ];
 
-function sanitizeCommand(command: string): string {
+const SHELL_METACHARACTERS = /[|&;<>$`{}()[\]*?]/;
+
+function sanitizeCommand(command: string): { ok: true } | { ok: false; reason: string } {
   const trimmed = command.trim();
-  for (const forbidden of FORBIDDEN_COMMANDS) {
+  if (trimmed.length === 0) {
+    return { ok: false, reason: 'Empty command' };
+  }
+  for (const forbidden of FORBIDDEN_PATTERNS) {
     if (trimmed.toLowerCase().includes(forbidden.toLowerCase())) {
-      throw new Error(`Forbidden command pattern detected: ${forbidden}`);
+      return { ok: false, reason: `Forbidden command pattern detected: ${forbidden}` };
     }
   }
-  return trimmed;
+  if (SHELL_METACHARACTERS.test(trimmed)) {
+    return {
+      ok: false,
+      reason:
+        'Command contains shell metacharacters (|, &&, ;, redirects, globs, $(), etc.). run_command only supports simple commands without pipes or shell operators.',
+    };
+  }
+  return { ok: true };
+}
+
+function splitCommand(command: string): string[] {
+  const args: string[] = [];
+  let current = '';
+  let quote: "'" | '"' | null = null;
+  let escaped = false;
+
+  for (const char of command) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+      } else {
+        current += char;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
+    if (/\s/.test(char)) {
+      if (current.length > 0) {
+        args.push(current);
+        current = '';
+      }
+      continue;
+    }
+    current += char;
+  }
+
+  if (current.length > 0) {
+    args.push(current);
+  }
+
+  return args;
 }
 
 export async function readFile(projectPath: string, filePath: string): Promise<ToolResult> {
@@ -84,10 +141,19 @@ export async function editFile(
 }
 
 export async function runCommand(projectPath: string, command: string): Promise<ToolResult> {
+  const check = sanitizeCommand(command);
+  if (!check.ok) {
+    return { success: false, output: check.reason };
+  }
+
+  const args = splitCommand(command.trim());
+  if (args.length === 0) {
+    return { success: false, output: 'Empty command' };
+  }
+  const [cmd, ...cmdArgs] = args;
+
   try {
-    sanitizeCommand(command);
-    const [cmd, ...args] = command.split(' ');
-    const { stdout, stderr } = await execFileAsync(cmd, args, {
+    const { stdout, stderr } = await execFileAsync(cmd, cmdArgs, {
       cwd: projectPath,
       timeout: 120_000,
       shell: false,

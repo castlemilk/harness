@@ -18,6 +18,8 @@ export interface RunnerOptions {
   suiteName: string;
   timeoutMs?: number;
   projectPrefix?: string;
+  provider?: string;
+  model?: string;
   onProgress?: (result: BenchmarkResult) => void;
 }
 
@@ -86,6 +88,14 @@ export async function runBenchmark(
         tags: ['benchmark', 'agent'],
       });
       harnessTaskId = harnessTask.id;
+
+      if (options.provider || options.model) {
+        await fetch(`${apiUrl}/tasks/${harnessTaskId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: options.provider, model: options.model }),
+        });
+      }
 
       await runTask(apiUrl, harnessTask.id);
       const finished = await waitForTask(apiUrl, harnessTask.id, timeoutMs);

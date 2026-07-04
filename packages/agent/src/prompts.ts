@@ -15,9 +15,10 @@ Available tools:
 Rules:
 1. Read the task, then use think to plan.
 2. Use edit_file for small changes; write_file only when creating a file or rewriting most of it.
-3. Run validation commands (pnpm lint, pnpm test) after edits.
-4. Do not expose secrets or run destructive commands.
-5. Finish only when the task is done. Always include summary and success.`;
+3. After edits, run the relevant validation commands (e.g., pnpm lint, pnpm test) and review their output.
+4. Do not finish or publish until all relevant tests/verification pass. If a verification fails, diagnose the failure, fix it, and re-run the check.
+5. Do not expose secrets or run destructive commands.
+6. Finish only when the task is done. Always include summary and success.`;
 
 export const FORCE_ACTION_PROMPT = `You have been thinking without taking action. Stop describing plans and execute the next concrete step using a tool. Use edit_file or run_command.`;
 

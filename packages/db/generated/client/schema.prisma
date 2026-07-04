@@ -92,6 +92,9 @@ model AgentRun {
   resultStatus      String   @default("running")
   validationSummary String? // JSON
   publishedVersion  String?
+  promptTokens      Int?
+  completionTokens  Int?
+  totalTokens       Int?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -135,4 +138,15 @@ model SkillArtifact {
   generatedPath String
   manifest      String // JSON
   registeredAt  DateTime @default(now())
+}
+
+model PromptVersion {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  sourcePath      String
+  systemPrompt    String
+  textToolsPrompt String
+  hash            String
+  metadata        String? // JSON
+  createdAt       DateTime @default(now())
 }

@@ -52,6 +52,17 @@ export function selectProvider(
     return undefined;
   }
 
+  // Honor an explicit provider/model assignment on the task before falling back
+  // to routing rules or capability-based selection.
+  if (task.assignedModel) {
+    const provider = enabled.find(
+      (cfg) => cfg.id === task.assignedModel?.provider || cfg.name === task.assignedModel?.provider
+    );
+    if (provider) {
+      return { provider, model: task.assignedModel.model };
+    }
+  }
+
   const matchingRules = rules
     .filter((rule) => {
       if (rule.when.complexity && rule.when.complexity !== task.complexity) {

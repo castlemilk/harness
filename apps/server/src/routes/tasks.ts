@@ -18,6 +18,8 @@ const updateSchema = z.object({
   description: z.string().optional(),
   complexity: z.enum(['simple', 'medium', 'complex']).optional(),
   tags: z.array(z.string()).optional(),
+  provider: z.string().optional(),
+  model: z.string().optional(),
 });
 
 export function taskRoutes(prisma: PrismaClient): Router {

@@ -58,6 +58,11 @@ export type ProviderConfig = $Result.DefaultSelection<Prisma.$ProviderConfigPayl
  * 
  */
 export type SkillArtifact = $Result.DefaultSelection<Prisma.$SkillArtifactPayload>
+/**
+ * Model PromptVersion
+ * 
+ */
+export type PromptVersion = $Result.DefaultSelection<Prisma.$PromptVersionPayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -271,6 +276,16 @@ export class PrismaClient<
     * ```
     */
   get skillArtifact(): Prisma.SkillArtifactDelegate<ExtArgs>;
+
+  /**
+   * `prisma.promptVersion`: Exposes CRUD operations for the **PromptVersion** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more PromptVersions
+    * const promptVersions = await prisma.promptVersion.findMany()
+    * ```
+    */
+  get promptVersion(): Prisma.PromptVersionDelegate<ExtArgs>;
 }
 
 export namespace Prisma {
@@ -720,7 +735,8 @@ export namespace Prisma {
     AgentRun: 'AgentRun',
     TraceSpan: 'TraceSpan',
     ProviderConfig: 'ProviderConfig',
-    SkillArtifact: 'SkillArtifact'
+    SkillArtifact: 'SkillArtifact',
+    PromptVersion: 'PromptVersion'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -736,7 +752,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "skillArtifact"
+      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "skillArtifact" | "promptVersion"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1367,6 +1383,76 @@ export namespace Prisma {
           count: {
             args: Prisma.SkillArtifactCountArgs<ExtArgs>
             result: $Utils.Optional<SkillArtifactCountAggregateOutputType> | number
+          }
+        }
+      }
+      PromptVersion: {
+        payload: Prisma.$PromptVersionPayload<ExtArgs>
+        fields: Prisma.PromptVersionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.PromptVersionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PromptVersionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.PromptVersionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PromptVersionPayload>
+          }
+          findFirst: {
+            args: Prisma.PromptVersionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PromptVersionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.PromptVersionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PromptVersionPayload>
+          }
+          findMany: {
+            args: Prisma.PromptVersionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PromptVersionPayload>[]
+          }
+          create: {
+            args: Prisma.PromptVersionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PromptVersionPayload>
+          }
+          createMany: {
+            args: Prisma.PromptVersionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.PromptVersionCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PromptVersionPayload>[]
+          }
+          delete: {
+            args: Prisma.PromptVersionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PromptVersionPayload>
+          }
+          update: {
+            args: Prisma.PromptVersionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PromptVersionPayload>
+          }
+          deleteMany: {
+            args: Prisma.PromptVersionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.PromptVersionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.PromptVersionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PromptVersionPayload>
+          }
+          aggregate: {
+            args: Prisma.PromptVersionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregatePromptVersion>
+          }
+          groupBy: {
+            args: Prisma.PromptVersionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<PromptVersionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.PromptVersionCountArgs<ExtArgs>
+            result: $Utils.Optional<PromptVersionCountAggregateOutputType> | number
           }
         }
       }
@@ -6690,8 +6776,22 @@ export namespace Prisma {
 
   export type AggregateAgentRun = {
     _count: AgentRunCountAggregateOutputType | null
+    _avg: AgentRunAvgAggregateOutputType | null
+    _sum: AgentRunSumAggregateOutputType | null
     _min: AgentRunMinAggregateOutputType | null
     _max: AgentRunMaxAggregateOutputType | null
+  }
+
+  export type AgentRunAvgAggregateOutputType = {
+    promptTokens: number | null
+    completionTokens: number | null
+    totalTokens: number | null
+  }
+
+  export type AgentRunSumAggregateOutputType = {
+    promptTokens: number | null
+    completionTokens: number | null
+    totalTokens: number | null
   }
 
   export type AgentRunMinAggregateOutputType = {
@@ -6702,6 +6802,9 @@ export namespace Prisma {
     resultStatus: string | null
     validationSummary: string | null
     publishedVersion: string | null
+    promptTokens: number | null
+    completionTokens: number | null
+    totalTokens: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -6714,6 +6817,9 @@ export namespace Prisma {
     resultStatus: string | null
     validationSummary: string | null
     publishedVersion: string | null
+    promptTokens: number | null
+    completionTokens: number | null
+    totalTokens: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -6726,11 +6832,26 @@ export namespace Prisma {
     resultStatus: number
     validationSummary: number
     publishedVersion: number
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
     createdAt: number
     updatedAt: number
     _all: number
   }
 
+
+  export type AgentRunAvgAggregateInputType = {
+    promptTokens?: true
+    completionTokens?: true
+    totalTokens?: true
+  }
+
+  export type AgentRunSumAggregateInputType = {
+    promptTokens?: true
+    completionTokens?: true
+    totalTokens?: true
+  }
 
   export type AgentRunMinAggregateInputType = {
     id?: true
@@ -6740,6 +6861,9 @@ export namespace Prisma {
     resultStatus?: true
     validationSummary?: true
     publishedVersion?: true
+    promptTokens?: true
+    completionTokens?: true
+    totalTokens?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -6752,6 +6876,9 @@ export namespace Prisma {
     resultStatus?: true
     validationSummary?: true
     publishedVersion?: true
+    promptTokens?: true
+    completionTokens?: true
+    totalTokens?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -6764,6 +6891,9 @@ export namespace Prisma {
     resultStatus?: true
     validationSummary?: true
     publishedVersion?: true
+    promptTokens?: true
+    completionTokens?: true
+    totalTokens?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -6807,6 +6937,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: AgentRunAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AgentRunSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: AgentRunMinAggregateInputType
@@ -6837,6 +6979,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: AgentRunCountAggregateInputType | true
+    _avg?: AgentRunAvgAggregateInputType
+    _sum?: AgentRunSumAggregateInputType
     _min?: AgentRunMinAggregateInputType
     _max?: AgentRunMaxAggregateInputType
   }
@@ -6849,9 +6993,14 @@ export namespace Prisma {
     resultStatus: string
     validationSummary: string | null
     publishedVersion: string | null
+    promptTokens: number | null
+    completionTokens: number | null
+    totalTokens: number | null
     createdAt: Date
     updatedAt: Date
     _count: AgentRunCountAggregateOutputType | null
+    _avg: AgentRunAvgAggregateOutputType | null
+    _sum: AgentRunSumAggregateOutputType | null
     _min: AgentRunMinAggregateOutputType | null
     _max: AgentRunMaxAggregateOutputType | null
   }
@@ -6878,6 +7027,9 @@ export namespace Prisma {
     resultStatus?: boolean
     validationSummary?: boolean
     publishedVersion?: boolean
+    promptTokens?: boolean
+    completionTokens?: boolean
+    totalTokens?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -6891,6 +7043,9 @@ export namespace Prisma {
     resultStatus?: boolean
     validationSummary?: boolean
     publishedVersion?: boolean
+    promptTokens?: boolean
+    completionTokens?: boolean
+    totalTokens?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -6904,6 +7059,9 @@ export namespace Prisma {
     resultStatus?: boolean
     validationSummary?: boolean
     publishedVersion?: boolean
+    promptTokens?: boolean
+    completionTokens?: boolean
+    totalTokens?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -6928,6 +7086,9 @@ export namespace Prisma {
       resultStatus: string
       validationSummary: string | null
       publishedVersion: string | null
+      promptTokens: number | null
+      completionTokens: number | null
+      totalTokens: number | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["agentRun"]>
@@ -7331,6 +7492,9 @@ export namespace Prisma {
     readonly resultStatus: FieldRef<"AgentRun", 'String'>
     readonly validationSummary: FieldRef<"AgentRun", 'String'>
     readonly publishedVersion: FieldRef<"AgentRun", 'String'>
+    readonly promptTokens: FieldRef<"AgentRun", 'Int'>
+    readonly completionTokens: FieldRef<"AgentRun", 'Int'>
+    readonly totalTokens: FieldRef<"AgentRun", 'Int'>
     readonly createdAt: FieldRef<"AgentRun", 'DateTime'>
     readonly updatedAt: FieldRef<"AgentRun", 'DateTime'>
   }
@@ -10502,6 +10666,920 @@ export namespace Prisma {
 
 
   /**
+   * Model PromptVersion
+   */
+
+  export type AggregatePromptVersion = {
+    _count: PromptVersionCountAggregateOutputType | null
+    _min: PromptVersionMinAggregateOutputType | null
+    _max: PromptVersionMaxAggregateOutputType | null
+  }
+
+  export type PromptVersionMinAggregateOutputType = {
+    id: string | null
+    name: string | null
+    sourcePath: string | null
+    systemPrompt: string | null
+    textToolsPrompt: string | null
+    hash: string | null
+    metadata: string | null
+    createdAt: Date | null
+  }
+
+  export type PromptVersionMaxAggregateOutputType = {
+    id: string | null
+    name: string | null
+    sourcePath: string | null
+    systemPrompt: string | null
+    textToolsPrompt: string | null
+    hash: string | null
+    metadata: string | null
+    createdAt: Date | null
+  }
+
+  export type PromptVersionCountAggregateOutputType = {
+    id: number
+    name: number
+    sourcePath: number
+    systemPrompt: number
+    textToolsPrompt: number
+    hash: number
+    metadata: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type PromptVersionMinAggregateInputType = {
+    id?: true
+    name?: true
+    sourcePath?: true
+    systemPrompt?: true
+    textToolsPrompt?: true
+    hash?: true
+    metadata?: true
+    createdAt?: true
+  }
+
+  export type PromptVersionMaxAggregateInputType = {
+    id?: true
+    name?: true
+    sourcePath?: true
+    systemPrompt?: true
+    textToolsPrompt?: true
+    hash?: true
+    metadata?: true
+    createdAt?: true
+  }
+
+  export type PromptVersionCountAggregateInputType = {
+    id?: true
+    name?: true
+    sourcePath?: true
+    systemPrompt?: true
+    textToolsPrompt?: true
+    hash?: true
+    metadata?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type PromptVersionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PromptVersion to aggregate.
+     */
+    where?: PromptVersionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PromptVersions to fetch.
+     */
+    orderBy?: PromptVersionOrderByWithRelationInput | PromptVersionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: PromptVersionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PromptVersions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PromptVersions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned PromptVersions
+    **/
+    _count?: true | PromptVersionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: PromptVersionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: PromptVersionMaxAggregateInputType
+  }
+
+  export type GetPromptVersionAggregateType<T extends PromptVersionAggregateArgs> = {
+        [P in keyof T & keyof AggregatePromptVersion]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregatePromptVersion[P]>
+      : GetScalarType<T[P], AggregatePromptVersion[P]>
+  }
+
+
+
+
+  export type PromptVersionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PromptVersionWhereInput
+    orderBy?: PromptVersionOrderByWithAggregationInput | PromptVersionOrderByWithAggregationInput[]
+    by: PromptVersionScalarFieldEnum[] | PromptVersionScalarFieldEnum
+    having?: PromptVersionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: PromptVersionCountAggregateInputType | true
+    _min?: PromptVersionMinAggregateInputType
+    _max?: PromptVersionMaxAggregateInputType
+  }
+
+  export type PromptVersionGroupByOutputType = {
+    id: string
+    name: string
+    sourcePath: string
+    systemPrompt: string
+    textToolsPrompt: string
+    hash: string
+    metadata: string | null
+    createdAt: Date
+    _count: PromptVersionCountAggregateOutputType | null
+    _min: PromptVersionMinAggregateOutputType | null
+    _max: PromptVersionMaxAggregateOutputType | null
+  }
+
+  type GetPromptVersionGroupByPayload<T extends PromptVersionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<PromptVersionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof PromptVersionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], PromptVersionGroupByOutputType[P]>
+            : GetScalarType<T[P], PromptVersionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type PromptVersionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    sourcePath?: boolean
+    systemPrompt?: boolean
+    textToolsPrompt?: boolean
+    hash?: boolean
+    metadata?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["promptVersion"]>
+
+  export type PromptVersionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    sourcePath?: boolean
+    systemPrompt?: boolean
+    textToolsPrompt?: boolean
+    hash?: boolean
+    metadata?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["promptVersion"]>
+
+  export type PromptVersionSelectScalar = {
+    id?: boolean
+    name?: boolean
+    sourcePath?: boolean
+    systemPrompt?: boolean
+    textToolsPrompt?: boolean
+    hash?: boolean
+    metadata?: boolean
+    createdAt?: boolean
+  }
+
+
+  export type $PromptVersionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "PromptVersion"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      name: string
+      sourcePath: string
+      systemPrompt: string
+      textToolsPrompt: string
+      hash: string
+      metadata: string | null
+      createdAt: Date
+    }, ExtArgs["result"]["promptVersion"]>
+    composites: {}
+  }
+
+  type PromptVersionGetPayload<S extends boolean | null | undefined | PromptVersionDefaultArgs> = $Result.GetResult<Prisma.$PromptVersionPayload, S>
+
+  type PromptVersionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<PromptVersionFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: PromptVersionCountAggregateInputType | true
+    }
+
+  export interface PromptVersionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['PromptVersion'], meta: { name: 'PromptVersion' } }
+    /**
+     * Find zero or one PromptVersion that matches the filter.
+     * @param {PromptVersionFindUniqueArgs} args - Arguments to find a PromptVersion
+     * @example
+     * // Get one PromptVersion
+     * const promptVersion = await prisma.promptVersion.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends PromptVersionFindUniqueArgs>(args: SelectSubset<T, PromptVersionFindUniqueArgs<ExtArgs>>): Prisma__PromptVersionClient<$Result.GetResult<Prisma.$PromptVersionPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one PromptVersion that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {PromptVersionFindUniqueOrThrowArgs} args - Arguments to find a PromptVersion
+     * @example
+     * // Get one PromptVersion
+     * const promptVersion = await prisma.promptVersion.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends PromptVersionFindUniqueOrThrowArgs>(args: SelectSubset<T, PromptVersionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__PromptVersionClient<$Result.GetResult<Prisma.$PromptVersionPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first PromptVersion that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PromptVersionFindFirstArgs} args - Arguments to find a PromptVersion
+     * @example
+     * // Get one PromptVersion
+     * const promptVersion = await prisma.promptVersion.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends PromptVersionFindFirstArgs>(args?: SelectSubset<T, PromptVersionFindFirstArgs<ExtArgs>>): Prisma__PromptVersionClient<$Result.GetResult<Prisma.$PromptVersionPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first PromptVersion that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PromptVersionFindFirstOrThrowArgs} args - Arguments to find a PromptVersion
+     * @example
+     * // Get one PromptVersion
+     * const promptVersion = await prisma.promptVersion.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends PromptVersionFindFirstOrThrowArgs>(args?: SelectSubset<T, PromptVersionFindFirstOrThrowArgs<ExtArgs>>): Prisma__PromptVersionClient<$Result.GetResult<Prisma.$PromptVersionPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more PromptVersions that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PromptVersionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all PromptVersions
+     * const promptVersions = await prisma.promptVersion.findMany()
+     * 
+     * // Get first 10 PromptVersions
+     * const promptVersions = await prisma.promptVersion.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const promptVersionWithIdOnly = await prisma.promptVersion.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends PromptVersionFindManyArgs>(args?: SelectSubset<T, PromptVersionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PromptVersionPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a PromptVersion.
+     * @param {PromptVersionCreateArgs} args - Arguments to create a PromptVersion.
+     * @example
+     * // Create one PromptVersion
+     * const PromptVersion = await prisma.promptVersion.create({
+     *   data: {
+     *     // ... data to create a PromptVersion
+     *   }
+     * })
+     * 
+     */
+    create<T extends PromptVersionCreateArgs>(args: SelectSubset<T, PromptVersionCreateArgs<ExtArgs>>): Prisma__PromptVersionClient<$Result.GetResult<Prisma.$PromptVersionPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many PromptVersions.
+     * @param {PromptVersionCreateManyArgs} args - Arguments to create many PromptVersions.
+     * @example
+     * // Create many PromptVersions
+     * const promptVersion = await prisma.promptVersion.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends PromptVersionCreateManyArgs>(args?: SelectSubset<T, PromptVersionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many PromptVersions and returns the data saved in the database.
+     * @param {PromptVersionCreateManyAndReturnArgs} args - Arguments to create many PromptVersions.
+     * @example
+     * // Create many PromptVersions
+     * const promptVersion = await prisma.promptVersion.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many PromptVersions and only return the `id`
+     * const promptVersionWithIdOnly = await prisma.promptVersion.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends PromptVersionCreateManyAndReturnArgs>(args?: SelectSubset<T, PromptVersionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PromptVersionPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a PromptVersion.
+     * @param {PromptVersionDeleteArgs} args - Arguments to delete one PromptVersion.
+     * @example
+     * // Delete one PromptVersion
+     * const PromptVersion = await prisma.promptVersion.delete({
+     *   where: {
+     *     // ... filter to delete one PromptVersion
+     *   }
+     * })
+     * 
+     */
+    delete<T extends PromptVersionDeleteArgs>(args: SelectSubset<T, PromptVersionDeleteArgs<ExtArgs>>): Prisma__PromptVersionClient<$Result.GetResult<Prisma.$PromptVersionPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one PromptVersion.
+     * @param {PromptVersionUpdateArgs} args - Arguments to update one PromptVersion.
+     * @example
+     * // Update one PromptVersion
+     * const promptVersion = await prisma.promptVersion.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends PromptVersionUpdateArgs>(args: SelectSubset<T, PromptVersionUpdateArgs<ExtArgs>>): Prisma__PromptVersionClient<$Result.GetResult<Prisma.$PromptVersionPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more PromptVersions.
+     * @param {PromptVersionDeleteManyArgs} args - Arguments to filter PromptVersions to delete.
+     * @example
+     * // Delete a few PromptVersions
+     * const { count } = await prisma.promptVersion.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends PromptVersionDeleteManyArgs>(args?: SelectSubset<T, PromptVersionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more PromptVersions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PromptVersionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many PromptVersions
+     * const promptVersion = await prisma.promptVersion.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends PromptVersionUpdateManyArgs>(args: SelectSubset<T, PromptVersionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one PromptVersion.
+     * @param {PromptVersionUpsertArgs} args - Arguments to update or create a PromptVersion.
+     * @example
+     * // Update or create a PromptVersion
+     * const promptVersion = await prisma.promptVersion.upsert({
+     *   create: {
+     *     // ... data to create a PromptVersion
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the PromptVersion we want to update
+     *   }
+     * })
+     */
+    upsert<T extends PromptVersionUpsertArgs>(args: SelectSubset<T, PromptVersionUpsertArgs<ExtArgs>>): Prisma__PromptVersionClient<$Result.GetResult<Prisma.$PromptVersionPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of PromptVersions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PromptVersionCountArgs} args - Arguments to filter PromptVersions to count.
+     * @example
+     * // Count the number of PromptVersions
+     * const count = await prisma.promptVersion.count({
+     *   where: {
+     *     // ... the filter for the PromptVersions we want to count
+     *   }
+     * })
+    **/
+    count<T extends PromptVersionCountArgs>(
+      args?: Subset<T, PromptVersionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], PromptVersionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a PromptVersion.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PromptVersionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends PromptVersionAggregateArgs>(args: Subset<T, PromptVersionAggregateArgs>): Prisma.PrismaPromise<GetPromptVersionAggregateType<T>>
+
+    /**
+     * Group by PromptVersion.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PromptVersionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends PromptVersionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: PromptVersionGroupByArgs['orderBy'] }
+        : { orderBy?: PromptVersionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, PromptVersionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPromptVersionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the PromptVersion model
+   */
+  readonly fields: PromptVersionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for PromptVersion.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__PromptVersionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the PromptVersion model
+   */ 
+  interface PromptVersionFieldRefs {
+    readonly id: FieldRef<"PromptVersion", 'String'>
+    readonly name: FieldRef<"PromptVersion", 'String'>
+    readonly sourcePath: FieldRef<"PromptVersion", 'String'>
+    readonly systemPrompt: FieldRef<"PromptVersion", 'String'>
+    readonly textToolsPrompt: FieldRef<"PromptVersion", 'String'>
+    readonly hash: FieldRef<"PromptVersion", 'String'>
+    readonly metadata: FieldRef<"PromptVersion", 'String'>
+    readonly createdAt: FieldRef<"PromptVersion", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * PromptVersion findUnique
+   */
+  export type PromptVersionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PromptVersion
+     */
+    select?: PromptVersionSelect<ExtArgs> | null
+    /**
+     * Filter, which PromptVersion to fetch.
+     */
+    where: PromptVersionWhereUniqueInput
+  }
+
+  /**
+   * PromptVersion findUniqueOrThrow
+   */
+  export type PromptVersionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PromptVersion
+     */
+    select?: PromptVersionSelect<ExtArgs> | null
+    /**
+     * Filter, which PromptVersion to fetch.
+     */
+    where: PromptVersionWhereUniqueInput
+  }
+
+  /**
+   * PromptVersion findFirst
+   */
+  export type PromptVersionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PromptVersion
+     */
+    select?: PromptVersionSelect<ExtArgs> | null
+    /**
+     * Filter, which PromptVersion to fetch.
+     */
+    where?: PromptVersionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PromptVersions to fetch.
+     */
+    orderBy?: PromptVersionOrderByWithRelationInput | PromptVersionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PromptVersions.
+     */
+    cursor?: PromptVersionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PromptVersions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PromptVersions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PromptVersions.
+     */
+    distinct?: PromptVersionScalarFieldEnum | PromptVersionScalarFieldEnum[]
+  }
+
+  /**
+   * PromptVersion findFirstOrThrow
+   */
+  export type PromptVersionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PromptVersion
+     */
+    select?: PromptVersionSelect<ExtArgs> | null
+    /**
+     * Filter, which PromptVersion to fetch.
+     */
+    where?: PromptVersionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PromptVersions to fetch.
+     */
+    orderBy?: PromptVersionOrderByWithRelationInput | PromptVersionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PromptVersions.
+     */
+    cursor?: PromptVersionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PromptVersions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PromptVersions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PromptVersions.
+     */
+    distinct?: PromptVersionScalarFieldEnum | PromptVersionScalarFieldEnum[]
+  }
+
+  /**
+   * PromptVersion findMany
+   */
+  export type PromptVersionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PromptVersion
+     */
+    select?: PromptVersionSelect<ExtArgs> | null
+    /**
+     * Filter, which PromptVersions to fetch.
+     */
+    where?: PromptVersionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PromptVersions to fetch.
+     */
+    orderBy?: PromptVersionOrderByWithRelationInput | PromptVersionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing PromptVersions.
+     */
+    cursor?: PromptVersionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PromptVersions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PromptVersions.
+     */
+    skip?: number
+    distinct?: PromptVersionScalarFieldEnum | PromptVersionScalarFieldEnum[]
+  }
+
+  /**
+   * PromptVersion create
+   */
+  export type PromptVersionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PromptVersion
+     */
+    select?: PromptVersionSelect<ExtArgs> | null
+    /**
+     * The data needed to create a PromptVersion.
+     */
+    data: XOR<PromptVersionCreateInput, PromptVersionUncheckedCreateInput>
+  }
+
+  /**
+   * PromptVersion createMany
+   */
+  export type PromptVersionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many PromptVersions.
+     */
+    data: PromptVersionCreateManyInput | PromptVersionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * PromptVersion createManyAndReturn
+   */
+  export type PromptVersionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PromptVersion
+     */
+    select?: PromptVersionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many PromptVersions.
+     */
+    data: PromptVersionCreateManyInput | PromptVersionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * PromptVersion update
+   */
+  export type PromptVersionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PromptVersion
+     */
+    select?: PromptVersionSelect<ExtArgs> | null
+    /**
+     * The data needed to update a PromptVersion.
+     */
+    data: XOR<PromptVersionUpdateInput, PromptVersionUncheckedUpdateInput>
+    /**
+     * Choose, which PromptVersion to update.
+     */
+    where: PromptVersionWhereUniqueInput
+  }
+
+  /**
+   * PromptVersion updateMany
+   */
+  export type PromptVersionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update PromptVersions.
+     */
+    data: XOR<PromptVersionUpdateManyMutationInput, PromptVersionUncheckedUpdateManyInput>
+    /**
+     * Filter which PromptVersions to update
+     */
+    where?: PromptVersionWhereInput
+  }
+
+  /**
+   * PromptVersion upsert
+   */
+  export type PromptVersionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PromptVersion
+     */
+    select?: PromptVersionSelect<ExtArgs> | null
+    /**
+     * The filter to search for the PromptVersion to update in case it exists.
+     */
+    where: PromptVersionWhereUniqueInput
+    /**
+     * In case the PromptVersion found by the `where` argument doesn't exist, create a new PromptVersion with this data.
+     */
+    create: XOR<PromptVersionCreateInput, PromptVersionUncheckedCreateInput>
+    /**
+     * In case the PromptVersion was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<PromptVersionUpdateInput, PromptVersionUncheckedUpdateInput>
+  }
+
+  /**
+   * PromptVersion delete
+   */
+  export type PromptVersionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PromptVersion
+     */
+    select?: PromptVersionSelect<ExtArgs> | null
+    /**
+     * Filter which PromptVersion to delete.
+     */
+    where: PromptVersionWhereUniqueInput
+  }
+
+  /**
+   * PromptVersion deleteMany
+   */
+  export type PromptVersionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PromptVersions to delete
+     */
+    where?: PromptVersionWhereInput
+  }
+
+  /**
+   * PromptVersion without action
+   */
+  export type PromptVersionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PromptVersion
+     */
+    select?: PromptVersionSelect<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -10596,6 +11674,9 @@ export namespace Prisma {
     resultStatus: 'resultStatus',
     validationSummary: 'validationSummary',
     publishedVersion: 'publishedVersion',
+    promptTokens: 'promptTokens',
+    completionTokens: 'completionTokens',
+    totalTokens: 'totalTokens',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -10645,6 +11726,20 @@ export namespace Prisma {
   };
 
   export type SkillArtifactScalarFieldEnum = (typeof SkillArtifactScalarFieldEnum)[keyof typeof SkillArtifactScalarFieldEnum]
+
+
+  export const PromptVersionScalarFieldEnum: {
+    id: 'id',
+    name: 'name',
+    sourcePath: 'sourcePath',
+    systemPrompt: 'systemPrompt',
+    textToolsPrompt: 'textToolsPrompt',
+    hash: 'hash',
+    metadata: 'metadata',
+    createdAt: 'createdAt'
+  };
+
+  export type PromptVersionScalarFieldEnum = (typeof PromptVersionScalarFieldEnum)[keyof typeof PromptVersionScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -11135,6 +12230,9 @@ export namespace Prisma {
     resultStatus?: StringFilter<"AgentRun"> | string
     validationSummary?: StringNullableFilter<"AgentRun"> | string | null
     publishedVersion?: StringNullableFilter<"AgentRun"> | string | null
+    promptTokens?: IntNullableFilter<"AgentRun"> | number | null
+    completionTokens?: IntNullableFilter<"AgentRun"> | number | null
+    totalTokens?: IntNullableFilter<"AgentRun"> | number | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -11148,6 +12246,9 @@ export namespace Prisma {
     resultStatus?: SortOrder
     validationSummary?: SortOrderInput | SortOrder
     publishedVersion?: SortOrderInput | SortOrder
+    promptTokens?: SortOrderInput | SortOrder
+    completionTokens?: SortOrderInput | SortOrder
+    totalTokens?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     task?: TaskOrderByWithRelationInput
@@ -11164,6 +12265,9 @@ export namespace Prisma {
     resultStatus?: StringFilter<"AgentRun"> | string
     validationSummary?: StringNullableFilter<"AgentRun"> | string | null
     publishedVersion?: StringNullableFilter<"AgentRun"> | string | null
+    promptTokens?: IntNullableFilter<"AgentRun"> | number | null
+    completionTokens?: IntNullableFilter<"AgentRun"> | number | null
+    totalTokens?: IntNullableFilter<"AgentRun"> | number | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -11177,11 +12281,16 @@ export namespace Prisma {
     resultStatus?: SortOrder
     validationSummary?: SortOrderInput | SortOrder
     publishedVersion?: SortOrderInput | SortOrder
+    promptTokens?: SortOrderInput | SortOrder
+    completionTokens?: SortOrderInput | SortOrder
+    totalTokens?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: AgentRunCountOrderByAggregateInput
+    _avg?: AgentRunAvgOrderByAggregateInput
     _max?: AgentRunMaxOrderByAggregateInput
     _min?: AgentRunMinOrderByAggregateInput
+    _sum?: AgentRunSumOrderByAggregateInput
   }
 
   export type AgentRunScalarWhereWithAggregatesInput = {
@@ -11195,6 +12304,9 @@ export namespace Prisma {
     resultStatus?: StringWithAggregatesFilter<"AgentRun"> | string
     validationSummary?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
     publishedVersion?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
+    promptTokens?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    completionTokens?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    totalTokens?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
     createdAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
   }
@@ -11411,6 +12523,73 @@ export namespace Prisma {
     generatedPath?: StringWithAggregatesFilter<"SkillArtifact"> | string
     manifest?: StringWithAggregatesFilter<"SkillArtifact"> | string
     registeredAt?: DateTimeWithAggregatesFilter<"SkillArtifact"> | Date | string
+  }
+
+  export type PromptVersionWhereInput = {
+    AND?: PromptVersionWhereInput | PromptVersionWhereInput[]
+    OR?: PromptVersionWhereInput[]
+    NOT?: PromptVersionWhereInput | PromptVersionWhereInput[]
+    id?: StringFilter<"PromptVersion"> | string
+    name?: StringFilter<"PromptVersion"> | string
+    sourcePath?: StringFilter<"PromptVersion"> | string
+    systemPrompt?: StringFilter<"PromptVersion"> | string
+    textToolsPrompt?: StringFilter<"PromptVersion"> | string
+    hash?: StringFilter<"PromptVersion"> | string
+    metadata?: StringNullableFilter<"PromptVersion"> | string | null
+    createdAt?: DateTimeFilter<"PromptVersion"> | Date | string
+  }
+
+  export type PromptVersionOrderByWithRelationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    sourcePath?: SortOrder
+    systemPrompt?: SortOrder
+    textToolsPrompt?: SortOrder
+    hash?: SortOrder
+    metadata?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type PromptVersionWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    name?: string
+    AND?: PromptVersionWhereInput | PromptVersionWhereInput[]
+    OR?: PromptVersionWhereInput[]
+    NOT?: PromptVersionWhereInput | PromptVersionWhereInput[]
+    sourcePath?: StringFilter<"PromptVersion"> | string
+    systemPrompt?: StringFilter<"PromptVersion"> | string
+    textToolsPrompt?: StringFilter<"PromptVersion"> | string
+    hash?: StringFilter<"PromptVersion"> | string
+    metadata?: StringNullableFilter<"PromptVersion"> | string | null
+    createdAt?: DateTimeFilter<"PromptVersion"> | Date | string
+  }, "id" | "name">
+
+  export type PromptVersionOrderByWithAggregationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    sourcePath?: SortOrder
+    systemPrompt?: SortOrder
+    textToolsPrompt?: SortOrder
+    hash?: SortOrder
+    metadata?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    _count?: PromptVersionCountOrderByAggregateInput
+    _max?: PromptVersionMaxOrderByAggregateInput
+    _min?: PromptVersionMinOrderByAggregateInput
+  }
+
+  export type PromptVersionScalarWhereWithAggregatesInput = {
+    AND?: PromptVersionScalarWhereWithAggregatesInput | PromptVersionScalarWhereWithAggregatesInput[]
+    OR?: PromptVersionScalarWhereWithAggregatesInput[]
+    NOT?: PromptVersionScalarWhereWithAggregatesInput | PromptVersionScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"PromptVersion"> | string
+    name?: StringWithAggregatesFilter<"PromptVersion"> | string
+    sourcePath?: StringWithAggregatesFilter<"PromptVersion"> | string
+    systemPrompt?: StringWithAggregatesFilter<"PromptVersion"> | string
+    textToolsPrompt?: StringWithAggregatesFilter<"PromptVersion"> | string
+    hash?: StringWithAggregatesFilter<"PromptVersion"> | string
+    metadata?: StringNullableWithAggregatesFilter<"PromptVersion"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"PromptVersion"> | Date | string
   }
 
   export type ProjectCreateInput = {
@@ -11846,6 +13025,9 @@ export namespace Prisma {
     resultStatus?: string
     validationSummary?: string | null
     publishedVersion?: string | null
+    promptTokens?: number | null
+    completionTokens?: number | null
+    totalTokens?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -11859,6 +13041,9 @@ export namespace Prisma {
     resultStatus?: string
     validationSummary?: string | null
     publishedVersion?: string | null
+    promptTokens?: number | null
+    completionTokens?: number | null
+    totalTokens?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -11870,6 +13055,9 @@ export namespace Prisma {
     resultStatus?: StringFieldUpdateOperationsInput | string
     validationSummary?: NullableStringFieldUpdateOperationsInput | string | null
     publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -11883,6 +13071,9 @@ export namespace Prisma {
     resultStatus?: StringFieldUpdateOperationsInput | string
     validationSummary?: NullableStringFieldUpdateOperationsInput | string | null
     publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -11895,6 +13086,9 @@ export namespace Prisma {
     resultStatus?: string
     validationSummary?: string | null
     publishedVersion?: string | null
+    promptTokens?: number | null
+    completionTokens?: number | null
+    totalTokens?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -11906,6 +13100,9 @@ export namespace Prisma {
     resultStatus?: StringFieldUpdateOperationsInput | string
     validationSummary?: NullableStringFieldUpdateOperationsInput | string | null
     publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -11918,6 +13115,9 @@ export namespace Prisma {
     resultStatus?: StringFieldUpdateOperationsInput | string
     validationSummary?: NullableStringFieldUpdateOperationsInput | string | null
     publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -12164,6 +13364,83 @@ export namespace Prisma {
     generatedPath?: StringFieldUpdateOperationsInput | string
     manifest?: StringFieldUpdateOperationsInput | string
     registeredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PromptVersionCreateInput = {
+    id?: string
+    name: string
+    sourcePath: string
+    systemPrompt: string
+    textToolsPrompt: string
+    hash: string
+    metadata?: string | null
+    createdAt?: Date | string
+  }
+
+  export type PromptVersionUncheckedCreateInput = {
+    id?: string
+    name: string
+    sourcePath: string
+    systemPrompt: string
+    textToolsPrompt: string
+    hash: string
+    metadata?: string | null
+    createdAt?: Date | string
+  }
+
+  export type PromptVersionUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    sourcePath?: StringFieldUpdateOperationsInput | string
+    systemPrompt?: StringFieldUpdateOperationsInput | string
+    textToolsPrompt?: StringFieldUpdateOperationsInput | string
+    hash?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PromptVersionUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    sourcePath?: StringFieldUpdateOperationsInput | string
+    systemPrompt?: StringFieldUpdateOperationsInput | string
+    textToolsPrompt?: StringFieldUpdateOperationsInput | string
+    hash?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PromptVersionCreateManyInput = {
+    id?: string
+    name: string
+    sourcePath: string
+    systemPrompt: string
+    textToolsPrompt: string
+    hash: string
+    metadata?: string | null
+    createdAt?: Date | string
+  }
+
+  export type PromptVersionUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    sourcePath?: StringFieldUpdateOperationsInput | string
+    systemPrompt?: StringFieldUpdateOperationsInput | string
+    textToolsPrompt?: StringFieldUpdateOperationsInput | string
+    hash?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PromptVersionUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    sourcePath?: StringFieldUpdateOperationsInput | string
+    systemPrompt?: StringFieldUpdateOperationsInput | string
+    textToolsPrompt?: StringFieldUpdateOperationsInput | string
+    hash?: StringFieldUpdateOperationsInput | string
+    metadata?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type StringFilter<$PrismaModel = never> = {
@@ -12541,6 +13818,17 @@ export namespace Prisma {
     createdAt?: SortOrder
   }
 
+  export type IntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
   export type AgentRunCountOrderByAggregateInput = {
     id?: SortOrder
     taskId?: SortOrder
@@ -12549,8 +13837,17 @@ export namespace Prisma {
     resultStatus?: SortOrder
     validationSummary?: SortOrder
     publishedVersion?: SortOrder
+    promptTokens?: SortOrder
+    completionTokens?: SortOrder
+    totalTokens?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type AgentRunAvgOrderByAggregateInput = {
+    promptTokens?: SortOrder
+    completionTokens?: SortOrder
+    totalTokens?: SortOrder
   }
 
   export type AgentRunMaxOrderByAggregateInput = {
@@ -12561,6 +13858,9 @@ export namespace Prisma {
     resultStatus?: SortOrder
     validationSummary?: SortOrder
     publishedVersion?: SortOrder
+    promptTokens?: SortOrder
+    completionTokens?: SortOrder
+    totalTokens?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -12573,8 +13873,33 @@ export namespace Prisma {
     resultStatus?: SortOrder
     validationSummary?: SortOrder
     publishedVersion?: SortOrder
+    promptTokens?: SortOrder
+    completionTokens?: SortOrder
+    totalTokens?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type AgentRunSumOrderByAggregateInput = {
+    promptTokens?: SortOrder
+    completionTokens?: SortOrder
+    totalTokens?: SortOrder
+  }
+
+  export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedIntNullableFilter<$PrismaModel>
+    _max?: NestedIntNullableFilter<$PrismaModel>
   }
 
   export type DateTimeNullableFilter<$PrismaModel = never> = {
@@ -12723,6 +14048,39 @@ export namespace Prisma {
     generatedPath?: SortOrder
     manifest?: SortOrder
     registeredAt?: SortOrder
+  }
+
+  export type PromptVersionCountOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    sourcePath?: SortOrder
+    systemPrompt?: SortOrder
+    textToolsPrompt?: SortOrder
+    hash?: SortOrder
+    metadata?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type PromptVersionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    sourcePath?: SortOrder
+    systemPrompt?: SortOrder
+    textToolsPrompt?: SortOrder
+    hash?: SortOrder
+    metadata?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type PromptVersionMinOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    sourcePath?: SortOrder
+    systemPrompt?: SortOrder
+    textToolsPrompt?: SortOrder
+    hash?: SortOrder
+    metadata?: SortOrder
+    createdAt?: SortOrder
   }
 
   export type TaskCreateNestedManyWithoutProjectInput = {
@@ -13059,6 +14417,14 @@ export namespace Prisma {
     connect?: TaskWhereUniqueInput
   }
 
+  export type NullableIntFieldUpdateOperationsInput = {
+    set?: number | null
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
   export type TaskUpdateOneRequiredWithoutAgentRunsNestedInput = {
     create?: XOR<TaskCreateWithoutAgentRunsInput, TaskUncheckedCreateWithoutAgentRunsInput>
     connectOrCreate?: TaskCreateOrConnectWithoutAgentRunsInput
@@ -13225,6 +14591,33 @@ export namespace Prisma {
     gt?: number | FloatFieldRefInput<$PrismaModel>
     gte?: number | FloatFieldRefInput<$PrismaModel>
     not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
+  export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedIntNullableFilter<$PrismaModel>
+    _max?: NestedIntNullableFilter<$PrismaModel>
+  }
+
+  export type NestedFloatNullableFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
   }
 
   export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
@@ -13470,6 +14863,9 @@ export namespace Prisma {
     resultStatus?: string
     validationSummary?: string | null
     publishedVersion?: string | null
+    promptTokens?: number | null
+    completionTokens?: number | null
+    totalTokens?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -13481,6 +14877,9 @@ export namespace Prisma {
     resultStatus?: string
     validationSummary?: string | null
     publishedVersion?: string | null
+    promptTokens?: number | null
+    completionTokens?: number | null
+    totalTokens?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -13678,6 +15077,9 @@ export namespace Prisma {
     resultStatus?: StringFilter<"AgentRun"> | string
     validationSummary?: StringNullableFilter<"AgentRun"> | string | null
     publishedVersion?: StringNullableFilter<"AgentRun"> | string | null
+    promptTokens?: IntNullableFilter<"AgentRun"> | number | null
+    completionTokens?: IntNullableFilter<"AgentRun"> | number | null
+    totalTokens?: IntNullableFilter<"AgentRun"> | number | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
   }
@@ -14301,6 +15703,9 @@ export namespace Prisma {
     resultStatus?: string
     validationSummary?: string | null
     publishedVersion?: string | null
+    promptTokens?: number | null
+    completionTokens?: number | null
+    totalTokens?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -14412,6 +15817,9 @@ export namespace Prisma {
     resultStatus?: StringFieldUpdateOperationsInput | string
     validationSummary?: NullableStringFieldUpdateOperationsInput | string | null
     publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -14423,6 +15831,9 @@ export namespace Prisma {
     resultStatus?: StringFieldUpdateOperationsInput | string
     validationSummary?: NullableStringFieldUpdateOperationsInput | string | null
     publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -14434,6 +15845,9 @@ export namespace Prisma {
     resultStatus?: StringFieldUpdateOperationsInput | string
     validationSummary?: NullableStringFieldUpdateOperationsInput | string | null
     publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -14526,6 +15940,10 @@ export namespace Prisma {
      * @deprecated Use SkillArtifactDefaultArgs instead
      */
     export type SkillArtifactArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = SkillArtifactDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use PromptVersionDefaultArgs instead
+     */
+    export type PromptVersionArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = PromptVersionDefaultArgs<ExtArgs>
 
   /**
    * Batch Payload for updateMany & deleteMany & createMany

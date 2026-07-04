@@ -188,6 +188,9 @@ exports.Prisma.AgentRunScalarFieldEnum = {
   resultStatus: 'resultStatus',
   validationSummary: 'validationSummary',
   publishedVersion: 'publishedVersion',
+  promptTokens: 'promptTokens',
+  completionTokens: 'completionTokens',
+  totalTokens: 'totalTokens',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -227,6 +230,17 @@ exports.Prisma.SkillArtifactScalarFieldEnum = {
   registeredAt: 'registeredAt'
 };
 
+exports.Prisma.PromptVersionScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  sourcePath: 'sourcePath',
+  systemPrompt: 'systemPrompt',
+  textToolsPrompt: 'textToolsPrompt',
+  hash: 'hash',
+  metadata: 'metadata',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -252,7 +266,8 @@ exports.Prisma.ModelName = {
   AgentRun: 'AgentRun',
   TraceSpan: 'TraceSpan',
   ProviderConfig: 'ProviderConfig',
-  SkillArtifact: 'SkillArtifact'
+  SkillArtifact: 'SkillArtifact',
+  PromptVersion: 'PromptVersion'
 };
 
 /**

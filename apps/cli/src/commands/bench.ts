@@ -41,6 +41,9 @@ const runCmd = new Command('run')
   .option('--sample-seed <n>', 'seed for deterministic sampling (for deep-swe)', parseInt)
   .option('--timeout <ms>', 'per-task timeout in ms', '120000')
   .option('--output-dir <dir>', 'report output directory', '.omega/reports')
+  .option('--provider <name>', 'provider to use for benchmark tasks')
+  .option('--model <model>', 'model to use for benchmark tasks')
+  .option('--docker', 'run DeepSWE verifiers in Docker (required for most Node.js tasks)')
   .action(async (opts: {
     suite: string;
     path?: string;
@@ -48,6 +51,9 @@ const runCmd = new Command('run')
     sampleSeed?: number;
     timeout: string;
     outputDir: string;
+    provider?: string;
+    model?: string;
+    docker?: boolean;
   }) => {
     const apiUrl = getApiUrl();
     await waitForApi(apiUrl);
@@ -64,6 +70,7 @@ const runCmd = new Command('run')
         tasksDir: opts.path,
         nTasks: opts.nTasks,
         sampleSeed: opts.sampleSeed,
+        useDocker: opts.docker,
       });
       suiteName = 'deep-swe';
     } else if (opts.suite === 'synthetic') {
@@ -83,6 +90,8 @@ const runCmd = new Command('run')
       apiUrl,
       suiteName,
       timeoutMs,
+      provider: opts.provider,
+      model: opts.model,
       onProgress: (result) => {
         const symbol = result.evaluation.passed ? '✓' : '✗';
         console.log(`${symbol} ${result.task.name} [${result.status}] ${String(result.durationMs)}ms`);

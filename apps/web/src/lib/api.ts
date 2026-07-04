@@ -60,4 +60,24 @@ export const api = {
   getTaskDiffs: (id: string) => request(`/tasks/${id}/diffs`),
   getTaskAgentRun: (id: string) => request(`/tasks/${id}/agent-run`),
   getTraceFlow: (id: string) => request(`/tasks/${id}/trace-flow`),
+
+  getBenchmarkReports: () => request<{ benchmark: string[]; ab: string[] }>('/benchmarks/reports'),
+  getBenchmarkReport: (file: string) => request<Record<string, unknown>>(`/benchmarks/reports/${encodeURIComponent(file)}`),
+  getAbReport: (file: string) => request<Record<string, unknown>>(`/benchmarks/reports/${encodeURIComponent(file)}`),
+  getBenchmarkRunStatus: () => request<{ running: boolean; pid?: number; output?: string }>('/benchmarks/run-status'),
+  runBenchmark: (body: Record<string, unknown>) => request<{ pid: number; status: string }>('/benchmarks/run', { method: 'POST', body: JSON.stringify(body) }),
+
+  getPromptVersions: () =>
+    request<
+      {
+        id: string;
+        name: string;
+        sourcePath: string;
+        systemPrompt: string;
+        textToolsPrompt: string;
+        hash: string;
+        metadata?: string | null;
+        createdAt: string;
+      }[]
+    >('/prompt-versions'),
 };

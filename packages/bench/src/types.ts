@@ -5,7 +5,7 @@ export interface BenchmarkTask {
   description?: string;
   complexity?: 'simple' | 'medium' | 'complex';
   setup?: (projectPath: string) => Promise<void>;
-  evaluate: (ctx: EvaluationContext) => Promise<BenchmarkEvaluation>;
+  evaluate: (ctx: EvaluationContext) => BenchmarkEvaluation | Promise<BenchmarkEvaluation>;
 }
 
 export interface EvaluationContext {
@@ -30,6 +30,9 @@ export interface AgentRunInfo {
   resultStatus: string;
   validationSummary?: string;
   publishedVersion?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,6 +57,12 @@ export interface TraceSpanNode {
   children: TraceSpanNode[];
 }
 
+export interface UsageInfo {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
 export interface BenchmarkResult {
   task: BenchmarkTask;
   harnessTaskId: string;
@@ -62,6 +71,8 @@ export interface BenchmarkResult {
   evaluation: BenchmarkEvaluation;
   agentRun?: AgentRunInfo;
   spanCount: number;
+  failureAnalysis?: FailureAnalysis;
+  usage?: UsageInfo;
 }
 
 export interface BenchmarkReport {
@@ -72,5 +83,20 @@ export interface BenchmarkReport {
   failed: number;
   timeouts: number;
   totalDurationMs: number;
+  totalUsage?: UsageInfo;
   results: BenchmarkResult[];
+}
+
+export type FailureCategory =
+  | 'timeout'
+  | 'validation_failure'
+  | 'tool_misuse'
+  | 'parse_error'
+  | 'plan_error'
+  | 'unknown';
+
+export interface FailureAnalysis {
+  category: FailureCategory;
+  rootCause: string;
+  evidence: string[];
 }

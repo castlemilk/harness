@@ -6,6 +6,9 @@ import { taskRoutes } from './routes/tasks.js';
 import { providerRoutes } from './routes/providers.js';
 import { routerRoutes } from './routes/router.js';
 import { metricsRoutes } from './routes/metrics.js';
+import { benchmarkRoutes } from './routes/benchmarks.js';
+import { reportRoutes } from './routes/reports.js';
+import { promptVersionRoutes } from './routes/prompt-versions.js';
 
 export const app: express.Express = express();
 
@@ -17,6 +20,9 @@ app.use('/tasks', taskRoutes(prisma));
 app.use('/providers', providerRoutes(prisma));
 app.use('/router', routerRoutes(prisma));
 app.use('/metrics', metricsRoutes(prisma));
+app.use('/benchmarks', benchmarkRoutes(prisma));
+app.use('/reports', reportRoutes());
+app.use('/prompt-versions', promptVersionRoutes(prisma));
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

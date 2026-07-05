@@ -49,6 +49,8 @@ Rules:
 11. Do not expose secrets or run destructive commands.
 12. Do not re-read a file you already read in the last few steps unless you just edited it. Remember the content from the previous read_file output.
 13. Finish only when the task is done. Always include summary and success.
+14. VERIFY FIRST: For any task that includes or references a test suite, run the focused test command first, read the failing tests, and base your implementation on the exact expected behaviour. Do not edit source code before observing test failures.
+15. For Kea / signal / selector tasks, always read the relevant test files, implement the exact selector signature, dependencies, and memoization semantics, and run the test suite after each change.
 
 ANTI-LOOP RULES (violation wastes steps and causes failure):
 - You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, ls -la, or find more than once total in the entire session. Use list_files for exploration.

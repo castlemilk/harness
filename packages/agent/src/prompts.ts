@@ -49,8 +49,8 @@ Rules:
 ANTI-LOOP RULES (violation wastes steps and causes failure):
 - You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, ls -la, or find more than once total in the entire session. Use list_files for exploration.
 - Do NOT repeat a command or read the same file that already produced output in this session. If you need the same information, remember it from the previous output.
-- After your first think step, you have at most 15 exploration steps (read_file, list_files, run_command) combined. Then you MUST make an edit_file or write_file call.
-- If you have not edited any file after 30 total tool calls, you are stuck. Stop exploring and immediately write or edit a file that addresses the task.
+- After your first think step, you have at most 25 exploration steps (read_file, list_files, run_command) combined. Then you MUST make an edit_file or write_file call.
+- If you have not edited any file after 40 total tool calls, you are stuck. Stop exploring and immediately write or edit a file that addresses the task.
 - Do NOT re-read package.json or src/index.ts after the initial exploration. Their contents were already provided.
 - If run_command is rejected for shell operators (|, &&, ;, redirects, unquoted globs, $()), STOP using those patterns. Quote literal globs, e.g., find . -name "*.ts". Never retry the exact rejected command.
 - Do NOT call think more than twice in the entire session. Use think once at the start, and once only if a verification failure requires diagnosis.
@@ -97,8 +97,8 @@ Rules:
 ANTI-LOOP RULES (violation wastes steps and causes failure):
 - You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, ls -la, or find more than once total.
 - Do NOT repeat a command or read the same file that already produced output in this session.
-- After your first think step, you have at most 15 exploration steps (read_file, list_files, run_command) combined. Then you MUST make an edit_file or write_file call.
-- If you have not edited any file after 30 total tool calls, you are stuck. Stop exploring and immediately write or edit a file that addresses the task.
+- After your first think step, you have at most 25 exploration steps (read_file, list_files, run_command) combined. Then you MUST make an edit_file or write_file call.
+- If you have not edited any file after 40 total tool calls, you are stuck. Stop exploring and immediately write or edit a file that addresses the task.
 - Do NOT re-read package.json or src/index.ts after the initial exploration. Their contents were already provided.
 - If run_command is rejected for shell operators, STOP using those patterns. Quote literal globs, e.g., find . -name "*.ts". Never retry the exact rejected command.
 - Do NOT call think more than twice in the entire session.

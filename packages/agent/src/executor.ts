@@ -618,8 +618,8 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       toolSpan.setAttributes({ tool: call.name });
 
       let result: ToolResult;
-      const stuckWithoutEdits = ctx.editCount === 0 && stepIndex >= 30 && !editTools.includes(call.name) && call.name !== 'finish' && call.name !== 'publish';
-      const explorationBudgetExhausted = ctx.editCount === 0 && ctx.explorationCount > 15 && isExploration;
+      const stuckWithoutEdits = ctx.editCount === 0 && stepIndex >= 40 && !editTools.includes(call.name) && call.name !== 'finish' && call.name !== 'publish';
+      const explorationBudgetExhausted = ctx.editCount === 0 && ctx.explorationCount > 25 && isExploration;
       if (stuckWithoutEdits || explorationBudgetExhausted) {
         result = {
           success: false,

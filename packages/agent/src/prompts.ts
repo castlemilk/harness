@@ -40,11 +40,13 @@ Rules:
 3. After edits, run the relevant validation commands (e.g., pnpm lint, pnpm test) and review their output.
 4. Do not finish or publish until all relevant tests/verification pass. If a verification fails, diagnose the failure, fix it, and re-run the check.
 5. Pay special attention to edge cases mentioned in the task: constructor validation, async behavior, null/undefined handling, error messages, and numeric/string boundaries.
-6. Before finishing, verify that every public API method, property, function, or export named in the task description is actually exposed and callable. Use the verify_api_surface tool with concrete checks. For module exports use "typeof api.myExport === 'function'"; for instance APIs (e.g., logic.selectorHealth) write a check that constructs the instance and returns "typeof instance.selectorHealth === 'function'". If any expected API is missing, add it.
-7. Do not switch branches unless explicitly required. The harness already placed you on a dedicated branch. If the task says "work on a new branch from main" but the repo's default branch is master or something else, stay on the current branch and work from there.
-8. Preserve existing code style, naming conventions, and formatting. Do not reorder unrelated imports or reformat files unnecessarily.
-9. Do not expose secrets or run destructive commands.
-10. Finish only when the task is done. Always include summary and success.
+6. If the task describes a new method/property on an instance (e.g., logic.selectorHealth), attach it to the instance during the build/creation step and verify it is callable. Do not rely on TypeScript-only declarations; the runtime object must expose it.
+7. Write focused tests for new behavior and public APIs, then run them with the project's test command. Fix failures before finishing.
+8. Before finishing, verify that every public API method, property, function, or export named in the task description is actually exposed and callable. Use the verify_api_surface tool with concrete checks. For module exports use "typeof api.myExport === 'function'"; for instance APIs write a check that constructs the instance and returns "typeof instance.theMethod === 'function'". If any expected API is missing, add it.
+9. Do not switch branches unless explicitly required. The harness already placed you on a dedicated branch. If the task says "work on a new branch from main" but the repo's default branch is master or something else, stay on the current branch and work from there.
+10. Preserve existing code style, naming conventions, and formatting. Do not reorder unrelated imports or reformat files unnecessarily.
+11. Do not expose secrets or run destructive commands.
+12. Finish only when the task is done. Always include summary and success.
 
 ANTI-LOOP RULES (violation wastes steps and causes failure):
 - You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, ls -la, or find more than once total in the entire session. Use list_files for exploration.
@@ -88,6 +90,8 @@ Rules:
 - Plan with think, then act.
 - Use edit_file for small changes; write_file only for new files or large rewrites.
 - Run validation (pnpm lint, pnpm test) after edits.
+- If the task describes a new method/property on an instance, attach it to the runtime instance during build/creation and verify it is callable.
+- Write focused tests for new behavior and run them before finishing.
 - Before finishing, verify all public API methods/properties named in the task are exposed and callable. Use the verify_api_surface tool with concrete checks.
 - Do not switch branches; the harness already placed you on a dedicated branch. If the task says "from main" but the default branch differs, stay on the current branch.
 - Do not finish until verification passes.

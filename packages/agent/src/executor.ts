@@ -523,6 +523,19 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       const stepId = step.id;
 
       if (call.name === 'finish') {
+        const finishingWithFailure = call.arguments.success === false;
+        const earlyFailure = finishingWithFailure && stepIndex < ctx.maxSteps - 5;
+        if (earlyFailure) {
+          const message = `finish rejected: you are declaring failure too early (step ${String(stepIndex)} of ${String(ctx.maxSteps)}). Continue diagnosing and fixing the issue instead of giving up.`;
+          turnHadFailure = true;
+          await ctx.prisma.taskStep.update({
+            where: { id: stepId },
+            data: { status: 'failed', output: message },
+          });
+          toolResults.push({ toolCallId: call.id, output: message });
+          messages.push({ role: 'tool', tool_call_id: call.id, content: message });
+          break;
+        }
         const requiresApiCheck = taskMentionsPublicApi(ctx.task);
         if (requiresApiCheck && !ctx.apiSurfaceVerified) {
           const message =

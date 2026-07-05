@@ -30,9 +30,9 @@ Available tools:
 - run_command: Run a single simple command. No pipes (|), &&, ;, redirects, or $(). Each command is one executable plus args. Globs inside quoted arguments are allowed (e.g., find . -name "*.ts"). Prefer pnpm/npm/node. Examples: "pnpm lint", "npm test", "node -e console.log(1)". Invalid: "a && b", "a | b", "a; b", "cat > file".
 - list_files: List files/directories at a relative path. Use this for exploration instead of find/ls. Arguments: { "path": ".", "recursive": true }
 - think: Record a reasoning step. Arguments: { "thought": "..." }
-- finish: Mark the task complete. Arguments: { "summary": "what was done", "success": true }. Use summary, not message.
+- finish: Mark the task complete. Arguments: { "summary": "what was done", "success": true }. Use summary, not message. Do NOT call finish with success:false unless you have exhausted all attempts to fix verification failures.
 - publish: Request build/test/publish. Only after validation passes. Arguments: { "version": "optional" }
-- verify_api_surface: Confirm required public API is exposed. Arguments: { "entry": "src/index.ts (optional)", "checks": ["typeof api.someExport === 'function'"] }.
+- verify_api_surface: Confirm required public API is exposed. For TypeScript projects build first or point entry to the compiled output. Arguments: { "entry": "lib/index.js (optional)", "checks": ["typeof api.someExport === 'function'"] }.
 
 Rules:
 1. Read the task, then use think to plan before any edits.
@@ -72,9 +72,9 @@ Available tools (use ONLY these exact names):
 - run_command: { "command": "single simple command, no pipes/&&/;/redirects/$(); quoted globs ok" }
 - list_files: { "path": ".", "recursive": true }
 - think: { "thought": "reasoning text" }
-- finish: { "summary": "what was done", "success": true | false }
+- finish: { "summary": "what was done", "success": true | false }. Only use success:false if all fixes have failed.
 - publish: { "version": "optional" }
-- verify_api_surface: { "entry": "src/index.ts (optional)", "checks": ["typeof api.someExport === 'function'"] }
+- verify_api_surface: { "entry": "lib/index.js (optional)", "checks": ["typeof api.someExport === 'function'"] }
 
 Follow this loop on every task:
 1. think — reason about requirements and edge cases.

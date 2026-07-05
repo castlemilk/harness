@@ -183,6 +183,7 @@ exports.Prisma.TaskDiffScalarFieldEnum = {
 exports.Prisma.AgentRunScalarFieldEnum = {
   id: 'id',
   taskId: 'taskId',
+  promptVersionId: 'promptVersionId',
   branch: 'branch',
   baseCommit: 'baseCommit',
   resultStatus: 'resultStatus',
@@ -236,8 +237,11 @@ exports.Prisma.PromptVersionScalarFieldEnum = {
   sourcePath: 'sourcePath',
   systemPrompt: 'systemPrompt',
   textToolsPrompt: 'textToolsPrompt',
+  planningPrompt: 'planningPrompt',
+  skillContext: 'skillContext',
   hash: 'hash',
   metadata: 'metadata',
+  benchmarkScore: 'benchmarkScore',
   createdAt: 'createdAt'
 };
 

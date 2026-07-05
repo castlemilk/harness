@@ -170,3 +170,42 @@ export function summariseFailures(results: BenchmarkResult[], traceFlows: Map<st
     .map(([category, data]) => ({ category, ...data }))
     .sort((a, b) => b.count - a.count);
 }
+
+export interface PromptVersionScore {
+  promptVersionId?: string;
+  promptHash?: string;
+  runs: number;
+  passed: number;
+  failed: number;
+  averageScore: number;
+  averageDurationMs: number;
+}
+
+export function scoreByPromptVersion(reports: { promptVersionId?: string; promptHash?: string; results: BenchmarkResult[] }[]): PromptVersionScore[] {
+  const byVersion = new Map<string, PromptVersionScore>();
+  for (const report of reports) {
+    for (const result of report.results) {
+      const key = result.promptHash ?? report.promptHash ?? 'unknown';
+      const existing = byVersion.get(key) ?? {
+        promptVersionId: result.promptVersionId ?? report.promptVersionId,
+        promptHash: result.promptHash ?? report.promptHash,
+        runs: 0,
+        passed: 0,
+        failed: 0,
+        averageScore: 0,
+        averageDurationMs: 0,
+      };
+      existing.runs++;
+      if (result.evaluation.passed) existing.passed++;
+      else existing.failed++;
+      existing.averageScore += result.evaluation.score ?? 0;
+      existing.averageDurationMs += result.durationMs;
+      byVersion.set(key, existing);
+    }
+  }
+  return Array.from(byVersion.values()).map((v) => ({
+    ...v,
+    averageScore: v.runs > 0 ? v.averageScore / v.runs : 0,
+    averageDurationMs: v.runs > 0 ? v.averageDurationMs / v.runs : 0,
+  }));
+}

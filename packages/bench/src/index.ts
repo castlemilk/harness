@@ -10,3 +10,4 @@ export {
   submitOptimiseTask,
   type OptimiseOptions,
 } from './optimise.js';
+export { classifyFailure, pickFocusResult, summariseFailures, scoreByPromptVersion, type PromptVersionScore } from './analyse.js';

@@ -18,6 +18,7 @@ import { buildPromptContext } from './prompt-context.js';
 import { resolveSkills, formatSkillContext } from './skill-resolver.js';
 import { createClients } from './lsp/index.js';
 import { setLspClients } from './tools.js';
+import { loadCurrentPrompts, hashPrompts } from './prompt-versioning.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
 import { logger } from './logger.js';
 import { Tracer, type Span } from './tracer.js';
@@ -157,15 +158,6 @@ export async function runAgentTask(
     await checkoutBranch(options.projectPath, branch);
   }
 
-  const agentRun = await prisma.agentRun.create({
-    data: {
-      taskId,
-      branch,
-      baseCommit: baseCommit.output,
-      resultStatus: 'running',
-    },
-  });
-
   const promptContext = await buildPromptContext(prisma, task.projectId, {
     lookbackRuns: 5,
     taskDescription: task.description,
@@ -174,6 +166,37 @@ export async function runAgentTask(
   const skillContext = formatSkillContext(skills);
   const combinedContext = [promptContext.text, skillContext].filter(Boolean).join('\n\n');
   const systemPrompt = buildSystemPrompt(combinedContext);
+
+  const currentPrompts = await loadCurrentPrompts(skillContext);
+  const promptHash = hashPrompts({
+    systemPrompt: currentPrompts.systemPrompt,
+    textToolsPrompt: currentPrompts.textToolsPrompt,
+    planningPrompt: currentPrompts.planningPrompt,
+    skillContext,
+  });
+  const promptVersion =
+    (await prisma.promptVersion.findFirst({ where: { hash: promptHash } })) ??
+    (await prisma.promptVersion.create({
+      data: {
+        name: currentPrompts.name,
+        sourcePath: currentPrompts.sourcePath,
+        systemPrompt: currentPrompts.systemPrompt,
+        textToolsPrompt: currentPrompts.textToolsPrompt,
+        planningPrompt: currentPrompts.planningPrompt ?? null,
+        skillContext: skillContext || null,
+        hash: promptHash,
+      },
+    }));
+
+  const agentRun = await prisma.agentRun.create({
+    data: {
+      taskId,
+      branch,
+      baseCommit: baseCommit.output,
+      resultStatus: 'running',
+      promptVersionId: promptVersion.id,
+    },
+  });
 
   const lspClients = createClients(options.projectPath);
   setLspClients(lspClients);

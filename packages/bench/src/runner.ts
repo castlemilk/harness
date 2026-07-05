@@ -10,6 +10,7 @@ import {
   getAgentRun,
   getDiffs,
   getTraceFlow,
+  getPromptVersion,
   countSpans,
 } from './api-client.js';
 
@@ -71,6 +72,7 @@ export async function runBenchmark(
     let evaluation: BenchmarkEvaluation = { passed: false, message: 'Task did not complete' };
     let projectId = '';
     let projectPath = '';
+    let promptVersion: Awaited<ReturnType<typeof getPromptVersion>> = undefined;
 
     try {
       projectPath = path.join(baseDir, task.id);
@@ -107,6 +109,10 @@ export async function runBenchmark(
         getTraceFlow(apiUrl, harnessTask.id),
       ]);
 
+      if (agentRun?.promptVersionId) {
+        promptVersion = await getPromptVersion(apiUrl, agentRun.promptVersionId);
+      }
+
       evaluation = await task.evaluate({
         apiUrl,
         taskId: harnessTask.id,
@@ -132,6 +138,8 @@ export async function runBenchmark(
       evaluation,
       agentRun,
       spanCount: countAllSpans(traceFlow),
+      promptVersionId: agentRun?.promptVersionId,
+      promptHash: promptVersion?.hash,
     };
 
     if (status === 'timeout') report.timeouts++;
@@ -141,6 +149,12 @@ export async function runBenchmark(
     report.totalDurationMs += durationMs;
     report.results.push(result);
     options.onProgress?.(result);
+  }
+
+  if (report.results.length > 0) {
+    const latestResult = report.results[report.results.length - 1];
+    report.promptVersionId = latestResult.promptVersionId;
+    report.promptHash = latestResult.promptHash;
   }
 
   return report;

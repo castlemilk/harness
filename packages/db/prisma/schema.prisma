@@ -84,21 +84,24 @@ model TaskDiff {
 }
 
 model AgentRun {
-  id                 String   @id @default(uuid())
+  id                 String          @id @default(uuid())
   taskId             String
-  task               Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task               Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  promptVersionId    String?
+  promptVersion      PromptVersion?  @relation(fields: [promptVersionId], references: [id], onDelete: SetNull)
   branch             String
   baseCommit         String
-  resultStatus       String   @default("running")
+  resultStatus       String          @default("running")
   validationSummary  String? // JSON
   publishedVersion   String?
   promptTokens       Int?
   completionTokens   Int?
   totalTokens        Int?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
   @@index([taskId])
+  @@index([promptVersionId])
 }
 
 model TraceSpan {
@@ -141,12 +144,16 @@ model SkillArtifact {
 }
 
 model PromptVersion {
-  id              String   @id @default(uuid())
-  name            String   @unique
+  id              String     @id @default(uuid())
+  name            String     @unique
   sourcePath      String
   systemPrompt    String
   textToolsPrompt String
+  planningPrompt  String?
+  skillContext    String?
   hash            String
   metadata        String? // JSON
-  createdAt       DateTime @default(now())
+  benchmarkScore  Float?
+  agentRuns       AgentRun[]
+  createdAt       DateTime   @default(now())
 }

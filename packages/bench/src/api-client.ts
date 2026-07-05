@@ -101,6 +101,17 @@ export async function getTraceFlow(apiUrl: string, taskId: string): Promise<Trac
   }
 }
 
+export async function getPromptVersion(
+  apiUrl: string,
+  id: string
+): Promise<{ id: string; hash: string; name: string } | undefined> {
+  try {
+    return await apiFetch<{ id: string; hash: string; name: string }>(`${apiUrl}/prompt-versions/${id}`);
+  } catch {
+    return undefined;
+  }
+}
+
 export function countSpans(node: { children?: unknown[] }): number {
   let count = 1;
   if (Array.isArray(node.children)) {

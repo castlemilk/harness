@@ -13,6 +13,7 @@ export interface PromptVersionInput {
   systemPrompt: string;
   textToolsPrompt: string;
   planningPrompt?: string;
+  skillContext?: string;
   hash: string;
   metadata?: Record<string, unknown>;
 }
@@ -21,8 +22,20 @@ function hashString(value: string): string {
   return crypto.createHash('sha256').update(value).digest('hex').slice(0, 16);
 }
 
-export function hashPrompts(input: { systemPrompt: string; textToolsPrompt: string; planningPrompt?: string }): string {
-  return hashString([input.systemPrompt, input.textToolsPrompt, input.planningPrompt ?? ''].join('\n---\n'));
+export function hashPrompts(input: {
+  systemPrompt: string;
+  textToolsPrompt: string;
+  planningPrompt?: string;
+  skillContext?: string;
+}): string {
+  return hashString(
+    [
+      input.systemPrompt,
+      input.textToolsPrompt,
+      input.planningPrompt ?? '',
+      input.skillContext ?? '',
+    ].join('\n---\n')
+  );
 }
 
 export async function readPromptsSource(): Promise<{ systemPrompt: string; textToolsPrompt: string }> {
@@ -37,7 +50,7 @@ export async function readPromptsSource(): Promise<{ systemPrompt: string; textT
   };
 }
 
-export async function loadCurrentPrompts(): Promise<PromptVersionInput> {
+export async function loadCurrentPrompts(skillContext?: string): Promise<PromptVersionInput> {
   const { systemPrompt, textToolsPrompt } = await readPromptsSource();
   const plannerSource = await fs.readFile(PLANNER_PATH, 'utf-8');
   const planningMatch = /const PLAN_PROMPT = `([\s\S]*?)`;/m.exec(plannerSource);
@@ -49,7 +62,8 @@ export async function loadCurrentPrompts(): Promise<PromptVersionInput> {
     systemPrompt,
     textToolsPrompt,
     planningPrompt,
-    hash: hashPrompts({ systemPrompt, textToolsPrompt, planningPrompt }),
+    skillContext,
+    hash: hashPrompts({ systemPrompt, textToolsPrompt, planningPrompt, skillContext }),
   };
 }
 

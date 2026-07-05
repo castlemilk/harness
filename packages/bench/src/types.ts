@@ -33,6 +33,7 @@ export interface AgentRunInfo {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  promptVersionId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,6 +74,8 @@ export interface BenchmarkResult {
   spanCount: number;
   failureAnalysis?: FailureAnalysis;
   usage?: UsageInfo;
+  promptVersionId?: string;
+  promptHash?: string;
 }
 
 export interface BenchmarkReport {
@@ -84,6 +87,8 @@ export interface BenchmarkReport {
   timeouts: number;
   totalDurationMs: number;
   totalUsage?: UsageInfo;
+  promptVersionId?: string;
+  promptHash?: string;
   results: BenchmarkResult[];
 }
 

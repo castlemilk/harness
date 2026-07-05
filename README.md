@@ -18,6 +18,10 @@ A local-first, model-agnostic harness for scheduling work across projects, routi
 - **Trace flow** – per-task OpenTelemetry-style spans for planning, provider calls, tool execution, and validation, visible in the UI and API.
 - **Benchmarks** – run lightweight synthetic suites or load DeepSWE tasks to measure pass-rate, runtime, and span counts.
 - **Trace-driven prompts** – the agent injects recent failure patterns from trace data into its system prompt to avoid repeating mistakes.
+- **API-surface verification** – tasks that describe public API requirements are blocked from finishing until a concrete import/call check passes.
+- **Git worktree isolation** – server-side agent runs execute inside `.omega/worktrees/<project>-<task>/` so the main repo is never polluted.
+- **Prompt-version benchmarking** – every agent run is tagged with the prompt version/hash; the web UI compares pass rates across versions.
+- **Token usage tracking** – provider responses record prompt/completion/total tokens and store them on each `AgentRun`.
 
 ## Architecture
 
@@ -147,7 +151,7 @@ harness skill generate ./path/to/SKILL.md
 
 # Benchmarks
 harness bench run                           # lightweight synthetic suite
-harness bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 10
+harness bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 10 --provider kimi --model kimi-k2
 harness bench optimise                      # create self-improve task from latest report
 
 # Trace flow (per-task spans)
@@ -251,6 +255,14 @@ harness bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 10 --sample
 Reports are written to `.omega/reports/benchmark-<timestamp>.json` and `.md`. The latest report is surfaced in the web UI metrics panel.
 
 `harness bench optimise` reads the latest report and the trace-flow of a failed task, then creates a `self-improve` task you can run to edit `packages/agent/src/prompts.ts` based on the observed failures.
+
+## API-surface verification
+
+Tasks that mention public API requirements (e.g., "expose `logic.selectorHealth()`") automatically trigger a verification step before the agent can finish. The agent uses the `verify_api_surface` tool to run concrete import/call checks against the package entry point. If the check fails, the agent must fix the missing API before finishing.
+
+## Git worktree isolation
+
+Server-side agent runs are executed inside a dedicated git worktree at `.omega/worktrees/<project>-<task>/`. The worktree is created from the project's current commit, the agent makes changes there, and the worktree is removed after the run. This keeps the main working directory clean and allows multiple agent tasks to run without interfering with each other. If worktree creation fails, the runner falls back to the previous in-repo branch behavior.
 
 ## Trace-driven prompts
 

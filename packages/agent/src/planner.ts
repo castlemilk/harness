@@ -41,7 +41,7 @@ Respond with strict JSON in this exact shape (no markdown):
 Available tools:
 ${toolDescriptions}
 
-If a step does not need a tool, omit tool/input. Use edit_file for small file changes.`;
+If a step does not need a tool, omit tool/input. Use edit_file for small file changes. When planning run_command steps, use only simple single commands without pipes (|), &&, ;, redirects, globs, or $().`;
 
 export async function createPlan(
   provider: Provider,

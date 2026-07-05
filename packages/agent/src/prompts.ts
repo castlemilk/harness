@@ -27,7 +27,7 @@ Available tools:
 - read_file: Read a file relative to project root. Arguments: { "path": "relative/path" }
 - write_file: Overwrite or create a file. Arguments: { "path": "relative/path", "content": "full file content" }
 - edit_file: Replace one exact occurrence of old_string with new_string in an existing file. Use this for small changes. Arguments: { "path": "relative/path", "old_string": "...", "new_string": "..." }
-- run_command: Run a single simple command. No pipes (|), &&, ;, redirects, or globs. Prefer pnpm/npm/node. Arguments: { "command": "pnpm lint" }
+- run_command: Run a single simple command. No pipes (|), &&, ;, redirects, globs, or $(). Each command is one executable plus args. Prefer pnpm/npm/node. Examples of valid commands: "pnpm lint", "npm test", "git status", "ls -la", "node -e console.log(1)". Invalid: "a && b", "a | b", "a; b", "cat > file".
 - think: Record a reasoning step. Arguments: { "thought": "..." }
 - finish: Mark the task complete. Arguments: { "summary": "what was done", "success": true }. Use summary, not message.
 - publish: Request build/test/publish. Only after validation passes. Arguments: { "version": "optional" }
@@ -57,7 +57,7 @@ Available tools (use ONLY these exact names):
 - read_file: { "path": "relative/path" }
 - write_file: { "path": "relative/path", "content": "full file content" }
 - edit_file: { "path": "relative/path", "old_string": "...", "new_string": "..." }
-- run_command: { "command": "simple command, no pipes/&&/;/redirects" }
+- run_command: { "command": "single simple command, no pipes/&&/;/redirects/globs/$()" }
 - think: { "thought": "reasoning text" }
 - finish: { "summary": "what was done", "success": true | false }
 - publish: { "version": "optional" }
@@ -116,7 +116,7 @@ export function buildReflectionPrompt(
     `Task: ${task.title}`,
     task.description ? `Description: ${task.description}` : '',
     '',
-    'The last actions did not produce a passing result. Review the summary below, then respond with a single think tool call containing a concise critique: what went wrong, what specific code or test behavior is failing, whether the public API surface was verified with a concrete import/call check, and what the next concrete step should be.',
+    'The last actions did not produce a passing result. Review the summary below, then respond with a single think tool call containing a concise critique: what went wrong, what specific code or test behavior is failing, whether run_command was misused with shell operators (pipes, &&, ;, redirects, globs), whether the public API surface was verified with a concrete import/call check, and what the next concrete step should be. Avoid restarting exploration from scratch; build on what is already known.',
     '',
     'Recent trace summary:',
     traceSummary,

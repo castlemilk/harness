@@ -28,6 +28,29 @@ const FORBIDDEN_PATTERNS = [
 
 const SHELL_METACHARACTERS = /[|&;<>$`{}()[\]*?]/;
 
+function hasUnquotedShellMetacharacter(command: string): boolean {
+  let quote: "'" | '"' | null = null;
+  for (let i = 0; i < command.length; i++) {
+    const char = command[i];
+    if (char === '\\' && quote === null) {
+      i++;
+      continue;
+    }
+    if (quote === null && (char === "'" || char === '"')) {
+      quote = char;
+      continue;
+    }
+    if (quote !== null && char === quote) {
+      quote = null;
+      continue;
+    }
+    if (quote === null && SHELL_METACHARACTERS.test(char)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function sanitizeCommand(command: string): { ok: true } | { ok: false; reason: string } {
   const trimmed = command.trim();
   if (trimmed.length === 0) {
@@ -38,11 +61,11 @@ function sanitizeCommand(command: string): { ok: true } | { ok: false; reason: s
       return { ok: false, reason: `Forbidden command pattern detected: ${forbidden}` };
     }
   }
-  if (SHELL_METACHARACTERS.test(trimmed)) {
+  if (hasUnquotedShellMetacharacter(trimmed)) {
     return {
       ok: false,
       reason:
-        'Command contains shell metacharacters (|, &&, ;, redirects, globs, $(), etc.). run_command only supports simple commands without pipes or shell operators.',
+        'Command contains unquoted shell metacharacters (|, &&, ;, redirects, unquoted globs, $(), etc.). run_command only supports simple commands without pipes or shell operators. Quote literal globs in arguments, e.g., find . -name "*.ts".',
     };
   }
   return { ok: true };

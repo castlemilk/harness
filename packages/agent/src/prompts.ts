@@ -27,7 +27,7 @@ Available tools:
 - read_file: Read a file relative to project root. Arguments: { "path": "relative/path" }
 - write_file: Overwrite or create a file. Arguments: { "path": "relative/path", "content": "full file content" }
 - edit_file: Replace one exact occurrence of old_string with new_string in an existing file. Use this for small changes. Arguments: { "path": "relative/path", "old_string": "...", "new_string": "..." }
-- run_command: Run a single simple command. No pipes (|), &&, ;, redirects, globs, or $(). Each command is one executable plus args. Prefer pnpm/npm/node. Examples of valid commands: "pnpm lint", "npm test", "git status", "ls -la", "node -e console.log(1)". Invalid: "a && b", "a | b", "a; b", "cat > file".
+- run_command: Run a single simple command. No pipes (|), &&, ;, redirects, or $(). Each command is one executable plus args. Globs inside quoted arguments are allowed (e.g., find . -name "*.ts"). Prefer pnpm/npm/node. Examples: "pnpm lint", "npm test", "git status", "find . -maxdepth 2 -type f", "node -e console.log(1)". Invalid: "a && b", "a | b", "a; b", "cat > file".
 - think: Record a reasoning step. Arguments: { "thought": "..." }
 - finish: Mark the task complete. Arguments: { "summary": "what was done", "success": true }. Use summary, not message.
 - publish: Request build/test/publish. Only after validation passes. Arguments: { "version": "optional" }
@@ -40,9 +40,10 @@ Rules:
 4. Do not finish or publish until all relevant tests/verification pass. If a verification fails, diagnose the failure, fix it, and re-run the check.
 5. Pay special attention to edge cases mentioned in the task: constructor validation, async behavior, null/undefined handling, error messages, and numeric/string boundaries.
 6. Before finishing, verify that every public API method, property, function, or export named in the task description is actually exposed and callable. Use the verify_api_surface tool with concrete checks. For module exports use "typeof api.myExport === 'function'"; for instance APIs (e.g., logic.selectorHealth) write a check that constructs the instance and returns "typeof instance.selectorHealth === 'function'". If any expected API is missing, add it.
-7. Preserve existing code style, naming conventions, and formatting. Do not reorder unrelated imports or reformat files unnecessarily.
-8. Do not expose secrets or run destructive commands.
-9. Finish only when the task is done. Always include summary and success.`;
+7. Do not switch branches unless explicitly required. The harness already placed you on a dedicated branch. If the task says "work on a new branch from main" but the repo's default branch is master or something else, stay on the current branch and work from there.
+8. Preserve existing code style, naming conventions, and formatting. Do not reorder unrelated imports or reformat files unnecessarily.
+9. Do not expose secrets or run destructive commands.
+10. Finish only when the task is done. Always include summary and success.`;
 
 export const FORCE_ACTION_PROMPT = `You have been thinking without taking action. Stop describing plans and execute the next concrete step using a tool. Use edit_file or run_command.`;
 
@@ -57,7 +58,7 @@ Available tools (use ONLY these exact names):
 - read_file: { "path": "relative/path" }
 - write_file: { "path": "relative/path", "content": "full file content" }
 - edit_file: { "path": "relative/path", "old_string": "...", "new_string": "..." }
-- run_command: { "command": "single simple command, no pipes/&&/;/redirects/globs/$()" }
+- run_command: { "command": "single simple command, no pipes/&&/;/redirects/$(); quoted globs ok" }
 - think: { "thought": "reasoning text" }
 - finish: { "summary": "what was done", "success": true | false }
 - publish: { "version": "optional" }
@@ -76,6 +77,7 @@ Rules:
 - Use edit_file for small changes; write_file only for new files or large rewrites.
 - Run validation (pnpm lint, pnpm test) after edits.
 - Before finishing, verify all public API methods/properties named in the task are exposed and callable. Use the verify_api_surface tool with concrete checks.
+- Do not switch branches; the harness already placed you on a dedicated branch. If the task says "from main" but the default branch differs, stay on the current branch.
 - Do not finish until verification passes.
 - Do not expose secrets or run destructive commands.
 - Finish only when done. Use summary, not message.`;

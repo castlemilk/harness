@@ -1,6 +1,9 @@
 import type { PrismaClient } from '@omega/db';
 import type { Provider, ProviderConfig, Task, AgentOptions, ToolCall, SendOptions, ToolDefinition, UsageInfo } from '@omega/core';
 import path from 'node:path';
+import fs from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
 import { createPlan } from './planner.js';
@@ -57,6 +60,8 @@ function maxStepsForComplexity(complexity: string | undefined): number {
       return 50;
   }
 }
+
+const execFileAsync = promisify(execFile);
 
 const API_SURFACE_HINTS = [
   /\bexpose\b/i,
@@ -200,6 +205,21 @@ export async function runAgentTask(
     const branchResult = await createBranch(options.projectPath, branch, baseCommit.output);
     if (!branchResult.success) {
       await checkoutBranch(options.projectPath, branch);
+    }
+  }
+
+  // Isolated worktrees often lack node_modules. Install dependencies so validation and LSP work.
+  try {
+    await fs.access(path.join(effectiveProjectPath, 'node_modules'));
+  } catch {
+    logger.info('Installing dependencies in worktree', { projectPath: effectiveProjectPath });
+    try {
+      await execFileAsync('pnpm', ['install'], { cwd: effectiveProjectPath, timeout: 300_000 });
+    } catch (err) {
+      logger.warn('Dependency install failed', {
+        projectPath: effectiveProjectPath,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 

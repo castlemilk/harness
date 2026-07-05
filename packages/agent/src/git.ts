@@ -51,9 +51,19 @@ export async function stageAll(projectPath: string): Promise<GitResult> {
   return git(projectPath, ['add', '.']);
 }
 
+const EXCLUDED_DIFF_PATHS = ['pnpm-lock.yaml', 'yarn.lock', 'package-lock.json', 'node_modules', '.omega'];
+
+function isExcludedDiffPath(filePath: string): boolean {
+  const normalised = filePath.replace(/\\/g, '/');
+  return EXCLUDED_DIFF_PATHS.some(
+    (excluded) => normalised === excluded || normalised.startsWith(`${excluded}/`)
+  );
+}
+
 export async function stageFiles(projectPath: string, files: string[]): Promise<GitResult> {
-  if (files.length === 0) return { success: true, output: 'no files to stage' };
-  return git(projectPath, ['add', '--', ...files]);
+  const toStage = files.filter((f) => !isExcludedDiffPath(f));
+  if (toStage.length === 0) return { success: true, output: 'no files to stage' };
+  return git(projectPath, ['add', '--', ...toStage]);
 }
 
 export async function commit(projectPath: string, message: string): Promise<GitResult> {
@@ -61,7 +71,19 @@ export async function commit(projectPath: string, message: string): Promise<GitR
 }
 
 export async function getDiff(projectPath: string, base?: string): Promise<GitResult> {
-  const args = base ? ['diff', base] : ['diff'];
+  const args = base
+    ? [
+        'diff',
+        base,
+        '--',
+        '.',
+        ':!pnpm-lock.yaml',
+        ':!yarn.lock',
+        ':!package-lock.json',
+        ':!node_modules',
+        ':!.omega',
+      ]
+    : ['diff', '--', '.', ':!pnpm-lock.yaml', ':!yarn.lock', ':!package-lock.json', ':!node_modules', ':!.omega'];
   return git(projectPath, args);
 }
 

@@ -1,6 +1,10 @@
+import { config as dotenvConfig } from 'dotenv';
 import { app } from './app.js';
 import { prisma, applyMigrations, seedDefaults } from '@omega/db';
 import { startGrpcServer } from './grpc.js';
+
+// Load .env before any provider/database config is read.
+dotenvConfig();
 
 const PORT = Number(process.env.PORT ?? 4000);
 const GRPC_PORT = Number(process.env.GRPC_PORT ?? 50051);

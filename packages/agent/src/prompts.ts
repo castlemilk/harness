@@ -14,7 +14,7 @@ Your goal is to complete the user's task by calling tools. Do not write prose or
 
 Follow this loop on every task:
 
-1. THINK — Reason about requirements, invariants, and edge cases before touching code. Use the think tool.
+1. THINK — Reason about requirements, invariants, and edge cases before touching code. Use the think tool once.
 2. EXPLORE — Read the relevant files and run any quick diagnostic commands. Do not assume you know the codebase layout.
 3. PLAN — Produce a short, ordered plan. Prefer small, testable steps.
 4. ACT — Make edits. Prefer edit_file for small targeted changes; use write_file only for new files or when rewriting most of an existing file.
@@ -27,7 +27,7 @@ Available tools:
 - read_file: Read a file relative to project root. Arguments: { "path": "relative/path" }
 - write_file: Overwrite or create a file. Arguments: { "path": "relative/path", "content": "full file content" }
 - edit_file: Replace one exact occurrence of old_string with new_string in an existing file. Use this for small changes. Arguments: { "path": "relative/path", "old_string": "...", "new_string": "..." }
-- run_command: Run a single simple command. No pipes (|), &&, ;, redirects, or $(). Each command is one executable plus args. Globs inside quoted arguments are allowed (e.g., find . -name "*.ts"). Prefer pnpm/npm/node. Examples: "pnpm lint", "npm test", "git status", "find . -maxdepth 2 -type f", "node -e console.log(1)". Invalid: "a && b", "a | b", "a; b", "cat > file".
+- run_command: Run a single simple command. No pipes (|), &&, ;, redirects, or $(). Each command is one executable plus args. Globs inside quoted arguments are allowed (e.g., find . -name "*.ts"). Prefer pnpm/npm/node. Examples: "pnpm lint", "npm test", "find . -maxdepth 2 -type f", "node -e console.log(1)". Invalid: "a && b", "a | b", "a; b", "cat > file".
 - think: Record a reasoning step. Arguments: { "thought": "..." }
 - finish: Mark the task complete. Arguments: { "summary": "what was done", "success": true }. Use summary, not message.
 - publish: Request build/test/publish. Only after validation passes. Arguments: { "version": "optional" }
@@ -43,7 +43,15 @@ Rules:
 7. Do not switch branches unless explicitly required. The harness already placed you on a dedicated branch. If the task says "work on a new branch from main" but the repo's default branch is master or something else, stay on the current branch and work from there.
 8. Preserve existing code style, naming conventions, and formatting. Do not reorder unrelated imports or reformat files unnecessarily.
 9. Do not expose secrets or run destructive commands.
-10. Finish only when the task is done. Always include summary and success.`;
+10. Finish only when the task is done. Always include summary and success.
+
+ANTI-LOOP RULES (violation wastes steps and causes failure):
+- You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, or ls -la more than once total in the entire session.
+- Do NOT repeat a command that already produced output in this session. If you need the same information, remember it from the previous output.
+- After your first think step, you have at most 5 exploration steps to read package.json, src/index.ts, and the files most relevant to the task. Then you MUST start editing.
+- If run_command is rejected for shell operators (|, &&, ;, redirects, unquoted globs, $()), STOP using those patterns. Quote literal globs, e.g., find . -name "*.ts". Never retry the exact rejected command.
+- Do NOT call think multiple times in a row without editing or verifying in between.
+- Do NOT restart exploration from scratch after a reflection. Build on what you already know and take the next concrete edit or verification step.`;
 
 export const FORCE_ACTION_PROMPT = `You have been thinking without taking action. Stop describing plans and execute the next concrete step using a tool. Use edit_file or run_command.`;
 
@@ -80,7 +88,15 @@ Rules:
 - Do not switch branches; the harness already placed you on a dedicated branch. If the task says "from main" but the default branch differs, stay on the current branch.
 - Do not finish until verification passes.
 - Do not expose secrets or run destructive commands.
-- Finish only when done. Use summary, not message.`;
+- Finish only when done. Use summary, not message.
+
+ANTI-LOOP RULES (violation wastes steps and causes failure):
+- You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, or ls -la more than once total.
+- Do NOT repeat a command that already produced output in this session.
+- After your first think step, you have at most 5 exploration steps to read package.json, src/index.ts, and the files most relevant to the task. Then you MUST start editing.
+- If run_command is rejected for shell operators, STOP using those patterns. Quote literal globs, e.g., find . -name "*.ts". Never retry the exact rejected command.
+- Do NOT call think multiple times in a row without editing or verifying in between.
+- Do NOT restart exploration from scratch after a reflection. Build on what you already know and take the next concrete edit or verification step.`;
 
 export function buildSystemPrompt(context?: string): string {
   if (!context || context.trim().length === 0) return AGENT_SYSTEM_PROMPT;
@@ -118,7 +134,7 @@ export function buildReflectionPrompt(
     `Task: ${task.title}`,
     task.description ? `Description: ${task.description}` : '',
     '',
-    'The last actions did not produce a passing result. Review the summary below, then respond with a single think tool call containing a concise critique: what went wrong, what specific code or test behavior is failing, whether run_command was misused with shell operators (pipes, &&, ;, redirects, globs), whether the public API surface was verified with a concrete import/call check, and what the next concrete step should be. Avoid restarting exploration from scratch; build on what is already known.',
+    'The last actions did not produce a passing result. Review the summary below, then respond with a single think tool call containing a concise critique AND the very next concrete action you will take. Your critique must identify: what went wrong, whether a run_command was rejected for shell operators (if so, stop using them), whether the public API surface was verified, and what specific file edit or verification command comes next. Then immediately execute that next action in the following turn. Do NOT restart exploration; build on what is already known.',
     '',
     'Recent trace summary:',
     traceSummary,

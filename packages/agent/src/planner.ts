@@ -41,7 +41,7 @@ Respond with strict JSON in this exact shape (no markdown):
 Available tools:
 ${toolDescriptions}
 
-If a step does not need a tool, omit tool/input. Use edit_file for small file changes. When planning run_command steps, use only simple single commands without pipes (|), &&, ;, redirects, globs, or $().`;
+If a step does not need a tool, omit tool/input. Use edit_file for small file changes. When planning run_command steps, use only simple single commands without pipes (|), &&, ;, redirects, unquoted globs, or $(). Quote literal globs in arguments if needed, e.g., find . -name "*.ts".`;
 
 export async function createPlan(
   provider: Provider,
@@ -75,8 +75,10 @@ export async function createPlan(
     return {
       reasoning: raw,
       plan: [
-        { name: 'Explore codebase', tool: 'run_command', input: { command: 'find . -type f -name "*.ts"' } },
-        { name: 'Implement change', tool: 'think', input: { thought: 'Implement the requested change.' } },
+        { name: 'Explore package and entry files', tool: 'read_file', input: { path: 'package.json' } },
+        { name: 'Explore source layout', tool: 'run_command', input: { command: 'find . -maxdepth 2 -type f' } },
+        { name: 'Read relevant source files', tool: 'think', input: { thought: 'Read the source files most relevant to the task.' } },
+        { name: 'Implement change', tool: 'think', input: { thought: 'Make the smallest edits that satisfy the task requirements.' } },
         { name: 'Validate', tool: 'run_command', input: { command: 'pnpm lint' } },
         { name: 'Finish', tool: 'finish', input: { summary: 'Task complete.', success: true } },
       ],

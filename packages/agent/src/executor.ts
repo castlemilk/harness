@@ -4,7 +4,7 @@ import path from 'node:path';
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
 import { createPlan } from './planner.js';
-import { executeTool } from './tools.js';
+import { executeTool, type ToolResult } from './tools.js';
 import { validateProject, type ValidationSummary } from './validator.js';
 import { publishOmega, type PublishResult } from './publisher.js';
 import {
@@ -48,13 +48,13 @@ export interface AgentResult {
 function maxStepsForComplexity(complexity: string | undefined): number {
   switch (complexity) {
     case 'simple':
-      return 25;
+      return 30;
     case 'medium':
-      return 45;
+      return 60;
     case 'complex':
-      return 75;
+      return 150;
     default:
-      return 35;
+      return 50;
   }
 }
 
@@ -86,6 +86,7 @@ interface AgentContext {
   autoPublish: boolean;
   maxSteps: number;
   modifiedFiles: Set<string>;
+  recentCommands: Set<string>;
   tracer: Tracer;
   rootSpan: Span;
   systemPrompt: string;
@@ -276,6 +277,7 @@ export async function runAgentTask(
     autoPublish: options.autoPublish ?? false,
     maxSteps: options.maxSteps ?? maxStepsForComplexity(task.complexity),
     modifiedFiles: new Set<string>(),
+    recentCommands: new Set<string>(),
     tracer,
     rootSpan,
     systemPrompt,
@@ -412,19 +414,8 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   await planSpan.end('ok');
   await addTrace(ctx, 'assistant', `Plan: ${JSON.stringify(plan)}`);
 
-  // Record plan as steps
-  for (let i = 0; i < plan.plan.length; i++) {
-    await ctx.prisma.taskStep.create({
-      data: {
-        taskId: ctx.task.id,
-        idx: i,
-        name: plan.plan[i].name,
-        status: 'pending',
-        input: plan.plan[i].tool ? JSON.stringify(plan.plan[i].input) : undefined,
-      },
-    });
-  }
-
+  // Steps are recorded dynamically as the agent actually invokes tools, so the
+  // persisted sequence matches real execution rather than the initial plan.
   let stepIndex = 0;
   let finished = false;
   let success = false;
@@ -458,10 +449,22 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
     let turnHadFailure = false;
 
     for (const call of toolCalls) {
-      const step = await ctx.prisma.taskStep.findFirst({
-        where: { taskId: ctx.task.id, idx: stepIndex },
+      const input =
+        call.name === 'run_command'
+          ? (call.arguments.command as string | undefined)
+          : call.name === 'read_file' || call.name === 'write_file' || call.name === 'edit_file'
+            ? (call.arguments.path as string | undefined)
+            : JSON.stringify(call.arguments);
+      const step = await ctx.prisma.taskStep.create({
+        data: {
+          taskId: ctx.task.id,
+          idx: stepIndex,
+          name: call.name,
+          status: 'pending',
+          input,
+        },
       });
-      const stepId = step?.id;
+      const stepId = step.id;
 
       if (call.name === 'finish') {
         const requiresApiCheck = taskMentionsPublicApi(ctx.task);
@@ -469,12 +472,10 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
           const message =
             'finish rejected: the task describes public API requirements. Call verify_api_surface first to confirm required methods/properties are exposed.';
           turnHadFailure = true;
-          if (stepId) {
-            await ctx.prisma.taskStep.update({
-              where: { id: stepId },
-              data: { status: 'failed', output: message },
-            });
-          }
+          await ctx.prisma.taskStep.update({
+            where: { id: stepId },
+            data: { status: 'failed', output: message },
+          });
           toolResults.push({ toolCallId: call.id, output: message });
           break;
         }
@@ -487,12 +488,10 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
               ? call.arguments.message
               : '';
         summary = summaryArg;
-        if (stepId) {
-          await ctx.prisma.taskStep.update({
-            where: { id: stepId },
-            data: { status: success ? 'done' : 'failed', output: summary },
-          });
-        }
+        await ctx.prisma.taskStep.update({
+          where: { id: stepId },
+          data: { status: success ? 'done' : 'failed', output: summary },
+        });
         ctx.rootSpan.addEvent('agent.finish', { success, summary });
         toolResults.push({ toolCallId: call.id, output: summary });
         break;
@@ -515,19 +514,15 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
         }
         await publishSpan.end(validation.allPassed ? 'ok' : 'error');
 
-        toolResults.push({
-          toolCallId: call.id,
-          output: JSON.stringify({ validation, publish: publishResult }),
+        const output = JSON.stringify({ validation, publish: publishResult });
+        toolResults.push({ toolCallId: call.id, output });
+        await ctx.prisma.taskStep.update({
+          where: { id: stepId },
+          data: {
+            status: validation.allPassed ? 'done' : 'failed',
+            output,
+          },
         });
-        if (stepId) {
-          await ctx.prisma.taskStep.update({
-            where: { id: stepId },
-            data: {
-              status: validation.allPassed ? 'done' : 'failed',
-              output: JSON.stringify({ validation, publish: publishResult }),
-            },
-          });
-        }
         if (!validation.allPassed) {
           finished = true;
           success = false;
@@ -542,7 +537,22 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
 
       const toolSpan = ctx.tracer.startSpan(`agent.tool.${call.name}`, ctx.rootSpan.toContext());
       toolSpan.setAttributes({ tool: call.name });
-      const result = await executeTool(ctx.projectPath, call.name, call.arguments);
+
+      let result: ToolResult;
+      if (call.name === 'run_command' && typeof call.arguments.command === 'string') {
+        const command = call.arguments.command.trim();
+        if (ctx.recentCommands.has(command)) {
+          result = {
+            success: false,
+            output: `Duplicate command rejected: "${command}" was already run in this session. Do not repeat commands. Use the previous output or move on to the next concrete step.`,
+          };
+        } else {
+          ctx.recentCommands.add(command);
+          result = await executeTool(ctx.projectPath, call.name, call.arguments);
+        }
+      } else {
+        result = await executeTool(ctx.projectPath, call.name, call.arguments);
+      }
       toolSpan.setAttributes({ success: result.success });
       if (call.name === 'verify_api_surface' && result.success) {
         ctx.apiSurfaceVerified = true;
@@ -559,16 +569,14 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       if (!result.success) {
         turnHadFailure = true;
       }
-      if (stepId) {
-        await ctx.prisma.taskStep.update({
-          where: { id: stepId },
-          data: {
-            status: result.success ? 'done' : 'failed',
-            output: result.output,
-            error: result.success ? null : result.output,
-          },
-        });
-      }
+      await ctx.prisma.taskStep.update({
+        where: { id: stepId },
+        data: {
+          status: result.success ? 'done' : 'failed',
+          output: result.output,
+          error: result.success ? null : result.output,
+        },
+      });
       await addTrace(ctx, 'tool', result.output, undefined, stepId);
       toolResults.push({ toolCallId: call.id, output: result.output });
       stepIndex++;

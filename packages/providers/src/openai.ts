@@ -53,6 +53,38 @@ export class OpenAIProvider implements Provider {
     return data.data?.map((m) => m.id) ?? [this.config.defaultModel];
   }
 
+  private buildMessages(prompt: string, opts?: SendOptions): { role: string; content?: string; tool_calls?: unknown[]; tool_call_id?: string; name?: string }[] {
+    if (opts?.messages && opts.messages.length > 0) {
+      const hasSystem = opts.messages.some((m) => m.role === 'system');
+      const msgs = opts.messages.map((m) => {
+        const base: { role: string; content?: string; tool_calls?: unknown[]; tool_call_id?: string; name?: string } = {
+          role: m.role,
+          content: m.content,
+        };
+        if (m.tool_calls && m.tool_calls.length > 0) {
+          base.tool_calls = m.tool_calls.map((tc) => ({
+            id: tc.id ?? '',
+            type: tc.type ?? 'function',
+            function: tc.function ?? {},
+          }));
+        }
+        if (m.role === 'tool') {
+          base.tool_call_id = m.tool_call_id ?? '';
+        }
+        if (m.name) base.name = m.name;
+        return base;
+      });
+      if (opts.system && !hasSystem) {
+        msgs.unshift({ role: 'system', content: opts.system });
+      }
+      return msgs;
+    }
+    return [
+      ...(opts?.system ? [{ role: 'system', content: opts.system }] : []),
+      { role: 'user', content: prompt },
+    ];
+  }
+
   async send(prompt: string, opts?: SendOptions): Promise<string> {
     const res = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -62,10 +94,7 @@ export class OpenAIProvider implements Provider {
       },
       body: JSON.stringify({
         model: opts?.model ?? this.config.defaultModel,
-        messages: [
-          ...(opts?.system ? [{ role: 'system', content: opts.system }] : []),
-          { role: 'user', content: prompt },
-        ],
+        messages: this.buildMessages(prompt, opts),
         ...(this.supportsTemperature && opts?.temperature !== undefined
           ? { temperature: opts.temperature }
           : {}),
@@ -91,10 +120,7 @@ export class OpenAIProvider implements Provider {
       },
       body: JSON.stringify({
         model: opts?.model ?? this.config.defaultModel,
-        messages: [
-          ...(opts?.system ? [{ role: 'system', content: opts.system }] : []),
-          { role: 'user', content: prompt },
-        ],
+        messages: this.buildMessages(prompt, opts),
         tools: tools.map((t) => ({
           type: 'function',
           function: { name: t.name, description: t.description, parameters: t.parameters },

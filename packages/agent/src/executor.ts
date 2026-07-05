@@ -432,21 +432,49 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   let turnCount = 0;
   let lastTurnHadFailure = false;
 
-  // Start the first turn with a think/plan step.
-  let prompt = `Plan created: ${JSON.stringify(plan)}\n\nExecute the plan. Use tools to make changes and run validation.`;
+  // Maintain a full conversation transcript so the model remembers prior tool outputs.
+  const messages: {
+    role: 'system' | 'user' | 'assistant' | 'tool';
+    content?: string;
+    tool_calls?: { id?: string; type?: string; function?: { name?: string; arguments?: string } }[];
+    tool_call_id?: string;
+  }[] = [
+    { role: 'system', content: ctx.systemPrompt },
+    { role: 'user', content: buildTaskPrompt(ctx.task.title, ctx.task.description ?? undefined) },
+    { role: 'assistant', content: `Plan: ${JSON.stringify(plan)}` },
+  ];
 
   while (stepIndex < ctx.maxSteps && !finished) {
     turnCount++;
-    const response = await sendToProvider(ctx, prompt);
+    const response = await sendToProvider(ctx, messages);
+
+    const assistantToolCalls = response.toolCalls
+      ? parseToolCalls(response.toolCalls).map((c) => ({
+          id: c.id,
+          type: 'function' as const,
+          function: { name: c.name, arguments: JSON.stringify(c.arguments) },
+        }))
+      : undefined;
+    messages.push({
+      role: 'assistant',
+      content: response.content ?? undefined,
+      tool_calls: assistantToolCalls,
+    });
     await addTrace(ctx, 'assistant', response.content ?? '', response.toolCalls);
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
       noActionCount++;
       if (noActionCount >= 2) {
         const reflection = await reflectOnTrace(ctx, 8);
-        prompt = reflection ? `${FORCE_ACTION_PROMPT}\n\n${reflection}` : FORCE_ACTION_PROMPT;
+        messages.push({
+          role: 'user',
+          content: reflection ? `${FORCE_ACTION_PROMPT}\n\n${reflection}` : FORCE_ACTION_PROMPT,
+        });
       } else {
-        prompt = 'No tool calls detected. Please respond with a JSON object containing tool_calls.';
+        messages.push({
+          role: 'user',
+          content: 'No tool calls detected. Please respond with a JSON object containing tool_calls.',
+        });
       }
       continue;
     }
@@ -485,6 +513,7 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
             data: { status: 'failed', output: message },
           });
           toolResults.push({ toolCallId: call.id, output: message });
+          messages.push({ role: 'tool', tool_call_id: call.id, content: message });
           break;
         }
         finished = true;
@@ -502,6 +531,7 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
         });
         ctx.rootSpan.addEvent('agent.finish', { success, summary });
         toolResults.push({ toolCallId: call.id, output: summary });
+        messages.push({ role: 'tool', tool_call_id: call.id, content: summary });
         break;
       }
 
@@ -524,6 +554,7 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
 
         const output = JSON.stringify({ validation, publish: publishResult });
         toolResults.push({ toolCallId: call.id, output });
+        messages.push({ role: 'tool', tool_call_id: call.id, content: output });
         await ctx.prisma.taskStep.update({
           where: { id: stepId },
           data: {
@@ -626,6 +657,7 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       });
       await addTrace(ctx, 'tool', result.output, undefined, stepId);
       toolResults.push({ toolCallId: call.id, output: result.output });
+      messages.push({ role: 'tool', tool_call_id: call.id, content: result.output });
       stepIndex++;
     }
 
@@ -637,11 +669,13 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       const reflection = await reflectOnTrace(ctx, 6);
       if (reflection) {
         await addTrace(ctx, 'assistant', `Reflection: ${reflection}`);
-        toolResults.push({ toolCallId: 'reflection', output: reflection });
+        messages.push({ role: 'user', content: `Reflection: ${reflection}` });
       }
     }
 
-    prompt = buildToolResultPrompt(ctx.task, toolResults);
+    if (!finished) {
+      messages.push({ role: 'user', content: buildToolResultPrompt(ctx.task, toolResults) });
+    }
   }
 
   // Capture diff
@@ -703,7 +737,8 @@ function recordUsage(ctx: AgentContext, usage: UsageInfo): void {
 
 async function sendToProvider(
   ctx: AgentContext,
-  prompt: string
+  messages: { role: 'system' | 'user' | 'assistant' | 'tool'; content?: string; tool_calls?: { id?: string; type?: string; function?: { name?: string; arguments?: string } }[]; tool_call_id?: string }[],
+  prompt?: string
 ): Promise<{ content?: string; toolCalls?: string }> {
   const span = ctx.tracer.startSpan('provider.send', ctx.rootSpan.toContext());
   span.setAttributes({ provider: ctx.provider.config.name, model: ctx.model });
@@ -718,14 +753,17 @@ async function sendToProvider(
     });
   };
 
+  const sendMessages = prompt ? [...messages, { role: 'user' as const, content: prompt }] : messages;
+
   try {
     // Prefer native tool calls when the provider supports them (including Kimi).
     if (typeof provider.sendWithTools === 'function') {
-      const raw = await provider.sendWithTools(prompt, AGENT_TOOLS, {
+      const raw = await provider.sendWithTools(prompt ?? 'Execute the next step.', AGENT_TOOLS, {
         system: ctx.systemPrompt,
         model: ctx.model,
         temperature: 0.3,
         onUsage,
+        messages: sendMessages,
       });
       span.addEvent('provider.response.received');
       const parsed = parseProviderResponse(raw);
@@ -734,7 +772,13 @@ async function sendToProvider(
     }
 
     // Fallback to text-mode JSON tool calls for providers without native tool support.
-    const raw = await provider.send(prompt, {
+    const transcript = sendMessages
+      .map((m) => {
+        const prefix = m.role === 'assistant' && m.tool_calls ? '[assistant tool_calls]' : `[${m.role}]`;
+        return `${prefix}\n${m.content ?? ''}`;
+      })
+      .join('\n\n');
+    const raw = await provider.send(transcript, {
       system: buildTextToolsSystemPrompt(ctx.promptContext),
       model: ctx.model,
       onUsage,

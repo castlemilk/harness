@@ -32,11 +32,20 @@ export interface UsageInfo {
   totalTokens?: number;
 }
 
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content?: string;
+  tool_calls?: { id?: string; type?: string; function?: { name?: string; arguments?: string } }[];
+  tool_call_id?: string;
+  name?: string;
+}
+
 export interface SendOptions {
   model?: string;
   system?: string;
   temperature?: number;
   onUsage?: (usage: UsageInfo) => void;
+  messages?: ChatMessage[];
 }
 
 export interface ToolDefinition {

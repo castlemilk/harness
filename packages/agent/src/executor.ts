@@ -87,7 +87,7 @@ interface AgentContext {
   maxSteps: number;
   modifiedFiles: Set<string>;
   recentCommands: Set<string>;
-  recentReads: Set<string>;
+  recentReads: Map<string, number>;
   consecutiveThinks: number;
   tracer: Tracer;
   rootSpan: Span;
@@ -280,7 +280,7 @@ export async function runAgentTask(
     maxSteps: options.maxSteps ?? maxStepsForComplexity(task.complexity),
     modifiedFiles: new Set<string>(),
     recentCommands: new Set<string>(),
-    recentReads: new Set<string>(),
+    recentReads: new Map<string, number>(),
     consecutiveThinks: 0,
     tracer,
     rootSpan,
@@ -545,10 +545,10 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       let result: ToolResult;
       if (call.name === 'think') {
         ctx.consecutiveThinks++;
-        if (ctx.consecutiveThinks >= 2) {
+        if (ctx.consecutiveThinks > 2) {
           result = {
             success: false,
-            output: `Think rejected: you already thought in the previous step. Stop planning and execute the next concrete step using read_file, run_command, or edit_file.`,
+            output: `Think rejected: you have already thought ${String(ctx.consecutiveThinks - 1)} times in a row. Stop planning and execute the next concrete step using read_file, run_command, or edit_file.`,
           };
         } else {
           result = await executeTool(ctx.projectPath, call.name, call.arguments);
@@ -556,13 +556,14 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       } else if (call.name === 'read_file' && typeof call.arguments.path === 'string') {
         ctx.consecutiveThinks = 0;
         const filePath = call.arguments.path.trim();
-        if (ctx.recentReads.has(filePath)) {
+        const lastRead = ctx.recentReads.get(filePath);
+        if (lastRead !== undefined && stepIndex - lastRead < 10) {
           result = {
             success: false,
-            output: `Duplicate read rejected: "${filePath}" was already read in this session. Use the previous content or move on to the next concrete step.`,
+            output: `Duplicate read rejected: "${filePath}" was already read at step ${String(lastRead)}. Use the previous content or move on to the next concrete step.`,
           };
         } else {
-          ctx.recentReads.add(filePath);
+          ctx.recentReads.set(filePath, stepIndex);
           result = await executeTool(ctx.projectPath, call.name, call.arguments);
         }
       } else if (call.name === 'run_command' && typeof call.arguments.command === 'string') {

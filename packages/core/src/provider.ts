@@ -26,10 +26,17 @@ export interface ProviderConfig {
   enabled: boolean;
 }
 
+export interface UsageInfo {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
 export interface SendOptions {
   model?: string;
   system?: string;
   temperature?: number;
+  onUsage?: (usage: UsageInfo) => void;
 }
 
 export interface ToolDefinition {

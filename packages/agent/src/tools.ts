@@ -241,6 +241,88 @@ export async function lspSymbol(_projectPath: string, query: string): Promise<To
   }
 }
 
+async function findPackageEntry(projectPath: string): Promise<string | undefined> {
+  try {
+    const pkgRaw = await fs.readFile(path.join(projectPath, 'package.json'), 'utf-8');
+    const pkg = JSON.parse(pkgRaw) as {
+      main?: string;
+      module?: string;
+      exports?: unknown;
+    };
+    if (pkg.main) return pkg.main;
+    if (pkg.module) return pkg.module;
+    if (typeof pkg.exports === 'string') return pkg.exports;
+    if (typeof pkg.exports === 'object' && pkg.exports !== null) {
+      const exportsRecord = pkg.exports as Record<string, unknown>;
+      if ('.' in exportsRecord) {
+        const defaultExport = exportsRecord['.'];
+        if (typeof defaultExport === 'string') return defaultExport;
+        if (typeof defaultExport === 'object' && defaultExport !== null) {
+          const defaultExportRecord = defaultExport as Record<string, unknown>;
+          if (typeof defaultExportRecord.import === 'string') return defaultExportRecord.import;
+          if (typeof defaultExportRecord.require === 'string') return defaultExportRecord.require;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  for (const candidate of ['src/index.ts', 'src/index.js', 'index.ts', 'index.js', 'lib/index.js']) {
+    try {
+      await fs.access(path.join(projectPath, candidate));
+      return candidate;
+    } catch {
+      // try next
+    }
+  }
+  return undefined;
+}
+
+export async function verifyApiSurface(
+  projectPath: string,
+  entryArg?: string,
+  checks?: string[]
+): Promise<ToolResult> {
+  const entry = entryArg ?? (await findPackageEntry(projectPath));
+  if (!entry) {
+    return { success: false, output: 'Could not determine package entry point.' };
+  }
+  const entryPath = path.resolve(projectPath, entry);
+  if (!entryPath.startsWith(path.resolve(projectPath))) {
+    return { success: false, output: 'Path traversal blocked' };
+  }
+
+  const checkList = checks && checks.length > 0 ? checks : [`typeof require('${entryPath}')`];
+  const results: string[] = [];
+  let allPassed = true;
+
+  for (const check of checkList) {
+    const script = `
+      const api = require('${entryPath}');
+      const result = (function() { return (${check}); })();
+      console.log(JSON.stringify({ check: ${JSON.stringify(check)}, result }));
+    `;
+    try {
+      const { stdout } = await execFileAsync('node', ['-e', script], { cwd: projectPath, timeout: 30000 });
+      const execResult = /\{.*\}$/.exec(stdout.trim());
+      const parsed = execResult
+        ? (JSON.parse(execResult[0]) as { check: string; result: unknown })
+        : { check, result: stdout.trim() };
+      const passed = Boolean(parsed.result);
+      if (!passed) allPassed = false;
+      results.push(`${passed ? '✓' : '✗'} ${parsed.check} → ${JSON.stringify(parsed.result)}`);
+    } catch (err) {
+      allPassed = false;
+      results.push(`✗ ${check} → ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return {
+    success: allPassed,
+    output: `Entry: ${entry}\n${results.join('\n')}`,
+  };
+}
+
 function argString(value: unknown): string {
   if (value === undefined || value === null) return '';
   if (typeof value === 'string') return value;
@@ -280,6 +362,12 @@ export async function executeTool(
       );
     case 'lsp_symbol':
       return lspSymbol(projectPath, argString(arguments_.query));
+    case 'verify_api_surface':
+      return verifyApiSurface(
+        projectPath,
+        argString(arguments_.entry),
+        Array.isArray(arguments_.checks) ? arguments_.checks.map((c) => argString(c)) : undefined
+      );
     default:
       return { success: false, output: `Unknown tool: ${name}` };
   }

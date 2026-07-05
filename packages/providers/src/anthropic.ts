@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig, SendOptions } from '@omega/core';
+import type { Provider, ProviderConfig, SendOptions, UsageInfo } from '@omega/core';
 
 const DEFAULT_BASE_URL = 'https://api.anthropic.com/v1';
 
@@ -44,7 +44,18 @@ export class AnthropicProvider implements Provider {
     }
     const data = (await res.json()) as {
       content?: { type: string; text?: string }[];
+      usage?: { input_tokens?: number; output_tokens?: number };
     };
+    if (data.usage) {
+      const usage: UsageInfo = {
+        promptTokens: data.usage.input_tokens,
+        completionTokens: data.usage.output_tokens,
+      };
+      if (usage.promptTokens !== undefined && usage.completionTokens !== undefined) {
+        usage.totalTokens = usage.promptTokens + usage.completionTokens;
+      }
+      opts?.onUsage?.(usage);
+    }
     return data.content?.find((c) => c.type === 'text')?.text ?? '';
   }
 

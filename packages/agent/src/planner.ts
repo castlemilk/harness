@@ -1,4 +1,4 @@
-import type { Provider, ToolDefinition } from '@omega/core';
+import type { Provider, ToolDefinition, SendOptions } from '@omega/core';
 import { AGENT_TOOLS } from './tool-definitions.js';
 
 export interface PlanStep {
@@ -47,7 +47,8 @@ export async function createPlan(
   provider: Provider,
   taskTitle: string,
   taskDescription?: string,
-  context?: string
+  context?: string,
+  onUsage?: SendOptions['onUsage']
 ): Promise<PlannerResult> {
   const contextBlock = context ? `\n\nProject context:\n${context}` : '';
   const prompt = `${PLAN_PROMPT}${contextBlock}\n\nTask: ${taskTitle}\n${taskDescription ? `Description: ${taskDescription}\n` : ''}`;
@@ -57,9 +58,10 @@ export async function createPlan(
     raw = await provider.sendWithTools(prompt, PLANNING_TOOLS, {
       system: PLAN_PROMPT,
       temperature: 0.2,
+      onUsage,
     });
   } else {
-    raw = await provider.send(prompt, { system: PLAN_PROMPT, temperature: 0.2 });
+    raw = await provider.send(prompt, { system: PLAN_PROMPT, temperature: 0.2, onUsage });
   }
 
   try {

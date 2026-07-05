@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@omega/db';
-import type { Provider, ProviderConfig, Task, AgentOptions, ToolCall, SendOptions, ToolDefinition } from '@omega/core';
+import type { Provider, ProviderConfig, Task, AgentOptions, ToolCall, SendOptions, ToolDefinition, UsageInfo } from '@omega/core';
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
 import { createPlan } from './planner.js';
@@ -55,6 +55,21 @@ function maxStepsForComplexity(complexity: string | undefined): number {
   }
 }
 
+const API_SURFACE_HINTS = [
+  /\bexpose\b/i,
+  /\bpublic\s+(?:API|method|function|property)\b/i,
+  /\blogic\.[a-zA-Z_$][\w$]*\s*\(/,
+  /\btypeof\s+\w+\s*===?\s*['"]function['"]/,
+  /\bmust\s+(?:be|expose|provide|return)\b/i,
+  /\bshould\s+(?:be|expose|provide|return)\b/i,
+  /\bselectorHealth\b/i,
+];
+
+function taskMentionsPublicApi(task: Task): boolean {
+  const text = `${task.title} ${task.description ?? ''}`;
+  return API_SURFACE_HINTS.some((pattern) => pattern.test(text));
+}
+
 interface AgentContext {
   prisma: PrismaClient;
   task: Task;
@@ -72,6 +87,8 @@ interface AgentContext {
   rootSpan: Span;
   systemPrompt: string;
   promptContext?: string;
+  usage: UsageInfo;
+  apiSurfaceVerified: boolean;
 }
 
 function toCoreTask(row: {
@@ -240,6 +257,8 @@ export async function runAgentTask(
     rootSpan,
     systemPrompt,
     promptContext: combinedContext,
+    usage: {},
+    apiSurfaceVerified: false,
   };
 
   logger.info('Agent task started', {
@@ -350,7 +369,10 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
     ctx.provider,
     ctx.task.title,
     ctx.task.description ?? undefined,
-    ctx.promptContext
+    ctx.promptContext,
+    (usage) => {
+      recordUsage(ctx, usage);
+    }
   );
   planSpan.setAttributes({ planSteps: plan.plan.length });
   planSpan.addEvent('plan.created');
@@ -409,6 +431,20 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       const stepId = step?.id;
 
       if (call.name === 'finish') {
+        const requiresApiCheck = taskMentionsPublicApi(ctx.task);
+        if (requiresApiCheck && !ctx.apiSurfaceVerified) {
+          const message =
+            'finish rejected: the task describes public API requirements. Call verify_api_surface first to confirm required methods/properties are exposed.';
+          turnHadFailure = true;
+          if (stepId) {
+            await ctx.prisma.taskStep.update({
+              where: { id: stepId },
+              data: { status: 'failed', output: message },
+            });
+          }
+          toolResults.push({ toolCallId: call.id, output: message });
+          break;
+        }
         finished = true;
         success = Boolean(call.arguments.success);
         const summaryArg =
@@ -475,6 +511,9 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       toolSpan.setAttributes({ tool: call.name });
       const result = await executeTool(ctx.projectPath, call.name, call.arguments);
       toolSpan.setAttributes({ success: result.success });
+      if (call.name === 'verify_api_surface' && result.success) {
+        ctx.apiSurfaceVerified = true;
+      }
       logger.info(`Tool ${call.name} executed`, {
         taskId: ctx.task.id,
         agentRunId: ctx.agentRunId,
@@ -546,13 +585,32 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
 
   await ctx.prisma.agentRun.update({
     where: { id: ctx.agentRunId },
-    data: { resultStatus: success ? 'done' : 'failed' },
+    data: {
+      resultStatus: success ? 'done' : 'failed',
+      promptTokens: ctx.usage.promptTokens,
+      completionTokens: ctx.usage.completionTokens,
+      totalTokens: ctx.usage.totalTokens,
+    },
   });
 
   return {
     task: toCoreTask(updatedTask),
     agentRunId: ctx.agentRunId,
   };
+}
+
+function recordUsage(ctx: AgentContext, usage: UsageInfo): void {
+  if (usage.promptTokens !== undefined) {
+    ctx.usage.promptTokens = (ctx.usage.promptTokens ?? 0) + usage.promptTokens;
+  }
+  if (usage.completionTokens !== undefined) {
+    ctx.usage.completionTokens = (ctx.usage.completionTokens ?? 0) + usage.completionTokens;
+  }
+  if (usage.totalTokens !== undefined) {
+    ctx.usage.totalTokens = (ctx.usage.totalTokens ?? 0) + usage.totalTokens;
+  } else if (usage.promptTokens !== undefined && usage.completionTokens !== undefined) {
+    ctx.usage.totalTokens = (ctx.usage.totalTokens ?? 0) + usage.promptTokens + usage.completionTokens;
+  }
 }
 
 async function sendToProvider(
@@ -563,6 +621,15 @@ async function sendToProvider(
   span.setAttributes({ provider: ctx.provider.config.name, model: ctx.model });
   const provider = ctx.provider as Provider & { sendWithTools?: (prompt: string, tools: ToolDefinition[], opts?: SendOptions) => Promise<string> };
 
+  const onUsage = (usage: UsageInfo): void => {
+    recordUsage(ctx, usage);
+    span.setAttributes({
+      promptTokens: usage.promptTokens,
+      completionTokens: usage.completionTokens,
+      totalTokens: usage.totalTokens,
+    });
+  };
+
   try {
     // Prefer native tool calls when the provider supports them (including Kimi).
     if (typeof provider.sendWithTools === 'function') {
@@ -570,6 +637,7 @@ async function sendToProvider(
         system: ctx.systemPrompt,
         model: ctx.model,
         temperature: 0.3,
+        onUsage,
       });
       span.addEvent('provider.response.received');
       const parsed = parseProviderResponse(raw);
@@ -581,6 +649,7 @@ async function sendToProvider(
     const raw = await provider.send(prompt, {
       system: buildTextToolsSystemPrompt(ctx.promptContext),
       model: ctx.model,
+      onUsage,
     });
     span.addEvent('provider.response.received');
     const parsed = parseProviderResponse(raw);

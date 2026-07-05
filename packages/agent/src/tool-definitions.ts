@@ -100,4 +100,20 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       required: ['query'],
     },
   },
+  {
+    name: 'verify_api_surface',
+    description: 'Verify that public API methods/properties required by the task are exposed. Call this before finish.',
+    parameters: {
+      type: 'object',
+      properties: {
+        entry: { type: 'string', description: 'Relative path to the package entry file (e.g., src/index.ts). Defaults to package.json main.' },
+        checks: {
+          type: 'array',
+          description: 'List of API checks to perform. Each check is a JS expression that should evaluate to truthy.',
+          items: { type: 'string' },
+        },
+      },
+      required: [],
+    },
+  },
 ];

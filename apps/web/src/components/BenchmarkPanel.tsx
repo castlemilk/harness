@@ -56,6 +56,8 @@ export interface BenchmarkResult {
     completionTokens?: number;
     totalTokens?: number;
   };
+  promptVersionId?: string;
+  promptHash?: string;
 }
 
 export interface BenchmarkReport {
@@ -71,6 +73,8 @@ export interface BenchmarkReport {
     completionTokens?: number;
     totalTokens?: number;
   };
+  promptVersionId?: string;
+  promptHash?: string;
   results: BenchmarkResult[];
   failureAnalysis?: Record<string, unknown>;
 }
@@ -156,10 +160,12 @@ function ResultRow({
   result,
   selected,
   onSelect,
+  version,
 }: {
   result: BenchmarkResult;
   selected: boolean;
   onSelect: () => void;
+  version?: PromptVersion;
 }) {
   return (
     <button
@@ -178,11 +184,40 @@ function ResultRow({
         <span>{formatDuration(result.durationMs)}</span>
         <span>{result.agentRun?.totalTokens ?? result.usage?.totalTokens ?? 0} tokens</span>
       </div>
+      {version && (
+        <div className="text-[10px] text-blue-600 truncate" title={version.hash}>
+          {version.name}
+        </div>
+      )}
     </button>
   );
 }
 
-function BenchmarkSummary({ report }: { report: BenchmarkReport }) {
+function PromptVersionBadge({
+  report,
+  versions,
+}: {
+  report: BenchmarkReport;
+  versions: PromptVersion[];
+}) {
+  const version = versions.find((v) => v.id === report.promptVersionId);
+  if (!version && !report.promptHash) return null;
+  return (
+    <div className="bg-blue-50 p-2 rounded text-xs">
+      <div className="text-gray-500">Prompt version</div>
+      <div className="font-medium truncate" title={version?.name ?? report.promptHash}>
+        {version?.name ?? report.promptHash}
+      </div>
+      {version && (
+        <div className="text-[10px] text-gray-400 truncate" title={version.hash}>
+          {version.hash}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BenchmarkSummary({ report, versions }: { report: BenchmarkReport; versions: PromptVersion[] }) {
   return (
     <div className="grid grid-cols-2 gap-2 text-xs">
       <div className="bg-gray-50 p-2 rounded">Suite: <span className="font-medium">{report.suite}</span></div>
@@ -193,6 +228,9 @@ function BenchmarkSummary({ report }: { report: BenchmarkReport }) {
       <div className="bg-gray-50 p-2 rounded">Passed: <span className="font-medium text-green-600">{report.passed}</span></div>
       <div className="bg-gray-50 p-2 rounded">Failed: <span className="font-medium text-red-600">{report.failed}</span></div>
       <div className="bg-gray-50 p-2 rounded">Timeouts: <span className="font-medium text-yellow-600">{report.timeouts}</span></div>
+      <div className="col-span-2">
+        <PromptVersionBadge report={report} versions={versions} />
+      </div>
     </div>
   );
 }
@@ -201,10 +239,12 @@ function BenchmarkResults({
   report,
   selectedResult,
   onSelectResult,
+  versions,
 }: {
   report: BenchmarkReport;
   selectedResult: BenchmarkResult | undefined;
   onSelectResult: (result: BenchmarkResult) => void;
+  versions: PromptVersion[];
 }) {
   return (
     <div className="space-y-2">
@@ -216,6 +256,7 @@ function BenchmarkResults({
             result={result}
             selected={selectedResult?.harnessTaskId === result.harnessTaskId}
             onSelect={() => { onSelectResult(result); }}
+            version={versions.find((v) => v.id === result.promptVersionId)}
           />
         ))}
       </div>
@@ -223,7 +264,7 @@ function BenchmarkResults({
   );
 }
 
-function ResultDetail({ result }: { result: BenchmarkResult }) {
+function ResultDetail({ result, version }: { result: BenchmarkResult; version?: PromptVersion }) {
   return (
     <div className="space-y-4">
       <div className="bg-gray-50 p-3 rounded text-xs space-y-1">
@@ -247,6 +288,14 @@ function ResultDetail({ result }: { result: BenchmarkResult }) {
             Tokens: {result.agentRun?.promptTokens ?? result.usage?.promptTokens ?? 0} prompt /{' '}
             {result.agentRun?.completionTokens ?? result.usage?.completionTokens ?? 0} completion /{' '}
             {result.agentRun?.totalTokens ?? result.usage?.totalTokens ?? 0} total
+          </div>
+        )}
+        {version && (
+          <div className="text-blue-700">
+            Prompt: <span className="font-medium">{version.name}</span>{' '}
+            <span className="text-[10px] text-gray-400" title={version.hash}>
+              {version.hash.slice(0, 12)}
+            </span>
           </div>
         )}
       </div>
@@ -320,14 +369,81 @@ function AbComparison({ report }: { report: AbReport }) {
   );
 }
 
+function PromptVersionComparison({
+  reports,
+  versions,
+}: {
+  reports: BenchmarkReport[];
+  versions: PromptVersion[];
+}) {
+  const byVersion = new Map<string, BenchmarkReport[]>();
+  for (const report of reports) {
+    const key = report.promptVersionId ?? report.promptHash ?? 'unknown';
+    const list = byVersion.get(key) ?? [];
+    list.push(report);
+    byVersion.set(key, list);
+  }
+
+  const rows = Array.from(byVersion.entries())
+    .map(([key, reps]) => {
+      const version = versions.find((v) => v.id === key || v.hash === key);
+      const total = reps.reduce((sum, r) => sum + r.total, 0);
+      const passed = reps.reduce((sum, r) => sum + r.passed, 0);
+      const duration = reps.reduce((sum, r) => sum + r.totalDurationMs, 0);
+      const tokens = reps.reduce((sum, r) => sum + tokenCount(r), 0);
+      return {
+        key,
+        version,
+        reports: reps.length,
+        total,
+        passed,
+        passRate: total > 0 ? Math.round((passed / total) * 100) : 0,
+        duration,
+        tokens,
+      };
+    })
+    .sort((a, b) => b.passRate - a.passRate || a.reports - b.reports);
+
+  if (rows.length === 0) {
+    return <div className="text-xs text-gray-400">No prompt-version data available.</div>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {rows.map((row) => (
+        <div key={row.key} className="bg-gray-50 p-2 rounded text-xs">
+          <div className="flex justify-between items-center">
+            <span className="font-medium truncate" title={row.version?.name ?? row.key}>
+              {row.version?.name ?? `${row.key.slice(0, 12)}…`}
+            </span>
+            <span className={row.passRate >= 80 ? 'text-green-600' : row.passRate >= 50 ? 'text-yellow-600' : 'text-red-600'}>
+              {row.passRate}% ({row.passed}/{row.total})
+            </span>
+          </div>
+          <div className="text-gray-500 mt-0.5">
+            {row.reports} run{row.reports === 1 ? '' : 's'} · {formatDuration(row.duration)} · {row.tokens} tokens
+          </div>
+          {row.version && (
+            <div className="text-[10px] text-gray-400 truncate" title={row.version.hash}>
+              {row.version.hash}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function BenchmarkPanel() {
   const [benchmarkFiles, setBenchmarkFiles] = useState<string[]>([]);
   const [abFiles, setAbFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string>();
   const [selectedKind, setSelectedKind] = useState<'benchmark' | 'ab'>();
   const [report, setReport] = useState<BenchmarkReport | AbReport | null>(null);
+  const [allReports, setAllReports] = useState<BenchmarkReport[]>([]);
   const [selectedResult, setSelectedResult] = useState<BenchmarkResult>();
   const [promptVersions, setPromptVersions] = useState<PromptVersion[]>([]);
+  const [selectedVersion, setSelectedVersion] = useState<PromptVersion>();
   const [runStatus, setRunStatus] = useState<BenchmarkRunStatus>({ running: false });
   const [runForm, setRunForm] = useState<BenchmarkRunBody>({ suite: 'synthetic', nTasks: undefined, provider: '', model: '', timeout: 120000 });
   const [error, setError] = useState('');
@@ -337,6 +453,12 @@ export function BenchmarkPanel() {
       const data = await api.getBenchmarkReports();
       setBenchmarkFiles(data.benchmark);
       setAbFiles(data.ab);
+      const reports = await Promise.all(
+        data.benchmark.map((file) =>
+          api.getBenchmarkReport(file).then((r) => r as unknown as BenchmarkReport).catch(() => null)
+        )
+      );
+      setAllReports(reports.filter((r): r is BenchmarkReport => r !== null));
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -517,11 +639,12 @@ export function BenchmarkPanel() {
         <div className="space-y-4">
           <h3 className="font-semibold">{benchmarkReport.suite}</h3>
           <div className="text-[10px] text-gray-500">{benchmarkReport.timestamp}</div>
-          <BenchmarkSummary report={benchmarkReport} />
+          <BenchmarkSummary report={benchmarkReport} versions={promptVersions} />
           <BenchmarkResults
             report={benchmarkReport}
             selectedResult={selectedResult}
             onSelectResult={setSelectedResult}
+            versions={promptVersions}
           />
           {benchmarkReport.failureAnalysis && (
             <div className="bg-red-50 p-2 rounded text-xs text-red-700">
@@ -529,7 +652,12 @@ export function BenchmarkPanel() {
               <pre className="text-[10px] overflow-auto max-h-40">{JSON.stringify(benchmarkReport.failureAnalysis, null, 2)}</pre>
             </div>
           )}
-          {selectedResult && <ResultDetail result={selectedResult} />}
+          {selectedResult && (
+            <ResultDetail
+              result={selectedResult}
+              version={promptVersions.find((v) => v.id === selectedResult.promptVersionId)}
+            />
+          )}
         </div>
       )}
 
@@ -542,21 +670,61 @@ export function BenchmarkPanel() {
       )}
 
       <div>
+        <h3 className="font-semibold mb-2">Prompt version comparison</h3>
+        <PromptVersionComparison reports={allReports} versions={promptVersions} />
+      </div>
+
+      <div>
         <h3 className="font-semibold mb-2">Prompt versions</h3>
         {promptVersions.length === 0 ? (
           <div className="text-xs text-gray-400">No prompt versions</div>
         ) : (
           <div className="space-y-2 max-h-48 overflow-auto">
             {promptVersions.map((version) => (
-              <div key={version.id} className="bg-gray-50 p-2 rounded text-xs">
+              <button
+                key={version.id}
+                onClick={() => { setSelectedVersion(version); }}
+                className={`w-full text-left bg-gray-50 p-2 rounded text-xs hover:bg-blue-50 ${
+                  selectedVersion?.id === version.id ? 'ring-1 ring-blue-300' : ''
+                }`}
+              >
                 <div className="font-medium truncate" title={version.name}>{version.name}</div>
                 <div className="text-gray-500 truncate" title={version.sourcePath}>{version.sourcePath}</div>
                 <div className="text-[10px] text-gray-400 mt-0.5">{version.hash}</div>
-              </div>
+              </button>
             ))}
           </div>
         )}
       </div>
+
+      {selectedVersion && (
+        <div className="bg-gray-50 p-3 rounded text-xs space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="font-medium">{selectedVersion.name}</span>
+            <button
+              onClick={() => { setSelectedVersion(undefined); }}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              close
+            </button>
+          </div>
+          <div className="text-[10px] text-gray-400" title={selectedVersion.hash}>
+            {selectedVersion.hash}
+          </div>
+          <details>
+            <summary className="cursor-pointer text-gray-500">System prompt</summary>
+            <pre className="mt-1 bg-white p-2 rounded text-[10px] overflow-auto max-h-64 whitespace-pre-wrap">
+              {selectedVersion.systemPrompt}
+            </pre>
+          </details>
+          <details>
+            <summary className="cursor-pointer text-gray-500">Tools prompt</summary>
+            <pre className="mt-1 bg-white p-2 rounded text-[10px] overflow-auto max-h-64 whitespace-pre-wrap">
+              {selectedVersion.textToolsPrompt}
+            </pre>
+          </details>
+        </div>
+      )}
     </div>
   );
 }

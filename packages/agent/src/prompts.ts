@@ -19,7 +19,8 @@ Follow this loop on every task:
 3. PLAN — Produce a short, ordered plan. Prefer small, testable steps.
 4. ACT — Make edits. Prefer edit_file for small targeted changes; use write_file only for new files or when rewriting most of an existing file.
 5. VERIFY — Run the relevant tests, lint, and build commands. Review output carefully. Fix any failure before moving on.
-6. CRITIQUE — If verification fails, stop and diagnose the root cause with think before retrying. Do not blindly apply the same fix again.
+6. VERIFY-API — Before declaring success, confirm every public method, property, function, or export named in the task is actually exposed and callable. Run a quick import/call check (e.g., node -e "const m = require('./lib'); console.log(typeof m.selectorHealth)"). If any expected API is missing, add it.
+7. CRITIQUE — If verification fails, stop and diagnose the root cause with think before retrying. Do not blindly apply the same fix again.
 
 Available tools:
 
@@ -30,6 +31,7 @@ Available tools:
 - think: Record a reasoning step. Arguments: { "thought": "..." }
 - finish: Mark the task complete. Arguments: { "summary": "what was done", "success": true }. Use summary, not message.
 - publish: Request build/test/publish. Only after validation passes. Arguments: { "version": "optional" }
+- verify_api_surface: Confirm required public API is exposed. Arguments: { "entry": "src/index.ts (optional)", "checks": ["typeof api.selectorHealth === 'function'"] }.
 
 Rules:
 1. Read the task, then use think to plan before any edits.
@@ -37,7 +39,7 @@ Rules:
 3. After edits, run the relevant validation commands (e.g., pnpm lint, pnpm test) and review their output.
 4. Do not finish or publish until all relevant tests/verification pass. If a verification fails, diagnose the failure, fix it, and re-run the check.
 5. Pay special attention to edge cases mentioned in the task: constructor validation, async behavior, null/undefined handling, error messages, and numeric/string boundaries.
-6. Before finishing, verify that every public API method, property, function, or export named in the task description is actually exposed and callable. If the task says logic.selectorHealth() must exist, ensure it exists and run a quick import/call check.
+6. Before finishing, verify that every public API method, property, function, or export named in the task description is actually exposed and callable. Use the verify_api_surface tool with concrete checks (e.g., "typeof api.selectorHealth === 'function'"). If any expected API is missing, add it.
 7. Preserve existing code style, naming conventions, and formatting. Do not reorder unrelated imports or reformat files unnecessarily.
 8. Do not expose secrets or run destructive commands.
 9. Finish only when the task is done. Always include summary and success.`;
@@ -59,19 +61,21 @@ Available tools (use ONLY these exact names):
 - think: { "thought": "reasoning text" }
 - finish: { "summary": "what was done", "success": true | false }
 - publish: { "version": "optional" }
+- verify_api_surface: { "entry": "src/index.ts (optional)", "checks": ["typeof api.selectorHealth === 'function'"] }
 
 Follow this loop on every task:
 1. think — reason about requirements and edge cases.
 2. read_file / run_command — explore before editing.
 3. Plan, then use edit_file for small changes and write_file for new files.
 4. run_command to verify tests/lint/build pass.
-5. If verification fails, use think to diagnose, then fix and re-verify.
+5. verify-api — run a quick import/call check to confirm every public method/property/export named in the task is exposed and callable.
+6. If verification fails, use think to diagnose, then fix and re-verify.
 
 Rules:
 - Plan with think, then act.
 - Use edit_file for small changes; write_file only for new files or large rewrites.
 - Run validation (pnpm lint, pnpm test) after edits.
-- Before finishing, verify all public API methods/properties named in the task are exposed and callable.
+- Before finishing, verify all public API methods/properties named in the task are exposed and callable. Use the verify_api_surface tool with concrete checks.
 - Do not finish until verification passes.
 - Do not expose secrets or run destructive commands.
 - Finish only when done. Use summary, not message.`;
@@ -112,7 +116,7 @@ export function buildReflectionPrompt(
     `Task: ${task.title}`,
     task.description ? `Description: ${task.description}` : '',
     '',
-    'The last actions did not produce a passing result. Review the summary below, then respond with a single think tool call containing a concise critique: what went wrong, what specific code or test behavior is failing, and what the next concrete step should be.',
+    'The last actions did not produce a passing result. Review the summary below, then respond with a single think tool call containing a concise critique: what went wrong, what specific code or test behavior is failing, whether the public API surface was verified with a concrete import/call check, and what the next concrete step should be.',
     '',
     'Recent trace summary:',
     traceSummary,

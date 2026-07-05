@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig, SendOptions } from '@omega/core';
+import type { Provider, ProviderConfig, SendOptions, UsageInfo } from '@omega/core';
 
 const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
@@ -47,7 +47,20 @@ export class GeminiProvider implements Provider {
     }
     const data = (await res.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
+      usageMetadata?: {
+        promptTokenCount?: number;
+        candidatesTokenCount?: number;
+        totalTokenCount?: number;
+      };
     };
+    if (data.usageMetadata) {
+      const usage: UsageInfo = {
+        promptTokens: data.usageMetadata.promptTokenCount,
+        completionTokens: data.usageMetadata.candidatesTokenCount,
+        totalTokens: data.usageMetadata.totalTokenCount,
+      };
+      opts?.onUsage?.(usage);
+    }
     return data.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') ?? '';
   }
 }

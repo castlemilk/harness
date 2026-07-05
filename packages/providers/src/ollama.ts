@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig, SendOptions } from '@omega/core';
+import type { Provider, ProviderConfig, SendOptions, UsageInfo } from '@omega/core';
 
 const DEFAULT_BASE_URL = 'http://localhost:11434';
 
@@ -37,7 +37,19 @@ export class OllamaProvider implements Provider {
     if (!res.ok) {
       throw new Error(`Ollama request failed: ${res.status.toString()} ${res.statusText}`);
     }
-    const data = (await res.json()) as { message?: { content?: string } };
+    const data = (await res.json()) as {
+      message?: { content?: string };
+      prompt_eval_count?: number;
+      eval_count?: number;
+    };
+    const usage: UsageInfo = {
+      promptTokens: data.prompt_eval_count,
+      completionTokens: data.eval_count,
+    };
+    if (usage.promptTokens !== undefined && usage.completionTokens !== undefined) {
+      usage.totalTokens = usage.promptTokens + usage.completionTokens;
+    }
+    opts?.onUsage?.(usage);
     return data.message?.content ?? '';
   }
 }

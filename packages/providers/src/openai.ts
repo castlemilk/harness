@@ -1,6 +1,35 @@
-import type { Provider, ProviderConfig, SendOptions, ToolDefinition } from '@omega/core';
+import type { Provider, ProviderConfig, SendOptions, ToolDefinition, UsageInfo } from '@omega/core';
 
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
+
+function extractUsage(data: unknown): UsageInfo | undefined {
+  if (typeof data !== 'object' || data === null) return undefined;
+  const usage = (data as { usage?: unknown }).usage;
+  if (typeof usage !== 'object' || usage === null) return undefined;
+  const usageRecord = usage as Record<string, unknown>;
+  const promptTokens =
+    typeof usageRecord.prompt_tokens === 'number'
+      ? usageRecord.prompt_tokens
+      : typeof usageRecord.promptTokens === 'number'
+        ? usageRecord.promptTokens
+        : undefined;
+  const completionTokens =
+    typeof usageRecord.completion_tokens === 'number'
+      ? usageRecord.completion_tokens
+      : typeof usageRecord.completionTokens === 'number'
+        ? usageRecord.completionTokens
+        : undefined;
+  const totalTokens =
+    typeof usageRecord.total_tokens === 'number'
+      ? usageRecord.total_tokens
+      : typeof usageRecord.totalTokens === 'number'
+        ? usageRecord.totalTokens
+        : undefined;
+  if (promptTokens === undefined && completionTokens === undefined && totalTokens === undefined) {
+    return undefined;
+  }
+  return { promptTokens, completionTokens, totalTokens };
+}
 
 export class OpenAIProvider implements Provider {
   readonly config: ProviderConfig;
@@ -47,7 +76,9 @@ export class OpenAIProvider implements Provider {
     }
     const data = (await res.json()) as {
       choices?: { message?: { content?: string; tool_calls?: unknown[] } }[];
+      usage?: Record<string, unknown>;
     };
+    opts?.onUsage?.(extractUsage(data) ?? {});
     return data.choices?.[0]?.message?.content ?? '';
   }
 
@@ -88,7 +119,9 @@ export class OpenAIProvider implements Provider {
           }[];
         };
       }[];
+      usage?: Record<string, unknown>;
     };
+    opts?.onUsage?.(extractUsage(data) ?? {});
     const message = data.choices?.[0]?.message;
     const toolCalls = message?.tool_calls;
     if (toolCalls && toolCalls.length > 0) {

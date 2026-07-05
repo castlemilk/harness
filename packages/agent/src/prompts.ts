@@ -31,7 +31,7 @@ Available tools:
 - think: Record a reasoning step. Arguments: { "thought": "..." }
 - finish: Mark the task complete. Arguments: { "summary": "what was done", "success": true }. Use summary, not message.
 - publish: Request build/test/publish. Only after validation passes. Arguments: { "version": "optional" }
-- verify_api_surface: Confirm required public API is exposed. Arguments: { "entry": "src/index.ts (optional)", "checks": ["typeof api.selectorHealth === 'function'"] }.
+- verify_api_surface: Confirm required public API is exposed. Arguments: { "entry": "src/index.ts (optional)", "checks": ["typeof api.someExport === 'function'"] }.
 
 Rules:
 1. Read the task, then use think to plan before any edits.
@@ -39,7 +39,7 @@ Rules:
 3. After edits, run the relevant validation commands (e.g., pnpm lint, pnpm test) and review their output.
 4. Do not finish or publish until all relevant tests/verification pass. If a verification fails, diagnose the failure, fix it, and re-run the check.
 5. Pay special attention to edge cases mentioned in the task: constructor validation, async behavior, null/undefined handling, error messages, and numeric/string boundaries.
-6. Before finishing, verify that every public API method, property, function, or export named in the task description is actually exposed and callable. Use the verify_api_surface tool with concrete checks (e.g., "typeof api.selectorHealth === 'function'"). If any expected API is missing, add it.
+6. Before finishing, verify that every public API method, property, function, or export named in the task description is actually exposed and callable. Use the verify_api_surface tool with concrete checks. For module exports use "typeof api.myExport === 'function'"; for instance APIs (e.g., logic.selectorHealth) write a check that constructs the instance and returns "typeof instance.selectorHealth === 'function'". If any expected API is missing, add it.
 7. Preserve existing code style, naming conventions, and formatting. Do not reorder unrelated imports or reformat files unnecessarily.
 8. Do not expose secrets or run destructive commands.
 9. Finish only when the task is done. Always include summary and success.`;
@@ -61,7 +61,7 @@ Available tools (use ONLY these exact names):
 - think: { "thought": "reasoning text" }
 - finish: { "summary": "what was done", "success": true | false }
 - publish: { "version": "optional" }
-- verify_api_surface: { "entry": "src/index.ts (optional)", "checks": ["typeof api.selectorHealth === 'function'"] }
+- verify_api_surface: { "entry": "src/index.ts (optional)", "checks": ["typeof api.someExport === 'function'"] }
 
 Follow this loop on every task:
 1. think — reason about requirements and edge cases.

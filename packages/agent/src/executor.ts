@@ -786,11 +786,10 @@ async function sendToProvider(
     });
   };
 
-  const sendMessages = prompt ? [...messages, { role: 'user' as const, content: prompt }] : messages;
-
   try {
-    // Prefer native tool calls when the provider supports them (including Kimi).
+    // Prefer native tool calls when the provider supports them.
     if (typeof provider.sendWithTools === 'function') {
+      const sendMessages = prompt ? [...messages, { role: 'user' as const, content: prompt }] : messages;
       const raw = await provider.sendWithTools(prompt ?? 'Execute the next step.', AGENT_TOOLS, {
         system: ctx.systemPrompt,
         model: ctx.model,
@@ -804,11 +803,21 @@ async function sendToProvider(
       return parsed;
     }
 
-    // Fallback to text-mode JSON tool calls for providers without native tool support.
+    // Fallback to text-mode JSON tool calls. Build a plain transcript so providers
+    // that do not support tool roles (e.g. Kimi text mode) still see the full context.
+    const sendMessages = prompt ? [...messages, { role: 'user' as const, content: prompt }] : messages;
     const transcript = sendMessages
       .map((m) => {
-        const prefix = m.role === 'assistant' && m.tool_calls ? '[assistant tool_calls]' : `[${m.role}]`;
-        return `${prefix}\n${m.content ?? ''}`;
+        if (m.role === 'assistant' && m.tool_calls && m.tool_calls.length > 0) {
+          const calls = m.tool_calls
+            .map((tc) => `  - ${tc.function?.name ?? ''}(${tc.function?.arguments ?? ''})`)
+            .join('\n');
+          return `[assistant] ${m.content ?? ''}\nTool calls:\n${calls}`;
+        }
+        if (m.role === 'tool') {
+          return `[tool result for ${m.tool_call_id ?? ''}]\n${m.content ?? ''}`;
+        }
+        return `[${m.role}] ${m.content ?? ''}`;
       })
       .join('\n\n');
     const raw = await provider.send(transcript, {

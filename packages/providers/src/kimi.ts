@@ -18,12 +18,9 @@ export class KimiProvider extends OpenAIProvider implements Provider {
 
   override async sendWithTools(
     prompt: string,
-    _tools: ToolDefinition[],
+    tools: ToolDefinition[],
     opts?: SendOptions
   ): Promise<string> {
-    // Kimi-for-coding follows the text-instructions format more reliably than
-    // native function calling, so we route tool-aware prompts through the plain
-    // chat completion path. The system prompt already contains tool descriptions.
-    return super.send(prompt, { ...opts, temperature: 1 });
+    return super.sendWithTools(prompt, tools, { ...opts, temperature: 1 });
   }
 }

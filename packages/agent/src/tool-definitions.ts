@@ -43,6 +43,18 @@ export const AGENT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: 'list_files',
+    description: 'List files and directories at a path relative to the project root. Use this instead of find/ls to explore structure.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Relative directory path. Use "." for project root.' },
+        recursive: { type: 'boolean', description: 'If true, list recursively up to 3 levels.' },
+      },
+      required: ['path'],
+    },
+  },
+  {
     name: 'think',
     description: 'Record reasoning.',
     parameters: {

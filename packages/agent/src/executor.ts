@@ -89,6 +89,8 @@ interface AgentContext {
   recentCommands: Set<string>;
   recentReads: Map<string, number>;
   consecutiveThinks: number;
+  explorationCount: number;
+  editCount: number;
   tracer: Tracer;
   rootSpan: Span;
   systemPrompt: string;
@@ -282,6 +284,8 @@ export async function runAgentTask(
     recentCommands: new Set<string>(),
     recentReads: new Map<string, number>(),
     consecutiveThinks: 0,
+    explorationCount: 0,
+    editCount: 0,
     tracer,
     rootSpan,
     systemPrompt,
@@ -539,11 +543,25 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
         ctx.modifiedFiles.add(call.arguments.path);
       }
 
+      const explorationTools = ['think', 'read_file', 'list_files', 'run_command', 'lsp_diagnostics', 'lsp_hover', 'lsp_symbol'];
+      const editTools = ['edit_file', 'write_file'];
+      const isExploration = explorationTools.includes(call.name);
+      const isEdit = editTools.includes(call.name);
+      if (isExploration) ctx.explorationCount++;
+      if (isEdit) ctx.editCount++;
+
       const toolSpan = ctx.tracer.startSpan(`agent.tool.${call.name}`, ctx.rootSpan.toContext());
       toolSpan.setAttributes({ tool: call.name });
 
       let result: ToolResult;
-      if (call.name === 'think') {
+      const stuckWithoutEdits = ctx.editCount === 0 && stepIndex >= 15 && !editTools.includes(call.name) && call.name !== 'finish' && call.name !== 'publish';
+      const explorationBudgetExhausted = ctx.editCount === 0 && ctx.explorationCount > 6 && isExploration;
+      if (stuckWithoutEdits || explorationBudgetExhausted) {
+        result = {
+          success: false,
+          output: `Forcing action: you have used ${String(ctx.explorationCount)} exploration steps and made ${String(ctx.editCount)} edits. Stop exploring and use edit_file or write_file to advance the task.`,
+        };
+      } else if (call.name === 'think') {
         ctx.consecutiveThinks++;
         if (ctx.consecutiveThinks > 2) {
           result = {

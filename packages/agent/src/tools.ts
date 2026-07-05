@@ -170,6 +170,38 @@ export async function editFile(
   }
 }
 
+export async function listFiles(
+  projectPath: string,
+  filePath: string,
+  recursive = false
+): Promise<ToolResult> {
+  const target = path.resolve(projectPath, filePath);
+  if (!target.startsWith(path.resolve(projectPath))) {
+    return { success: false, output: 'Path traversal blocked' };
+  }
+  try {
+    const maxDepth = recursive ? 3 : 1;
+    const lines: string[] = [];
+    async function walk(dir: string, depth: number): Promise<void> {
+      if (depth > maxDepth) return;
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.name.startsWith('.') && entry.name !== '.') continue;
+        const rel = path.relative(projectPath, path.join(dir, entry.name));
+        const prefix = entry.isDirectory() ? '[d]' : '[f]';
+        lines.push(`${prefix} ${rel}`);
+        if (entry.isDirectory() && depth < maxDepth) {
+          await walk(path.join(dir, entry.name), depth + 1);
+        }
+      }
+    }
+    await walk(target, 1);
+    return { success: true, output: lines.join('\n') || 'empty directory' };
+  } catch (err) {
+    return { success: false, output: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 export async function runCommand(projectPath: string, command: string): Promise<ToolResult> {
   const check = sanitizeCommand(command);
   if (!check.ok) {
@@ -372,6 +404,8 @@ export async function executeTool(
       );
     case 'run_command':
       return runCommand(projectPath, argString(arguments_.command));
+    case 'list_files':
+      return listFiles(projectPath, argString(arguments_.path), Boolean(arguments_.recursive));
     case 'think':
       return think(projectPath, argString(arguments_.thought));
     case 'lsp_diagnostics':

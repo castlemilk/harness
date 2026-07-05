@@ -27,7 +27,8 @@ Available tools:
 - read_file: Read a file relative to project root. Arguments: { "path": "relative/path" }
 - write_file: Overwrite or create a file. Arguments: { "path": "relative/path", "content": "full file content" }
 - edit_file: Replace one exact occurrence of old_string with new_string in an existing file. Use this for small changes. Arguments: { "path": "relative/path", "old_string": "...", "new_string": "..." }
-- run_command: Run a single simple command. No pipes (|), &&, ;, redirects, or $(). Each command is one executable plus args. Globs inside quoted arguments are allowed (e.g., find . -name "*.ts"). Prefer pnpm/npm/node. Examples: "pnpm lint", "npm test", "find . -maxdepth 2 -type f", "node -e console.log(1)". Invalid: "a && b", "a | b", "a; b", "cat > file".
+- run_command: Run a single simple command. No pipes (|), &&, ;, redirects, or $(). Each command is one executable plus args. Globs inside quoted arguments are allowed (e.g., find . -name "*.ts"). Prefer pnpm/npm/node. Examples: "pnpm lint", "npm test", "node -e console.log(1)". Invalid: "a && b", "a | b", "a; b", "cat > file".
+- list_files: List files/directories at a relative path. Use this for exploration instead of find/ls. Arguments: { "path": ".", "recursive": true }
 - think: Record a reasoning step. Arguments: { "thought": "..." }
 - finish: Mark the task complete. Arguments: { "summary": "what was done", "success": true }. Use summary, not message.
 - publish: Request build/test/publish. Only after validation passes. Arguments: { "version": "optional" }
@@ -46,14 +47,16 @@ Rules:
 10. Finish only when the task is done. Always include summary and success.
 
 ANTI-LOOP RULES (violation wastes steps and causes failure):
-- You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, or ls -la more than once total in the entire session.
-- Do NOT repeat a command that already produced output in this session. If you need the same information, remember it from the previous output.
-- After your first think step, you have at most 5 exploration steps to read package.json, src/index.ts, and the files most relevant to the task. Then you MUST start editing.
+- You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, ls -la, or find more than once total in the entire session. Use list_files for exploration.
+- Do NOT repeat a command or read the same file that already produced output in this session. If you need the same information, remember it from the previous output.
+- After your first think step, you have at most 6 exploration steps (read_file, list_files, run_command) combined. Then you MUST make an edit_file or write_file call.
+- If you have not edited any file after 15 total tool calls, you are stuck. Stop exploring and immediately write or edit a file that addresses the task.
+- Do NOT re-read package.json or src/index.ts after the initial exploration. Their contents were already provided.
 - If run_command is rejected for shell operators (|, &&, ;, redirects, unquoted globs, $()), STOP using those patterns. Quote literal globs, e.g., find . -name "*.ts". Never retry the exact rejected command.
-- Do NOT call think multiple times in a row without editing or verifying in between.
+- Do NOT call think more than twice in the entire session. Use think once at the start, and once only if a verification failure requires diagnosis.
 - Do NOT restart exploration from scratch after a reflection. Build on what you already know and take the next concrete edit or verification step.`;
 
-export const FORCE_ACTION_PROMPT = `You have been thinking without taking action. Stop describing plans and execute the next concrete step using a tool. Use edit_file or run_command.`;
+export const FORCE_ACTION_PROMPT = `You have been exploring without making progress. Stop thinking, reading, and listing files. Execute the next concrete step using edit_file or write_file. Pick the smallest file change that advances the task and do it now.`;
 
 export const TEXT_TOOLS_SYSTEM_PROMPT =
   loadPromptFromEnv('OMEGA_TEXT_TOOLS_PROMPT') ??
@@ -67,6 +70,7 @@ Available tools (use ONLY these exact names):
 - write_file: { "path": "relative/path", "content": "full file content" }
 - edit_file: { "path": "relative/path", "old_string": "...", "new_string": "..." }
 - run_command: { "command": "single simple command, no pipes/&&/;/redirects/$(); quoted globs ok" }
+- list_files: { "path": ".", "recursive": true }
 - think: { "thought": "reasoning text" }
 - finish: { "summary": "what was done", "success": true | false }
 - publish: { "version": "optional" }
@@ -91,11 +95,13 @@ Rules:
 - Finish only when done. Use summary, not message.
 
 ANTI-LOOP RULES (violation wastes steps and causes failure):
-- You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, or ls -la more than once total.
-- Do NOT repeat a command that already produced output in this session.
-- After your first think step, you have at most 5 exploration steps to read package.json, src/index.ts, and the files most relevant to the task. Then you MUST start editing.
+- You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, ls -la, or find more than once total.
+- Do NOT repeat a command or read the same file that already produced output in this session.
+- After your first think step, you have at most 6 exploration steps (read_file, list_files, run_command) combined. Then you MUST make an edit_file or write_file call.
+- If you have not edited any file after 15 total tool calls, you are stuck. Stop exploring and immediately write or edit a file that addresses the task.
+- Do NOT re-read package.json or src/index.ts after the initial exploration. Their contents were already provided.
 - If run_command is rejected for shell operators, STOP using those patterns. Quote literal globs, e.g., find . -name "*.ts". Never retry the exact rejected command.
-- Do NOT call think multiple times in a row without editing or verifying in between.
+- Do NOT call think more than twice in the entire session.
 - Do NOT restart exploration from scratch after a reflection. Build on what you already know and take the next concrete edit or verification step.`;
 
 export function buildSystemPrompt(context?: string): string {

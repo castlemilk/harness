@@ -128,9 +128,40 @@ export function buildTextToolsSystemPrompt(context?: string): string {
   return `${TEXT_TOOLS_SYSTEM_PROMPT}\n\n---\n${context}\n---`;
 }
 
+function extractRequiredApiSurface(description?: string): string[] {
+  if (!description) return [];
+  const apis = new Set<string>();
+  // module-level calls like resetContext({ atomicSelectors: true })
+  const callRe = /\b([a-zA-Z_$][\w$]*)\s*\(/g;
+  let m: RegExpExecArray | null;
+  while ((m = callRe.exec(description)) !== null) {
+    const name = m[1];
+    if (!/^(if|for|while|switch|catch|return|throw|typeof|instanceof|new|await|async|function|const|let|var)$/.test(name)) {
+      apis.add(`${name}()`);
+    }
+  }
+  // instance accessors like logic.selectorHealth
+  const instanceRe = /\b(logic|api|instance|obj|object|builder|store|engine)\.(selectorHealth|[a-zA-Z_$][\w$]*)/g;
+  while ((m = instanceRe.exec(description)) !== null) {
+    apis.add(`${m[1]}.${m[2]}`);
+  }
+  // type signatures from fenced blocks: selectorHealth(): ...
+  const sigRe = /\b([a-zA-Z_$][\w$]*)\s*\([^)]*\)\s*[:-]/g;
+  while ((m = sigRe.exec(description)) !== null) {
+    apis.add(`${m[1]}()`);
+  }
+  return Array.from(apis).slice(0, 20);
+}
+
 export function buildTaskPrompt(title: string, description?: string): string {
   const parts = [`Task: ${title}`];
   if (description) parts.push(`Description: ${description}`);
+  const requiredApis = extractRequiredApiSurface(description);
+  if (requiredApis.length > 0) {
+    parts.push(
+      `Required public API surface (ensure every one is exposed and callable): ${requiredApis.join(', ')}`
+    );
+  }
   parts.push('Start by using the think tool to reason about the task and create a plan.');
   return parts.join('\n\n');
 }

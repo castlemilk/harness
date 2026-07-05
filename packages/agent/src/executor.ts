@@ -55,7 +55,7 @@ function maxStepsForComplexity(complexity: string | undefined): number {
     case 'medium':
       return 80;
     case 'complex':
-      return 250;
+      return 120;
     default:
       return 60;
   }

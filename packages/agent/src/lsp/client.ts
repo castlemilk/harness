@@ -55,13 +55,39 @@ export class LspClient extends EventEmitter {
   async start(): Promise<void> {
     if (this.process) return;
     return new Promise((resolve, reject) => {
-      this.process = spawn(this.command, this.args, { stdio: ['pipe', 'pipe', 'pipe'] });
+      let settled = false;
+      const cleanup = (err?: Error): void => {
+        if (settled) return;
+        settled = true;
+        if (this.process) {
+          this.process.removeAllListeners();
+          try {
+            this.process.kill();
+          } catch {
+            // ignore
+          }
+          this.process = null;
+        }
+        if (err) reject(err);
+        else resolve();
+      };
+
+      try {
+        this.process = spawn(this.command, this.args, { stdio: ['pipe', 'pipe', 'pipe'] });
+      } catch (err) {
+        cleanup(err instanceof Error ? err : new Error(String(err)));
+        return;
+      }
+
       this.process.on('error', (err) => {
         this.emit('error', err);
-        reject(err);
+        cleanup(err);
       });
       this.process.on('exit', (code) => {
         this.emit('exit', code);
+        if (!settled) {
+          cleanup(new Error(`${this.command} exited with code ${String(code)}`));
+        }
       });
       this.process.stdout?.on('data', (chunk: Buffer) => {
         this.onData(chunk);
@@ -82,9 +108,11 @@ export class LspClient extends EventEmitter {
             return this.sendNotification('initialized', {});
           })
           .then(() => {
-            resolve();
+            cleanup();
           })
-          .catch(reject);
+          .catch((err: unknown) => {
+            cleanup(err instanceof Error ? err : new Error(String(err)));
+          });
       }, 500);
     });
   }

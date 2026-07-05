@@ -426,6 +426,12 @@ async function reflectOnTrace(ctx: AgentContext, maxTurns: number): Promise<stri
   }
 }
 
+async function checkpointCommit(ctx: AgentContext): Promise<void> {
+  if (ctx.modifiedFiles.size === 0 && !(await hasChanges(ctx.projectPath))) return;
+  await stageFiles(ctx.projectPath, Array.from(ctx.modifiedFiles));
+  await commit(ctx.projectPath, `agent checkpoint: ${ctx.task.title}`);
+}
+
 async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   // Initial planning trace
   await addTrace(ctx, 'system', ctx.systemPrompt);
@@ -627,6 +633,9 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
         ctx.editCount++;
         ctx.editsSinceVerify++;
         ctx.explorationAtLastEdit = ctx.explorationCount;
+        if (ctx.editCount % 5 === 0) {
+          await checkpointCommit(ctx);
+        }
       }
       if (verifyTools.includes(call.name)) {
         ctx.editsSinceVerify = 0;

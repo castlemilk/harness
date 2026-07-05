@@ -37,9 +37,10 @@ Rules:
 3. After edits, run the relevant validation commands (e.g., pnpm lint, pnpm test) and review their output.
 4. Do not finish or publish until all relevant tests/verification pass. If a verification fails, diagnose the failure, fix it, and re-run the check.
 5. Pay special attention to edge cases mentioned in the task: constructor validation, async behavior, null/undefined handling, error messages, and numeric/string boundaries.
-6. Preserve existing code style, naming conventions, and formatting. Do not reorder unrelated imports or reformat files unnecessarily.
-7. Do not expose secrets or run destructive commands.
-8. Finish only when the task is done. Always include summary and success.`;
+6. Before finishing, verify that every public API method, property, function, or export named in the task description is actually exposed and callable. If the task says logic.selectorHealth() must exist, ensure it exists and run a quick import/call check.
+7. Preserve existing code style, naming conventions, and formatting. Do not reorder unrelated imports or reformat files unnecessarily.
+8. Do not expose secrets or run destructive commands.
+9. Finish only when the task is done. Always include summary and success.`;
 
 export const FORCE_ACTION_PROMPT = `You have been thinking without taking action. Stop describing plans and execute the next concrete step using a tool. Use edit_file or run_command.`;
 
@@ -70,6 +71,7 @@ Rules:
 - Plan with think, then act.
 - Use edit_file for small changes; write_file only for new files or large rewrites.
 - Run validation (pnpm lint, pnpm test) after edits.
+- Before finishing, verify all public API methods/properties named in the task are exposed and callable.
 - Do not finish until verification passes.
 - Do not expose secrets or run destructive commands.
 - Finish only when done. Use summary, not message.`;

@@ -768,6 +768,26 @@ function recordUsage(ctx: AgentContext, usage: UsageInfo): void {
   }
 }
 
+function truncateMessages(
+  messages: { role: 'system' | 'user' | 'assistant' | 'tool'; content?: string; tool_calls?: { id?: string; type?: string; function?: { name?: string; arguments?: string } }[]; tool_call_id?: string }[],
+  maxTotal = 40,
+  fullWindow = 10,
+  truncateLength = 500
+): typeof messages {
+  // Drop the system message from the transcript; the provider will prepend the
+  // full system prompt separately. This keeps the context window smaller.
+  const cleaned = messages.filter((m) => m.role !== 'system');
+  const windowStart = Math.max(0, cleaned.length - fullWindow);
+  const truncated = cleaned.map((m, idx) => {
+    if (idx >= windowStart) return m;
+    if (!m.content || m.content.length <= truncateLength) return m;
+    return { ...m, content: `${m.content.slice(0, truncateLength)}\n... [truncated]` };
+  });
+  if (truncated.length <= maxTotal) return truncated;
+  // If still too long, keep only the most recent maxTotal messages (all full).
+  return truncated.slice(-maxTotal);
+}
+
 async function sendToProvider(
   ctx: AgentContext,
   messages: { role: 'system' | 'user' | 'assistant' | 'tool'; content?: string; tool_calls?: { id?: string; type?: string; function?: { name?: string; arguments?: string } }[]; tool_call_id?: string }[],
@@ -786,10 +806,12 @@ async function sendToProvider(
     });
   };
 
+  const baseMessages = truncateMessages(messages);
+
   try {
     // Prefer native tool calls when the provider supports them.
     if (typeof provider.sendWithTools === 'function') {
-      const sendMessages = prompt ? [...messages, { role: 'user' as const, content: prompt }] : messages;
+      const sendMessages = prompt ? [...baseMessages, { role: 'user' as const, content: prompt }] : baseMessages;
       const raw = await provider.sendWithTools(prompt ?? 'Execute the next step.', AGENT_TOOLS, {
         system: ctx.systemPrompt,
         model: ctx.model,
@@ -804,8 +826,8 @@ async function sendToProvider(
     }
 
     // Fallback to text-mode JSON tool calls. Build a plain transcript so providers
-    // that do not support tool roles (e.g. Kimi text mode) still see the full context.
-    const sendMessages = prompt ? [...messages, { role: 'user' as const, content: prompt }] : messages;
+    // that do not support tool roles still see the full context.
+    const sendMessages = prompt ? [...baseMessages, { role: 'user' as const, content: prompt }] : baseMessages;
     const transcript = sendMessages
       .map((m) => {
         if (m.role === 'assistant' && m.tool_calls && m.tool_calls.length > 0) {

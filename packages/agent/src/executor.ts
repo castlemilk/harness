@@ -16,6 +16,8 @@ import {
 } from './prompts.js';
 import { buildPromptContext } from './prompt-context.js';
 import { resolveSkills, formatSkillContext } from './skill-resolver.js';
+import { createClients } from './lsp/index.js';
+import { setLspClients } from './tools.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
 import { logger } from './logger.js';
 import { Tracer, type Span } from './tracer.js';
@@ -173,6 +175,19 @@ export async function runAgentTask(
   const combinedContext = [promptContext.text, skillContext].filter(Boolean).join('\n\n');
   const systemPrompt = buildSystemPrompt(combinedContext);
 
+  const lspClients = createClients(options.projectPath);
+  setLspClients(lspClients);
+  for (const client of new Set(lspClients.values())) {
+    try {
+      await client.start();
+    } catch (err) {
+      logger.warn('LSP client failed to start', {
+        command: client,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   const tracer = new Tracer(prisma, taskId, taskId);
   const rootSpan = tracer.startSpan('agent.task');
   rootSpan.setAttributes({
@@ -242,6 +257,14 @@ export async function runAgentTask(
     });
     throw err;
   } finally {
+    for (const client of new Set(lspClients.values())) {
+      try {
+        await client.stop();
+      } catch {
+        // ignore shutdown errors
+      }
+    }
+    setLspClients(new Map());
     await checkoutBranch(options.projectPath, baseBranch.output);
     if (stashed) {
       await popStash(options.projectPath);

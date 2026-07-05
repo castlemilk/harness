@@ -69,4 +69,35 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       required: [],
     },
   },
+  {
+    name: 'lsp_diagnostics',
+    description: 'Get language-server diagnostics for a file.',
+    parameters: {
+      type: 'object',
+      properties: { path: { type: 'string' } },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'lsp_hover',
+    description: 'Get type/docs hover at a position from the language server.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: { type: 'string' },
+        line: { type: 'number' },
+        character: { type: 'number' },
+      },
+      required: ['path', 'line', 'character'],
+    },
+  },
+  {
+    name: 'lsp_symbol',
+    description: 'Search workspace symbols via the language server.',
+    parameters: {
+      type: 'object',
+      properties: { query: { type: 'string' } },
+      required: ['query'],
+    },
+  },
 ];

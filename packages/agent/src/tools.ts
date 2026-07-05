@@ -2,8 +2,15 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { clientForPath, type LspClient } from './lsp/index.js';
 
 const execFileAsync = promisify(execFile);
+
+let lspClients: Map<string, LspClient> | undefined;
+
+export function setLspClients(clients: Map<string, LspClient>): void {
+  lspClients = clients;
+}
 
 export interface ToolResult {
   success: boolean;
@@ -169,6 +176,71 @@ export function think(_projectPath: string, thought: string): ToolResult {
   return { success: true, output: thought };
 }
 
+export async function lspDiagnostics(projectPath: string, filePath: string): Promise<ToolResult> {
+  const target = path.resolve(projectPath, filePath);
+  if (!target.startsWith(path.resolve(projectPath))) {
+    return { success: false, output: 'Path traversal blocked' };
+  }
+  const client = lspClients ? clientForPath(lspClients, target) : undefined;
+  if (!client) {
+    return { success: true, output: 'No language server available for this file type.' };
+  }
+  try {
+    const diagnostics = await client.getDiagnostics(target);
+    if (diagnostics.length === 0) return { success: true, output: 'No diagnostics.' };
+    const lines = diagnostics.map((d) => `${String(d.range.start.line)}:${String(d.range.start.character)} ${d.message}`);
+    return { success: true, output: lines.join('\n') };
+  } catch (err) {
+    return { success: false, output: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function lspHover(
+  projectPath: string,
+  filePath: string,
+  line: number,
+  character: number
+): Promise<ToolResult> {
+  const target = path.resolve(projectPath, filePath);
+  if (!target.startsWith(path.resolve(projectPath))) {
+    return { success: false, output: 'Path traversal blocked' };
+  }
+  const client = lspClients ? clientForPath(lspClients, target) : undefined;
+  if (!client) {
+    return { success: true, output: 'No language server available for this file type.' };
+  }
+  try {
+    const hover = await client.getHover(target, line, character);
+    return { success: true, output: hover || 'No hover information.' };
+  } catch (err) {
+    return { success: false, output: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function lspSymbol(_projectPath: string, query: string): Promise<ToolResult> {
+  if (!lspClients) {
+    return { success: true, output: 'No language servers available.' };
+  }
+  try {
+    const results: string[] = [];
+    const seen = new Set<string>();
+    for (const client of new Set(lspClients.values())) {
+      const symbols = await client.findSymbol(query);
+      for (const s of symbols) {
+        const key = `${s.name}:${String(s.kind)}:${s.location?.uri ?? ''}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const loc = s.location ? `${s.location.uri}:${String(s.location.range.start.line)}` : '';
+        results.push(`${s.name} (${String(s.kind)}) ${loc}`);
+      }
+    }
+    if (results.length === 0) return { success: true, output: 'No symbols found.' };
+    return { success: true, output: results.slice(0, 20).join('\n') };
+  } catch (err) {
+    return { success: false, output: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 function argString(value: unknown): string {
   if (value === undefined || value === null) return '';
   if (typeof value === 'string') return value;
@@ -197,6 +269,17 @@ export async function executeTool(
       return runCommand(projectPath, argString(arguments_.command));
     case 'think':
       return think(projectPath, argString(arguments_.thought));
+    case 'lsp_diagnostics':
+      return lspDiagnostics(projectPath, argString(arguments_.path));
+    case 'lsp_hover':
+      return lspHover(
+        projectPath,
+        argString(arguments_.path),
+        Number(arguments_.line),
+        Number(arguments_.character)
+      );
+    case 'lsp_symbol':
+      return lspSymbol(projectPath, argString(arguments_.query));
     default:
       return { success: false, output: `Unknown tool: ${name}` };
   }

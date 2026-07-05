@@ -28,7 +28,7 @@ const toolDescriptions = AGENT_TOOLS.map(
   (t) => `- ${t.name}: ${t.description}`
 ).join('\n');
 
-const PLAN_PROMPT = `You are a planning assistant. Given a task, produce a concise step-by-step plan.
+export const PLAN_PROMPT = `You are a planning assistant. Given a task, produce a concise step-by-step plan.
 
 Respond with strict JSON in this exact shape (no markdown):
 {

@@ -2,6 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { AGENT_SYSTEM_PROMPT, TEXT_TOOLS_SYSTEM_PROMPT } from './prompts.js';
+import { PLAN_PROMPT } from './planner.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPTS_PATH = path.resolve(__dirname, '..', 'src', 'prompts.ts');
@@ -39,22 +41,31 @@ export function hashPrompts(input: {
 }
 
 export async function readPromptsSource(): Promise<{ systemPrompt: string; textToolsPrompt: string }> {
-  const source = await fs.readFile(PROMPTS_PATH, 'utf-8');
+  try {
+    const source = await fs.readFile(PROMPTS_PATH, 'utf-8');
 
-  const systemMatch = /export const AGENT_SYSTEM_PROMPT =\s*(?:loadPromptFromEnv\('OMEGA_SYSTEM_PROMPT'\) \?\?\s*)?`([\s\S]*?)`;/m.exec(source);
-  const textToolsMatch = /export const TEXT_TOOLS_SYSTEM_PROMPT =\s*(?:loadPromptFromEnv\('OMEGA_TEXT_TOOLS_PROMPT'\) \?\?\s*)?`([\s\S]*?)`;/m.exec(source);
+    const systemMatch = /export const AGENT_SYSTEM_PROMPT =\s*(?:loadPromptFromEnv\('OMEGA_SYSTEM_PROMPT'\) \?\?\s*)?`([\s\S]*?)`;/m.exec(source);
+    const textToolsMatch = /export const TEXT_TOOLS_SYSTEM_PROMPT =\s*(?:loadPromptFromEnv\('OMEGA_TEXT_TOOLS_PROMPT'\) \?\?\s*)?`([\s\S]*?)`;/m.exec(source);
 
-  return {
-    systemPrompt: systemMatch?.[1] ?? '',
-    textToolsPrompt: textToolsMatch?.[1] ?? '',
-  };
+    return {
+      systemPrompt: systemMatch?.[1] ?? AGENT_SYSTEM_PROMPT,
+      textToolsPrompt: textToolsMatch?.[1] ?? TEXT_TOOLS_SYSTEM_PROMPT,
+    };
+  } catch {
+    return { systemPrompt: AGENT_SYSTEM_PROMPT, textToolsPrompt: TEXT_TOOLS_SYSTEM_PROMPT };
+  }
 }
 
 export async function loadCurrentPrompts(skillContext?: string): Promise<PromptVersionInput> {
   const { systemPrompt, textToolsPrompt } = await readPromptsSource();
-  const plannerSource = await fs.readFile(PLANNER_PATH, 'utf-8');
-  const planningMatch = /const PLAN_PROMPT = `([\s\S]*?)`;/m.exec(plannerSource);
-  const planningPrompt = planningMatch?.[1];
+  let planningPrompt: string | undefined;
+  try {
+    const plannerSource = await fs.readFile(PLANNER_PATH, 'utf-8');
+    const planningMatch = /const PLAN_PROMPT = `([\s\S]*?)`;/m.exec(plannerSource);
+    planningPrompt = planningMatch?.[1];
+  } catch {
+    planningPrompt = PLAN_PROMPT;
+  }
 
   return {
     name: `auto-${new Date().toISOString().replace(/[:.]/g, '-')}`,

@@ -87,6 +87,8 @@ interface AgentContext {
   maxSteps: number;
   modifiedFiles: Set<string>;
   recentCommands: Set<string>;
+  recentReads: Set<string>;
+  consecutiveThinks: number;
   tracer: Tracer;
   rootSpan: Span;
   systemPrompt: string;
@@ -278,6 +280,8 @@ export async function runAgentTask(
     maxSteps: options.maxSteps ?? maxStepsForComplexity(task.complexity),
     modifiedFiles: new Set<string>(),
     recentCommands: new Set<string>(),
+    recentReads: new Set<string>(),
+    consecutiveThinks: 0,
     tracer,
     rootSpan,
     systemPrompt,
@@ -539,7 +543,30 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       toolSpan.setAttributes({ tool: call.name });
 
       let result: ToolResult;
-      if (call.name === 'run_command' && typeof call.arguments.command === 'string') {
+      if (call.name === 'think') {
+        ctx.consecutiveThinks++;
+        if (ctx.consecutiveThinks >= 2) {
+          result = {
+            success: false,
+            output: `Think rejected: you already thought in the previous step. Stop planning and execute the next concrete step using read_file, run_command, or edit_file.`,
+          };
+        } else {
+          result = await executeTool(ctx.projectPath, call.name, call.arguments);
+        }
+      } else if (call.name === 'read_file' && typeof call.arguments.path === 'string') {
+        ctx.consecutiveThinks = 0;
+        const filePath = call.arguments.path.trim();
+        if (ctx.recentReads.has(filePath)) {
+          result = {
+            success: false,
+            output: `Duplicate read rejected: "${filePath}" was already read in this session. Use the previous content or move on to the next concrete step.`,
+          };
+        } else {
+          ctx.recentReads.add(filePath);
+          result = await executeTool(ctx.projectPath, call.name, call.arguments);
+        }
+      } else if (call.name === 'run_command' && typeof call.arguments.command === 'string') {
+        ctx.consecutiveThinks = 0;
         const command = call.arguments.command.trim();
         if (ctx.recentCommands.has(command)) {
           result = {
@@ -551,6 +578,7 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
           result = await executeTool(ctx.projectPath, call.name, call.arguments);
         }
       } else {
+        ctx.consecutiveThinks = 0;
         result = await executeTool(ctx.projectPath, call.name, call.arguments);
       }
       toolSpan.setAttributes({ success: result.success });

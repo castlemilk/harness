@@ -25,7 +25,7 @@ const PLANNING_TOOLS: ToolDefinition[] = [
 ];
 
 const toolDescriptions = AGENT_TOOLS.map(
-  (t: ToolDefinition) => `- ${String(t.name)}: ${String(t.description)}`
+  (t) => `- ${t.name}: ${t.description}`
 ).join('\n');
 
 export const PLAN_PROMPT = `You are a planning assistant. Given a task, produce a concise step-by-step plan.

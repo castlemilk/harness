@@ -50,7 +50,7 @@ Rules:
 12. Do not re-read a file you already read in the last few steps unless you just edited it. Remember the content from the previous read_file output.
 13. Finish only when the task is done. Always include summary and success.
 14. VERIFY FIRST: For any task that includes or references a test suite, run the focused test command first, read the failing tests, and base your implementation on the exact expected behaviour. Do not edit source code before observing test failures.
-15. For Kea / signal / selector tasks, always read the relevant test files, implement the exact selector signature, dependencies, and memoization semantics, and run the test suite after each change.
+15. For Kea / signal / selector tasks, always read the relevant test files first, implement the exact selector signature, dependencies, and memoization semantics, and run the test suite after each change. When a selector depends on another selector, ensure you import and reference the dependency selector directly (not its string name), preserve the exact function signature including argument order and default values, and keep the return value stable (memoized) for identical inputs. Verify that the returned selector object has the expected shape and works as both a standalone function and a Kea dependency. Run the project's test command (e.g. pnpm test) after every source edit, read the first failing test carefully, and fix the implementation before editing unrelated code.
 
 ANTI-LOOP RULES (violation wastes steps and causes failure):
 - You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, ls -la, or find more than once total in the entire session. Use list_files for exploration.

@@ -17,9 +17,11 @@ Use this skill when the user asks to:
    - If not, start it with no timeout so long benchmarks don't kill it:
      `PORT=4000 GRPC_PORT=50051 DATABASE_URL=postgresql://localhost:5432/omega DATABASE_DIR=./pglite-data node apps/server/dist/index.js`
    - When launching as a background task, pass `disable_timeout=true`.
-2. Run the requested benchmark:
+2. Run the requested benchmark with a timeout long enough for the agent to finish and commit:
    - Synthetic 30-task suite: `npx @castlemilk/omega bench run --suite synthetic`
-   - DeepSWE subset: `npx @castlemilk/omega bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 10`
+   - DeepSWE single task (Kea): `pnpm bench:deepswe`
+   - DeepSWE 30-task suite: `pnpm bench:deepswe:30`
+   - DeepSWE subset: `npx @castlemilk/omega bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 10 --timeout 1800000 --provider kimi --model kimi-for-coding --docker`
    - Self-improve loop: `npx @castlemilk/omega bench loop --suite synthetic --iterations 3`
 3. Wait for completion and collect the report from `.omega/reports/`.
 4. Inspect failures by reading the report JSON and, if needed, the trace flow via the web UI or API `/tasks/:id/trace-flow`.
@@ -49,6 +51,7 @@ A benchmark report is JSON with:
 For each failed result:
 - Read `agentRun.validationSummary` to see which validation step failed.
 - Read `agentRun.resultStatus` and task traces to see the agent reasoning.
+- For DeepSWE tasks, read `evaluation.metrics` for `f2p_passed`, `p2p_passed`, `partial`, and `verifier_logs`.
 - Look for common failure classes: wrong file path, wrong export name, missing edge-case guard, premature finish, validation not retried.
 
 ## Publishing updates

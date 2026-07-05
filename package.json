@@ -11,7 +11,9 @@
     "lint:fix": "eslint . --fix",
     "db:generate": "pnpm --filter @omega/db generate",
     "db:migrate": "pnpm --filter @omega/db migrate",
-    "db:seed": "pnpm --filter @omega/db seed"
+    "db:seed": "pnpm --filter @omega/db seed",
+    "bench:deepswe": "node apps/cli/dist/index.js bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 1 --sample-seed 5 --timeout 1800000 --provider kimi --model kimi-for-coding --docker",
+    "bench:deepswe:30": "node apps/cli/dist/index.js bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 30 --sample-seed 0 --timeout 1800000 --provider kimi --model kimi-for-coding --docker"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

@@ -102,6 +102,12 @@ async function generateModelPatch(projectPath: string, baseCommit: string): Prom
   return stdout;
 }
 
+function normalisePatch(patch: string): string {
+  if (patch.length === 0) return patch;
+  // git apply expects the patch file itself to end with a newline.
+  return patch.endsWith('\n') ? patch : `${patch}\n`;
+}
+
 async function rewriteConfig(
   taskDir: string,
   copiedTestsDir: string,
@@ -224,7 +230,7 @@ async function runDeepSWEVerifierDocker(
   await fs.mkdir(verifierDir, { recursive: true });
   await fs.mkdir(artifactsDir, { recursive: true });
 
-  const modelPatch = modelPatchArg ?? (await generateModelPatch(projectPath, baseCommit));
+  const modelPatch = normalisePatch(modelPatchArg ?? (await generateModelPatch(projectPath, baseCommit)));
   await writeFile(path.join(artifactsDir, 'model.patch'), modelPatch);
 
   const image = await buildDeepSWEImage(absoluteTaskDir, taskName);
@@ -296,7 +302,7 @@ async function runDeepSWEVerifier(
   await execFileAsync('cp', ['-R', testsDir, copiedTestsDir], { timeout: 60000 });
   await rewriteConfig(taskDir, copiedTestsDir, projectPath, verifierDir, artifactsDir);
 
-  const modelPatch = modelPatchArg ?? (await generateModelPatch(projectPath, baseCommit));
+  const modelPatch = normalisePatch(modelPatchArg ?? (await generateModelPatch(projectPath, baseCommit)));
   await writeFile(path.join(artifactsDir, 'model.patch'), modelPatch);
   await execFileAsync('git', ['-C', projectPath, 'checkout', '-f', baseCommit], { timeout: 60000 });
 

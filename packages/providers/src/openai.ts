@@ -57,9 +57,9 @@ export class OpenAIProvider implements Provider {
     if (opts?.messages && opts.messages.length > 0) {
       const hasSystem = opts.messages.some((m) => m.role === 'system');
       const msgs = opts.messages.map((m) => {
-        const base: { role: string; content?: string; tool_calls?: unknown[]; tool_call_id?: string; name?: string } = {
+        const base: { role: string; content: string; tool_calls?: unknown[]; tool_call_id?: string; name?: string } = {
           role: m.role,
-          content: m.content,
+          content: m.content ?? '',
         };
         if (m.tool_calls && m.tool_calls.length > 0) {
           base.tool_calls = m.tool_calls.map((tc) => ({
@@ -101,7 +101,8 @@ export class OpenAIProvider implements Provider {
       }),
     });
     if (!res.ok) {
-      throw new Error(`OpenAI request failed: ${res.status.toString()} ${res.statusText}`);
+      const body = await res.text().catch(() => '');
+      throw new Error(`OpenAI request failed: ${res.status.toString()} ${res.statusText} — ${body.slice(0, 500)}`);
     }
     const data = (await res.json()) as {
       choices?: { message?: { content?: string; tool_calls?: unknown[] } }[];
@@ -112,28 +113,40 @@ export class OpenAIProvider implements Provider {
   }
 
   async sendWithTools(prompt: string, tools: ToolDefinition[], opts?: SendOptions): Promise<string> {
+    const requestBody = JSON.stringify({
+      model: opts?.model ?? this.config.defaultModel,
+      messages: this.buildMessages(prompt, opts),
+      tools: tools.map((t) => ({
+        type: 'function',
+        function: { name: t.name, description: t.description, parameters: t.parameters },
+      })),
+      tool_choice: 'auto',
+      parallel_tool_calls: false,
+      ...(this.supportsTemperature && opts?.temperature !== undefined
+        ? { temperature: opts.temperature }
+        : {}),
+    });
     const res = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...this.authHeaders(),
       },
-      body: JSON.stringify({
-        model: opts?.model ?? this.config.defaultModel,
-        messages: this.buildMessages(prompt, opts),
-        tools: tools.map((t) => ({
-          type: 'function',
-          function: { name: t.name, description: t.description, parameters: t.parameters },
-        })),
-        tool_choice: 'auto',
-        parallel_tool_calls: false,
-        ...(this.supportsTemperature && opts?.temperature !== undefined
-          ? { temperature: opts.temperature }
-          : {}),
-      }),
+      body: requestBody,
     });
     if (!res.ok) {
-      throw new Error(`OpenAI tools request failed: ${res.status.toString()} ${res.statusText}`);
+      const body = await res.text().catch(() => '');
+      const summary = JSON.stringify(
+        JSON.parse(requestBody).messages.map((m: { role?: string; content?: string; tool_calls?: { id?: string }[]; tool_call_id?: string }) => ({
+          role: m.role,
+          contentLen: m.content?.length ?? 0,
+          toolCallIds: m.tool_calls?.map((tc) => tc.id),
+          toolCallId: m.tool_call_id,
+        }))
+      );
+      // eslint-disable-next-line no-console
+      console.error('OpenAI tools messages summary:', summary);
+      throw new Error(`OpenAI tools request failed: ${res.status.toString()} ${res.statusText} — ${body.slice(0, 500)}`);
     }
     const data = (await res.json()) as {
       choices?: {

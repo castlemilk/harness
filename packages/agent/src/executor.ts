@@ -53,11 +53,11 @@ function maxStepsForComplexity(complexity: string | undefined): number {
     case 'simple':
       return 30;
     case 'medium':
-      return 60;
+      return 80;
     case 'complex':
-      return 150;
+      return 250;
     default:
-      return 50;
+      return 60;
   }
 }
 
@@ -96,6 +96,8 @@ interface AgentContext {
   consecutiveThinks: number;
   explorationCount: number;
   editCount: number;
+  editsSinceVerify: number;
+  explorationAtLastEdit: number;
   tracer: Tracer;
   rootSpan: Span;
   systemPrompt: string;
@@ -306,6 +308,8 @@ export async function runAgentTask(
     consecutiveThinks: 0,
     explorationCount: 0,
     editCount: 0,
+    editsSinceVerify: 0,
+    explorationAtLastEdit: 0,
     tracer,
     rootSpan,
     systemPrompt,
@@ -468,20 +472,6 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
     turnCount++;
     const response = await sendToProvider(ctx, messages);
 
-    const assistantToolCalls = response.toolCalls
-      ? parseToolCalls(response.toolCalls).map((c) => ({
-          id: c.id,
-          type: 'function' as const,
-          function: { name: c.name, arguments: JSON.stringify(c.arguments) },
-        }))
-      : undefined;
-    messages.push({
-      role: 'assistant',
-      content: response.content ?? undefined,
-      tool_calls: assistantToolCalls,
-    });
-    await addTrace(ctx, 'assistant', response.content ?? '', response.toolCalls);
-
     if (!response.toolCalls || response.toolCalls.length === 0) {
       noActionCount++;
       if (noActionCount >= 2) {
@@ -500,7 +490,22 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
     }
     noActionCount = 0;
 
-    const toolCalls = parseToolCalls(response.toolCalls);
+    const toolCalls = parseToolCalls(response.toolCalls).map((c, i) => ({
+      ...c,
+      id: c.id && c.id.length > 0 ? c.id : `tool-${String(stepIndex)}-${String(i)}`,
+    }));
+    const assistantToolCalls = toolCalls.map((c) => ({
+      id: c.id,
+      type: 'function' as const,
+      function: { name: c.name, arguments: JSON.stringify(c.arguments) },
+    }));
+    messages.push({
+      role: 'assistant',
+      content: response.content ?? undefined,
+      tool_calls: assistantToolCalls,
+    });
+    await addTrace(ctx, 'assistant', response.content ?? '', response.toolCalls);
+
     const toolResults: { toolCallId: string; output: string }[] = [];
     let turnHadFailure = false;
 
@@ -605,25 +610,50 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
 
       if (call.name === 'write_file' && typeof call.arguments.path === 'string') {
         ctx.modifiedFiles.add(call.arguments.path);
+        ctx.recentReads.delete(call.arguments.path);
+      }
+      if (call.name === 'edit_file' && typeof call.arguments.path === 'string') {
+        ctx.modifiedFiles.add(call.arguments.path);
+        ctx.recentReads.delete(call.arguments.path);
       }
 
-      const explorationTools = ['think', 'read_file', 'list_files', 'run_command', 'lsp_diagnostics', 'lsp_hover', 'lsp_symbol'];
+      const explorationTools = ['think', 'read_file', 'list_files', 'search', 'run_command', 'lsp_diagnostics', 'lsp_hover', 'lsp_symbol'];
       const editTools = ['edit_file', 'write_file'];
+      const verifyTools = ['run_command', 'verify_api_surface', 'publish'];
       const isExploration = explorationTools.includes(call.name);
       const isEdit = editTools.includes(call.name);
       if (isExploration) ctx.explorationCount++;
-      if (isEdit) ctx.editCount++;
+      if (isEdit) {
+        ctx.editCount++;
+        ctx.editsSinceVerify++;
+        ctx.explorationAtLastEdit = ctx.explorationCount;
+      }
+      if (verifyTools.includes(call.name)) {
+        ctx.editsSinceVerify = 0;
+      }
 
       const toolSpan = ctx.tracer.startSpan(`agent.tool.${call.name}`, ctx.rootSpan.toContext());
       toolSpan.setAttributes({ tool: call.name });
 
       let result: ToolResult;
-      const stuckWithoutEdits = ctx.editCount === 0 && stepIndex >= 40 && !editTools.includes(call.name) && call.name !== 'finish' && call.name !== 'publish';
-      const explorationBudgetExhausted = ctx.editCount === 0 && ctx.explorationCount > 25 && isExploration;
+      const stuckWithoutEdits = ctx.editCount === 0 && stepIndex >= 30 && !editTools.includes(call.name) && call.name !== 'finish' && call.name !== 'publish';
+      const explorationBudgetExhausted = ctx.editCount === 0 && ctx.explorationCount > 20 && isExploration;
+      const wanderingAfterEdits = ctx.editCount > 0 && ctx.explorationCount - ctx.explorationAtLastEdit > 20 && isExploration;
+      const needsVerifyAfterEdits = ctx.editsSinceVerify >= 3 && editTools.includes(call.name);
       if (stuckWithoutEdits || explorationBudgetExhausted) {
         result = {
           success: false,
           output: `Forcing action: you have used ${String(ctx.explorationCount)} exploration steps and made ${String(ctx.editCount)} edits. Stop exploring and use edit_file or write_file to advance the task.`,
+        };
+      } else if (wanderingAfterEdits) {
+        result = {
+          success: false,
+          output: `Forcing action: you have used ${String(ctx.explorationCount - ctx.explorationAtLastEdit)} exploration steps since your last edit. Stop exploring and make another concrete edit, or run the test command to verify your changes.`,
+        };
+      } else if (needsVerifyAfterEdits) {
+        result = {
+          success: false,
+          output: `Edit rejected: you have made ${String(ctx.editsSinceVerify)} edits since the last verification command. Run the project's test command (e.g. pnpm test) and review the output before editing again.`,
         };
       } else if (call.name === 'think') {
         ctx.consecutiveThinks++;
@@ -664,6 +694,13 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
         ctx.consecutiveThinks = 0;
         result = await executeTool(ctx.projectPath, call.name, call.arguments);
       }
+
+      const TOOL_OUTPUT_LIMIT = 6_000;
+      const displayOutput =
+        result.output.length > TOOL_OUTPUT_LIMIT
+          ? `${result.output.slice(0, TOOL_OUTPUT_LIMIT)}\n... [truncated]`
+          : result.output;
+
       toolSpan.setAttributes({ success: result.success });
       if (call.name === 'verify_api_surface' && result.success) {
         ctx.apiSurfaceVerified = true;
@@ -689,8 +726,8 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
         },
       });
       await addTrace(ctx, 'tool', result.output, undefined, stepId);
-      toolResults.push({ toolCallId: call.id, output: result.output });
-      messages.push({ role: 'tool', tool_call_id: call.id, content: result.output });
+      toolResults.push({ toolCallId: call.id, output: displayOutput });
+      messages.push({ role: 'tool', tool_call_id: call.id, content: displayOutput });
       stepIndex++;
     }
 
@@ -698,16 +735,17 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       turnHadFailure || lastTurnHadFailure || (turnCount > 0 && turnCount % 8 === 0);
     lastTurnHadFailure = turnHadFailure;
 
+    let nextPrompt = buildToolResultPrompt(ctx.task, toolResults);
     if (shouldReflect && !finished) {
       const reflection = await reflectOnTrace(ctx, 6);
       if (reflection) {
         await addTrace(ctx, 'assistant', `Reflection: ${reflection}`);
-        messages.push({ role: 'user', content: `Reflection: ${reflection}` });
+        nextPrompt = `Reflection: ${reflection}\n\n${nextPrompt}`;
       }
     }
 
     if (!finished) {
-      messages.push({ role: 'user', content: buildToolResultPrompt(ctx.task, toolResults) });
+      messages.push({ role: 'user', content: nextPrompt });
     }
   }
 
@@ -777,15 +815,35 @@ function truncateMessages(
   // Drop the system message from the transcript; the provider will prepend the
   // full system prompt separately. This keeps the context window smaller.
   const cleaned = messages.filter((m) => m.role !== 'system');
-  const windowStart = Math.max(0, cleaned.length - fullWindow);
-  const truncated = cleaned.map((m, idx) => {
-    if (idx >= windowStart) return m;
+
+  // Helper: return a copy of a message with content truncated.
+  const trimContent = (m: (typeof messages)[number]): (typeof messages)[number] => {
     if (!m.content || m.content.length <= truncateLength) return m;
     return { ...m, content: `${m.content.slice(0, truncateLength)}\n... [truncated]` };
+  };
+
+  // If we need to drop messages, drop whole assistant+tool+prompt turns from the
+  // start so that we never leave orphaned tool messages without their matching
+  // assistant tool_calls (OpenAI/Kimi rejects those conversations).
+  let working = cleaned;
+  if (cleaned.length > maxTotal) {
+    const toDrop = cleaned.length - maxTotal;
+    let keepFrom = toDrop;
+    while (keepFrom < cleaned.length) {
+      const m = cleaned[keepFrom];
+      if (m.role === 'assistant' && (keepFrom === 0 || cleaned[keepFrom - 1].role === 'user')) {
+        break;
+      }
+      keepFrom++;
+    }
+    working = cleaned.slice(keepFrom);
+  }
+
+  const windowStart = Math.max(0, working.length - fullWindow);
+  return working.map((m, idx) => {
+    if (idx >= windowStart) return m;
+    return trimContent(m);
   });
-  if (truncated.length <= maxTotal) return truncated;
-  // If still too long, keep only the most recent maxTotal messages (all full).
-  return truncated.slice(-maxTotal);
 }
 
 async function sendToProvider(

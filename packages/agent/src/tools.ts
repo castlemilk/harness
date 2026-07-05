@@ -17,6 +17,7 @@ export interface ToolResult {
   output: string;
 }
 
+const SKIPPED_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.omega']);
 const FORBIDDEN_PATTERNS = [
   'rm -rf',
   'git reset --hard',
@@ -170,6 +171,8 @@ export async function editFile(
   }
 }
 
+const LIST_FILES_OUTPUT_LIMIT = 8_000;
+
 export async function listFiles(
   projectPath: string,
   filePath: string,
@@ -180,25 +183,135 @@ export async function listFiles(
     return { success: false, output: 'Path traversal blocked' };
   }
   try {
-    const maxDepth = recursive ? 3 : 1;
+    const maxDepth = recursive ? 2 : 1;
     const lines: string[] = [];
     async function walk(dir: string, depth: number): Promise<void> {
       if (depth > maxDepth) return;
+      if (SKIPPED_DIRS.has(path.basename(dir))) return;
       const entries = await fs.readdir(dir, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.name.startsWith('.') && entry.name !== '.') continue;
+        if (SKIPPED_DIRS.has(entry.name)) continue;
         const rel = path.relative(projectPath, path.join(dir, entry.name));
         const prefix = entry.isDirectory() ? '[d]' : '[f]';
         lines.push(`${prefix} ${rel}`);
+        if (lines.length > LIST_FILES_OUTPUT_LIMIT) {
+          return;
+        }
         if (entry.isDirectory() && depth < maxDepth) {
           await walk(path.join(dir, entry.name), depth + 1);
         }
       }
     }
     await walk(target, 1);
-    return { success: true, output: lines.join('\n') || 'empty directory' };
+    let output = lines.slice(0, LIST_FILES_OUTPUT_LIMIT).join('\n') || 'empty directory';
+    if (lines.length > LIST_FILES_OUTPUT_LIMIT) {
+      output += '\n... [output truncated; narrow your path or use read_file on specific files]';
+    }
+    return { success: true, output };
   } catch (err) {
     return { success: false, output: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+const SEARCH_OUTPUT_LIMIT = 8_000;
+const SEARCH_MAX_MATCHES = 200;
+
+function rgLine(line: string): string {
+  try {
+    const parsed = JSON.parse(line) as {
+      type: string;
+      data?: {
+        path?: { text?: string };
+        line_number?: number;
+        lines?: { text?: string };
+      };
+    };
+    if (parsed.type === 'match' && parsed.data) {
+      const p = parsed.data.path?.text ?? '';
+      const n = parsed.data.line_number ?? 0;
+      const text = (parsed.data.lines?.text ?? '').trim();
+      return `${p}:${String(n)}: ${text}`;
+    }
+  } catch {
+    // ignore malformed JSON
+  }
+  return line;
+}
+
+async function grepFallback(
+  projectPath: string,
+  pattern: string,
+  target: string
+): Promise<ToolResult> {
+  try {
+    const { stdout } = await execFileAsync(
+      'grep',
+      ['-RIn', '--exclude-dir=node_modules', '--exclude-dir=.git', '--exclude-dir=dist', '--exclude-dir=build', '-m', '3', '-e', pattern, target],
+      { timeout: 30000 }
+    );
+    return { success: true, output: stdout.slice(0, SEARCH_OUTPUT_LIMIT) || 'No matches' };
+  } catch (err) {
+    const e = err as { stderr?: string; message?: string };
+    if (e.stderr) return { success: false, output: e.stderr };
+    return { success: true, output: 'No matches' };
+  }
+}
+
+export async function searchFiles(
+  projectPath: string,
+  pattern: string,
+  dirPath = '.'
+): Promise<ToolResult> {
+  const target = path.resolve(projectPath, dirPath);
+  if (!target.startsWith(path.resolve(projectPath))) {
+    return { success: false, output: 'Path traversal blocked' };
+  }
+  const trimmed = pattern.trim();
+  if (trimmed.length === 0) return { success: false, output: 'Empty pattern' };
+
+  const args = [
+    '--json',
+    '-n',
+    '--max-count',
+    '3',
+    '--glob',
+    '!node_modules',
+    '--glob',
+    '!.git',
+    '--glob',
+    '!dist',
+    '--glob',
+    '!build',
+    '--glob',
+    '!coverage',
+    '--glob',
+    '!.omega',
+    '-e',
+    trimmed,
+    target,
+  ];
+
+  try {
+    const { stdout } = await execFileAsync('rg', args, { timeout: 30000 });
+    const lines = stdout
+      .split('\n')
+      .filter(Boolean)
+      .map(rgLine)
+      .filter((l) => l.length > 0);
+    let output = lines.slice(0, SEARCH_MAX_MATCHES).join('\n');
+    if (output.length > SEARCH_OUTPUT_LIMIT) {
+      output = `${output.slice(0, SEARCH_OUTPUT_LIMIT)}\n... [truncated]`;
+    }
+    return { success: true, output: output || 'No matches' };
+  } catch (err) {
+    const e = err as { stderr?: string; message?: string; code?: number };
+    if (e.stderr) return { success: false, output: e.stderr };
+    if (e.code === 1) return { success: true, output: 'No matches' };
+    if ((e.message ?? '').includes('ENOENT')) {
+      return grepFallback(projectPath, trimmed, target);
+    }
+    return { success: false, output: e.message ?? String(err) };
   }
 }
 
@@ -339,13 +452,29 @@ export async function verifyApiSurface(
   entryArg?: string,
   checks?: string[]
 ): Promise<ToolResult> {
-  const entry = entryArg ?? (await findPackageEntry(projectPath));
+  let entry = entryArg ?? (await findPackageEntry(projectPath));
   if (!entry) {
     return { success: false, output: 'Could not determine package entry point.' };
   }
-  const entryPath = path.resolve(projectPath, entry);
+  let entryPath = path.resolve(projectPath, entry);
   if (!entryPath.startsWith(path.resolve(projectPath))) {
     return { success: false, output: 'Path traversal blocked' };
+  }
+
+  // For TypeScript/source-only packages, build first so the entry file exists.
+  try {
+    await fs.access(entryPath);
+  } catch {
+    const buildResult = await runCommand(projectPath, 'pnpm build');
+    if (!buildResult.success) {
+      return {
+        success: false,
+        output: `Build failed before API surface check:\n${buildResult.output}`,
+      };
+    }
+    // Re-resolve entry after build in case the compiled output changed.
+    entry = entryArg ?? (await findPackageEntry(projectPath)) ?? entry;
+    entryPath = path.resolve(projectPath, entry);
   }
 
   const checkList = checks && checks.length > 0 ? checks : [`typeof require('${entryPath}')`];
@@ -407,6 +536,8 @@ export async function executeTool(
       return runCommand(projectPath, argString(arguments_.command));
     case 'list_files':
       return listFiles(projectPath, argString(arguments_.path), Boolean(arguments_.recursive));
+    case 'search':
+      return searchFiles(projectPath, argString(arguments_.pattern), argString(arguments_.path) || '.');
     case 'think':
       return think(projectPath, argString(arguments_.thought));
     case 'lsp_diagnostics':

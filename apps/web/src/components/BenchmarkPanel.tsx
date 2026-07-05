@@ -264,6 +264,38 @@ function BenchmarkResults({
   );
 }
 
+function MetricsGrid({ metrics }: { metrics?: Record<string, number | string> }) {
+  if (!metrics) return null;
+  const entries = Object.entries(metrics).filter(([k]) => k !== 'verifier_logs');
+  if (entries.length === 0) return null;
+  return (
+    <div>
+      <h5 className="font-medium text-xs text-gray-500 mb-1 uppercase tracking-wide">DeepSWE metrics</h5>
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        {entries.map(([k, v]) => (
+          <div key={k} className="bg-gray-50 p-2 rounded">
+            <div className="text-gray-500">{k}</div>
+            <div className="font-medium truncate">{String(v)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VerifierLogs({ metrics }: { metrics?: Record<string, number | string> }) {
+  const logs = metrics?.verifier_logs;
+  if (!logs || typeof logs !== 'string') return null;
+  return (
+    <details className="bg-gray-50 p-2 rounded text-xs">
+      <summary className="cursor-pointer font-medium text-gray-700">Verifier logs</summary>
+      <pre className="mt-2 bg-white p-2 rounded text-[10px] overflow-auto max-h-96 whitespace-pre-wrap">
+        {logs}
+      </pre>
+    </details>
+  );
+}
+
 function ResultDetail({ result, version }: { result: BenchmarkResult; version?: PromptVersion }) {
   return (
     <div className="space-y-4">
@@ -315,6 +347,9 @@ function ResultDetail({ result, version }: { result: BenchmarkResult; version?: 
           )}
         </div>
       )}
+
+      <MetricsGrid metrics={result.evaluation.metrics} />
+      <VerifierLogs metrics={result.evaluation.metrics} />
 
       <div>
         <h5 className="font-medium text-xs text-gray-500 mb-1 uppercase tracking-wide">Trace flow</h5>

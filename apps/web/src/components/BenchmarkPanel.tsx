@@ -156,6 +156,15 @@ function ReportList({
   );
 }
 
+function f2pBadge(metrics?: Record<string, number | string>): string | undefined {
+  const passed = metrics?.f2p_passed;
+  const total = metrics?.f2p_total;
+  if (typeof passed === 'number' && typeof total === 'number') {
+    return `f2p ${passed}/${total}`;
+  }
+  return undefined;
+}
+
 function ResultRow({
   result,
   selected,
@@ -183,6 +192,10 @@ function ResultRow({
       <div className="flex justify-between text-gray-500 mt-0.5">
         <span>{formatDuration(result.durationMs)}</span>
         <span>{result.agentRun?.totalTokens ?? result.usage?.totalTokens ?? 0} tokens</span>
+      </div>
+      <div className="flex justify-between text-gray-400 text-[10px] mt-0.5">
+        <span>score {result.evaluation.score ?? '—'}</span>
+        <span>{f2pBadge(result.evaluation.metrics) ?? ''}</span>
       </div>
       {version && (
         <div className="text-[10px] text-blue-600 truncate" title={version.hash}>
@@ -246,11 +259,25 @@ function BenchmarkResults({
   onSelectResult: (result: BenchmarkResult) => void;
   versions: PromptVersion[];
 }) {
+  const [filter, setFilter] = useState<'all' | 'done' | 'failed' | 'timeout'>('all');
+  const filtered = report.results.filter((r) => (filter === 'all' ? true : r.status === filter));
   return (
     <div className="space-y-2">
-      <h4 className="font-medium text-xs text-gray-500 uppercase tracking-wide">Results</h4>
+      <div className="flex justify-between items-center">
+        <h4 className="font-medium text-xs text-gray-500 uppercase tracking-wide">Results</h4>
+        <select
+          value={filter}
+          onChange={(e) => { setFilter(e.target.value as typeof filter); }}
+          className="text-[10px] border border-gray-200 rounded px-1 py-0.5"
+        >
+          <option value="all">all</option>
+          <option value="done">done</option>
+          <option value="failed">failed</option>
+          <option value="timeout">timeout</option>
+        </select>
+      </div>
       <div className="space-y-1 max-h-48 overflow-auto">
-        {report.results.map((result) => (
+        {filtered.map((result) => (
           <ResultRow
             key={result.harnessTaskId}
             result={result}

@@ -18,9 +18,10 @@ If you need to revert, prefer `git checkout -- <file>`, `git restore`, or creati
 
 Agent benchmark runs and self-improvement loops must operate on isolated state:
 
-- Use a git worktree under `.omega/worktrees/` when available.
-- Otherwise create a branch named `agent/<task-id>` and commit all agent changes to that branch only.
+- Server-side agent tasks run inside a git worktree under `.omega/worktrees/<project>-<task-id>/` by default.
+- If worktree creation fails, the runner falls back to a branch named `agent/<task-id>` in the project directory.
 - Never commit directly to `main` or to the user's current working branch.
+- Worktrees are removed after the run; branches may be kept for inspection.
 
 ## 3. Checkpoint before long-running work
 
@@ -60,6 +61,14 @@ When modifying `packages/agent/src/prompts.ts` or `packages/agent/src/planner.ts
 - Validate the new prompt with at least one DeepSWE or E2E run before declaring it better.
 - Revert if the new prompt scores lower than the previous baseline.
 
-## 8. If in doubt, ask
+## 8. Verify public API surface before finishing
+
+Tasks that describe public API requirements (methods, properties, exports) must pass an API-surface check:
+
+- The agent has a `verify_api_surface` tool that runs concrete import/call checks against the package entry point.
+- The executor rejects `finish` until `verify_api_surface` passes for tasks that mention public API.
+- Add checks like `typeof api.selectorHealth === 'function'` to confirm required APIs are exposed.
+
+## 9. If in doubt, ask
 
 When a requested action would violate any rule above, stop and ask the user for explicit approval rather than proceeding.

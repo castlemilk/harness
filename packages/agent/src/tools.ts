@@ -222,8 +222,9 @@ export async function runCommand(projectPath: string, command: string): Promise<
     });
     return { success: true, output: stdout + stderr };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { success: false, output: message };
+    const execErr = err as { stdout?: string; stderr?: string; message?: string };
+    const output = (execErr.stdout ?? '') + (execErr.stderr ?? '') || (execErr.message ?? String(err));
+    return { success: false, output };
   }
 }
 

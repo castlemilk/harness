@@ -22,8 +22,9 @@ async function runStep(
     });
     return { passed: true, output: stdout + stderr };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { passed: false, output: message };
+    const execErr = err as { stdout?: string; stderr?: string; message?: string };
+    const output = (execErr.stdout ?? '') + (execErr.stderr ?? '') || (execErr.message ?? String(err));
+    return { passed: false, output };
   }
 }
 

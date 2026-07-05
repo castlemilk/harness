@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@omega/db';
 import type { Provider, ProviderConfig, Task, AgentOptions, ToolCall, SendOptions, ToolDefinition, UsageInfo } from '@omega/core';
+import path from 'node:path';
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
 import { createPlan } from './planner.js';
@@ -33,6 +34,8 @@ import {
   checkoutBranch,
   stashAll,
   popStash,
+  createWorktree,
+  removeWorktree,
 } from './git.js';
 
 export interface AgentResult {
@@ -169,17 +172,37 @@ export async function runAgentTask(
     stashed = stashResult.success;
   }
 
-  const branchResult = await createBranch(options.projectPath, branch, baseCommit.output);
-  if (!branchResult.success) {
-    // Branch may already exist; try to checkout.
-    await checkoutBranch(options.projectPath, branch);
+  const isolated = options.isolated ?? false;
+  let worktreePath: string | undefined;
+  let effectiveProjectPath = options.projectPath;
+  if (isolated) {
+    worktreePath = path.join(options.projectPath, '.omega', 'worktrees', `${options.projectName}-${task.id}`);
+    const worktreeResult = await createWorktree(options.projectPath, worktreePath, branch, baseCommit.output);
+    if (worktreeResult.success) {
+      effectiveProjectPath = worktreePath;
+    } else {
+      logger.warn('Worktree creation failed, falling back to in-repo run', {
+        projectPath: options.projectPath,
+        worktreePath,
+        error: worktreeResult.output,
+      });
+      const branchResult = await createBranch(options.projectPath, branch, baseCommit.output);
+      if (!branchResult.success) {
+        await checkoutBranch(options.projectPath, branch);
+      }
+    }
+  } else {
+    const branchResult = await createBranch(options.projectPath, branch, baseCommit.output);
+    if (!branchResult.success) {
+      await checkoutBranch(options.projectPath, branch);
+    }
   }
 
   const promptContext = await buildPromptContext(prisma, task.projectId, {
     lookbackRuns: 5,
     taskDescription: task.description,
   });
-  const skills = await resolveSkills(prisma, options.projectPath, task.description);
+  const skills = await resolveSkills(prisma, effectiveProjectPath, task.description);
   const skillContext = formatSkillContext(skills);
   const combinedContext = [promptContext.text, skillContext].filter(Boolean).join('\n\n');
   const systemPrompt = buildSystemPrompt(combinedContext);
@@ -215,7 +238,7 @@ export async function runAgentTask(
     },
   });
 
-  const lspClients = createClients(options.projectPath);
+  const lspClients = createClients(effectiveProjectPath);
   setLspClients(lspClients);
   for (const client of new Set(lspClients.values())) {
     try {
@@ -243,7 +266,7 @@ export async function runAgentTask(
   const ctx: AgentContext = {
     prisma,
     task: toCoreTask(task),
-    projectPath: options.projectPath,
+    projectPath: effectiveProjectPath,
     projectName: options.projectName,
     provider,
     model: selection.model,
@@ -307,7 +330,17 @@ export async function runAgentTask(
       }
     }
     setLspClients(new Map());
-    await checkoutBranch(options.projectPath, baseBranch.output);
+    if (worktreePath) {
+      const removeResult = await removeWorktree(options.projectPath, worktreePath);
+      if (!removeResult.success) {
+        logger.warn('Failed to remove worktree', {
+          worktreePath,
+          error: removeResult.output,
+        });
+      }
+    } else {
+      await checkoutBranch(options.projectPath, baseBranch.output);
+    }
     if (stashed) {
       await popStash(options.projectPath);
     }

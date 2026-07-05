@@ -44,6 +44,7 @@ export async function runTask(prisma: PrismaClient, taskId: string, options: { d
             projectPath: task.project.path,
             projectName: task.project.name,
             autoPublish: tags.includes('publish'),
+            isolated: true,
           });
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -56,6 +57,7 @@ export async function runTask(prisma: PrismaClient, taskId: string, options: { d
       projectPath: task.project.path,
       projectName: task.project.name,
       autoPublish: tags.includes('publish'),
+      isolated: true,
     });
     return agentResult.task;
   }

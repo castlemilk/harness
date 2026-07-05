@@ -88,3 +88,22 @@ export async function push(projectPath: string, remote = 'origin', ref?: string)
   if (ref) args.push(ref);
   return git(projectPath, args, { timeout: 60_000 });
 }
+
+export async function createWorktree(
+  projectPath: string,
+  worktreePath: string,
+  branchName: string,
+  base?: string
+): Promise<GitResult> {
+  const args = ['worktree', 'add', '-b', branchName, worktreePath];
+  if (base) args.push(base);
+  return git(projectPath, args, { timeout: 60_000 });
+}
+
+export async function removeWorktree(projectPath: string, worktreePath: string): Promise<GitResult> {
+  return git(projectPath, ['worktree', 'remove', '--force', worktreePath], { timeout: 60_000 });
+}
+
+export async function listWorktrees(projectPath: string): Promise<GitResult> {
+  return git(projectPath, ['worktree', 'list', '--porcelain']);
+}

@@ -54,4 +54,5 @@ export interface AgentOptions {
   autoPublish?: boolean;
   maxSteps?: number;
   baseBranch?: string;
+  isolated?: boolean;
 }

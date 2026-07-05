@@ -160,7 +160,7 @@ function f2pBadge(metrics?: Record<string, number | string>): string | undefined
   const passed = metrics?.f2p_passed;
   const total = metrics?.f2p_total;
   if (typeof passed === 'number' && typeof total === 'number') {
-    return `f2p ${passed}/${total}`;
+    return `f2p ${String(passed)}/${String(total)}`;
   }
   return undefined;
 }

@@ -211,7 +211,8 @@ async function runDeepSWEVerifierDocker(
   projectPath: string,
   taskDir: string,
   baseCommit: string,
-  taskName: string
+  taskName: string,
+  modelPatchArg?: string
 ): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number }> {
   const absoluteTaskDir = path.resolve(taskDir);
   const testsDir = path.join(absoluteTaskDir, 'tests');
@@ -223,7 +224,7 @@ async function runDeepSWEVerifierDocker(
   await fs.mkdir(verifierDir, { recursive: true });
   await fs.mkdir(artifactsDir, { recursive: true });
 
-  const modelPatch = await generateModelPatch(projectPath, baseCommit);
+  const modelPatch = modelPatchArg ?? (await generateModelPatch(projectPath, baseCommit));
   await writeFile(path.join(artifactsDir, 'model.patch'), modelPatch);
 
   const image = await buildDeepSWEImage(absoluteTaskDir, taskName);
@@ -275,10 +276,11 @@ async function runDeepSWEVerifier(
   projectPath: string,
   taskDir: string,
   baseCommit: string,
-  useDocker: boolean
+  useDocker: boolean,
+  modelPatchArg?: string
 ): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number }> {
   if (useDocker && (await dockerAvailable())) {
-    return runDeepSWEVerifierDocker(projectPath, taskDir, baseCommit, path.basename(taskDir));
+    return runDeepSWEVerifierDocker(projectPath, taskDir, baseCommit, path.basename(taskDir), modelPatchArg);
   }
 
   const testsDir = path.join(taskDir, 'tests');
@@ -294,7 +296,7 @@ async function runDeepSWEVerifier(
   await execFileAsync('cp', ['-R', testsDir, copiedTestsDir], { timeout: 60000 });
   await rewriteConfig(taskDir, copiedTestsDir, projectPath, verifierDir, artifactsDir);
 
-  const modelPatch = await generateModelPatch(projectPath, baseCommit);
+  const modelPatch = modelPatchArg ?? (await generateModelPatch(projectPath, baseCommit));
   await writeFile(path.join(artifactsDir, 'model.patch'), modelPatch);
   await execFileAsync('git', ['-C', projectPath, 'checkout', '-f', baseCommit], { timeout: 60000 });
 
@@ -397,11 +399,13 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
         if (!commit) {
           return { passed: false, message: 'Missing base_commit_hash' };
         }
+        const storedPatch = ctx.diffs.length > 0 ? ctx.diffs[0].patch : undefined;
         const { reward, logs, logFile, exitCode } = await runDeepSWEVerifier(
           ctx.projectPath,
           dir,
           commit,
-          options.useDocker ?? false
+          options.useDocker ?? false,
+          storedPatch
         );
         const passed = reward.reward === 1;
         const metrics: Record<string, number | string> = {

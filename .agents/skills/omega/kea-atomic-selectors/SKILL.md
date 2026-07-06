@@ -49,7 +49,7 @@ Do NOT add an `AtomicSelectorHealth` interface to this file; that type lives in 
 
 ## Step 3 — Atomic engine file
 
-Create `src/kea/atomic.ts` with the implementation below. This is the core engine; do not simplify it.
+Create `src/kea/atomic.ts` with the implementation below. Use `write_file` because this is a new file. This is the core engine; do not simplify it.
 
 ```ts
 import { getContext, getPluginContext, getStoreState } from './context'

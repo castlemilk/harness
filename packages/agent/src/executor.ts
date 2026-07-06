@@ -123,7 +123,6 @@ interface AgentContext {
   consecutiveThinks: number;
   explorationCount: number;
   editCount: number;
-  editsSinceVerify: number;
   explorationAtLastEdit: number;
   hasRunTestCommand: boolean;
   tracer: Tracer;
@@ -337,7 +336,6 @@ export async function runAgentTask(
     consecutiveThinks: 0,
     explorationCount: 0,
     editCount: 0,
-    editsSinceVerify: 0,
     explorationAtLastEdit: 0,
     hasRunTestCommand: false,
     tracer,
@@ -718,20 +716,15 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
 
       const explorationTools = ['think', 'read_file', 'list_files', 'search', 'run_command', 'lsp_diagnostics', 'lsp_hover', 'lsp_symbol'];
       const editTools = ['edit_file', 'write_file'];
-      const verifyTools = ['run_command', 'verify_api_surface', 'publish'];
       const isExploration = explorationTools.includes(call.name);
       const isEdit = editTools.includes(call.name);
       if (isExploration) ctx.explorationCount++;
       if (isEdit) {
         ctx.editCount++;
-        ctx.editsSinceVerify++;
         ctx.explorationAtLastEdit = ctx.explorationCount;
         if (ctx.editCount % 5 === 0) {
           await checkpointCommit(ctx);
         }
-      }
-      if (verifyTools.includes(call.name)) {
-        ctx.editsSinceVerify = 0;
       }
 
       const toolSpan = ctx.tracer.startSpan(`agent.tool.${call.name}`, ctx.rootSpan.toContext());
@@ -745,7 +738,6 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       const stuckWithoutEdits = ctx.editCount === 0 && stepIndex >= ctx.explorationBudget.beforeFirstEdit * 2 && !editTools.includes(call.name) && call.name !== 'finish' && call.name !== 'publish';
       const explorationBudgetExhausted = ctx.editCount === 0 && ctx.explorationCount > ctx.explorationBudget.beforeFirstEdit && isExploration;
       const wanderingAfterEdits = ctx.editCount > 0 && ctx.explorationCount - ctx.explorationAtLastEdit > ctx.explorationBudget.betweenEdits && isExploration;
-      const needsVerifyAfterEdits = ctx.editsSinceVerify >= 3 && editTools.includes(call.name);
       const needsTestBeforeFirstEdit =
         ctx.editCount === 0 &&
         !ctx.hasRunTestCommand &&
@@ -765,11 +757,6 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
         result = {
           success: false,
           output: `Forcing action: you have used ${String(ctx.explorationCount - ctx.explorationAtLastEdit)} exploration steps since your last edit. Stop exploring and make another concrete edit, or run the test command to verify your changes.`,
-        };
-      } else if (needsVerifyAfterEdits) {
-        result = {
-          success: false,
-          output: `Edit rejected: you have made ${String(ctx.editsSinceVerify)} edits since the last verification command. Run the project's test command (e.g. pnpm test) and review the output before editing again.`,
         };
       } else if (call.name === 'think') {
         ctx.consecutiveThinks++;

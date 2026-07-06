@@ -15,10 +15,11 @@
     "build:cli": "esbuild ../../apps/cli/src/index.ts --bundle --platform=node --format=esm --outfile=dist/cli.js --external:commander --external:open --external:gray-matter --external:yaml --external:ink --external:react --external:@grpc/grpc-js --external:@grpc/proto-loader --alias:@omega/core=../../packages/core/src/index.ts --alias:@omega/skills=../../packages/skills/src/index.ts",
     "copy:web": "rm -rf dist/web && cp -R ../../apps/web/dist dist/web",
     "copy:web:server": "rm -rf dist/server/web && cp -R ../../apps/web/dist dist/server/web",
+    "copy:skills": "rm -rf dist/server/skills && cp -R ../../.agents/skills dist/server/skills",
     "copy:proto": "mkdir -p dist/proto && cp ../../proto/tasks.proto dist/proto/tasks.proto",
     "clean:server:data": "rm -rf dist/server/pglite-data",
     "build:server:real": "pnpm --filter @omega/server build && rm -rf dist/server && pnpm --filter @omega/server deploy --prod dist/server && node scripts/materialize-server.mjs && pnpm clean:server:data",
-    "build": "pnpm build:cli && pnpm build:server:real && pnpm copy:web && pnpm copy:web:server && pnpm copy:proto",
+    "build": "pnpm build:cli && pnpm build:server:real && pnpm copy:web && pnpm copy:web:server && pnpm copy:skills && pnpm copy:proto",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {

@@ -20,6 +20,7 @@
     "@omega/db": "workspace:*",
     "@omega/providers": "workspace:*",
     "@omega/router": "workspace:*",
+    "@omega/skills": "workspace:*",
     "@prisma/client": "^5.14.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",

@@ -14,6 +14,7 @@ const workspacePackageNames = new Set([
   '@omega/db',
   '@omega/providers',
   '@omega/router',
+  '@omega/skills',
 ]);
 
 const workspacePackages = [
@@ -22,6 +23,7 @@ const workspacePackages = [
   { name: '@omega/db', src: 'packages/db', extra: ['dist', 'generated', 'prisma/migrations'] },
   { name: '@omega/providers', src: 'packages/providers', extra: ['dist'] },
   { name: '@omega/router', src: 'packages/router', extra: ['dist'] },
+  { name: '@omega/skills', src: 'packages/skills', extra: ['dist'] },
 ];
 
 async function readJson(filePath) {

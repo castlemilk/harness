@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { app } from './app.js';
 import { prisma, applyMigrations, seedDefaults } from '@omega/db';
+import { seedSkills } from './seed-skills.js';
 import { startGrpcServer } from './grpc.js';
 
 // Load .env before any provider/database config is read.
@@ -14,10 +15,12 @@ const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.PORT ?? 4000);
 const GRPC_PORT = Number(process.env.GRPC_PORT ?? 50051);
 const WEB_DIST_DIR = process.env.WEB_DIST_DIR ?? path.resolve(__dirname, '../web');
+process.env.SKILLS_DIR = process.env.SKILLS_DIR ?? path.resolve(__dirname, '../skills');
 
 async function bootstrap(): Promise<void> {
   await applyMigrations();
   await seedDefaults();
+  await seedSkills();
 
   app.use(express.static(WEB_DIST_DIR));
   app.get('*', (_req, res) => {

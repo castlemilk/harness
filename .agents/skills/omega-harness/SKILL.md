@@ -1,3 +1,8 @@
+---
+name: omega-harness
+description: Process for running, validating, tracing and continuously improving the Omega harness.
+---
+
 # Omega Harness Skill
 
 This skill defines the process for running, validating, tracing and continuously improving the Omega harness.

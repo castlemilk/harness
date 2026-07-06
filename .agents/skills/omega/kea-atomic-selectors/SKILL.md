@@ -13,6 +13,7 @@ When a task asks you to add atomic/signal selectors to Kea, treat it as a framew
 - Do NOT create or modify test files. The verifier supplies its own tests.
 - Do NOT leave the engine in a standalone file without wiring it into `selectors.ts`, `build.ts`, and `kea.ts`.
 - Do NOT modify `rollup.config.js`, `tsconfig.json`, or build tooling unless explicitly required.
+- Do NOT break React/Redux referential equality. The tracking proxy must record reads but return the original underlying values to consumers.
 
 ## Step-by-step wiring
 
@@ -24,11 +25,10 @@ Edit `src/kea/context.ts`. Add `atomicSelectors: false` to the default options m
 
 ### Step 2 — Atomic engine helper
 
-Create `src/kea/atomic.ts` with the starter below. This engine tracks leaf-level reads, selector dependencies, evaluations, and dirtyCause.
+Create `src/kea/atomic.ts` with the starter below.
 
 ```ts
 import { getContext } from './context'
-import { Selector } from '../types'
 
 export interface AtomicSelectorHealth {
   dependencies: string[]
@@ -53,6 +53,7 @@ interface SelectorMeta {
 }
 
 const engines = new WeakMap<any, Map<string, SelectorMeta>>()
+const evaluationStack = new Set<string>()
 
 export function getAtomicEngine(logic: any): Map<string, SelectorMeta> {
   if (!engines.has(logic)) {
@@ -80,15 +81,20 @@ export function registerAtomicSelector(logic: any, name: string): void {
   }
 }
 
-export function recordAtomicDependency(logic: any, selectorName: string, leafPath: string): void {
+export function recordAtomicDependency(logic: any, selectorName: string, path: string): void {
   const engine = getAtomicEngine(logic)
   const meta = engine.get(selectorName)
   if (!meta) return
-  meta.dependencies.add(leafPath)
-  for (const [otherName, otherMeta] of engine) {
-    if (otherName !== selectorName && otherMeta.dependencies.has(selectorName)) {
-      otherMeta.dependents.add(selectorName)
-    }
+  meta.dependencies.add(path)
+}
+
+export function recordAtomicSelectorDependency(logic: any, selectorName: string, inputSelectorName: string): void {
+  const engine = getAtomicEngine(logic)
+  const meta = engine.get(selectorName)
+  const inputMeta = engine.get(inputSelectorName)
+  if (meta && inputMeta) {
+    meta.dependencies.add(inputSelectorName)
+    inputMeta.dependents.add(selectorName)
   }
 }
 
@@ -99,6 +105,11 @@ export function startAtomicEvaluation(logic: any, selectorName: string): void {
     meta.dirty = false
     meta.dirtyCause = null
   }
+  const stackKey = `${logic.pathString || 'unknown'}::${selectorName}`
+  if (evaluationStack.has(stackKey)) {
+    throw new Error('[KEA] Circular dependency detected')
+  }
+  evaluationStack.add(stackKey)
 }
 
 export function endAtomicEvaluation(logic: any, selectorName: string, result: any): void {
@@ -108,6 +119,8 @@ export function endAtomicEvaluation(logic: any, selectorName: string, result: an
     meta.lastResult = result
     meta.evaluations += 1
   }
+  const stackKey = `${logic.pathString || 'unknown'}::${selectorName}`
+  evaluationStack.delete(stackKey)
 }
 
 export function markAtomicDirty(logic: any, leafPath: string): void {
@@ -136,17 +149,101 @@ export function buildAtomicHealth(logic: any): AtomicLogicHealth {
   return { selectors, topologicalOrder: order }
 }
 
-export function createStateProxy(state: any, logic: any, selectorName: string, reducerNames: string[]): any {
-  if (!state || typeof state !== 'object') return state
+function buildLeafPath(reducerNames: string[], path: string[]): string {
+  // The first segment that is a reducer name starts the path.
+  let start = 0
+  for (let i = 0; i < path.length; i++) {
+    if (reducerNames.includes(path[i])) {
+      start = i
+      break
+    }
+  }
+  return path.slice(start).join('.')
+}
+
+export function createStateProxy(
+  state: any,
+  logic: any,
+  selectorName: string,
+  reducerNames: string[],
+  path: string[] = [],
+): any {
+  if (state === null || typeof state !== 'object') {
+    return state
+  }
+
+  const record = (key: string, value: any) => {
+    const leafPath = buildLeafPath(reducerNames, path.concat(key))
+    recordAtomicDependency(logic, selectorName, leafPath)
+  }
+
+  if (state instanceof Map) {
+    return new Proxy(state, {
+      get(target, prop) {
+        const key = String(prop)
+        if (key === 'get') {
+          return function (mapKey: any) {
+            record(`map:${mapKey}`, target.get(mapKey))
+            return target.get(mapKey)
+          }
+        }
+        if (key === 'has') {
+          return function (mapKey: any) {
+            record(`map:${mapKey}`, target.has(mapKey))
+            return target.has(mapKey)
+          }
+        }
+        const value = (target as any)[prop]
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+  }
+
+  if (state instanceof Set) {
+    return new Proxy(state, {
+      get(target, prop) {
+        const key = String(prop)
+        if (key === 'has' || key === 'includes') {
+          return function (setValue: any) {
+            record(`set:${setValue}`, target.has(setValue))
+            return target.has(setValue)
+          }
+        }
+        const value = (target as any)[prop]
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+  }
+
+  if (Array.isArray(state)) {
+    return new Proxy(state, {
+      get(target, prop) {
+        const key = String(prop)
+        if (/^\d+$/.test(key) || key === 'length') {
+          record(key, (target as any)[key])
+        }
+        if (key === 'includes' || key === 'indexOf' || key === 'find' || key === 'some') {
+          const fn = (target as any)[key]
+          return function (...fnArgs: any[]) {
+            // For includes/indexOf the first arg is the searched value.
+            if ((key === 'includes' || key === 'indexOf') && fnArgs.length > 0) {
+              record(fnArgs[0], true)
+            }
+            return fn.apply(target, fnArgs)
+          }
+        }
+        const value = (target as any)[prop]
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+  }
+
   return new Proxy(state, {
     get(target, prop) {
       const key = String(prop)
       const value = (target as any)[key]
-      if (reducerNames.includes(key) || (Array.isArray(target) && /^\d+$/.test(key)) || key === 'length') {
-        // Track root reducer reads; leaf tracking happens recursively below
-      }
-      // Recursively wrap objects so nested reads can be tracked if the selector reads them directly.
-      return createStateProxy(value, logic, selectorName, reducerNames)
+      record(key, value)
+      return value
     },
   })
 }
@@ -156,43 +253,38 @@ export function createStateProxy(state: any, logic: any, selectorName: string, r
 
 Edit `src/core/selectors.ts`:
 
-1. Import the atomic helpers:
-   ```ts
-   import { getContext } from '../kea/context'
-   import {
-     getAtomicEngine,
-     registerAtomicSelector,
-     startAtomicEvaluation,
-     endAtomicEvaluation,
-     buildAtomicHealth,
-   } from '../kea/atomic'
-   ```
-
-2. Inside the `selectors` builder, after resolving `selectorInputs`, check atomic mode:
-   ```ts
-   const atomicEnabled = getContext().options.atomicSelectors
-   ```
-
+1. Import the atomic helpers.
+2. Inside the `selectors` builder, after resolving `selectorInputs`, check `const atomicEnabled = getContext().options.atomicSelectors`.
 3. When building each selector, if `atomicEnabled`, wrap it:
    ```ts
    if (atomicEnabled) {
      registerAtomicSelector(logic, key)
      const originalCompute = func
-     const wrappedSelector = (state: any, props: any) => {
+     const builtSelector = (state: any, props: any) => {
        startAtomicEvaluation(logic, key)
        const reducerNames = Object.keys(logic.reducers || {})
        const proxyState = createStateProxy(state, logic, key, reducerNames)
-       const result = originalCompute(...args.map((a) => a(proxyState, props)))
+       const inputResults = args.map((a) => {
+         const inputName = (a as any).__keaSelectorName || (a as any).selectorName
+         if (inputName) {
+           recordAtomicSelectorDependency(logic, key, inputName)
+         }
+         return a(proxyState, props)
+       })
+       const result = originalCompute(...inputResults)
        endAtomicEvaluation(logic, key, result)
        return result
      }
-     builtSelectors[key] = wrappedSelector as Selector
+     builtSelectors[key] = builtSelector as Selector
    } else {
      builtSelectors[key] = createSelector(args, func, { memoizeOptions })
    }
    ```
-
-4. At the end of the builder, attach `selectorHealth` to `logic`:
+4. Tag each built selector with its name so chained selectors can detect dependencies:
+   ```ts
+   ;(builtSelectors[key] as any).__keaSelectorName = key
+   ```
+5. At the end of the builder, attach `selectorHealth` to `logic`:
    ```ts
    if (atomicEnabled) {
      logic.selectorHealth = () => buildAtomicHealth(logic)
@@ -209,11 +301,9 @@ if (getContext().options.atomicSelectors) {
 }
 ```
 
-This is required because verifier tests call `logic.mount(); logic.selectorHealth()` directly on the object returned by `kea({...})`.
-
 ### Step 5 — Wire reducer updates
 
-Edit `src/core/reducers.ts` (or the file that builds Kea reducers):
+Edit `src/core/reducers.ts`:
 - After a reducer returns a new state, compare old and new state at the leaf level.
 - For each changed leaf path, call `markAtomicDirty(logic, leafPath)`.
 - Multiple leaf changes in one action must coalesce into one selector re-evaluation.
@@ -223,10 +313,11 @@ Edit `src/core/reducers.ts` (or the file that builds Kea reducers):
 Edit `src/react/hooks.ts`:
 - Ensure React components re-render only when a leaf path they subscribe to changes.
 - Keep existing behavior when `atomicSelectors` is false.
+- Do not introduce infinite loops; selectors must remain referentially stable.
 
 ### Step 7 — Exports
 
-Edit `src/index.ts` and export public helpers/types (e.g. `AtomicSelectorHealth`, `AtomicLogicHealth`).
+Edit `src/index.ts` and export public helpers/types.
 
 ## Verification
 

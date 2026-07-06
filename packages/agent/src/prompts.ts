@@ -66,10 +66,10 @@ Rules:
   d. Read src/kea/build.ts and attach logic.selectorHealth as a method on BuiltLogic instances that returns health metadata for every selector in this logic.
   e. Read src/kea/kea.ts and attach wrapper.selectorHealth so the wrapper returned by kea({...}) also exposes the method.
   f. Read src/index.ts and export any public helpers/types needed by consumers (e.g., AtomicSelectorHealth, AtomicSelectorEngine).
-  g. Run the relevant tests and fix failures, then verify the API surface with verify_api_surface using a check that mounts a logic and tests typeof logic.selectorHealth === 'function'. Do not finish until this check passes.
+  g. Run the focused atomic tests with 'pnpm test:jest -- atomic' (do not set BABEL_ENV manually; the npm script handles it). Fix failures, then verify the API surface with verify_api_surface using entry: 'src/index.ts' and a check that mounts a logic and tests "typeof logic.selectorHealth === 'function'". Do not finish until both checks pass.
 18. Before calling finish, the final verification step must use verify_api_surface with a concrete runtime check for each public API named in the task. For instance APIs, the check must construct the object using the exact pattern from the task description and return typeof instance.theMethod === 'function'. If the task shows "logic.mount(); logic.selectorHealth()", your check must replicate that exact pattern. If verify_api_surface fails, diagnose the root cause and wire the missing API before finishing.
 19. EXPLORATION DISCIPLINE: When entering an unfamiliar codebase or framework, your first exploration step after think must be code_overview to learn the entry points, source roots, and exported symbols. Use lsp_symbol to locate key symbols, lsp_hover to understand their signatures, and lsp_diagnostics after editing TypeScript files to catch type errors early. Do not rely solely on search and read_file for framework wiring tasks.
-20. BUILD-CONFIG DISCIPLINE: Do not modify 'rollup.config.js', 'webpack.config.js', 'tsconfig.json', 'vite.config.*', or similar build/configuration files unless the task explicitly requires it. If the full test command fails inside a type-declaration or build step, run the focused unit-test file directly (e.g. 'npx jest test/jest/atomic.js') and iterate on the implementation before re-running the full suite.
+20. BUILD-CONFIG DISCIPLINE: Do not modify 'rollup.config.js', 'webpack.config.js', 'tsconfig.json', 'vite.config.*', or similar build/configuration files unless the task explicitly requires it. If the full test command fails inside a type-declaration or build step, run the focused unit-test file directly. For Kea use 'pnpm test:jest -- atomic' (the test:jest npm script sets BABEL_ENV); do not prefix the command with BABEL_ENV=. Iterate on the implementation before re-running the full suite.
 21. TEST-FILE DISCIPLINE: Do NOT create, modify, or delete test files unless the task explicitly asks you to. Benchmark and verifier environments supply their own tests; writing your own tests produces false positives and wastes steps. Only edit source code.
 
 ANTI-LOOP RULES (violation wastes steps and failure):
@@ -209,7 +209,7 @@ export function generateAutoApiChecks(description?: string): AutoApiCheck[] {
   if (lower.includes('selectorhealth') && lower.includes('kea')) {
     checks.push({
       label: 'logic.selectorHealth is a function on the kea() wrapper',
-      script: `import { kea, resetContext } from './src/index.ts'; resetContext({ atomicSelectors: true }); const logic = kea({ actions: { setName: (n) => ({ n }) }, reducers: { user: [(s) => s || { name: 'a' }, { setName: (s, p) => ({ ...s, name: p.n }) }] }, selectors: { userName: [(s) => s.user, (u) => u.name] } }); logic.mount(); typeof logic.selectorHealth === 'function'`,
+      script: `import { kea, resetContext } from './src/index.ts'; resetContext({ atomicSelectors: true }); const logic = kea({ actions: { setName: (n) => ({ n }) }, reducers: { user: [(s) => s || { name: 'a' }, { setName: (s, p) => ({ ...s, name: p.n }) }] }, selectors: { userName: [(s) => s.user, (u) => u.name] } }); logic.mount(); console.log(typeof logic.selectorHealth === 'function')`,
     });
   }
 

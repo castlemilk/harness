@@ -607,7 +607,7 @@ export async function verifyApiSurface(
   entryArg?: string,
   checks?: string[]
 ): Promise<ToolResult> {
-  let entry = entryArg ?? (await findPackageEntry(projectPath));
+  let entry = entryArg && entryArg.length > 0 ? entryArg : (await findPackageEntry(projectPath));
   if (!entry) {
     return { success: false, output: 'Could not determine package entry point.' };
   }
@@ -616,7 +616,7 @@ export async function verifyApiSurface(
     return { success: false, output: 'Path traversal blocked' };
   }
 
-  const isTypeScript = /\.(ts|tsx|mts|cts)$/.test(entry);
+  let isTypeScript = /\.(ts|tsx|mts|cts)$/.test(entry);
 
   // For TypeScript/source-only packages, run a typecheck first so missing
   // imports and signature mismatches are caught before runtime checks.
@@ -637,13 +637,24 @@ export async function verifyApiSurface(
   } catch {
     const buildResult = await runCommand(projectPath, 'pnpm build');
     if (!buildResult.success) {
-      return {
-        success: false,
-        output: `Build failed before API surface check:\n${buildResult.output}`,
-      };
+      // Build failed. Fall back to src/index.ts if it exists.
+      const fallback = 'src/index.ts';
+      try {
+        await fs.access(path.resolve(projectPath, fallback));
+        entry = fallback;
+        entryPath = path.resolve(projectPath, entry);
+        isTypeScript = true;
+      } catch {
+        return {
+          success: false,
+          output: `Build failed before API surface check:\n${buildResult.output}`,
+        };
+      }
+    } else {
+      entry = entryArg && entryArg.length > 0 ? entryArg : ((await findPackageEntry(projectPath)) ?? entry);
+      entryPath = path.resolve(projectPath, entry);
+      isTypeScript = /\.(ts|tsx|mts|cts)$/.test(entry);
     }
-    entry = entryArg ?? (await findPackageEntry(projectPath)) ?? entry;
-    entryPath = path.resolve(projectPath, entry);
   }
 
   const checkList = checks && checks.length > 0 ? checks : [`typeof require('${entryPath}')`];

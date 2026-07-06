@@ -17,7 +17,7 @@ When a task asks you to add atomic/signal selectors to Kea, treat it as a framew
 
 ## Step-by-step wiring
 
-After each step, run `npx jest test/jest/atomic.js`. Fix the first failing test before moving to the next step.
+After each step, run the focused atomic tests with the project's test:jest script: `pnpm test:jest -- atomic`. Fix the first failing test before moving to the next step. Do NOT set BABEL_ENV manually; the npm script handles it.
 
 ### Step 1 — Context option
 
@@ -321,19 +321,15 @@ Edit `src/index.ts` and export public helpers/types.
 
 ## Verification
 
-- Run the focused test file after every edit: `npx jest test/jest/atomic.js`.
+- Run the focused test file after every edit: `pnpm test:jest -- atomic`.
 - Call `validate_patch` before `finish`.
-- CRITICAL: Before finish, call `verify_api_surface` with EXACTLY this check (copy it verbatim):
+- CRITICAL: Before finish, call `verify_api_surface` with `entry: 'src/index.ts'` and this exact check:
   ```js
-  const { kea, resetContext } = require('./src/index.ts')
-  resetContext({ atomicSelectors: true })
-  const logic = kea({
-    actions: { setName: (n) => ({ n }) },
-    reducers: { user: [(s) => s || { name: 'a' }, { setName: (s, p) => ({ ...s, name: p.n }) }] },
-    selectors: { userName: [(s) => s.user, (u) => u.name] }
-  })
-  logic.mount()
   typeof logic.selectorHealth === 'function'
+  ```
+  using this setup in the same check:
+  ```js
+  const { kea, resetContext } = require('./src/index.ts'); resetContext({ atomicSelectors: true }); const logic = kea({ actions: { setName: (n) => ({ n }) }, reducers: { user: [(s) => s || { name: 'a' }, { setName: (s, p) => ({ ...s, name: p.n }) }] }, selectors: { userName: [(s) => s.user, (u) => u.name] } }); logic.mount();
   ```
   If this check returns false, you have not attached `selectorHealth` to the wrapper in `src/kea/kea.ts`. Fix it before finishing.
 - Do not finish until both checks pass and the focused atomic tests pass.

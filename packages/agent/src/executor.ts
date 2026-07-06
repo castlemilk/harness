@@ -27,7 +27,7 @@ import { loadCurrentPrompts, hashPrompts } from './prompt-versioning.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
 import { logger } from './logger.js';
 import { Tracer, type Span } from './tracer.js';
-import { runTypeCheck, runTypeScriptScript } from './ts-runner.js';
+import { runTypeCheck } from './ts-runner.js';
 import {
   getCurrentBranch,
   getCurrentCommit,
@@ -929,7 +929,7 @@ async function isTypeScriptProject(projectPath: string): Promise<boolean> {
 
 async function runAutoApiChecks(
   projectPath: string,
-  checks: { label: string; script: string }[]
+  checks: { label: string; script: string /* must write its own result with console.log('true'/'false') */ }[]
 ): Promise<{ success: boolean; output: string }> {
   const isTs = await isTypeScriptProject(projectPath);
 
@@ -945,20 +945,40 @@ async function runAutoApiChecks(
     }
   }
 
+  const fs = await import('node:fs/promises');
+  const path = await import('node:path');
   const results: string[] = [];
   let allPassed = true;
+
   for (const check of checks) {
     let passed: boolean;
     let output: string;
     if (isTs) {
-      // Rewrite CommonJS require() to ESM import() for tsx compatibility.
+      // Write the check to a temporary .ts file inside the project root so
+      // relative imports resolve against the project and the script can import
+      // source files directly (e.g. './src/index.ts').
+      const tmpFile = path.join(projectPath, `.omega-api-check-${String(Date.now())}-${String(Math.random()).slice(2)}.ts`);
       const esmScript = check.script
         .replace(/const\s+\{\s*([^}]+)\s*\}\s*=\s*require\(['"]([^'"]+)['"]\);?/g, "import { $1 } from '$2';")
         .replace(/const\s+(\w+)\s*=\s*require\(['"]([^'"]+)['"]\);?/g, "import * as $1 from '$2';")
         .replace(/require\(['"]([^'"]+)['"]\)/g, "await import('$1')");
-      const tsResult = await runTypeScriptScript(projectPath, `console.log(${esmScript})`);
-      output = tsResult.output;
-      passed = tsResult.success && output.trim() === 'true';
+      await fs.writeFile(tmpFile, `${esmScript}\n`, 'utf-8');
+      try {
+        const { stdout, stderr } = await execFileAsync('npx', ['tsx', tmpFile], {
+          cwd: projectPath,
+          timeout: 30_000,
+        });
+        output = (stdout + stderr).trim();
+        passed = output === 'true';
+      } catch (err) {
+        const execErr = err as { stdout?: string; stderr?: string; message?: string };
+        output = (execErr.stdout ?? '') + (execErr.stderr ?? '') || (execErr.message ?? String(err));
+        passed = false;
+      } finally {
+        await fs.unlink(tmpFile).catch(() => {
+          // ignore cleanup errors
+        });
+      }
     } else {
       try {
         const { stdout } = await execFileAsync('node', ['-e', check.script], {

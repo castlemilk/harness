@@ -13,9 +13,13 @@ export interface LspServerConfig {
 }
 
 function findExecutable(name: string, projectPath: string): string | undefined {
-  // Check PATH first.
+  // Check PATH first using a shell builtin (portable across macOS/Linux).
   try {
-    const resolved = execFileSync('command', ['-v', name], { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    const resolved = execFileSync('/bin/sh', ['-c', `command -v ${name}`], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .toString()
+      .trim();
     if (resolved) return resolved;
   } catch {
     // fall through
@@ -28,6 +32,7 @@ function findExecutable(name: string, projectPath: string): string | undefined {
     path.join(__dirname, '..', '..', '..', 'node_modules', '.bin', name),
     path.join(__dirname, '..', '..', 'node_modules', '.bin', name),
     path.join(__dirname, '..', 'node_modules', '.bin', name),
+    path.join(__dirname, '..', '..', '..', '..', 'node_modules', '.bin', name),
   ];
   for (const candidate of candidates) {
     try {

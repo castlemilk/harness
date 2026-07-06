@@ -1,5 +1,9 @@
 import { Command } from 'commander';
 import path from 'node:path';
+
+function collectTaskIds(value: string, previous: string[]): string[] {
+  return previous.concat(value);
+}
 import {
   runBenchmark,
   syntheticSuite,
@@ -39,6 +43,7 @@ const runCmd = new Command('run')
   .option('--path <dir>', 'path to DeepSWE tasks directory (for deep-swe suite)')
   .option('--n-tasks <n>', 'limit number of tasks (for deep-swe)', parseInt)
   .option('--sample-seed <n>', 'seed for deterministic sampling (for deep-swe)', parseInt)
+  .option('--task-id <id>', 'run only specific DeepSWE task(s) by id (repeatable)', collectTaskIds, [])
   .option('--timeout <ms>', 'per-task timeout in ms', '120000')
   .option('--output-dir <dir>', 'report output directory', '.omega/reports')
   .option('--provider <name>', 'provider to use for benchmark tasks')
@@ -49,6 +54,7 @@ const runCmd = new Command('run')
     path?: string;
     nTasks?: number;
     sampleSeed?: number;
+    taskId: string[];
     timeout: string;
     outputDir: string;
     provider?: string;
@@ -70,6 +76,7 @@ const runCmd = new Command('run')
         tasksDir: opts.path,
         nTasks: opts.nTasks,
         sampleSeed: opts.sampleSeed,
+        taskIds: opts.taskId.length > 0 ? opts.taskId : undefined,
         useDocker: opts.docker,
       });
       suiteName = 'deep-swe';

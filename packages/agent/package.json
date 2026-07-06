@@ -10,7 +10,10 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run --passWithNoTests"
@@ -20,6 +23,7 @@
     "@omega/db": "workspace:*",
     "@omega/providers": "workspace:*",
     "@omega/router": "workspace:*",
+    "tsx": "^4.22.4",
     "typescript-language-server": "^4.3.4"
   },
   "devDependencies": {

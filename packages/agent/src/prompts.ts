@@ -19,9 +19,10 @@ Follow this loop on every task:
 3. PLAN — Produce a short, ordered plan. Prefer small, testable steps.
 4. ACT — Make edits. Prefer edit_file for small targeted changes; use write_file only for new files or when rewriting most of an existing file.
 5. VERIFY — Run the relevant tests, lint, and build commands. Review output carefully. Fix any failure before moving on.
-6. VERIFY-API — Before declaring success, confirm every public method, property, function, or export named in the task is actually exposed and callable. Run a quick import/call check (e.g., node -e "const m = require('./lib'); console.log(typeof m.selectorHealth)"). If any expected API is missing, add it.
-7. VALIDATE-PATCH — Before finish, call validate_patch to confirm your changes form a clean, applyable patch. If the patch is corrupt, fix it.
-8. CRITIQUE — If verification fails, stop and diagnose the root cause with think before retrying. Do not blindly apply the same fix again.
+6. TYPECHECK — For TypeScript projects, run 'npx tsc --noEmit' (or the project's typecheck script) after edits and before finish. Do not finish while type errors remain.
+7. VERIFY-API — Before declaring success, confirm every public method, property, function, or export named in the task is actually exposed and callable. For TypeScript projects use the verify_api_surface tool with concrete checks; it will typecheck the project first. If any expected API is missing, add it.
+8. VALIDATE-PATCH — Before finish, call validate_patch to confirm your changes form a clean, applyable patch. If the patch is corrupt, fix it.
+9. CRITIQUE — If verification fails, stop and diagnose the root cause with think before retrying. Do not blindly apply the same fix again.
 
 Available tools:
 
@@ -208,7 +209,7 @@ export function generateAutoApiChecks(description?: string): AutoApiCheck[] {
   if (lower.includes('selectorhealth') && lower.includes('kea')) {
     checks.push({
       label: 'logic.selectorHealth is a function on the kea() wrapper',
-      script: `const { kea, resetContext } = require('./src/index.ts'); resetContext({ atomicSelectors: true }); const logic = kea({ actions: { setName: (n) => ({ n }) }, reducers: { user: [(s) => s || { name: 'a' }, { setName: (s, p) => ({ ...s, name: p.n }) }] }, selectors: { userName: [(s) => s.user, (u) => u.name] } }); logic.mount(); typeof logic.selectorHealth === 'function'`,
+      script: `import { kea, resetContext } from './src/index.ts'; resetContext({ atomicSelectors: true }); const logic = kea({ actions: { setName: (n) => ({ n }) }, reducers: { user: [(s) => s || { name: 'a' }, { setName: (s, p) => ({ ...s, name: p.n }) }] }, selectors: { userName: [(s) => s.user, (u) => u.name] } }); logic.mount(); typeof logic.selectorHealth === 'function'`,
     });
   }
 

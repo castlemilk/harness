@@ -27,6 +27,7 @@ import { loadCurrentPrompts, hashPrompts } from './prompt-versioning.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
 import { logger } from './logger.js';
 import { Tracer, type Span } from './tracer.js';
+import { runTypeCheck, runTypeScriptScript } from './ts-runner.js';
 import {
   getCurrentBranch,
   getCurrentCommit,
@@ -461,6 +462,24 @@ async function checkpointCommit(ctx: AgentContext): Promise<void> {
   await commit(ctx.projectPath, `agent checkpoint: ${ctx.task.title}`);
 }
 
+async function getModifiedTsFiles(ctx: AgentContext): Promise<string[]> {
+  const modified = Array.from(ctx.modifiedFiles).filter((p) => /\.(ts|tsx|mts|cts)$/i.test(p));
+  if (modified.length > 0) return modified;
+  // Also check git status in case modifiedFiles missed something.
+  try {
+    const { stdout } = await execFileAsync('git', ['status', '--porcelain'], {
+      cwd: ctx.projectPath,
+      timeout: 10_000,
+    });
+    return stdout
+      .split('\n')
+      .map((line) => line.slice(3).trim())
+      .filter((p) => /\.(ts|tsx|mts|cts)$/i.test(p));
+  } catch {
+    return [];
+  }
+}
+
 async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   // Initial planning trace
   await addTrace(ctx, 'system', ctx.systemPrompt);
@@ -601,6 +620,24 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
             break;
           }
         }
+
+        // Force a TypeScript typecheck before finish when TypeScript files changed.
+        const modifiedTsFiles = await getModifiedTsFiles(ctx);
+        if (modifiedTsFiles.length > 0) {
+          const typeCheck = await runTypeCheck(ctx.projectPath);
+          if (!typeCheck.success) {
+            const message = `finish rejected: TypeScript typecheck failed after editing ${String(modifiedTsFiles.length)} file(s). Fix the type errors before finishing.\n\n${typeCheck.output}`;
+            turnHadFailure = true;
+            await ctx.prisma.taskStep.update({
+              where: { id: stepId },
+              data: { status: 'failed', output: message },
+            });
+            toolResults.push({ toolCallId: call.id, output: message });
+            messages.push({ role: 'tool', tool_call_id: call.id, content: message });
+            break;
+          }
+        }
+
         const autoChecks = generateAutoApiChecks(ctx.task.description);
         if (autoChecks.length > 0) {
           const checkResult = await runAutoApiChecks(ctx.projectPath, autoChecks);
@@ -880,25 +917,63 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   };
 }
 
+async function isTypeScriptProject(projectPath: string): Promise<boolean> {
+  try {
+    const fs = await import('node:fs/promises');
+    await fs.access(path.join(projectPath, 'tsconfig.json'));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function runAutoApiChecks(
   projectPath: string,
   checks: { label: string; script: string }[]
 ): Promise<{ success: boolean; output: string }> {
+  const isTs = await isTypeScriptProject(projectPath);
+
+  // For TypeScript projects, run a typecheck first so missing imports are
+  // caught before the runtime API surface checks.
+  if (isTs) {
+    const typeCheck = await runTypeCheck(projectPath);
+    if (!typeCheck.success) {
+      return {
+        success: false,
+        output: `TypeScript typecheck failed before automatic API surface check:\n${typeCheck.output}`,
+      };
+    }
+  }
+
   const results: string[] = [];
   let allPassed = true;
   for (const check of checks) {
-    try {
-      const { stdout } = await execFileAsync('node', ['-e', check.script], {
-        cwd: projectPath,
-        timeout: 30_000,
-      });
-      const passed = stdout.trim() === 'true';
-      if (!passed) allPassed = false;
-      results.push(`${passed ? '✓' : '✗'} ${check.label} → ${stdout.trim()}`);
-    } catch (err) {
-      allPassed = false;
-      results.push(`✗ ${check.label} → ${err instanceof Error ? err.message : String(err)}`);
+    let passed: boolean;
+    let output: string;
+    if (isTs) {
+      // Rewrite CommonJS require() to ESM import() for tsx compatibility.
+      const esmScript = check.script
+        .replace(/const\s+\{\s*([^}]+)\s*\}\s*=\s*require\(['"]([^'"]+)['"]\);?/g, "import { $1 } from '$2';")
+        .replace(/const\s+(\w+)\s*=\s*require\(['"]([^'"]+)['"]\);?/g, "import * as $1 from '$2';")
+        .replace(/require\(['"]([^'"]+)['"]\)/g, "await import('$1')");
+      const tsResult = await runTypeScriptScript(projectPath, `console.log(${esmScript})`);
+      output = tsResult.output;
+      passed = tsResult.success && output.trim() === 'true';
+    } else {
+      try {
+        const { stdout } = await execFileAsync('node', ['-e', check.script], {
+          cwd: projectPath,
+          timeout: 30_000,
+        });
+        output = stdout.trim();
+        passed = output === 'true';
+      } catch (err) {
+        output = err instanceof Error ? err.message : String(err);
+        passed = false;
+      }
     }
+    if (!passed) allPassed = false;
+    results.push(`${passed ? '✓' : '✗'} ${check.label} → ${output}`);
   }
   return { success: allPassed, output: results.join('\n') };
 }

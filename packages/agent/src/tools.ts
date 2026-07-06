@@ -3,6 +3,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { clientForPath, type LspClient } from './lsp/index.js';
+import { runTypeCheck, runTypeScriptScript } from './ts-runner.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -615,7 +616,22 @@ export async function verifyApiSurface(
     return { success: false, output: 'Path traversal blocked' };
   }
 
-  // For TypeScript/source-only packages, build first so the entry file exists.
+  const isTypeScript = /\.(ts|tsx|mts|cts)$/.test(entry);
+
+  // For TypeScript/source-only packages, run a typecheck first so missing
+  // imports and signature mismatches are caught before runtime checks.
+  if (isTypeScript) {
+    const typeCheck = await runTypeCheck(projectPath);
+    if (!typeCheck.success) {
+      return {
+        success: false,
+        output: `TypeScript typecheck failed before API surface check:\n${typeCheck.output}`,
+      };
+    }
+  }
+
+  // If the entry file does not exist (e.g. source-only TS that has not been
+  // built), try a build so a JS entry is available for non-TS runners.
   try {
     await fs.access(entryPath);
   } catch {
@@ -626,7 +642,6 @@ export async function verifyApiSurface(
         output: `Build failed before API surface check:\n${buildResult.output}`,
       };
     }
-    // Re-resolve entry after build in case the compiled output changed.
     entry = entryArg ?? (await findPackageEntry(projectPath)) ?? entry;
     entryPath = path.resolve(projectPath, entry);
   }
@@ -636,24 +651,46 @@ export async function verifyApiSurface(
   let allPassed = true;
 
   for (const check of checkList) {
-    const script = `
-      const api = require('${entryPath}');
-      const result = (function() { return (${check}); })();
-      console.log(JSON.stringify({ check: ${JSON.stringify(check)}, result }));
-    `;
-    try {
-      const { stdout } = await execFileAsync('node', ['-e', script], { cwd: projectPath, timeout: 30000 });
-      const execResult = /\{.*\}$/.exec(stdout.trim());
-      const parsed = execResult
-        ? (JSON.parse(execResult[0]) as { check: string; result: unknown })
-        : { check, result: stdout.trim() };
-      const passed = Boolean(parsed.result);
-      if (!passed) allPassed = false;
-      results.push(`${passed ? '✓' : '✗'} ${parsed.check} → ${JSON.stringify(parsed.result)}`);
-    } catch (err) {
-      allPassed = false;
-      results.push(`✗ ${check} → ${err instanceof Error ? err.message : String(err)}`);
+    let checkOutput: { success: boolean; output: string };
+    if (isTypeScript) {
+      const script = `
+        import * as api from '${entryPath}';
+        const result = (function() { return (${check}); })();
+        console.log(JSON.stringify({ check: ${JSON.stringify(check)}, result }));
+      `;
+      checkOutput = await runTypeScriptScript(projectPath, script);
+    } else {
+      const script = `
+        const api = require('${entryPath}');
+        const result = (function() { return (${check}); })();
+        console.log(JSON.stringify({ check: ${JSON.stringify(check)}, result }));
+      `;
+      try {
+        const { stdout } = await execFileAsync('node', ['-e', script], { cwd: projectPath, timeout: 30000 });
+        checkOutput = { success: true, output: stdout };
+      } catch (err) {
+        const execErr = err as { stdout?: string; stderr?: string; message?: string };
+        checkOutput = {
+          success: false,
+          output: (execErr.stdout ?? '') + (execErr.stderr ?? '') || (execErr.message ?? String(err)),
+        };
+      }
     }
+
+    if (!checkOutput.success) {
+      allPassed = false;
+      results.push(`✗ ${check} → ${checkOutput.output}`);
+      continue;
+    }
+
+    const stdout = checkOutput.output;
+    const execResult = /\{.*\}$/.exec(stdout.trim());
+    const parsed = execResult
+      ? (JSON.parse(execResult[0]) as { check: string; result: unknown })
+      : { check, result: stdout.trim() };
+    const passed = Boolean(parsed.result);
+    if (!passed) allPassed = false;
+    results.push(`${passed ? '✓' : '✗'} ${parsed.check} → ${JSON.stringify(parsed.result)}`);
   }
 
   return {

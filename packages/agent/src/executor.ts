@@ -710,7 +710,13 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
           ? `${result.output.slice(0, TOOL_OUTPUT_LIMIT)}\n... [truncated]`
           : result.output;
 
-      toolSpan.setAttributes({ success: result.success });
+      toolSpan.setAttributes({
+        success: result.success,
+        outputLength: result.output.length,
+        ...(result.success
+          ? {}
+          : { error: result.output.slice(0, 500) }),
+      });
       if (call.name === 'verify_api_surface' && result.success) {
         ctx.apiSurfaceVerified = true;
       }

@@ -160,15 +160,20 @@ export function taskRoutes(prisma: PrismaClient): Router {
       orderBy: { createdAt: 'desc' },
     });
 
-    const toolSpans = spans.filter((s) => s.name === 'agent.tool');
+    const toolSpans = spans.filter((s) => s.name === 'agent.tool' || s.name.startsWith('agent.tool.'));
     const toolCounts: Record<string, { total: number; success: number; errors: string[] }> = {};
     const errors: { tool?: string; message: string; time: string }[] = [];
 
     for (const span of toolSpans) {
       const attrs = span.attributes ? (JSON.parse(span.attributes) as Record<string, unknown>) : {};
-      const tool = typeof attrs.tool === 'string' ? attrs.tool : 'unknown';
-      const success = Boolean(attrs.success);
-      const entry = toolCounts[tool] ?? { total: 0, success: 0, errors: [] };
+      const toolName =
+        span.name === 'agent.tool'
+          ? typeof attrs.tool === 'string'
+            ? attrs.tool
+            : 'unknown'
+          : span.name.slice('agent.tool.'.length);
+      const success = span.status !== 'error' && Boolean(attrs.success);
+      const entry = toolCounts[toolName] ?? { total: 0, success: 0, errors: [] };
       entry.total++;
       if (success) entry.success++;
       if (span.status === 'error' || !success) {
@@ -179,9 +184,9 @@ export function taskRoutes(prisma: PrismaClient): Router {
               ? attrs.error
               : JSON.stringify(attrs.error);
         entry.errors.push(message);
-        errors.push({ tool, message, time: span.startTime.toISOString() });
+        errors.push({ tool: toolName, message, time: span.startTime.toISOString() });
       }
-      toolCounts[tool] = entry;
+      toolCounts[toolName] = entry;
     }
 
     const firstSpan = spans.at(0);
@@ -191,7 +196,12 @@ export function taskRoutes(prisma: PrismaClient): Router {
         ? (lastSpan.endTime ?? lastSpan.startTime).getTime() - firstSpan.startTime.getTime()
         : 0;
 
-    const phaseSpans = spans.filter((s) => ['agent.plan', 'agent.tool', 'provider.send', 'agent.reflect'].includes(s.name));
+    const phaseSpans = spans.filter(
+      (s) =>
+        ['agent.plan', 'provider.send', 'agent.reflect'].includes(s.name) ||
+        s.name === 'agent.tool' ||
+        s.name.startsWith('agent.tool.')
+    );
     const phaseDurations: Record<string, number> = {};
     for (const span of phaseSpans) {
       const duration = (span.endTime ?? span.startTime).getTime() - span.startTime.getTime();

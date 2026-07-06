@@ -39,13 +39,15 @@ function suggestSkillGaps(analysis: TraceAnalysis): string[] {
   const readFile = byTool.get('read_file');
   const editFile = byTool.get('edit_file');
   const codeOverview = byTool.get('code_overview');
-  const lsp = byTool.get('lsp') ?? byTool.get('lsp_call');
+  const lspTotal = analysis.toolSummary
+    .filter((t) => t.tool.startsWith('lsp'))
+    .reduce((sum, t) => sum + t.total, 0);
 
   if (!codeOverview || codeOverview.total === 0) {
     gaps.push('The agent never used code_overview. Add a project-structure skill or prompt rule requiring a structural overview before editing.');
   }
 
-  if (!lsp || lsp.total === 0) {
+  if (lspTotal === 0) {
     gaps.push('The agent never used LSP tools. Add language-specific LSP skills (TypeScript, Go) and require symbol lookup before renames or wiring.');
   }
 

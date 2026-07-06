@@ -7,6 +7,7 @@ import { consoleCmd } from './commands/console.js';
 import { skillCmd } from './commands/skill.js';
 import { agentCmd } from './commands/agent.js';
 import { benchCmd } from './commands/bench.js';
+import { traceCmd } from './commands/trace.js';
 
 program
   .name('harness')
@@ -21,5 +22,6 @@ program.addCommand(consoleCmd);
 program.addCommand(skillCmd);
 program.addCommand(agentCmd);
 program.addCommand(benchCmd);
+program.addCommand(traceCmd);
 
 program.parse();

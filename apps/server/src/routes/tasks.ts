@@ -137,8 +137,8 @@ export function taskRoutes(prisma: PrismaClient): Router {
       const children = byParent[key] ?? [];
       return children.map((s) => ({
         ...s,
-        attributes: s.attributes ? JSON.parse(s.attributes) : undefined,
-        events: s.events ? JSON.parse(s.events) : undefined,
+        attributes: s.attributes ? (JSON.parse(s.attributes) as Record<string, unknown>) : undefined,
+        events: s.events ? (JSON.parse(s.events) as Record<string, unknown>) : undefined,
         children: buildTree(s.spanId),
       }));
     }
@@ -146,6 +146,76 @@ export function taskRoutes(prisma: PrismaClient): Router {
     res.json({
       traceId: spans[0]?.traceId,
       spans: buildTree(null),
+    });
+  }));
+
+  r.get('/:id/trace-analysis', asyncHandler(async (req, res) => {
+    const spans = await prisma.traceSpan.findMany({
+      where: { taskId: req.params.id },
+      orderBy: { startTime: 'asc' },
+    });
+
+    const run = await prisma.agentRun.findFirst({
+      where: { taskId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const toolSpans = spans.filter((s) => s.name === 'agent.tool');
+    const toolCounts: Record<string, { total: number; success: number; errors: string[] }> = {};
+    const errors: { tool?: string; message: string; time: string }[] = [];
+
+    for (const span of toolSpans) {
+      const attrs = span.attributes ? (JSON.parse(span.attributes) as Record<string, unknown>) : {};
+      const tool = typeof attrs.tool === 'string' ? attrs.tool : 'unknown';
+      const success = Boolean(attrs.success);
+      const entry = toolCounts[tool] ?? { total: 0, success: 0, errors: [] };
+      entry.total++;
+      if (success) entry.success++;
+      if (span.status === 'error' || !success) {
+        const message =
+          attrs.error === undefined
+            ? 'unknown error'
+            : typeof attrs.error === 'string'
+              ? attrs.error
+              : JSON.stringify(attrs.error);
+        entry.errors.push(message);
+        errors.push({ tool, message, time: span.startTime.toISOString() });
+      }
+      toolCounts[tool] = entry;
+    }
+
+    const firstSpan = spans.at(0);
+    const lastSpan = spans.at(-1);
+    const totalDurationMs =
+      firstSpan && lastSpan
+        ? (lastSpan.endTime ?? lastSpan.startTime).getTime() - firstSpan.startTime.getTime()
+        : 0;
+
+    const phaseSpans = spans.filter((s) => ['agent.plan', 'agent.tool', 'provider.send', 'agent.reflect'].includes(s.name));
+    const phaseDurations: Record<string, number> = {};
+    for (const span of phaseSpans) {
+      const duration = (span.endTime ?? span.startTime).getTime() - span.startTime.getTime();
+      phaseDurations[span.name] = (phaseDurations[span.name] ?? 0) + duration;
+    }
+
+    res.json({
+      taskId: req.params.id,
+      agentRunId: run?.id,
+      totalSpans: spans.length,
+      totalDurationMs,
+      promptTokens: run?.promptTokens,
+      completionTokens: run?.completionTokens,
+      totalTokens: run?.totalTokens,
+      toolSummary: Object.entries(toolCounts).map(([tool, stats]) => ({
+        tool,
+        total: stats.total,
+        success: stats.success,
+        failure: stats.total - stats.success,
+        successRate: stats.total > 0 ? Number((stats.success / stats.total).toFixed(2)) : 0,
+        sampleErrors: stats.errors.slice(0, 3),
+      })),
+      topErrors: errors.slice(0, 10),
+      phaseDurations,
     });
   }));
 

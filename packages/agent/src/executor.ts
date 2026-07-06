@@ -61,6 +61,19 @@ function maxStepsForComplexity(complexity: string | undefined): number {
   }
 }
 
+function explorationBudgetForComplexity(complexity: string | undefined): { beforeFirstEdit: number; betweenEdits: number } {
+  switch (complexity) {
+    case 'simple':
+      return { beforeFirstEdit: 10, betweenEdits: 12 };
+    case 'medium':
+      return { beforeFirstEdit: 14, betweenEdits: 16 };
+    case 'complex':
+      return { beforeFirstEdit: 22, betweenEdits: 20 };
+    default:
+      return { beforeFirstEdit: 12, betweenEdits: 15 };
+  }
+}
+
 const execFileAsync = promisify(execFile);
 
 const API_SURFACE_HINTS = [
@@ -90,6 +103,7 @@ interface AgentContext {
   agentRunId: string;
   autoPublish: boolean;
   maxSteps: number;
+  explorationBudget: { beforeFirstEdit: number; betweenEdits: number };
   modifiedFiles: Set<string>;
   recentCommands: Set<string>;
   recentReads: Map<string, number>;
@@ -302,6 +316,7 @@ export async function runAgentTask(
     agentRunId: agentRun.id,
     autoPublish: options.autoPublish ?? false,
     maxSteps: options.maxSteps ?? maxStepsForComplexity(task.complexity),
+    explorationBudget: explorationBudgetForComplexity(task.complexity),
     modifiedFiles: new Set<string>(),
     recentCommands: new Set<string>(),
     recentReads: new Map<string, number>(),
@@ -643,9 +658,9 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       toolSpan.setAttributes({ tool: call.name });
 
       let result: ToolResult;
-      const stuckWithoutEdits = ctx.editCount === 0 && stepIndex >= 24 && !editTools.includes(call.name) && call.name !== 'finish' && call.name !== 'publish';
-      const explorationBudgetExhausted = ctx.editCount === 0 && ctx.explorationCount > 12 && isExploration;
-      const wanderingAfterEdits = ctx.editCount > 0 && ctx.explorationCount - ctx.explorationAtLastEdit > 15 && isExploration;
+      const stuckWithoutEdits = ctx.editCount === 0 && stepIndex >= ctx.explorationBudget.beforeFirstEdit * 2 && !editTools.includes(call.name) && call.name !== 'finish' && call.name !== 'publish';
+      const explorationBudgetExhausted = ctx.editCount === 0 && ctx.explorationCount > ctx.explorationBudget.beforeFirstEdit && isExploration;
+      const wanderingAfterEdits = ctx.editCount > 0 && ctx.explorationCount - ctx.explorationAtLastEdit > ctx.explorationBudget.betweenEdits && isExploration;
       const needsVerifyAfterEdits = ctx.editsSinceVerify >= 3 && editTools.includes(call.name);
       if (stuckWithoutEdits || explorationBudgetExhausted) {
         result = {

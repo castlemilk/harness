@@ -14,43 +14,70 @@ When a task asks you to add atomic/signal selectors to Kea, treat it as a framew
 - Do NOT implement a parallel selector engine in a standalone file and bypass Kea's existing `selectors` plugin. You must hook into the existing selector creation and value-read paths.
 - Do NOT modify `rollup.config.js`, `tsconfig.json`, or build tooling unless the task explicitly requires it.
 
-## Files you MUST modify
+## Step-by-step implementation order
 
-1. `src/kea/context.ts`
-   - Read `resetContext` options and add `atomicSelectors: boolean` (default `false`).
-   - Store it on `context.options` so every plugin can read it.
+Follow this order exactly. After each file edit, run `npx jest test/jest/atomic.js` (or `npm test` if it does not exist) and fix the first failure before editing the next file.
 
-2. `src/core/selectors.ts`
-   - This is where Kea builds selectors with `createSelector` from reselect.
-   - When `getContext().options.atomicSelectors` is true, wrap each selector with atomic dependency tracking instead of (or in addition to) plain reselect.
-   - Record per-selector metadata: `dependencies` (leaf paths like `user.name`), `dependents`, `evaluations`, `dirtyCause`.
-   - Keep the selector function signature `(state, props) => result` unchanged.
+### Step 1 — Add the context option
 
-3. `src/kea/build.ts`
-   - In `getBuiltLogic`, after the built `logic` object is created, attach `logic.selectorHealth` as a method.
-   - `selectorHealth()` must return `{ selectors: Record<name, { dependencies, dependents, evaluations, dirtyCause }>, topologicalOrder: string[] }`.
-   - The metadata must be keyed by the selector's local name (e.g. `userName`) and stable across remounts.
+Edit `src/kea/context.ts`:
+- In the `openContext` function, add `atomicSelectors: false` to the default options merge.
+- The option is read via `getContext().options.atomicSelectors`.
 
-4. `src/kea/kea.ts`
-   - The `kea({...})` wrapper must also expose `selectorHealth` when atomic mode is enabled, because tests call `logic.mount(); logic.selectorHealth()` directly on the wrapper.
-   - Add `wrapper.selectorHealth = () => wrapper.build().selectorHealth()` (or proxy it via `proxyFieldToLogic` if `selectorHealth` is registered as a logic field).
-   - Do this only when `getContext().options.atomicSelectors` is true.
+### Step 2 — Hook selector creation
 
-5. `src/core/reducers.ts` or wherever actions are dispatched
-   - Hook into reducer updates so that when an action changes state, the atomic engine knows which leaf paths changed.
-   - Mark dependent selectors dirty and set `dirtyCause` to the changed leaf path.
-   - Multiple changes in one action must coalesce into a single selector re-evaluation.
+Edit `src/core/selectors.ts`:
+- After the selector inputs are resolved, check `const atomicEnabled = getContext().options.atomicSelectors`.
+- When `atomicEnabled` is true, wrap each built selector with a function that:
+  - Tracks leaf-level state reads (e.g. `user.name`, not just `user`).
+  - Records dependencies, dependents, evaluations, and dirtyCause per selector.
+  - Returns the same result as the original selector so existing Kea behavior is preserved.
+- You may create a small helper module (e.g. `src/kea/atomic.ts`) for the tracking engine, but the selector wrapping must happen inside `src/core/selectors.ts`.
 
-6. `src/react/hooks.ts` (or the React binding file)
-   - Kea re-renders components via selectors. The atomic engine must integrate with the subscription path so that a component re-renders only when a leaf path it actually reads changes.
-   - Do not break existing Kea React behavior when `atomicSelectors` is false.
+### Step 3 — Expose selectorHealth on BuiltLogic
 
-7. `src/index.ts`
-   - Export any public helpers/types needed by consumers (e.g. `AtomicSelectorHealth`, `AtomicSelectorEngine`).
+Edit `src/kea/build.ts`:
+- In `getBuiltLogic`, after the `logic` object is created, attach:
+  ```ts
+  if (getContext().options.atomicSelectors) {
+    logic.selectorHealth = () => buildAtomicHealth(logic)
+  }
+  ```
+- `selectorHealth()` must return `{ selectors: Record<name, { dependencies, dependents, evaluations, dirtyCause }>, topologicalOrder: string[] }`.
+- Metadata keys must be the selector's local name (e.g. `userName`).
+
+### Step 4 — Expose selectorHealth on the wrapper
+
+Edit `src/kea/kea.ts`:
+- After the wrapper is created, attach:
+  ```ts
+  if (getContext().options.atomicSelectors) {
+    wrapper.selectorHealth = () => wrapper.build().selectorHealth()
+  }
+  ```
+- This is required because tests call `logic.mount(); logic.selectorHealth()` directly on the object returned by `kea({...})`.
+
+### Step 5 — Wire reducer updates
+
+Edit `src/core/reducers.ts` (or the file that builds Kea reducers):
+- When an action is dispatched, compare the new state to the previous state at the leaf level.
+- Mark affected selectors dirty and set `dirtyCause` to the changed leaf path.
+- Multiple leaf changes in one action must coalesce into one selector re-evaluation.
+
+### Step 6 — Preserve React integration
+
+Edit `src/react/hooks.ts` (or the React binding file):
+- Ensure React components re-render only when a leaf path they subscribe to changes.
+- Do not break existing Kea React behavior when `atomicSelectors` is false.
+
+### Step 7 — Export public types
+
+Edit `src/index.ts`:
+- Export public helpers/types needed by consumers (e.g. `AtomicSelectorHealth`).
 
 ## Implementation notes
 
-- `logic.selectorHealth()` must exist on **both** the `BuiltLogic` instance (created in `src/kea/build.ts`) and the `LogicWrapper` returned by `kea({...})` (created in `src/kea/kea.ts`).
+- `logic.selectorHealth()` must exist on **both** the `BuiltLogic` instance and the `LogicWrapper` returned by `kea({...})`.
 - Dependencies must be leaf-level paths like `user.name`, not just `user`.
 - For collections use the exact dependency strings the task specifies:
   - Map key access: `<reducer>.map:<key>` (e.g. `data.map:a`)
@@ -61,8 +88,8 @@ When a task asks you to add atomic/signal selectors to Kea, treat it as a framew
 
 ## Verification
 
-- After every source edit, run the focused test file: `npx jest test/jest/atomic.js` (or the relevant jest file). If it does not exist yet, run the full suite: `npm test` or `pnpm test`.
+- Run the focused test file after every edit: `npx jest test/jest/atomic.js`.
 - Before finishing, run a concrete API surface check with `verify_api_surface`. The check must mount a logic and test:
   - `typeof logic.selectorHealth === 'function'` on the wrapper returned by `kea({...})`
   - `typeof built.selectorHealth === 'function'` on the object returned by `logic.build()`
-- Do not finish until both checks pass.
+- Do not finish until both checks pass and the focused atomic tests pass.

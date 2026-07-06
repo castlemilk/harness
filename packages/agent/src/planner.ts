@@ -43,7 +43,7 @@ ${toolDescriptions}
 
 If a step does not need a tool, omit tool/input. Use edit_file for small file changes. When planning run_command steps, use only simple single commands without pipes (|), &&, ;, redirects, unquoted globs, or $(). Quote literal globs in arguments if needed, e.g., find . -name "*.ts".
 
-When the task involves a test suite or failing tests, the first steps must be: (1) run the focused test command to identify failures, (2) read the failing test files, and only then (3) implement the smallest fix. For Kea/signal/selector tasks, explicitly plan to read the selector tests and verify the selector signature, dependencies, and memoization before editing source code.`;
+When the task involves a test suite or failing tests, the first steps must be: (1) run the focused test command to identify failures, (2) read the failing test files, and only then (3) implement the smallest fix. For Kea / signal / selector tasks, the plan must include explicit steps to: (a) read the relevant selector tests, (b) implement the exact selector signature and memoization, (c) wire the feature into the existing framework by modifying src/kea/build.ts, src/core/selectors.ts, src/kea/context.ts, and src/index.ts as needed, and (d) verify the public API surface with verify_api_surface before finishing. Do not finish until the wiring is complete and tested.`;
 
 export async function createPlan(
   provider: Provider,

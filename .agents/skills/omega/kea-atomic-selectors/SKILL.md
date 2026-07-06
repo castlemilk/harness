@@ -323,7 +323,17 @@ Edit `src/index.ts` and export public helpers/types.
 
 - Run the focused test file after every edit: `npx jest test/jest/atomic.js`.
 - Call `validate_patch` before `finish`.
-- Call `verify_api_surface` with checks that mount a logic and test:
-  - `typeof logic.selectorHealth === 'function'` on the wrapper from `kea({...})`
-  - `typeof logic.build().selectorHealth === 'function'`
+- CRITICAL: Before finish, call `verify_api_surface` with EXACTLY this check (copy it verbatim):
+  ```js
+  const { kea, resetContext } = require('./src/index.ts')
+  resetContext({ atomicSelectors: true })
+  const logic = kea({
+    actions: { setName: (n) => ({ n }) },
+    reducers: { user: [(s) => s || { name: 'a' }, { setName: (s, p) => ({ ...s, name: p.n }) }] },
+    selectors: { userName: [(s) => s.user, (u) => u.name] }
+  })
+  logic.mount()
+  typeof logic.selectorHealth === 'function'
+  ```
+  If this check returns false, you have not attached `selectorHealth` to the wrapper in `src/kea/kea.ts`. Fix it before finishing.
 - Do not finish until both checks pass and the focused atomic tests pass.

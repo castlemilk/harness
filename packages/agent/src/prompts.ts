@@ -194,6 +194,27 @@ export function buildTaskPrompt(title: string, description?: string): string {
   return parts.join('\n\n');
 }
 
+export interface AutoApiCheck {
+  label: string;
+  script: string;
+}
+
+export function generateAutoApiChecks(description?: string): AutoApiCheck[] {
+  if (!description) return [];
+  const checks: AutoApiCheck[] = [];
+  const lower = description.toLowerCase();
+
+  // Kea atomic selector health check.
+  if (lower.includes('selectorhealth') && lower.includes('kea')) {
+    checks.push({
+      label: 'logic.selectorHealth is a function on the kea() wrapper',
+      script: `const { kea, resetContext } = require('./src/index.ts'); resetContext({ atomicSelectors: true }); const logic = kea({ actions: { setName: (n) => ({ n }) }, reducers: { user: [(s) => s || { name: 'a' }, { setName: (s, p) => ({ ...s, name: p.n }) }] }, selectors: { userName: [(s) => s.user, (u) => u.name] } }); logic.mount(); typeof logic.selectorHealth === 'function'`,
+    });
+  }
+
+  return checks;
+}
+
 export function buildToolResultPrompt(
   task: { title: string; description?: string },
   results: { toolCallId: string; output: string }[]

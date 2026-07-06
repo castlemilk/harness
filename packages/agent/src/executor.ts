@@ -16,6 +16,7 @@ import {
   buildSystemPrompt,
   buildTextToolsSystemPrompt,
   buildReflectionPrompt,
+  generateAutoApiChecks,
   FORCE_ACTION_PROMPT,
 } from './prompts.js';
 import { buildPromptContext } from './prompt-context.js';
@@ -600,6 +601,21 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
             break;
           }
         }
+        const autoChecks = generateAutoApiChecks(ctx.task.description);
+        if (autoChecks.length > 0) {
+          const checkResult = await runAutoApiChecks(ctx.projectPath, autoChecks);
+          if (!checkResult.success) {
+            const message = `finish rejected: automatic API surface check failed. ${checkResult.output}`;
+            turnHadFailure = true;
+            await ctx.prisma.taskStep.update({
+              where: { id: stepId },
+              data: { status: 'failed', output: message },
+            });
+            toolResults.push({ toolCallId: call.id, output: message });
+            messages.push({ role: 'tool', tool_call_id: call.id, content: message });
+            break;
+          }
+        }
         finished = true;
         success = Boolean(call.arguments.success);
         const summaryArg =
@@ -862,6 +878,29 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
     task: toCoreTask(updatedTask),
     agentRunId: ctx.agentRunId,
   };
+}
+
+async function runAutoApiChecks(
+  projectPath: string,
+  checks: { label: string; script: string }[]
+): Promise<{ success: boolean; output: string }> {
+  const results: string[] = [];
+  let allPassed = true;
+  for (const check of checks) {
+    try {
+      const { stdout } = await execFileAsync('node', ['-e', check.script], {
+        cwd: projectPath,
+        timeout: 30_000,
+      });
+      const passed = stdout.trim() === 'true';
+      if (!passed) allPassed = false;
+      results.push(`${passed ? '✓' : '✗'} ${check.label} → ${stdout.trim()}`);
+    } catch (err) {
+      allPassed = false;
+      results.push(`✗ ${check.label} → ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  return { success: allPassed, output: results.join('\n') };
 }
 
 function recordUsage(ctx: AgentContext, usage: UsageInfo): void {

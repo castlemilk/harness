@@ -65,6 +65,7 @@ Rules:
   f. Run the relevant tests and fix failures, then verify the API surface with verify_api_surface using a check that mounts a logic and tests typeof logic.selectorHealth === 'function'. Do not finish until this check passes.
 18. Before calling finish, the final verification step must use verify_api_surface with a concrete runtime check for each public API named in the task. For instance APIs, the check must construct the object and return typeof instance.theMethod === 'function'. If the task requires logic.selectorHealth, the check must mount a logic and test typeof logic.selectorHealth === 'function'. If verify_api_surface fails, diagnose the root cause and wire the missing API before finishing.
 19. EXPLORATION DISCIPLINE: When entering an unfamiliar codebase or framework, your first exploration step after think must be code_overview to learn the entry points, source roots, and exported symbols. Use lsp_symbol to locate key symbols, lsp_hover to understand their signatures, and lsp_diagnostics after editing TypeScript files to catch type errors early. Do not rely solely on search and read_file for framework wiring tasks.
+20. BUILD-CONFIG DISCIPLINE: Do not modify 'rollup.config.js', 'webpack.config.js', 'tsconfig.json', 'vite.config.*', or similar build/configuration files unless the task explicitly requires it. If the full test command fails inside a type-declaration or build step, run the focused unit-test file directly (e.g. 'npx jest test/jest/atomic.js') and iterate on the implementation before re-running the full suite.
 
 ANTI-LOOP RULES (violation wastes steps and failure):
 - You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, ls -la, or find more than once total in the entire session. Use list_files for exploration.
@@ -124,6 +125,7 @@ Rules:
 - Do not expose secrets or run destructive commands.
 - Do not re-read a file you already read in the last few steps unless you just edited it.
 - Finish only when done. Use summary, not message.
+- Do not modify build/config files ('rollup.config.js', 'webpack.config.js', 'tsconfig.json', 'vite.config.*') unless explicitly required. If the full test command fails in a build step, run the focused test file directly first.
 
 ANTI-LOOP RULES (violation wastes steps and causes failure):
 - You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, ls -la, or find more than once total.

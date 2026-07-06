@@ -38,7 +38,8 @@ When a task asks you to add atomic/signal selectors to Kea, the implementation i
 
 ## Verification
 
-Before finishing, run the test command and also run a quick runtime check:
+- Do NOT modify `rollup.config.js`, `tsconfig.json`, or build tooling unless the task explicitly requires it. If `npm test` fails inside the `test:tsd` or build step, run the focused jest test file instead: `npx jest test/jest/atomic.js` (or the relevant test file). Only run the full `npm test` after the focused atomic tests pass.
+- Before finishing, run the test command and also run a quick runtime check:
 
 ```js
 const { kea } = require('./src/index.ts') // or built output

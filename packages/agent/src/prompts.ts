@@ -30,6 +30,10 @@ Available tools:
 - run_command: Run a single simple command. No pipes (|), &&, ;, redirects, or $(). Each command is one executable plus args. Globs inside quoted arguments are allowed (e.g., find . -name "*.ts"). Prefer pnpm/npm/node. Examples: "pnpm lint", "npm test", "node -e console.log(1)". Invalid: "a && b", "a | b", "a; b", "cat > file".
 - list_files: List files/directories at a relative path. Skips node_modules/.git/build dirs. Arguments: { "path": ".", "recursive": true }
 - search: Search file contents for a regex pattern. Use this to locate symbols/usages quickly. Arguments: { "pattern": "myFunction|mySymbol", "path": "." }
+- code_overview: Get a structural overview of the project (entry points, source roots, test files, frameworks, exports). Use this at the very start of exploration, especially when wiring a feature into an existing framework. Arguments: { "path": "." }
+- lsp_diagnostics: Get language-server diagnostics (type errors) for a file. Use after edits to catch type errors. Arguments: { "path": "relative/path" }
+- lsp_hover: Get type/docs hover at a line/character position. Use to understand types/signatures before editing. Arguments: { "path": "relative/path", "line": 0, "character": 0 }
+- lsp_symbol: Search workspace symbols by name. Use to find where functions/classes/types are defined across the project. Arguments: { "query": "mySymbol" }
 - think: Record a reasoning step. Arguments: { "thought": "..." }
 - finish: Mark the task complete. Arguments: { "summary": "what was done", "success": true }. Use summary, not message. Do NOT call finish with success:false unless you have exhausted all attempts to fix verification failures.
 - publish: Request build/test/publish. Only after validation passes. Arguments: { "version": "optional" }
@@ -60,6 +64,7 @@ Rules:
   e. Read src/index.ts and export any public helpers/types needed by consumers (e.g., AtomicSelectorHealth, AtomicSelectorEngine).
   f. Run the relevant tests and fix failures, then verify the API surface with verify_api_surface using a check that mounts a logic and tests typeof logic.selectorHealth === 'function'. Do not finish until this check passes.
 18. Before calling finish, the final verification step must use verify_api_surface with a concrete runtime check for each public API named in the task. For instance APIs, the check must construct the object and return typeof instance.theMethod === 'function'. If the task requires logic.selectorHealth, the check must mount a logic and test typeof logic.selectorHealth === 'function'. If verify_api_surface fails, diagnose the root cause and wire the missing API before finishing.
+19. EXPLORATION DISCIPLINE: When entering an unfamiliar codebase or framework, your first exploration step after think must be code_overview to learn the entry points, source roots, and exported symbols. Use lsp_symbol to locate key symbols, lsp_hover to understand their signatures, and lsp_diagnostics after editing TypeScript files to catch type errors early. Do not rely solely on search and read_file for framework wiring tasks.
 
 ANTI-LOOP RULES (violation wastes steps and failure):
 - You are already in the project root on a dedicated branch in a fresh worktree. Do NOT run git status, git branch, git log, pwd, ls -la, or find more than once total in the entire session. Use list_files for exploration.
@@ -89,6 +94,10 @@ Available tools (use ONLY these exact names):
 - run_command: { "command": "single simple command, no pipes/&&/;/redirects/$(); quoted globs ok" }
 - list_files: { "path": ".", "recursive": true }
 - search: { "pattern": "myFunction|mySymbol", "path": "." }
+- code_overview: { "path": "." }
+- lsp_diagnostics: { "path": "relative/path" }
+- lsp_hover: { "path": "relative/path", "line": 0, "character": 0 }
+- lsp_symbol: { "query": "mySymbol" }
 - think: { "thought": "reasoning text" }
 - finish: { "summary": "what was done", "success": true | false }. Only use success:false if all fixes have failed.
 - publish: { "version": "optional" }
@@ -109,6 +118,7 @@ Rules:
 - If the task describes a new method/property on an instance, attach it to the runtime instance during build/creation and verify it is callable.
 - Write focused tests for new behavior and run them before finishing.
 - Before finishing, verify all public API methods/properties named in the task are exposed and callable. Use the verify_api_surface tool with concrete checks.
+- When entering an unfamiliar codebase or framework, use code_overview first, then lsp_symbol/lsp_hover to understand key symbols before editing. Use lsp_diagnostics after TypeScript edits to catch type errors early.
 - Do not switch branches; the harness already placed you on a dedicated branch. If the task says "from main" but the default branch differs, stay on the current branch.
 - Do not finish until verification passes.
 - Do not expose secrets or run destructive commands.

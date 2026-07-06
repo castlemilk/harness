@@ -1,5 +1,10 @@
 import { LspClient } from './client.js';
 import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface LspServerConfig {
   command: string;
@@ -7,13 +12,31 @@ export interface LspServerConfig {
   extensions: string[];
 }
 
-function commandExists(command: string): boolean {
+function findExecutable(name: string, projectPath: string): string | undefined {
+  // Check PATH first.
   try {
-    execFileSync('command', ['-v', command], { stdio: 'ignore' });
-    return true;
+    const resolved = execFileSync('command', ['-v', name], { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    if (resolved) return resolved;
   } catch {
-    return false;
+    // fall through
   }
+
+  // Search common node_modules/.bin locations.
+  const candidates = [
+    path.join(projectPath, 'node_modules', '.bin', name),
+    path.join(process.cwd(), 'node_modules', '.bin', name),
+    path.join(__dirname, '..', '..', '..', 'node_modules', '.bin', name),
+    path.join(__dirname, '..', '..', 'node_modules', '.bin', name),
+    path.join(__dirname, '..', 'node_modules', '.bin', name),
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) return candidate;
+    } catch {
+      // ignore
+    }
+  }
+  return undefined;
 }
 
 const DEFAULT_SERVERS: LspServerConfig[] = [
@@ -46,8 +69,9 @@ export function detectServers(_projectPath: string): LspServerConfig[] {
 export function createClients(projectPath: string): Map<string, LspClient> {
   const clients = new Map<string, LspClient>();
   for (const server of detectServers(projectPath)) {
-    if (!commandExists(server.command)) continue;
-    const client = new LspClient(server.command, server.args, projectPath);
+    const executable = findExecutable(server.command, projectPath);
+    if (!executable) continue;
+    const client = new LspClient(executable, server.args, projectPath);
     for (const ext of server.extensions) {
       clients.set(ext, client);
     }

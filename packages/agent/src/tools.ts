@@ -161,7 +161,11 @@ export async function editFile(
   try {
     const content = await fs.readFile(target, 'utf-8');
     if (!content.includes(oldString)) {
-      return { success: false, output: `old_string not found in ${filePath}` };
+      const context = content.slice(0, 500).replace(/\n/g, '\\n').slice(0, 200);
+      return {
+        success: false,
+        output: `old_string not found in ${filePath}. The file may have changed or the string may be slightly different. First 200 chars: ${context}`,
+      };
     }
     const updated = content.replace(oldString, newString);
     await fs.writeFile(target, updated, 'utf-8');
@@ -315,6 +319,125 @@ export async function searchFiles(
   }
 }
 
+const OVERVIEW_OUTPUT_LIMIT = 8_000;
+
+export async function codeOverview(projectPath: string, dirPath = '.'): Promise<ToolResult> {
+  const target = path.resolve(projectPath, dirPath);
+  if (!target.startsWith(path.resolve(projectPath))) {
+    return { success: false, output: 'Path traversal blocked' };
+  }
+
+  const lines: string[] = [];
+
+  // Package metadata
+  try {
+    const pkgRaw = await fs.readFile(path.join(target, 'package.json'), 'utf-8');
+    const pkg = JSON.parse(pkgRaw) as {
+      name?: string;
+      main?: string;
+      module?: string;
+      types?: string;
+      scripts?: Record<string, string>;
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    lines.push(`package: ${pkg.name ?? 'unknown'}`);
+    lines.push(`entry: ${pkg.main ?? pkg.module ?? pkg.types ?? 'src/index.ts (guessed)'}`);
+    const testScripts = Object.entries(pkg.scripts ?? {}).filter(([k]) => /test|spec|lint|build/.test(k));
+    if (testScripts.length > 0) {
+      lines.push('scripts:');
+      for (const [k, v] of testScripts.slice(0, 10)) {
+        lines.push(`  ${k}: ${v}`);
+      }
+    }
+    const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
+    const frameworks: string[] = [];
+    if (deps.react || deps['react-dom']) frameworks.push('react');
+    if (deps.next) frameworks.push('nextjs');
+    if (deps.vue) frameworks.push('vue');
+    if (deps.express) frameworks.push('express');
+    if (deps.fastify) frameworks.push('fastify');
+    if (deps['@nestjs/core']) frameworks.push('nestjs');
+    if (deps.typescript || (await exists(path.join(target, 'tsconfig.json')))) frameworks.push('typescript');
+    if (frameworks.length > 0) lines.push(`frameworks: ${frameworks.join(', ')}`);
+  } catch {
+    // ignore missing package.json
+  }
+
+  // Source directories
+  const sourceRoots = ['src', 'lib', 'app', 'apps', 'packages', 'test', 'tests'];
+  const foundRoots: string[] = [];
+  for (const root of sourceRoots) {
+    if (await exists(path.join(target, root))) foundRoots.push(root);
+  }
+  if (foundRoots.length > 0) lines.push(`source roots: ${foundRoots.join(', ')}`);
+
+  // Test files
+  const testFiles: string[] = [];
+  async function findTests(dir: string, depth: number): Promise<void> {
+    if (depth > 2) return;
+    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      if (SKIPPED_DIRS.has(entry.name)) continue;
+      const full = path.join(dir, entry.name);
+      const rel = path.relative(projectPath, full);
+      if (entry.isDirectory()) {
+        if (/test|spec|__tests__/.test(entry.name)) {
+          testFiles.push(`[d] ${rel}`);
+        }
+        await findTests(full, depth + 1);
+      } else if (/\.(test|spec)\.(ts|tsx|js|jsx)$/.test(entry.name)) {
+        testFiles.push(`[f] ${rel}`);
+      }
+    }
+  }
+  await findTests(target, 1);
+  if (testFiles.length > 0) {
+    lines.push('test files:');
+    lines.push(...testFiles.slice(0, 20));
+  }
+
+  // Entry-point exports (best-effort for TS/JS)
+  const entryCandidates = ['src/index.ts', 'src/index.js', 'index.ts', 'index.js', 'lib/index.js'];
+  for (const candidate of entryCandidates) {
+    const full = path.join(target, candidate);
+    if (!(await exists(full))) continue;
+    try {
+      const content = await fs.readFile(full, 'utf-8');
+      const exports: string[] = [];
+      const exportRe = /export\s+(?:(?:const|let|var|function|class|interface|type)\s+([A-Za-z_$][\w$]*)|(?:\*\s+from\s+['"]([^'"]+)['"])|(\{[^}]*\})\s+from)/g;
+      let m: RegExpExecArray | null;
+      while ((m = exportRe.exec(content)) !== null) {
+        if (m[1]) exports.push(m[1]);
+        else if (m[2]) exports.push(`* from ${m[2]}`);
+        else if (m[3]) exports.push(m[3].replace(/\s+/g, ' ').trim());
+      }
+      if (exports.length > 0) {
+        lines.push(`exports from ${candidate}:`);
+        lines.push(...exports.slice(0, 20));
+      }
+    } catch {
+      // ignore
+    }
+    break;
+  }
+
+  let output = lines.join('\n');
+  if (output.length > OVERVIEW_OUTPUT_LIMIT) {
+    output = `${output.slice(0, OVERVIEW_OUTPUT_LIMIT)}\n... [truncated]`;
+  }
+  return { success: true, output: output || 'No overview information available.' };
+}
+
+async function exists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function runCommand(projectPath: string, command: string): Promise<ToolResult> {
   const check = sanitizeCommand(command);
   if (!check.ok) {
@@ -335,9 +458,10 @@ export async function runCommand(projectPath: string, command: string): Promise<
     });
     return { success: true, output: stdout + stderr };
   } catch (err) {
-    const execErr = err as { stdout?: string; stderr?: string; message?: string };
+    const execErr = err as { stdout?: string; stderr?: string; message?: string; code?: number };
     const output = (execErr.stdout ?? '') + (execErr.stderr ?? '') || (execErr.message ?? String(err));
-    return { success: false, output };
+    const exitCode = execErr.code !== undefined ? ` (exit code ${String(execErr.code)})` : '';
+    return { success: false, output: `Command failed${exitCode}: ${cmd} ${cmdArgs.join(' ')}\n${output}` };
   }
 }
 
@@ -540,6 +664,8 @@ export async function executeTool(
       return searchFiles(projectPath, argString(arguments_.pattern), argString(arguments_.path) || '.');
     case 'think':
       return think(projectPath, argString(arguments_.thought));
+    case 'code_overview':
+      return codeOverview(projectPath, argString(arguments_.path) || '.');
     case 'lsp_diagnostics':
       return lspDiagnostics(projectPath, argString(arguments_.path));
     case 'lsp_hover':

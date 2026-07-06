@@ -19,7 +19,8 @@
     "@omega/core": "workspace:*",
     "@omega/db": "workspace:*",
     "@omega/providers": "workspace:*",
-    "@omega/router": "workspace:*"
+    "@omega/router": "workspace:*",
+    "typescript-language-server": "^4.3.4"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

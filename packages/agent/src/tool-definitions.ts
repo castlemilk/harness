@@ -95,7 +95,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'lsp_diagnostics',
-    description: 'Get language-server diagnostics for a file.',
+    description: 'Get language-server diagnostics (type errors, lint issues) for a file. Use after edits to catch type errors quickly.',
     parameters: {
       type: 'object',
       properties: { path: { type: 'string' } },
@@ -104,7 +104,7 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'lsp_hover',
-    description: 'Get type/docs hover at a position from the language server.',
+    description: 'Get type/docs hover at a line/character position from the language server. Use to understand types and signatures before editing.',
     parameters: {
       type: 'object',
       properties: {
@@ -117,11 +117,22 @@ export const AGENT_TOOLS: ToolDefinition[] = [
   },
   {
     name: 'lsp_symbol',
-    description: 'Search workspace symbols via the language server.',
+    description: 'Search workspace symbols via the language server. Use to find where functions, classes, or types are defined across the project.',
     parameters: {
       type: 'object',
       properties: { query: { type: 'string' } },
       required: ['query'],
+    },
+  },
+  {
+    name: 'code_overview',
+    description: 'Get a structural overview of the project: entry points, main source directories, test files, framework markers, and key exports. Use this at the start of exploration to understand where to wire new features.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Relative directory path to overview (default: project root).' },
+      },
+      required: [],
     },
   },
   {

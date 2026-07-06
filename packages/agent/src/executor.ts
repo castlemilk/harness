@@ -715,6 +715,10 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
           ? {}
           : { error: result.output.slice(0, 500) }),
       });
+      // Allow verification commands to be re-run after a file change.
+      if ((call.name === 'edit_file' || call.name === 'write_file') && result.success) {
+        ctx.recentCommands.clear();
+      }
       if (call.name === 'verify_api_surface' && result.success) {
         ctx.apiSurfaceVerified = true;
       }

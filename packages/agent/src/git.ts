@@ -11,14 +11,16 @@ export interface GitResult {
 async function git(
   projectPath: string,
   args: string[],
-  options: { timeout?: number } = {}
+  options: { timeout?: number; trim?: boolean } = {}
 ): Promise<GitResult> {
   try {
     const { stdout, stderr } = await execFileAsync('git', args, {
       cwd: projectPath,
       timeout: options.timeout ?? 30_000,
     });
-    return { success: true, output: stdout.trim() + stderr.trim() };
+    const shouldTrim = options.trim ?? true;
+    const out = shouldTrim ? stdout.trim() + stderr.trim() : stdout + stderr;
+    return { success: true, output: out };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { success: false, output: message };
@@ -84,7 +86,8 @@ export async function getDiff(projectPath: string, base?: string): Promise<GitRe
         ':!.omega',
       ]
     : ['diff', '--', '.', ':!pnpm-lock.yaml', ':!yarn.lock', ':!package-lock.json', ':!node_modules', ':!.omega'];
-  return git(projectPath, args);
+  // Preserve exact patch bytes; trimming trailing whitespace corrupts patches.
+  return git(projectPath, args, { trim: false });
 }
 
 export async function hasChanges(projectPath: string): Promise<boolean> {

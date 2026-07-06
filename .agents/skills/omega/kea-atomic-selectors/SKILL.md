@@ -41,12 +41,21 @@ Edit `src/kea/context.ts`.
 
 Edit `src/types.ts`.
 
-1. Add `selectorHealth?: () => AtomicSelectorHealth` to the `Logic` interface.
-2. Add `selectorHealth?: () => AtomicSelectorHealth` to `MakeLogicType`.
+1. Add `selectorHealth?: () => any` to the `Logic` interface.
+2. Add `selectorHealth?: () => any` to `MakeLogicType`.
 3. Add `atomicSelectors: boolean` to `InternalContextOptions`.
-4. Append the `AtomicSelectorHealth` interface at the bottom of the file:
+
+Do NOT add an `AtomicSelectorHealth` interface to this file; that type lives in `src/kea/atomic.ts` and is exported from there. Using `any` for `selectorHealth` here avoids a circular import and keeps the change minimal.
+
+## Step 3 — Atomic engine file
+
+Create `src/kea/atomic.ts` with the implementation below. This is the core engine; do not simplify it.
 
 ```ts
+import { getContext, getPluginContext, getStoreState } from './context'
+import { BuiltLogic, Logic, Selector } from '../types'
+import { shallowCompare } from '../utils'
+
 export interface AtomicSelectorHealth {
   selectors: Record<
     string,
@@ -59,16 +68,6 @@ export interface AtomicSelectorHealth {
   >
   topologicalOrder?: string[]
 }
-```
-
-## Step 3 — Atomic engine file
-
-Create `src/kea/atomic.ts` with the implementation below. This is the core engine; do not simplify it.
-
-```ts
-import { getContext, getPluginContext, getStoreState } from './context'
-import { BuiltLogic, Logic, Selector, AtomicSelectorHealth } from '../types'
-import { shallowCompare } from '../utils'
 
 export interface AtomicMetadata {
   evaluations: number

@@ -60,6 +60,7 @@ export const api = {
   getTaskDiffs: (id: string) => request(`/tasks/${id}/diffs`),
   getTaskAgentRun: (id: string) => request(`/tasks/${id}/agent-run`),
   getTraceFlow: (id: string) => request(`/tasks/${id}/trace-flow`),
+  getTraceAnalysis: (id: string) => request(`/tasks/${id}/trace-analysis`),
 
   getBenchmarkReports: () => request<{ benchmark: string[]; ab: string[] }>('/benchmarks/reports'),
   getBenchmarkReport: (file: string) => request<Record<string, unknown>>(`/benchmarks/reports/${encodeURIComponent(file)}`),

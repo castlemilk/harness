@@ -459,7 +459,6 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   let success = false;
   let summary = '';
   let noActionCount = 0;
-  let turnCount = 0;
   let lastTurnHadFailure = false;
 
   // Maintain a full conversation transcript so the model remembers prior tool outputs.
@@ -475,7 +474,6 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   ];
 
   while (stepIndex < ctx.maxSteps && !finished) {
-    turnCount++;
     const response = await sendToProvider(ctx, messages);
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
@@ -746,13 +744,12 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       stepIndex++;
     }
 
-    const shouldReflect =
-      turnHadFailure || lastTurnHadFailure || (turnCount > 0 && turnCount % 8 === 0);
+    const shouldReflect = turnHadFailure || lastTurnHadFailure;
     lastTurnHadFailure = turnHadFailure;
 
     let nextPrompt = buildToolResultPrompt(ctx.task, toolResults);
     if (shouldReflect && !finished) {
-      const reflection = await reflectOnTrace(ctx, 6);
+      const reflection = await reflectOnTrace(ctx, 3);
       if (reflection) {
         await addTrace(ctx, 'assistant', `Reflection: ${reflection}`);
         nextPrompt = `Reflection: ${reflection}\n\n${nextPrompt}`;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { TraceFlow } from './TraceFlow.js';
+import { TraceAnalysisPanel } from './TraceAnalysisPanel.js';
 
 interface Step {
   id: string;
@@ -52,7 +53,7 @@ export function TaskDetail({ taskId }: Props) {
   const [diffs, setDiffs] = useState<Diff[]>([]);
   const [agentRun, setAgentRun] = useState<AgentRun | null>(null);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<'steps' | 'traces' | 'diff' | 'trace'>('steps');
+  const [tab, setTab] = useState<'steps' | 'traces' | 'diff' | 'trace' | 'analysis'>('steps');
 
   async function load() {
     setLoading(true);
@@ -117,6 +118,12 @@ export function TaskDetail({ taskId }: Props) {
         >
           Trace flow
         </button>
+        <button
+          onClick={() => { setTab('analysis'); }}
+          className={`px-2 py-1 rounded ${tab === 'analysis' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}
+        >
+          Analysis
+        </button>
         <button onClick={() => { void load(); }} className="ml-auto px-2 py-1 bg-gray-100 rounded">
           Refresh
         </button>
@@ -176,6 +183,7 @@ export function TaskDetail({ taskId }: Props) {
       )}
 
       {tab === 'trace' && <TraceFlow taskId={taskId} />}
+      {tab === 'analysis' && <TraceAnalysisPanel taskId={taskId} />}
     </div>
   );
 }

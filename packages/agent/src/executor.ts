@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
 import { createPlan } from './planner.js';
-import { executeTool, type ToolResult } from './tools.js';
+import { executeTool, validatePatch, type ToolResult } from './tools.js';
 import { validateProject, type ValidationSummary } from './validator.js';
 import { publishOmega, type PublishResult } from './publisher.js';
 import {
@@ -91,6 +91,17 @@ function taskMentionsPublicApi(task: Task): boolean {
   return API_SURFACE_HINTS.some((pattern) => pattern.test(text));
 }
 
+const TEST_HINTS = /\b(test|jest|spec|verifier|benchmark|npm test|pnpm test|yarn test)\b/i;
+
+function taskLikelyHasTests(task: Task, skillContext?: string): boolean {
+  const text = `${task.title} ${task.description ?? ''} ${skillContext ?? ''}`;
+  return TEST_HINTS.test(text);
+}
+
+function looksLikeTestCommand(command: string): boolean {
+  return /\b(jest|mocha|vitest|tap|ava|npm test|pnpm test|yarn test)\b/i.test(command);
+}
+
 interface AgentContext {
   prisma: PrismaClient;
   task: Task;
@@ -112,6 +123,7 @@ interface AgentContext {
   editCount: number;
   editsSinceVerify: number;
   explorationAtLastEdit: number;
+  hasRunTestCommand: boolean;
   tracer: Tracer;
   rootSpan: Span;
   systemPrompt: string;
@@ -325,6 +337,7 @@ export async function runAgentTask(
     editCount: 0,
     editsSinceVerify: 0,
     explorationAtLastEdit: 0,
+    hasRunTestCommand: false,
     tracer,
     rootSpan,
     systemPrompt,
@@ -573,6 +586,20 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
           messages.push({ role: 'tool', tool_call_id: call.id, content: message });
           break;
         }
+        if (ctx.modifiedFiles.size > 0 || (await hasChanges(ctx.projectPath))) {
+          const patchCheck = await validatePatch(ctx.projectPath, ctx.baseCommit);
+          if (!patchCheck.success) {
+            const message = `finish rejected: the current changes do not form a clean patch. Run validate_patch to diagnose, then fix the diff before finishing. Details: ${patchCheck.output}`;
+            turnHadFailure = true;
+            await ctx.prisma.taskStep.update({
+              where: { id: stepId },
+              data: { status: 'failed', output: message },
+            });
+            toolResults.push({ toolCallId: call.id, output: message });
+            messages.push({ role: 'tool', tool_call_id: call.id, content: message });
+            break;
+          }
+        }
         finished = true;
         success = Boolean(call.arguments.success);
         const summaryArg =
@@ -657,15 +684,29 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
       const toolSpan = ctx.tracer.startSpan(`agent.tool.${call.name}`, ctx.rootSpan.toContext());
       toolSpan.setAttributes({ tool: call.name });
 
+      if (call.name === 'run_command' && typeof call.arguments.command === 'string' && looksLikeTestCommand(call.arguments.command)) {
+        ctx.hasRunTestCommand = true;
+      }
+
       let result: ToolResult;
       const stuckWithoutEdits = ctx.editCount === 0 && stepIndex >= ctx.explorationBudget.beforeFirstEdit * 2 && !editTools.includes(call.name) && call.name !== 'finish' && call.name !== 'publish';
       const explorationBudgetExhausted = ctx.editCount === 0 && ctx.explorationCount > ctx.explorationBudget.beforeFirstEdit && isExploration;
       const wanderingAfterEdits = ctx.editCount > 0 && ctx.explorationCount - ctx.explorationAtLastEdit > ctx.explorationBudget.betweenEdits && isExploration;
       const needsVerifyAfterEdits = ctx.editsSinceVerify >= 3 && editTools.includes(call.name);
+      const needsTestBeforeFirstEdit =
+        ctx.editCount === 0 &&
+        !ctx.hasRunTestCommand &&
+        editTools.includes(call.name) &&
+        taskLikelyHasTests(ctx.task, ctx.promptContext);
       if (stuckWithoutEdits || explorationBudgetExhausted) {
         result = {
           success: false,
           output: `Forcing action: you have used ${String(ctx.explorationCount)} exploration steps and made ${String(ctx.editCount)} edits. Stop exploring and use edit_file or write_file to advance the task.`,
+        };
+      } else if (needsTestBeforeFirstEdit) {
+        result = {
+          success: false,
+          output: 'Edit rejected: this task has a test suite. Run the focused test command first (e.g. "npx jest test/jest/atomic.js" or "npm test") and read the failing tests before editing source code.',
         };
       } else if (wanderingAfterEdits) {
         result = {

@@ -20,7 +20,8 @@ Follow this loop on every task:
 4. ACT — Make edits. Prefer edit_file for small targeted changes; use write_file only for new files or when rewriting most of an existing file.
 5. VERIFY — Run the relevant tests, lint, and build commands. Review output carefully. Fix any failure before moving on.
 6. VERIFY-API — Before declaring success, confirm every public method, property, function, or export named in the task is actually exposed and callable. Run a quick import/call check (e.g., node -e "const m = require('./lib'); console.log(typeof m.selectorHealth)"). If any expected API is missing, add it.
-7. CRITIQUE — If verification fails, stop and diagnose the root cause with think before retrying. Do not blindly apply the same fix again.
+7. VALIDATE-PATCH — Before finish, call validate_patch to confirm your changes form a clean, applyable patch. If the patch is corrupt, fix it.
+8. CRITIQUE — If verification fails, stop and diagnose the root cause with think before retrying. Do not blindly apply the same fix again.
 
 Available tools:
 
@@ -38,6 +39,7 @@ Available tools:
 - finish: Mark the task complete. Arguments: { "summary": "what was done", "success": true }. Use summary, not message. Do NOT call finish with success:false unless you have exhausted all attempts to fix verification failures.
 - publish: Request build/test/publish. Only after validation passes. Arguments: { "version": "optional" }
 - verify_api_surface: Confirm required public API is exposed. For TypeScript projects build first or point entry to the compiled output. Arguments: { "entry": "lib/index.js (optional)", "checks": ["typeof api.someExport === 'function'"] }.
+- validate_patch: Validate that current changes form a clean, applyable patch. Call before finish. Arguments: {}.
 
 Rules:
 1. Read the task, then use think to plan before any edits.
@@ -105,6 +107,7 @@ Available tools (use ONLY these exact names):
 - finish: { "summary": "what was done", "success": true | false }. Only use success:false if all fixes have failed.
 - publish: { "version": "optional" }
 - verify_api_surface: { "entry": "lib/index.js (optional)", "checks": ["typeof api.someExport === 'function'"] }
+- validate_patch: {}
 
 Follow this loop on every task:
 1. think — reason about requirements and edge cases.

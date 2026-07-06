@@ -99,6 +99,28 @@ export async function buildPromptContext(
 
   const taskIds = recentRuns.map((r) => r.task.id);
 
+  // Find example diffs from prior similar tasks (same project, similar description keywords).
+  const exampleDiffs = await prisma.taskDiff.findMany({
+    where: {
+      task: {
+        projectId,
+        description: { not: null },
+        status: { in: ['done', 'failed'] },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+    include: { task: { select: { title: true, description: true, status: true } } },
+  });
+  const keywords = extractTaskKeywords(options.taskDescription);
+  const relevantExamples = exampleDiffs
+    .filter((d) => {
+      if (!d.patch || d.patch.length < 50) return false;
+      const descWords = (d.task.description ?? '').toLowerCase().split(/\W+/);
+      return keywords.some((k) => descWords.includes(k.toLowerCase()));
+    })
+    .slice(0, 2);
+
   const [toolSpans, failedSteps, recentFailedTasks] = await Promise.all([
     prisma.traceSpan.groupBy({
       by: ['name', 'status'],
@@ -237,6 +259,19 @@ export async function buildPromptContext(
   if (taskHints) {
     lines.push('- Task-specific guidance:');
     lines.push(taskHints);
+  }
+
+  if (relevantExamples.length > 0) {
+    lines.push('- Prior attempts at similar tasks (study what changed and any verifier/test failures):');
+    for (const ex of relevantExamples) {
+      const status = ex.task.status;
+      const patchSummary = ex.patch
+        .split('\n')
+        .filter((l) => l.startsWith('diff --git'))
+        .slice(0, 5)
+        .join('\n  ');
+      lines.push(`  * ${ex.task.title} [${status}]:\n  ${patchSummary}`);
+    }
   }
 
   lines.push('Use this context to avoid repeating failures and to prioritise high-impact edits.');

@@ -151,4 +151,13 @@ export const AGENT_TOOLS: ToolDefinition[] = [
       required: [],
     },
   },
+  {
+    name: 'validate_patch',
+    description: 'Validate that the current code changes form a clean, applyable patch against the base commit. Call this after making edits and before finish.',
+    parameters: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
 ];

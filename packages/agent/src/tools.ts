@@ -571,6 +571,36 @@ async function findPackageEntry(projectPath: string): Promise<string | undefined
   return undefined;
 }
 
+export async function validatePatch(projectPath: string, baseCommit?: string): Promise<ToolResult> {
+  try {
+    const diffArgs = baseCommit
+      ? ['diff', baseCommit, 'HEAD', '--', '.', ':!pnpm-lock.yaml', ':!yarn.lock', ':!package-lock.json', ':!node_modules', ':!.omega']
+      : ['diff', '--', '.', ':!pnpm-lock.yaml', ':!yarn.lock', ':!package-lock.json', ':!node_modules', ':!.omega'];
+    const { stdout: patch } = await execFileAsync('git', diffArgs, { cwd: projectPath, timeout: 30_000 });
+    if (!patch || patch.trim().length === 0) {
+      return { success: true, output: 'No changes to validate.' };
+    }
+    const patchFile = path.join(projectPath, '.omega', 'validate.patch');
+    await fs.mkdir(path.dirname(patchFile), { recursive: true });
+    await fs.writeFile(patchFile, patch, 'utf-8');
+    try {
+      const { stdout, stderr } = await execFileAsync('git', ['apply', '--check', patchFile], {
+        cwd: projectPath,
+        timeout: 30_000,
+      });
+      return { success: true, output: `Patch is valid and applies cleanly (${String(patch.length)} bytes).\n${stdout}${stderr}` };
+    } finally {
+      await fs.unlink(patchFile).catch(() => {
+        // ignore cleanup errors
+      });
+    }
+  } catch (err) {
+    const execErr = err as { stdout?: string; stderr?: string; message?: string; code?: number };
+    const output = (execErr.stdout ?? '') + (execErr.stderr ?? '') || (execErr.message ?? String(err));
+    return { success: false, output: `Patch validation failed:\n${output}` };
+  }
+}
+
 export async function verifyApiSurface(
   projectPath: string,
   entryArg?: string,
@@ -683,6 +713,8 @@ export async function executeTool(
         argString(arguments_.entry),
         Array.isArray(arguments_.checks) ? arguments_.checks.map((c) => argString(c)) : undefined
       );
+    case 'validate_patch':
+      return validatePatch(projectPath);
     default:
       return { success: false, output: `Unknown tool: ${name}` };
   }

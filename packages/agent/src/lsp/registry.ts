@@ -4,6 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 
+const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'target', '__pycache__', '.venv']);
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export interface LspServerConfig {
@@ -67,8 +69,37 @@ const DEFAULT_SERVERS: LspServerConfig[] = [
   },
 ];
 
-export function detectServers(_projectPath: string): LspServerConfig[] {
-  return DEFAULT_SERVERS;
+function hasMatchingExtension(projectPath: string, extensions: string[]): boolean {
+  const seen = new Set<string>();
+  function walk(dir: string, depth: number): boolean {
+    if (depth <= 0) return false;
+    let entries: fs.Dirent[] = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (SKIP_DIRS.has(entry.name)) continue;
+        if (walk(path.join(dir, entry.name), depth - 1)) return true;
+        continue;
+      }
+      if (entry.isFile()) {
+        const ext = path.extname(entry.name);
+        if (extensions.includes(ext) && !seen.has(ext)) {
+          seen.add(ext);
+          if (seen.size >= 1) return true;
+        }
+      }
+    }
+    return false;
+  }
+  return walk(projectPath, 3);
+}
+
+export function detectServers(projectPath: string): LspServerConfig[] {
+  return DEFAULT_SERVERS.filter((server) => hasMatchingExtension(projectPath, server.extensions));
 }
 
 export function createClients(projectPath: string): Map<string, LspClient> {

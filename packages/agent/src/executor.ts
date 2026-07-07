@@ -260,6 +260,8 @@ export async function runAgentTask(
     kind: cfg.kind as ProviderConfig['kind'],
     baseUrl: cfg.baseUrl ?? undefined,
     apiKey: cfg.apiKey ?? undefined,
+    refreshToken: cfg.refreshToken ?? undefined,
+    tokenExpiresAt: cfg.tokenExpiresAt?.getTime() ?? undefined,
     defaultModel: cfg.defaultModel,
     capabilities: JSON.parse(cfg.capabilities) as ProviderConfig['capabilities'],
     enabled: cfg.enabled,
@@ -270,6 +272,24 @@ export async function runAgentTask(
     throw new Error('No provider available for this task');
   }
   const provider = createProvider(selection.provider);
+  // Wire up credential persistence for OAuth token refresh
+  if (selection.provider.refreshToken) {
+    const providerId = selection.provider.id;
+    selection.provider.onCredentialsUpdate = async (creds) => {
+      try {
+        await prisma.providerConfig.update({
+          where: { id: providerId },
+          data: {
+            apiKey: creds.apiKey,
+            refreshToken: creds.refreshToken,
+            tokenExpiresAt: new Date(creds.tokenExpiresAt),
+          },
+        });
+      } catch (err) {
+        console.warn('Failed to persist refreshed OAuth credentials:', err);
+      }
+    };
+  }
 
   const branch = `agent/${task.id}`;
   const baseBranch = await getCurrentBranch(options.projectPath);

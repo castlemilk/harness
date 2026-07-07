@@ -123,15 +123,17 @@ model TraceSpan {
 }
 
 model ProviderConfig {
-  id           String   @id @default(uuid())
-  name         String   @unique
-  kind         String
-  baseUrl      String?
-  apiKey       String?
-  defaultModel String
-  capabilities String // JSON
-  enabled      Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  id              String    @id @default(uuid())
+  name            String    @unique
+  kind            String
+  baseUrl         String?
+  apiKey          String?
+  refreshToken    String?
+  tokenExpiresAt  DateTime?
+  defaultModel    String
+  capabilities    String // JSON
+  enabled         Boolean   @default(true)
+  createdAt       DateTime  @default(now())
 }
 
 model SkillArtifact {

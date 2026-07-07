@@ -10,7 +10,21 @@ const createSchema = z.object({
   kind: providerKinds,
   baseUrl: z.string().optional(),
   apiKey: z.string().optional(),
+  refreshToken: z.string().optional(),
+  tokenExpiresAt: z.number().optional(),
   defaultModel: z.string().min(1),
+  capabilities: z.union([z.string(), z.array(z.any())]).optional(),
+  enabled: z.boolean().optional(),
+});
+
+const updateSchema = z.object({
+  name: z.string().min(1).optional(),
+  kind: providerKinds.optional(),
+  baseUrl: z.string().optional().nullable(),
+  apiKey: z.string().optional().nullable(),
+  refreshToken: z.string().optional().nullable(),
+  tokenExpiresAt: z.number().optional().nullable(),
+  defaultModel: z.string().min(1).optional(),
   capabilities: z.union([z.string(), z.array(z.any())]).optional(),
   enabled: z.boolean().optional(),
 });
@@ -40,7 +54,13 @@ export function providerRoutes(prisma: PrismaClient): Router {
     const body = createSchema.parse(req.body);
     const provider = await prisma.providerConfig.create({
       data: {
-        ...body,
+        name: body.name,
+        kind: body.kind,
+        defaultModel: body.defaultModel,
+        baseUrl: body.baseUrl,
+        apiKey: body.apiKey,
+        refreshToken: body.refreshToken,
+        tokenExpiresAt: body.tokenExpiresAt !== undefined ? new Date(body.tokenExpiresAt) : undefined,
         capabilities: normalizeCapabilities(body.capabilities),
         enabled: body.enabled ?? true,
       },
@@ -57,6 +77,30 @@ export function providerRoutes(prisma: PrismaClient): Router {
     const provider = await prisma.providerConfig.update({
       where: { id: req.params.id },
       data: { enabled: !existing.enabled },
+    });
+    res.json(provider);
+  }));
+
+  r.patch('/:id', asyncHandler(async (req, res) => {
+    const existing = await prisma.providerConfig.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      res.status(404).json({ error: 'Provider not found' });
+      return;
+    }
+    const body = updateSchema.parse(req.body);
+    const data: Record<string, unknown> = {};
+    if (body.name !== undefined) data.name = body.name;
+    if (body.kind !== undefined) data.kind = body.kind;
+    if (body.baseUrl !== undefined) data.baseUrl = body.baseUrl;
+    if (body.apiKey !== undefined) data.apiKey = body.apiKey;
+    if (body.refreshToken !== undefined) data.refreshToken = body.refreshToken;
+    if (body.tokenExpiresAt !== undefined) data.tokenExpiresAt = body.tokenExpiresAt !== null ? new Date(body.tokenExpiresAt) : null;
+    if (body.defaultModel !== undefined) data.defaultModel = body.defaultModel;
+    if (body.capabilities !== undefined) data.capabilities = normalizeCapabilities(body.capabilities);
+    if (body.enabled !== undefined) data.enabled = body.enabled;
+    const provider = await prisma.providerConfig.update({
+      where: { id: req.params.id },
+      data,
     });
     res.json(provider);
   }));

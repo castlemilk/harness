@@ -15,15 +15,24 @@ export interface Capability {
 
 export type ProviderKind = 'openai' | 'anthropic' | 'ollama' | 'gemini' | 'kimi' | 'generic';
 
+export interface CredentialsUpdate {
+  apiKey: string;
+  refreshToken: string;
+  tokenExpiresAt: number;
+}
+
 export interface ProviderConfig {
   id: string;
   name: string;
   kind: ProviderKind;
   baseUrl?: string;
   apiKey?: string;
+  refreshToken?: string;
+  tokenExpiresAt?: number; // epoch ms
   defaultModel: string;
   capabilities: Capability[];
   enabled: boolean;
+  onCredentialsUpdate?: (creds: CredentialsUpdate) => void;
 }
 
 export interface UsageInfo {

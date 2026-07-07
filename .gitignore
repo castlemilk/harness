@@ -13,3 +13,4 @@ packages/db/generated/
 packages/bundle/*.tgz
 packages/bundle/dist/
 pglite-data.bak.*
+.serena/

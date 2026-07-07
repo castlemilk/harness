@@ -47,6 +47,7 @@ const runCmd = new Command('run')
   .option('--task-id <id>', 'run only specific DeepSWE task(s) by id (repeatable)', collectTaskIds, [])
   .option('--timeout <ms>', 'per-task timeout in ms', '1800000')
   .option('--output-dir <dir>', 'report output directory', '.omega/reports')
+  .option('--project-prefix <prefix>', 'project name prefix for created harness projects', 'bench')
   .option('--provider <name>', 'provider to use for benchmark tasks')
   .option('--model <model>', 'model to use for benchmark tasks')
   .option('--docker', 'run DeepSWE verifiers in Docker (required for most Node.js tasks)')
@@ -59,6 +60,7 @@ const runCmd = new Command('run')
     taskId: string[];
     timeout: string;
     outputDir: string;
+    projectPrefix: string;
     provider?: string;
     model?: string;
     docker?: boolean;
@@ -100,6 +102,7 @@ const runCmd = new Command('run')
       apiUrl,
       suiteName,
       timeoutMs,
+      projectPrefix: opts.projectPrefix,
       provider: opts.provider,
       model: opts.model,
       tokenBudget: opts.tokenBudget,

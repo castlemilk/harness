@@ -84,6 +84,55 @@ async function readTask(taskDir: string): Promise<{ toml: DeepSWETaskToml; instr
   return { toml: parseToml(tomlRaw), instruction: instructionRaw };
 }
 
+// Per-language verification commands injected into the task description so the
+// agent knows exactly how to compile and run the project's existing tests. The
+// DeepSWE hidden fail-to-pass tests are applied by the verifier AFTER the agent
+// finishes, so the agent can only implement from this spec; the build-gate below
+// stops it shipping uncompilable code (the #1 cause of 0/0 results).
+function languageGuidance(language: string | undefined): string {
+  const lang = (language ?? '').toLowerCase();
+  let cmds: string;
+  if (lang === 'go') {
+    cmds = `Language: Go.
+- Build/compile check (run first, must exit 0): go build ./...
+- Run existing tests: go test ./...
+- Format: gofmt -w .`;
+  } else if (lang === 'python') {
+    cmds = `Language: Python.
+- Install deps if missing: pip install -e .  (or: pip install -r requirements.txt)
+- Run existing tests: python -m pytest -q
+- If no pytest, fall back to: python -m unittest`;
+  } else if (lang === 'rust') {
+    cmds = `Language: Rust.
+- Build/compile check (run first, must exit 0): cargo build
+- Run existing tests: cargo test
+- Format: cargo fmt`;
+  } else if (lang === 'typescript' || lang === 'javascript') {
+    cmds = `Language: ${lang[0].toUpperCase()}${lang.slice(1)}.
+- Install deps if missing: npm install  (or: pnpm install)
+- Typecheck: npx tsc --noEmit
+- Run existing tests: npm test  (or: pnpm test)
+- Lint: npm run lint  (or: pnpm lint)`;
+  } else {
+    cmds = `Language: unknown. Detect the project's test/build command from package.json, go.mod, Cargo.toml, or pyproject.toml, then run it.`;
+  }
+  return cmds;
+}
+
+function buildDeepSweDescription(instruction: string, language: string | undefined): string {
+  const guidance = languageGuidance(language);
+  return `${guidance}
+
+BUILD GATE (critical): the verifier scores you zero if the project does not compile or the existing test suite breaks. Before calling finish you MUST:
+  1. Run the build/compile command above and confirm zero errors.
+  2. Run the existing test command above and confirm the pre-existing tests still pass.
+  3. If either fails, fix it before finishing. Do NOT finish while the build is broken.
+Implement precisely to the spec below - the hidden test suite checks exact behaviour (error message text, formatting, attribute names, signatures).
+
+---
+${instruction}`;
+}
+
 async function cloneRepo(repoUrl: string, commit: string, targetPath: string): Promise<void> {
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
   await execFileAsync('git', ['clone', repoUrl, targetPath], { timeout: 120000 });
@@ -388,12 +437,13 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
     const title = toml.metadata?.display_title ?? toml.metadata?.original_title ?? id;
     const repo = toml.metadata?.repository_url;
     const commit = toml.metadata?.base_commit_hash;
+    const language = toml.metadata?.language;
 
     tasks.push({
       id: `deepswe-${id}`,
       name: id,
       title,
-      description: instruction,
+      description: buildDeepSweDescription(instruction, language),
       complexity: 'complex',
       setup: async (projectPath: string) => {
         if (!repo || !commit) {

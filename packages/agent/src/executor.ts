@@ -63,6 +63,79 @@ function maxStepsForComplexity(complexity: string | undefined): number {
   }
 }
 
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function tryInstall(cmd: string, args: string[], cwd: string, timeoutMs: number, label: string): Promise<void> {
+  try {
+    logger.info(`Installing ${label} dependencies in worktree`, { cwd, command: `${cmd} ${args.join(' ')}` });
+    await execFileAsync(cmd, args, { cwd, timeout: timeoutMs });
+  } catch (err) {
+    logger.warn(`${label} dependency install failed`, {
+      cwd,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+// Installs language-appropriate dependencies into an isolated worktree so the
+// agent can run the project's build and test commands. Best-effort: failures are
+// logged but never fatal (the agent can still install manually via run_command).
+async function installWorktreeDependencies(projectPath: string): Promise<void> {
+  const hasPackageJson = await pathExists(path.join(projectPath, 'package.json'));
+  if (hasPackageJson) {
+    const hasNodeModules = await pathExists(path.join(projectPath, 'node_modules'));
+    if (!hasNodeModules) {
+      const lockfile = (await pathExists(path.join(projectPath, 'pnpm-lock.yaml')))
+        ? 'pnpm'
+        : (await pathExists(path.join(projectPath, 'yarn.lock')))
+          ? 'yarn'
+          : 'npm';
+      if (lockfile === 'pnpm') {
+        await tryInstall('pnpm', ['install', '--prefer-offline'], projectPath, 300_000, 'node (pnpm)');
+      } else if (lockfile === 'yarn') {
+        await tryInstall('yarn', ['install'], projectPath, 300_000, 'node (yarn)');
+      } else {
+        await tryInstall('npm', ['ci'], projectPath, 300_000, 'node (npm)');
+        const npmOk = await pathExists(path.join(projectPath, 'node_modules'));
+        if (!npmOk) await tryInstall('npm', ['install'], projectPath, 300_000, 'node (npm)');
+      }
+    }
+    return;
+  }
+
+  // Python: prefer requirements files, then editable install of the package.
+  const hasPyproject = await pathExists(path.join(projectPath, 'pyproject.toml'));
+  const hasSetupPy = await pathExists(path.join(projectPath, 'setup.py'));
+  const hasRequirements = await pathExists(path.join(projectPath, 'requirements.txt'));
+  if (hasPyproject || hasSetupPy || hasRequirements) {
+    if (hasRequirements) {
+      await tryInstall('python', ['-m', 'pip', 'install', '-r', 'requirements.txt'], projectPath, 300_000, 'python (requirements)');
+    }
+    if (hasPyproject || hasSetupPy) {
+      await tryInstall('python', ['-m', 'pip', 'install', '-e', '.'], projectPath, 300_000, 'python (editable)');
+    }
+    return;
+  }
+
+  // Rust: cargo fetch primes the registry cache so `cargo build`/`cargo test` are faster.
+  if (await pathExists(path.join(projectPath, 'Cargo.toml'))) {
+    await tryInstall('cargo', ['fetch'], projectPath, 300_000, 'rust');
+    return;
+  }
+
+  // Go: go mod download primes the module cache.
+  if (await pathExists(path.join(projectPath, 'go.mod'))) {
+    await tryInstall('go', ['mod', 'download'], projectPath, 180_000, 'go');
+  }
+}
+
 function explorationBudgetForComplexity(complexity: string | undefined): { beforeFirstEdit: number; betweenEdits: number } {
   switch (complexity) {
     case 'simple':
@@ -237,20 +310,9 @@ export async function runAgentTask(
     }
   }
 
-  // Isolated worktrees often lack node_modules. Install dependencies so validation and LSP work.
-  try {
-    await fs.access(path.join(effectiveProjectPath, 'node_modules'));
-  } catch {
-    logger.info('Installing dependencies in worktree', { projectPath: effectiveProjectPath });
-    try {
-      await execFileAsync('pnpm', ['install'], { cwd: effectiveProjectPath, timeout: 300_000 });
-    } catch (err) {
-      logger.warn('Dependency install failed', {
-        projectPath: effectiveProjectPath,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
+  // Isolated worktrees lack installed dependencies. Install per-language so the
+  // agent's build/test verification (the build gate) can actually run.
+  await installWorktreeDependencies(effectiveProjectPath);
 
   const promptContext = await buildPromptContext(prisma, task.projectId, {
     lookbackRuns: 5,
@@ -1146,7 +1208,7 @@ function parseXmlActions(text: string): ToolCall[] {
     const endInvoke = text.indexOf('</invoke>', start);
     if (endInvoke === -1) continue;
     const block = text.slice(start, endInvoke);
-    const args: Record<string, string> = {};
+    const args: Record<string, string | undefined> = {};
     const paramRe = /<parameter\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/parameter>/g;
     let paramMatch: RegExpExecArray | null;
     while ((paramMatch = paramRe.exec(block)) !== null) {
@@ -1154,14 +1216,14 @@ function parseXmlActions(text: string): ToolCall[] {
     }
     const id = `xml-${actions.length.toString()}`;
     if (name === 'finish') {
-      const summary = args.thought ?? args.summary ?? Object.values(args).join(' ');
+      const summary = args.thought ?? args.summary ?? Object.values(args).filter(Boolean).join(' ');
       actions.push({
         id,
         name,
         arguments: { summary, success: !/fail|error/i.test(summary) },
       });
     } else if (name === 'think') {
-      actions.push({ id, name, arguments: { thought: args.thought ?? Object.values(args).join(' ') } });
+      actions.push({ id, name, arguments: { thought: args.thought ?? Object.values(args).filter(Boolean).join(' ') } });
     } else {
       const typedArgs: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(args)) typedArgs[k] = v;

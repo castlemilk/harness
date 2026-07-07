@@ -29,7 +29,26 @@ export class OllamaProvider implements Provider {
           content: m.content ?? '',
         };
         if (m.tool_calls && m.tool_calls.length > 0) {
-          base.tool_calls = m.tool_calls;
+          // Normalize back to Ollama's expected format (id, type, function wrapper).
+          // Ollama rejects arguments as JSON strings; it must be a parsed object.
+          base.tool_calls = m.tool_calls.map((tc: Record<string, unknown>) => {
+            const rawArgs: unknown =
+              (tc.function as Record<string, unknown> | undefined)?.arguments ??
+              (tc.arguments as Record<string, unknown> | undefined) ??
+              {};
+            const parsedArgs: Record<string, unknown> =
+              typeof rawArgs === 'string'
+                ? (() => { try { return JSON.parse(rawArgs) as Record<string, unknown>; } catch { return {}; } })()
+                : (rawArgs as Record<string, unknown>);
+            return {
+              id: typeof tc.id === 'string' ? tc.id : '',
+              type: (typeof tc.type === 'string' ? tc.type : 'function') as string,
+              function: {
+                name: ((tc.function as Record<string, unknown> | undefined)?.name as string | undefined) ?? (tc.name as string | undefined) ?? '',
+                arguments: parsedArgs,
+              },
+            };
+          });
         }
         if (m.role === 'tool') {
           base.tool_call_id = m.tool_call_id ?? '';
@@ -82,7 +101,7 @@ export class OllamaProvider implements Provider {
   }
 
   async sendWithTools(prompt: string, tools: ToolDefinition[], opts?: SendOptions): Promise<string> {
-    const body = JSON.stringify({
+    const bodyObj: Record<string, unknown> = {
       model: opts?.model ?? this.config.defaultModel,
       messages: this.buildMessages(prompt, opts),
       tools: tools.map((t) => ({
@@ -90,8 +109,11 @@ export class OllamaProvider implements Provider {
         function: { name: t.name, description: t.description, parameters: t.parameters },
       })),
       stream: false,
-      options: opts?.temperature !== undefined ? { temperature: opts.temperature } : undefined,
-    });
+    };
+    if (opts?.temperature !== undefined) {
+      bodyObj.options = { temperature: opts.temperature };
+    }
+    const body = JSON.stringify(bodyObj);
     const res = await fetch(`${this.baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

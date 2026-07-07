@@ -601,7 +601,7 @@ export function BenchmarkPanel() {
   const abReport = selectedKind === 'ab' ? (report as AbReport) : undefined;
 
   return (
-    <div className="p-4 space-y-6 text-sm border-t border-gray-200">
+    <div className="max-w-5xl mx-auto p-6 space-y-6 text-sm">
       <div>
         <h3 className="font-semibold mb-2">Run benchmark</h3>
         <form onSubmit={(e) => { void startRun(e); }} className="space-y-2 text-xs">

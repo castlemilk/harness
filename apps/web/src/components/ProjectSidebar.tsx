@@ -9,14 +9,18 @@ export interface Project {
   _count?: { tasks: number };
 }
 
+export type View = 'tasks' | 'benchmarks';
+
 interface Props {
   projects: Project[];
   selectedId?: string;
   onSelect: (id: string) => void;
   onChange: () => void;
+  view?: View;
+  onViewChange?: (view: View) => void;
 }
 
-export function ProjectSidebar({ projects, selectedId, onSelect, onChange }: Props) {
+export function ProjectSidebar({ projects, selectedId, onSelect, onChange, view = 'tasks', onViewChange }: Props) {
   const [form, setForm] = useState({ name: '', path: '', repoUrl: '', description: '' });
   const [open, setOpen] = useState(false);
 
@@ -35,8 +39,26 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onChange }: Pro
         <p className="text-xs text-gray-500">Projects</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
-        {projects.map((p) => (
+      {onViewChange && (
+        <div className="flex gap-1 p-2 border-b border-gray-200">
+          {(['tasks', 'benchmarks'] as View[]).map((v) => (
+            <button
+              key={v}
+              onClick={() => { onViewChange(v); }}
+              className={`flex-1 px-3 py-1.5 rounded-md text-xs capitalize ${
+                view === v ? 'bg-blue-600 text-white font-medium' : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {view === 'tasks' && (
+        <>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {projects.map((p) => (
           <button
             key={p.id}
             onClick={() => { onSelect(p.id); }}
@@ -98,6 +120,8 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onChange }: Pro
           </form>
         )}
       </div>
+      </>
+      )}
     </aside>
   );
 }

@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { api } from './lib/api.js';
-import { ProjectSidebar, type Project } from './components/ProjectSidebar.js';
+import { ProjectSidebar, type Project, type View } from './components/ProjectSidebar.js';
 import { TaskBoard } from './components/TaskBoard.js';
 import { ProviderSettings, type Provider } from './components/ProviderSettings.js';
 import { RouterPanel } from './components/RouterPanel.js';
 import { MetricsPanel } from './components/MetricsPanel.js';
+import { BenchmarkPanel } from './components/BenchmarkPanel.js';
 
 function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>();
+  const [view, setView] = useState<View>('tasks');
   const [error, setError] = useState('');
 
   async function loadProjects() {
@@ -45,20 +47,30 @@ function App() {
         selectedId={selectedProjectId}
         onSelect={setSelectedProjectId}
         onChange={() => { void loadProjects(); }}
+        view={view}
+        onViewChange={setView}
       />
 
-      <TaskBoard projectId={selectedProjectId} />
+      {view === 'benchmarks' ? (
+        <main className="flex-1 h-screen overflow-y-auto bg-gray-50">
+          <BenchmarkPanel />
+        </main>
+      ) : (
+        <TaskBoard projectId={selectedProjectId} />
+      )}
 
-      <aside className="w-80 bg-white border-l border-gray-200 h-screen overflow-y-auto">
-        {error && (
-          <div className="p-3 bg-red-50 text-red-700 text-xs border-b border-red-100">
-            {error}
-          </div>
-        )}
-        <ProviderSettings providers={providers} onChange={() => { void loadProviders(); }} />
-        <RouterPanel />
-        <MetricsPanel />
-      </aside>
+      {view === 'tasks' && (
+        <aside className="w-80 bg-white border-l border-gray-200 h-screen overflow-y-auto">
+          {error && (
+            <div className="p-3 bg-red-50 text-red-700 text-xs border-b border-red-100">
+              {error}
+            </div>
+          )}
+          <ProviderSettings providers={providers} onChange={() => { void loadProviders(); }} />
+          <RouterPanel />
+          <MetricsPanel />
+        </aside>
+      )}
     </div>
   );
 }

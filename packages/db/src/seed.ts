@@ -41,6 +41,34 @@ export async function seedDefaults(): Promise<void> {
     console.log('Seeded Kimi provider.');
   }
 
+  // GLM (z.ai) coding plan — OpenAI-compatible. Key format: <id>.<secret>.
+  if (process.env.GLM_API_KEY) {
+    await prisma.providerConfig.upsert({
+      where: { name: 'glm' },
+      update: {
+        apiKey: process.env.GLM_API_KEY,
+        baseUrl: 'https://api.z.ai/api/coding/paas/v4',
+        defaultModel: 'glm-5.2',
+        capabilities: JSON.stringify([
+          { name: 'glm-5.2', level: 'advanced', supportsTools: true },
+          { name: 'glm-4.6', level: 'advanced', supportsTools: true },
+        ]),
+      },
+      create: {
+        name: 'glm',
+        kind: 'generic',
+        baseUrl: 'https://api.z.ai/api/coding/paas/v4',
+        apiKey: process.env.GLM_API_KEY,
+        defaultModel: 'glm-5.2',
+        capabilities: JSON.stringify([
+          { name: 'glm-5.2', level: 'advanced', supportsTools: true },
+          { name: 'glm-4.6', level: 'advanced', supportsTools: true },
+        ]),
+      },
+    });
+    console.log('Seeded GLM provider.');
+  }
+
   console.log('Seeded default providers.');
 }
 

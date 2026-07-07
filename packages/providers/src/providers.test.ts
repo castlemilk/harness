@@ -184,3 +184,130 @@ describe('createProvider', () => {
     ).toThrow('Unknown provider kind');
   });
 });
+
+describe('OpenAIProvider (OAuth / Codex Responses API)', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  function sseResponse(events: object[]): Response {
+    const text = events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join('') + 'data: [DONE]\n\n';
+    return new Response(text, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    });
+  }
+
+  beforeEach(() => {
+    fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const oauthConfig: ProviderConfig = {
+    id: 'openai-oauth',
+    name: 'openai-oauth',
+    kind: 'openai',
+    refreshToken: 'rt-test',
+    apiKey: 'access-test',
+    tokenExpiresAt: Date.now() + 60 * 60 * 1000,
+    defaultModel: 'gpt-5.4-mini',
+    capabilities: [],
+    enabled: true,
+  };
+
+  it('sends Codex Responses API input without tool_calls field', async () => {
+    fetchSpy.mockResolvedValue(
+      sseResponse([
+        {
+          type: 'response.output_text.delta',
+          delta: 'hi',
+        },
+        {
+          type: 'response.completed',
+          response: { usage: { prompt_tokens: 5, completion_tokens: 2, total_tokens: 7 } },
+        },
+      ])
+    );
+    const provider = createProvider(oauthConfig);
+    await provider.sendWithTools('Execute the next step.', [], {
+      system: 'You are helpful.',
+      model: 'gpt-5.4-mini',
+      messages: [
+        { role: 'system', content: 'You are helpful.' },
+        { role: 'user', content: 'What is 2+2?' },
+        {
+          role: 'assistant',
+          content: '',
+          tool_calls: [
+            {
+              id: 'tool-1',
+              type: 'function',
+              function: { name: 'think', arguments: '{"thought":"math"}' },
+            },
+          ],
+        },
+        { role: 'tool', tool_call_id: 'tool-1', content: 'OK' },
+        { role: 'user', content: 'Now please answer.' },
+      ],
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe('https://chatgpt.com/backend-api/codex/responses');
+    const body = JSON.parse(init.body);
+    expect(body.model).toBe('gpt-5.4-mini');
+    expect(body.instructions).toBe('You are helpful.');
+    expect(body.stream).toBe(true);
+    expect(body.store).toBe(false);
+    expect(Array.isArray(body.input)).toBe(true);
+    for (const item of body.input) {
+      expect(item).not.toHaveProperty('tool_calls');
+      expect(item).not.toHaveProperty('tool_call_id');
+    }
+    const kinds = body.input.map((i: { type: string }) => i.type);
+    expect(kinds).toEqual([
+      'message',
+      'function_call',
+      'function_call_output',
+      'message',
+    ]);
+    const fc = body.input.find((i: { type: string }) => i.type === 'function_call');
+    expect(fc.call_id).toBe('tool-1');
+    expect(fc.name).toBe('think');
+    expect(fc.arguments).toBe('{"thought":"math"}');
+    const fco = body.input.find((i: { type: string }) => i.type === 'function_call_output');
+    expect(fco.call_id).toBe('tool-1');
+    expect(fco.output).toBe('OK');
+  });
+
+  it('parses Codex SSE tool_call events into normalized tool calls', async () => {
+    fetchSpy.mockResolvedValue(
+      sseResponse([
+        {
+          type: 'response.output_item.added',
+          item: { type: 'function_call', id: 'fc-1', name: 'think', arguments: '{}' },
+        },
+        {
+          type: 'response.output_item.done',
+          item: {
+            type: 'function_call',
+            id: 'fc-1',
+            name: 'think',
+            arguments: '{"thought":"reasoning"}',
+          },
+        },
+        {
+          type: 'response.completed',
+          response: { usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } },
+        },
+      ])
+    );
+    const provider = createProvider(oauthConfig);
+    const result = await provider.sendWithTools('step', [], { model: 'gpt-5.4-mini' });
+    const parsed = JSON.parse(result);
+    expect(parsed.tool_calls).toEqual([
+      { id: 'fc-1', name: 'think', arguments: { thought: 'reasoning' } },
+    ]);
+  });
+});

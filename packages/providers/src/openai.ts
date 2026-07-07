@@ -2,7 +2,7 @@ import type { Provider, ProviderConfig, SendOptions, ToolDefinition, UsageInfo }
 
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 
-const MAX_RETRIES = 5;
+const MAX_RETRIES = 8;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -10,10 +10,11 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-// Exponential backoff with full jitter. Sequence (base ms) for attempts 0..N:
-// ~1500, 3000, 6000, 12000, 24000 — capped at 30s.
+// Exponential backoff with full jitter, capped at 60s so retries can span a
+// provider per-minute quota window (GLM/OpenAI coding tiers throttle by TPM/RPM
+// and reset on a ~1min boundary). Sequence (base ms): ~2k,4k,8k,16k,32k,60k,60k,60k.
 function backoffMs(attempt: number): number {
-  const base = Math.min(1500 * 2 ** attempt, 30_000);
+  const base = Math.min(2000 * 2 ** attempt, 60_000);
   return Math.floor(Math.random() * base);
 }
 

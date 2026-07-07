@@ -28,7 +28,7 @@ const FORBIDDEN_PATTERNS = [
   '> /',
 ];
 
-const SHELL_METACHARACTERS = /[|&;<>$`{}()[\]*?]/;
+const SHELL_METACHARACTERS = /[|&;<>$`*?]/;
 
 function hasUnquotedShellMetacharacter(command: string): boolean {
   let quote: "'" | '"' | null = null;
@@ -149,6 +149,42 @@ export async function writeFile(
   }
 }
 
+function findFuzzyBlock(content: string, oldString: string): { start: number; end: number } | undefined {
+  const oldLines = oldString.split('\n');
+  const contentLines = content.split('\n');
+  if (oldLines.length === 0 || contentLines.length === 0) return undefined;
+  const firstTrim = oldLines[0].trim();
+  const lastTrim = oldLines[oldLines.length - 1].trim();
+  const maxStart = contentLines.length - oldLines.length;
+  for (let i = 0; i <= maxStart; i++) {
+    if (contentLines[i].trim() !== firstTrim) continue;
+    if (contentLines[i + oldLines.length - 1].trim() !== lastTrim) continue;
+    let match = true;
+    for (let j = 0; j < oldLines.length; j++) {
+      if (contentLines[i + j].trim() !== oldLines[j].trim()) {
+        match = false;
+        break;
+      }
+    }
+    if (!match) continue;
+    let start = 0;
+    for (let k = 0; k < i; k++) {
+      start += contentLines[k].length + 1; // +1 for the newline separator
+    }
+    let end = start;
+    for (let k = i; k < i + oldLines.length; k++) {
+      end += contentLines[k].length + 1;
+    }
+    // Remove the trailing newline we added for the last line if the original block
+    // did not end with one, so replacement length matches the consumed block.
+    if (oldString.endsWith('\n')) {
+      return { start, end };
+    }
+    return { start, end: end - 1 };
+  }
+  return undefined;
+}
+
 export async function editFile(
   projectPath: string,
   filePath: string,
@@ -161,16 +197,22 @@ export async function editFile(
   }
   try {
     const content = await fs.readFile(target, 'utf-8');
-    if (!content.includes(oldString)) {
-      const context = content.slice(0, 500).replace(/\n/g, '\\n').slice(0, 200);
-      return {
-        success: false,
-        output: `old_string not found in ${filePath}. The file may have changed or the string may be slightly different. First 200 chars: ${context}`,
-      };
+    if (content.includes(oldString)) {
+      const updated = content.replace(oldString, newString);
+      await fs.writeFile(target, updated, 'utf-8');
+      return { success: true, output: `Edited ${filePath}` };
     }
-    const updated = content.replace(oldString, newString);
-    await fs.writeFile(target, updated, 'utf-8');
-    return { success: true, output: `Edited ${filePath}` };
+    const fuzzy = findFuzzyBlock(content, oldString);
+    if (fuzzy) {
+      const updated = content.slice(0, fuzzy.start) + newString + content.slice(fuzzy.end);
+      await fs.writeFile(target, updated, 'utf-8');
+      return { success: true, output: `Edited ${filePath} (fuzzy match)` };
+    }
+    const context = content.slice(0, 500).replace(/\n/g, '\\n').slice(0, 200);
+    return {
+      success: false,
+      output: `old_string not found in ${filePath}. The file may have changed or the string may be slightly different. First 200 chars: ${context}`,
+    };
   } catch (err) {
     return { success: false, output: err instanceof Error ? err.message : String(err) };
   }

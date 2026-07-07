@@ -55,11 +55,11 @@ function maxStepsForComplexity(complexity: string | undefined): number {
     case 'simple':
       return 30;
     case 'medium':
-      return 80;
-    case 'complex':
       return 120;
+    case 'complex':
+      return 200;
     default:
-      return 60;
+      return 80;
   }
 }
 
@@ -849,11 +849,9 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
 
     let nextPrompt = buildToolResultPrompt(ctx.task, toolResults);
     if (shouldReflect && !finished) {
-      const reflection = await reflectOnTrace(ctx, 3);
-      if (reflection) {
-        await addTrace(ctx, 'assistant', `Reflection: ${reflection}`);
-        nextPrompt = `Reflection: ${reflection}\n\n${nextPrompt}`;
-      }
+      nextPrompt =
+        'One or more tools failed in the last turn. Diagnose the failure from the tool results below, then respond with the single next concrete action (read_file, edit_file, run_command, etc.). Do not just think or explain; execute the next step.\n\n' +
+        nextPrompt;
     }
 
     if (!finished) {
@@ -1131,7 +1129,47 @@ function extractToolCalls(text: string): { content?: string; toolCalls?: string 
   if (markdown.length > 0) {
     return { content: text, toolCalls: JSON.stringify(markdown) };
   }
+  const xml = parseXmlActions(text);
+  if (xml.length > 0) {
+    return { content: text, toolCalls: JSON.stringify(xml) };
+  }
   return { content: text };
+}
+
+function parseXmlActions(text: string): ToolCall[] {
+  const actions: ToolCall[] = [];
+  const invokeRe = /<invoke\s+name="([^"]+)"[^>]*>/g;
+  let match: RegExpExecArray | null;
+  while ((match = invokeRe.exec(text)) !== null) {
+    const name = match[1];
+    const start = match.index + match[0].length;
+    const endInvoke = text.indexOf('</invoke>', start);
+    if (endInvoke === -1) continue;
+    const block = text.slice(start, endInvoke);
+    const args: Record<string, string> = {};
+    const paramRe = /<parameter\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/parameter>/g;
+    let paramMatch: RegExpExecArray | null;
+    while ((paramMatch = paramRe.exec(block)) !== null) {
+      args[paramMatch[1]] = paramMatch[2].trim();
+    }
+    const id = `xml-${actions.length.toString()}`;
+    if (name === 'finish') {
+      const summary = args.thought ?? args.summary ?? Object.values(args).join(' ');
+      actions.push({
+        id,
+        name,
+        arguments: { summary, success: !/fail|error/i.test(summary) },
+      });
+    } else if (name === 'think') {
+      actions.push({ id, name, arguments: { thought: args.thought ?? Object.values(args).join(' ') } });
+    } else {
+      const typedArgs: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(args)) typedArgs[k] = v;
+      actions.push({ id, name, arguments: typedArgs });
+    }
+    invokeRe.lastIndex = endInvoke + '</invoke>'.length;
+  }
+  return actions;
 }
 
 function parseMarkdownActions(text: string): ToolCall[] {

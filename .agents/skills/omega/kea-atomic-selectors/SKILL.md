@@ -6,25 +6,35 @@ args: []
 
 # Kea Atomic Signal Selector Engine
 
-When a task asks you to add atomic/signal selectors to Kea, implement the **Atomic Signal Selector Engine** described below. This is a framework-level wiring task: you will create one new file (`src/kea/atomic.ts`) and make small, targeted edits in `src/kea/context.ts`, `src/core/selectors.ts`, `src/core/reducers.ts`, `src/core/index.ts`, `src/kea/kea.ts`, `src/react/hooks.ts`, and `src/types.ts`. Do not create or modify test files.
+Implement the engine by creating `src/kea/atomic.ts` and editing `src/kea/context.ts`, `src/types.ts`, `src/core/selectors.ts`, `src/core/reducers.ts`, `src/core/index.ts`, `src/kea/kea.ts`, and `src/react/hooks.ts`. Do not create or modify test files.
 
-## What NOT to do
+## CRITICAL: Do not skip these three edits
 
-- Do NOT create or modify test files. The verifier supplies its own tests.
-- Do NOT modify `rollup.config.js`, `tsconfig.json`, or build tooling unless explicitly required.
-- Do NOT break baseline Kea behavior. Keep existing selector memoization and React/Redux integration intact.
+| File | Why it matters | Symptom if skipped |
+|---|---|---|
+| `src/core/selectors.ts` | Keep `addSelectorAndValue` exported; `src/core/reducers.ts` imports it. | `addSelectorAndValue is not a function` |
+| `src/kea/kea.ts` | Add `'selectorHealth'` to `reservedProxiedKeys` so `logic.selectorHealth()` works. | `logic.selectorHealth is not a function` |
+| `src/react/hooks.ts` | Subscribe to atomic signals so React re-renders on relevant changes. | React re-render test fails, score ~0.993 |
 
 ## Verification commands
 
-After every wiring step, run the focused atomic tests:
+Run focused tests after each wiring step:
 
 ```bash
 pnpm test:jest -- atomic
 ```
 
-Fix the first failing test before moving on. Do NOT set `BABEL_ENV` manually; the npm script handles it.
+Before calling `finish`, run each of these checks individually (a non-zero exit means that check failed):
 
-Before calling `finish`, you MUST call `validate_patch` and `verify_api_surface` with `entry: 'src/index.ts'` and this exact check:
+```bash
+grep -q "export function addSelectorAndValue" src/core/selectors.ts
+grep -q "selectorHealth" src/kea/kea.ts
+grep -q "subscribeToAtomicSelector" src/react/hooks.ts
+```
+
+After editing `src/types.ts`, `grep -c "selectorHealth" src/types.ts` should print exactly `2` (one in the `Logic` interface and one in `MakeLogicType`). If the count is higher, remove duplicates before proceeding.
+
+Then call `validate_patch` and `verify_api_surface` with `entry: 'src/index.ts'` and this exact check:
 
 ```js
 const { kea, resetContext } = require('./src/index.ts'); resetContext({ atomicSelectors: true }); const logic = kea({ actions: { setName: (n) => ({ n }) }, reducers: { user: [(s) => s || { name: 'a' }, { setName: (s, p) => ({ ...s, name: p.n }) }] }, selectors: { userName: [(s) => s.user, (u) => u.name] } }); logic.mount(); console.log(typeof logic.selectorHealth === 'function')
@@ -41,15 +51,73 @@ Edit `src/kea/context.ts`.
 
 Edit `src/types.ts`.
 
-1. Add `selectorHealth?: () => any` to the `Logic` interface.
-2. Add `selectorHealth?: () => any` to `MakeLogicType`.
-3. Add `atomicSelectors: boolean` to `InternalContextOptions`.
+1. Add `selectorHealth?: () => any` to the `Logic` interface. Use this exact `edit_file`:
 
-Do NOT add an `AtomicSelectorHealth` interface to this file; that type lives in `src/kea/atomic.ts` and is exported from there. Using `any` for `selectorHealth` here avoids a circular import and keeps the change minimal.
+```ts
+old_string:
+  selector?: Selector
+  selectors: Record<string, Selector>
+  values: Record<string, any>
+  events: {
+new_string:
+  selector?: Selector
+  selectors: Record<string, Selector>
+  values: Record<string, any>
+  selectorHealth?: () => any
+  events: {
+```
+
+2. Add `selectorHealth?: () => any` to `MakeLogicType` (search for `export interface MakeLogicType`). Use this exact `edit_file`:
+
+```ts
+old_string:
+  selector: (state: any, props: LogicProps) => Values
+  selectors: {
+    [Value in keyof Values]: (state: any, props: LogicProps) => Values[Value]
+  }
+  values: Values
+new_string:
+  selector: (state: any, props: LogicProps) => Values
+  selectors: {
+    [Value in keyof Values]: (state: any, props: LogicProps) => Values[Value]
+  }
+  values: Values
+  selectorHealth?: () => any
+```
+
+3. Add `atomicSelectors: boolean` to `InternalContextOptions`. Use this exact `edit_file`:
+
+```ts
+old_string:
+export interface InternalContextOptions {
+  debug: boolean
+  proxyFields: boolean
+  flatDefaults: boolean
+  attachStrategy: 'dispatch' | 'replace'
+  detachStrategy: 'dispatch' | 'replace' | 'persist'
+  defaultPath: string[]
+  disableAsyncActions: boolean
+  // ...otherOptions
+}
+new_string:
+export interface InternalContextOptions {
+  debug: boolean
+  proxyFields: boolean
+  flatDefaults: boolean
+  attachStrategy: 'dispatch' | 'replace'
+  detachStrategy: 'dispatch' | 'replace' | 'persist'
+  defaultPath: string[]
+  disableAsyncActions: boolean
+  atomicSelectors: boolean
+  // ...otherOptions
+}
+```
+
+**Do NOT** add `selectorHealth` to `LogicWrapperAdditions` or `BuiltLogicAdditions`; those types inherit from `Logic`, so a single declaration on `Logic` is enough.
 
 ## Step 3 — Atomic engine file
 
-Create `src/kea/atomic.ts` with the implementation below. Use `write_file` because this is a new file. This is the core engine; do not simplify it.
+Create `src/kea/atomic.ts` with the implementation below. Use `write_file`. Do not simplify the logic.
 
 ```ts
 import { getContext, getPluginContext, getStoreState } from './context'
@@ -57,15 +125,7 @@ import { BuiltLogic, Logic, Selector } from '../types'
 import { shallowCompare } from '../utils'
 
 export interface AtomicSelectorHealth {
-  selectors: Record<
-    string,
-    {
-      dependencies: string[]
-      evaluations: number
-      dirtyCause?: string | null
-      dependents?: string[]
-    }
-  >
+  selectors: Record<string, { dependencies: string[]; evaluations: number; dirtyCause?: string | null; dependents?: string[] }>
   topologicalOrder?: string[]
 }
 
@@ -115,18 +175,13 @@ const proxyCache = new WeakMap<any, Map<string, any>>()
 let globalTrackingSet: Set<string> | null = null
 
 function createProxy(obj: any, path: string): any {
-  if (typeof obj !== 'object' || obj === null) {
-    return obj
-  }
-
+  if (typeof obj !== 'object' || obj === null) return obj
   let pathMap = proxyCache.get(obj)
   if (!pathMap) {
     pathMap = new Map()
     proxyCache.set(obj, pathMap)
   }
-  if (pathMap.has(path)) {
-    return pathMap.get(path)
-  }
+  if (pathMap.has(path)) return pathMap.get(path)
 
   let proxy: any
   if (Array.isArray(obj)) {
@@ -152,9 +207,7 @@ function createProxy(obj: any, path: string): any {
             return target.length
           }
           if (['includes', 'indexOf', 'lastIndexOf', 'join', 'slice', 'concat', 'find', 'findIndex'].includes(prop)) {
-            return (...args: any[]) => {
-              return value.apply(proxy, args)
-            }
+            return (...args: any[]) => value.apply(proxy, args)
           }
         }
         return typeof value === 'function' ? value.bind(target) : value
@@ -221,17 +274,11 @@ function createProxy(obj: any, path: string): any {
     proxy = new Proxy(obj, {
       get(target, prop) {
         const key = String(prop)
-        if (key === 'toJSON' || key === 'constructor' || typeof prop === 'symbol') {
-          return target[prop]
-        }
+        if (key === 'toJSON' || key === 'constructor' || typeof prop === 'symbol') return target[prop]
         const fullPath = path ? `${path}.${key}` : key
-        if (globalTrackingSet) {
-          globalTrackingSet.add(fullPath)
-        }
+        if (globalTrackingSet) globalTrackingSet.add(fullPath)
         const value = target[prop]
-        if (typeof value === 'object' && value !== null) {
-          return createProxy(value, fullPath)
-        }
+        if (typeof value === 'object' && value !== null) return createProxy(value, fullPath)
         return value
       }
     })
@@ -261,9 +308,7 @@ function hasCircularDependencyKey(targetKey: string, startKey: string, visited =
   const dependents = selectorToSelectorsKeys.get(startKey)
   if (dependents) {
     for (const depKey of dependents) {
-      if (hasCircularDependencyKey(targetKey, depKey, visited)) {
-        return true
-      }
+      if (hasCircularDependencyKey(targetKey, depKey, visited)) return true
     }
   }
   return false
@@ -432,9 +477,7 @@ export class AtomicScheduler {
   notify(): void {
     for (const selector of this.context.dirtySelectors) {
       const listeners = this.context.listeners.get(selector)
-      if (listeners) {
-        listeners.forEach(cb => cb())
-      }
+      if (listeners) listeners.forEach(cb => cb())
     }
   }
 
@@ -460,11 +503,7 @@ export class AtomicScheduler {
             }
           }
 
-          const wildcards = [
-            currentPath + '.*',
-            currentPath + '.map:*',
-            currentPath + '.set:*'
-          ]
+          const wildcards = [currentPath + '.*', currentPath + '.map:*', currentPath + '.set:*']
           for (const wc of wildcards) {
             selectors = this.context.leafToSelectors.get(wc)
             if (selectors) {
@@ -528,9 +567,7 @@ function findChangedPaths(oldObj: any, newObj: any, path = ''): string[] {
     const keys = new Set([...oldObj, ...newObj])
     for (const key of keys) {
       const fullPath = path ? `${path}.set:${key}` : `set:${key}`
-      if (!oldObj.has(key) || !newObj.has(key)) {
-        paths.push(fullPath)
-      }
+      if (!oldObj.has(key) || !newObj.has(key)) paths.push(fullPath)
     }
     return paths
   }
@@ -556,9 +593,7 @@ export function subscribeToAtomicSelector(selector: Selector, callback: () => vo
     atomicContext.listeners.set(original, listeners)
   }
   listeners.add(callback)
-  return () => {
-    listeners!.delete(callback)
-  }
+  return () => { listeners!.delete(callback) }
 }
 
 export function getTopologicalOrder(): string[] {
@@ -571,26 +606,19 @@ export function getTopologicalOrder(): string[] {
     visited.add(s)
     const dependents = atomicContext.selectorToSelectors.get(s)
     if (dependents) {
-      for (const dep of dependents) {
-        visit(getOriginal(dep))
-      }
+      for (const dep of dependents) visit(getOriginal(dep))
     }
     const metadata = atomicContext.selectorMetadata.get(s)
     if (metadata) stack.push(metadata.name)
   }
 
-  for (const selector of atomicContext.selectorMetadata.keys()) {
-    visit(selector)
-  }
+  for (const selector of atomicContext.selectorMetadata.keys()) visit(selector)
   return stack.reverse()
 }
 
 export function getLogicSelectorHealth(logic: Logic): AtomicSelectorHealth {
   const atomicContext = getAtomicContext()
-  const health: AtomicSelectorHealth = {
-    selectors: {},
-    topologicalOrder: getTopologicalOrder()
-  }
+  const health: AtomicSelectorHealth = { selectors: {}, topologicalOrder: getTopologicalOrder() }
 
   for (const [key, selector] of Object.entries(logic.selectors)) {
     const original = getOriginal(selector)
@@ -617,8 +645,8 @@ export function getLogicSelectorHealth(logic: Logic): AtomicSelectorHealth {
 
 Edit `src/core/selectors.ts`.
 
-1. Import `getContext` from `../kea/context` if not already imported.
-2. In the selector builder, after validating `args`, build the selector like this:
+1. Import `getContext` from `../kea/context`.
+2. In the selector builder, replace the `builtSelectors[key] = createSelector(...)` and `addSelectorAndValue(...)` block with:
 
 ```ts
 let atomicMetadata: any = null
@@ -649,12 +677,24 @@ if (options.atomicSelectors) {
 addSelectorAndValue(logic, key, selectorToRegister)
 ```
 
+**CRITICAL:** Do not remove the `export` from `addSelectorAndValue` in this file. `src/core/reducers.ts` imports it.
+
 ## Step 5 — Wire reducer selectors
 
 Edit `src/core/reducers.ts`.
 
 1. Import `getContext` from `../kea/context`.
-2. Where reducer selectors are created with `createSelector(logic.selector!, (state) => state[key])`, wrap them when atomic mode is enabled:
+2. Where reducer selectors are created, replace:
+
+```ts
+addSelectorAndValue(
+  logic,
+  key,
+  createSelector(logic.selector!, (state) => state[key]),
+)
+```
+
+with:
 
 ```ts
 let finalSelector = createSelector(logic.selector!, (state) => state[key])
@@ -679,7 +719,7 @@ addSelectorAndValue(logic, key, selectorToRegister)
 Edit `src/core/index.ts`.
 
 1. Import `getContext` from `../kea/context`.
-2. In the reducers plugin (around where `previousState` is captured and the response is returned), after the reducer runs, if atomic selectors are enabled and the store state changed, call `updateAtomicSignals`:
+2. In the reducers plugin middleware, after the reducer runs, if atomic selectors are enabled and the store state changed, call `updateAtomicSignals`:
 
 ```ts
 const { options: contextOptions } = getContext()
@@ -689,39 +729,44 @@ if (contextOptions.atomicSelectors && previousState !== store.getState()) {
 }
 ```
 
-## Step 7 — Wrapper selectorHealth proxy
+## Step 7 — Wrapper selectorHealth proxy (REQUIRED)
 
 Edit `src/kea/kea.ts`.
 
-Add `'selectorHealth'` to the `reservedProxiedKeys` array in `proxyFields` so the wrapper exposes the built logic's `selectorHealth` method.
+Add `'selectorHealth'` to the `reservedProxiedKeys` array in `proxyFields`. Without this `logic.selectorHealth()` is undefined.
 
-## Step 8 — React integration
+## Step 8 — React integration (REQUIRED)
 
-Edit `src/react/hooks.ts`.
+Edit `src/react/hooks.ts`. This is mandatory. Without it the React re-render test fails.
 
-Modify `useSelector` so that when atomic selectors are enabled and the selector has `_atomic: true`, it subscribes to atomic signals instead of the whole store:
+1. Add a helper to subscribe to atomic signals:
+
+```ts
+function subscribeAtomicSelector(selector: Selector, callback: () => void): () => void {
+  const { subscribeToAtomicSelector } = require('../kea/atomic')
+  return subscribeToAtomicSelector(selector, callback)
+}
+```
+
+2. Replace `useSelector` with:
 
 ```ts
 export function useSelector(selector: Selector): any {
-  const { store, options } = getContext() || { options: {} }
-  const subscribe = useMemo(() => {
-    if (options.atomicSelectors && (selector as any)._atomic) {
-      const { subscribeToAtomicSelector } = require('../kea/atomic')
-      return (cb: () => void) => subscribeToAtomicSelector(selector, cb)
-    }
-    return store?.subscribe || (() => () => {})
-  }, [selector, options.atomicSelectors, store])
-
-  return useSyncExternalStore(subscribe, () => selector(getStoreState()))
+  const context = getContext()
+  const isAtomic = context.options.atomicSelectors && (selector as any)._atomic
+  return useSyncExternalStore(
+    isAtomic ? (cb) => subscribeAtomicSelector(selector, cb) : context.store.subscribe,
+    () => selector(getStoreState()),
+  )
 }
 ```
 
 ## Step 9 — Final verification
 
-Run the focused atomic tests:
+Run:
 
 ```bash
 pnpm test:jest -- atomic
 ```
 
-Then call `validate_patch` and `verify_api_surface` with the check from the top of this skill. Do not finish until all checks pass.
+Then run the two grep checks from the top of this skill. Then call `validate_patch` and `verify_api_surface`. Do not finish until all checks pass.

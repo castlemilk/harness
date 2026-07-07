@@ -216,6 +216,8 @@ exports.Prisma.ProviderConfigScalarFieldEnum = {
   kind: 'kind',
   baseUrl: 'baseUrl',
   apiKey: 'apiKey',
+  refreshToken: 'refreshToken',
+  tokenExpiresAt: 'tokenExpiresAt',
   defaultModel: 'defaultModel',
   capabilities: 'capabilities',
   enabled: 'enabled',

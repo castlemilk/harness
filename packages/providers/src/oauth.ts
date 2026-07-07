@@ -38,7 +38,7 @@ export function buildAuthorizeUrl(opts: {
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: OPENAI_OAUTH.clientId,
-    redirect_uri: `http://localhost:${OPENAI_OAUTH.callbackPort}${OPENAI_OAUTH.callbackPath}`,
+    redirect_uri: `http://localhost:${OPENAI_OAUTH.callbackPort.toString()}${OPENAI_OAUTH.callbackPath}`,
     scope: OPENAI_OAUTH.scope,
     code_challenge: opts.codeChallenge,
     code_challenge_method: 'S256',
@@ -65,7 +65,7 @@ export async function exchangeCode(
     client_id: OPENAI_OAUTH.clientId,
     code,
     code_verifier: codeVerifier,
-    redirect_uri: `http://localhost:${OPENAI_OAUTH.callbackPort}${OPENAI_OAUTH.callbackPath}`,
+    redirect_uri: `http://localhost:${OPENAI_OAUTH.callbackPort.toString()}${OPENAI_OAUTH.callbackPath}`,
   });
 
   const res = await fetch(OPENAI_OAUTH.tokenUrl, {
@@ -76,7 +76,7 @@ export async function exchangeCode(
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`Token exchange failed: ${res.status} ${res.statusText} — ${text.slice(0, 500)}`);
+    throw new Error(`Token exchange failed: ${res.status.toString()} ${res.statusText} — ${text.slice(0, 500)}`);
   }
 
   const data = (await res.json()) as OAuthTokenResponse;
@@ -100,7 +100,7 @@ export async function refreshAccessToken(
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`Token refresh failed: ${res.status} ${res.statusText} — ${text.slice(0, 500)}`);
+    throw new Error(`Token refresh failed: ${res.status.toString()} ${res.statusText} — ${text.slice(0, 500)}`);
   }
 
   const data = (await res.json()) as OAuthTokenResponse;
@@ -125,7 +125,7 @@ export function startCallbackServer(
         return;
       }
 
-      const url = new URL(req.url, `http://localhost:${port}`);
+      const url = new URL(req.url, `http://localhost:${port.toString()}`);
       if (url.pathname !== OPENAI_OAUTH.callbackPath) {
         res.writeHead(404);
         res.end('Not found');
@@ -182,7 +182,7 @@ export function startCallbackServer(
 
     server.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
-        reject(new Error(`Port ${port} is already in use. Close the other process or use a different port.`));
+        reject(new Error(`Port ${port.toString()} is already in use. Close the other process or use a different port.`));
       } else {
         reject(err);
       }

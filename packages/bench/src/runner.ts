@@ -9,7 +9,9 @@ import {
   waitForTask,
   getAgentRun,
   getDiffs,
+  pollForDiffs,
   getTraceFlow,
+  getTraceSummary,
   getPromptVersion,
   countSpans,
 } from './api-client.js';
@@ -21,6 +23,7 @@ export interface RunnerOptions {
   projectPrefix?: string;
   provider?: string;
   model?: string;
+  tokenBudget?: number;
   onProgress?: (result: BenchmarkResult) => void;
 }
 
@@ -47,7 +50,7 @@ export async function runBenchmark(
   tasks: BenchmarkTask[],
   options: RunnerOptions
 ): Promise<BenchmarkReport> {
-  const { apiUrl, suiteName, timeoutMs = 120000, projectPrefix = 'bench' } = options;
+  const { apiUrl, suiteName, timeoutMs = 1800000, projectPrefix = 'bench' } = options;
   const report: BenchmarkReport = {
     timestamp: new Date().toISOString(),
     suite: suiteName,
@@ -69,6 +72,7 @@ export async function runBenchmark(
     let agentRun;
     let diffs: Awaited<ReturnType<typeof getDiffs>> = [];
     let traceFlow;
+    let traceSummary;
     let evaluation: BenchmarkEvaluation = { passed: false, message: 'Task did not complete' };
     let projectId = '';
     let projectPath = '';
@@ -99,14 +103,30 @@ export async function runBenchmark(
         });
       }
 
+      // The bench only controls token-budget via env (the server's run-task
+      // reads OMEGA_TOKEN_BUDGET). Set it once per process so each created
+      // task inherits the cap via the detached executor path.
+      if (options.tokenBudget !== undefined && process.env.OMEGA_TOKEN_BUDGET === undefined) {
+        process.env.OMEGA_TOKEN_BUDGET = String(options.tokenBudget);
+      }
+
       await runTask(apiUrl, harnessTask.id);
       const finished = await waitForTask(apiUrl, harnessTask.id, timeoutMs);
       status = finished.status === 'timeout' ? 'timeout' : (finished.status as BenchmarkResult['status']);
 
-      [agentRun, diffs, traceFlow] = await Promise.all([
+      // On timeout, give the agent up to 3 more minutes to finish and commit
+      // its model.patch to the DB before we read the diffs. Without this, the
+      // bench reports 0 patches on every timed-out complex task.
+      const diffsPromise =
+        finished.status === 'timeout'
+          ? pollForDiffs(apiUrl, harnessTask.id)
+          : getDiffs(apiUrl, harnessTask.id);
+
+      [agentRun, diffs, traceFlow, traceSummary] = await Promise.all([
         getAgentRun(apiUrl, harnessTask.id),
-        getDiffs(apiUrl, harnessTask.id),
+        diffsPromise,
         getTraceFlow(apiUrl, harnessTask.id),
+        getTraceSummary(apiUrl, harnessTask.id),
       ]);
 
       if (agentRun?.promptVersionId) {
@@ -121,6 +141,7 @@ export async function runBenchmark(
         agentRun,
         diffs,
         traceFlow,
+        traceSummary,
       });
     } catch (err) {
       evaluation = {
@@ -137,7 +158,9 @@ export async function runBenchmark(
       status,
       evaluation,
       agentRun,
+      diffs,
       spanCount: countAllSpans(traceFlow),
+      traceSummary,
       promptVersionId: agentRun?.promptVersionId,
       promptHash: promptVersion?.hash,
     };

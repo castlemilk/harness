@@ -55,4 +55,5 @@ export interface AgentOptions {
   maxSteps?: number;
   baseBranch?: string;
   isolated?: boolean;
+  tokenBudget?: number; // abort the agent loop if total tokens exceed this cap
 }

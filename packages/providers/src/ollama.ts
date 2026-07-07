@@ -32,19 +32,17 @@ export class OllamaProvider implements Provider {
           // Normalize back to Ollama's expected format (id, type, function wrapper).
           // Ollama rejects arguments as JSON strings; it must be a parsed object.
           base.tool_calls = m.tool_calls.map((tc: Record<string, unknown>) => {
-            const rawArgs: unknown =
-              (tc.function as Record<string, unknown> | undefined)?.arguments ??
-              (tc.arguments as Record<string, unknown> | undefined) ??
-              {};
+            const fn = tc.function as { arguments?: unknown; name?: unknown } | undefined;
+            const rawArgs: unknown = fn?.arguments ?? tc.arguments ?? {};
             const parsedArgs: Record<string, unknown> =
               typeof rawArgs === 'string'
                 ? (() => { try { return JSON.parse(rawArgs) as Record<string, unknown>; } catch { return {}; } })()
                 : (rawArgs as Record<string, unknown>);
             return {
               id: typeof tc.id === 'string' ? tc.id : '',
-              type: (typeof tc.type === 'string' ? tc.type : 'function') as string,
+              type: typeof tc.type === 'string' ? tc.type : 'function',
               function: {
-                name: ((tc.function as Record<string, unknown> | undefined)?.name as string | undefined) ?? (tc.name as string | undefined) ?? '',
+                name: (fn?.name as string | undefined) ?? (tc.name as string | undefined) ?? '',
                 arguments: parsedArgs,
               },
             };
@@ -144,7 +142,7 @@ export class OllamaProvider implements Provider {
     if (toolCalls && toolCalls.length > 0) {
       const normalized = toolCalls
         .map((tc, i) => ({
-          id: tc.function?.name ? `call_${tc.function.name}_${i}` : `call_${i}`,
+          id: tc.function?.name ? `call_${tc.function.name}_${i.toString()}` : `call_${i.toString()}`,
           name: tc.function?.name ?? '',
           arguments: (() => {
             const args = tc.function?.arguments;

@@ -10,6 +10,7 @@ import {
   loadDeepSWESuite,
   writeReport,
   printSummary,
+  compareReports,
   loadOptimisationContext,
   buildOptimisePrompt,
   submitOptimiseTask,
@@ -44,11 +45,12 @@ const runCmd = new Command('run')
   .option('--n-tasks <n>', 'limit number of tasks (for deep-swe)', parseInt)
   .option('--sample-seed <n>', 'seed for deterministic sampling (for deep-swe)', parseInt)
   .option('--task-id <id>', 'run only specific DeepSWE task(s) by id (repeatable)', collectTaskIds, [])
-  .option('--timeout <ms>', 'per-task timeout in ms', '120000')
+  .option('--timeout <ms>', 'per-task timeout in ms', '1800000')
   .option('--output-dir <dir>', 'report output directory', '.omega/reports')
   .option('--provider <name>', 'provider to use for benchmark tasks')
   .option('--model <model>', 'model to use for benchmark tasks')
   .option('--docker', 'run DeepSWE verifiers in Docker (required for most Node.js tasks)')
+  .option('--token-budget <n>', 'per-task token cap; abort agent loop if exceeded', parseInt)
   .action(async (opts: {
     suite: string;
     path?: string;
@@ -60,6 +62,7 @@ const runCmd = new Command('run')
     provider?: string;
     model?: string;
     docker?: boolean;
+    tokenBudget?: number;
   }) => {
     const apiUrl = getApiUrl();
     await waitForApi(apiUrl);
@@ -99,6 +102,7 @@ const runCmd = new Command('run')
       timeoutMs,
       provider: opts.provider,
       model: opts.model,
+      tokenBudget: opts.tokenBudget,
       onProgress: (result) => {
         const symbol = result.evaluation.passed ? '✓' : '✗';
         console.log(`${symbol} ${result.task.name} [${result.status}] ${String(result.durationMs)}ms`);
@@ -134,7 +138,35 @@ const optimiseCmd = new Command('optimise')
     console.log(`Run \`omega task run ${task.id}\` to execute it.`);
   });
 
+const compareCmd = new Command('compare')
+  .description('Diff two benchmark reports (baseline vs candidate)')
+  .requiredOption('--baseline <file>', 'baseline report JSON path')
+  .requiredOption('--candidate <file>', 'candidate report JSON path')
+  .option('--task <id>', 'only show a specific task')
+  .option('--write <file>', 'also write the markdown to this path')
+  .action(
+    async (opts: {
+      baseline: string;
+      candidate: string;
+      task?: string;
+      write?: string;
+    }) => {
+      const text = await compareReports({
+        baseline: opts.baseline,
+        candidate: opts.candidate,
+        taskId: opts.task,
+      });
+      console.log(text);
+      if (opts.write) {
+        const fs = await import('node:fs/promises');
+        await fs.writeFile(opts.write, text, 'utf-8');
+        console.log(`\nWrote ${opts.write}`);
+      }
+    }
+  );
+
 export const benchCmd = new Command('bench')
   .description('Run benchmarks and optimise prompts')
   .addCommand(runCmd)
-  .addCommand(optimiseCmd);
+  .addCommand(optimiseCmd)
+  .addCommand(compareCmd);

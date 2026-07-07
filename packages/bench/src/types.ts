@@ -16,6 +16,7 @@ export interface EvaluationContext {
   agentRun?: AgentRunInfo;
   diffs: DiffInfo[];
   traceFlow?: TraceFlowInfo;
+  traceSummary?: TraceSummary;
 }
 
 export interface BenchmarkEvaluation {
@@ -58,6 +59,28 @@ export interface TraceSpanNode {
   children: TraceSpanNode[];
 }
 
+export interface TraceSummary {
+  taskId: string;
+  agentRunId?: string;
+  totalSpans: number;
+  totalDurationMs: number;
+  promptTokens?: number | null;
+  completionTokens?: number | null;
+  totalTokens?: number | null;
+  toolSummary: ToolSummaryEntry[];
+  topErrors: { tool: string; message: string; time: string }[];
+  phaseDurations: Record<string, number>;
+}
+
+export interface ToolSummaryEntry {
+  tool: string;
+  total: number;
+  success: number;
+  failure: number;
+  successRate: number;
+  sampleErrors: string[];
+}
+
 export interface UsageInfo {
   promptTokens?: number;
   completionTokens?: number;
@@ -71,7 +94,9 @@ export interface BenchmarkResult {
   status: 'done' | 'failed' | 'timeout';
   evaluation: BenchmarkEvaluation;
   agentRun?: AgentRunInfo;
+  diffs?: DiffInfo[];
   spanCount: number;
+  traceSummary?: TraceSummary;
   failureAnalysis?: FailureAnalysis;
   usage?: UsageInfo;
   promptVersionId?: string;

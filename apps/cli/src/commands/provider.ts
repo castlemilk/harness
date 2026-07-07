@@ -39,7 +39,7 @@ providerCmd
     const [callbackResult] = await Promise.all([
       startCallbackServer(port, state, ac.signal),
       open(authorizeUrl),
-    ]).catch((err: Error) => {
+    ]).catch((err: unknown) => {
       ac.abort();
       throw err;
     });

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createProvider } from './index.js';
-import type { ProviderConfig } from '@omega/core';
+import type { ProviderConfig, Provider } from '@omega/core';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -230,7 +230,7 @@ describe('OpenAIProvider (OAuth / Codex Responses API)', () => {
         },
       ])
     );
-    const provider = createProvider(oauthConfig);
+    const provider = createProvider(oauthConfig) as Provider & { sendWithTools: NonNullable<Provider['sendWithTools']> };
     await provider.sendWithTools('Execute the next step.', [], {
       system: 'You are helpful.',
       model: 'gpt-5.4-mini',
@@ -303,11 +303,39 @@ describe('OpenAIProvider (OAuth / Codex Responses API)', () => {
         },
       ])
     );
-    const provider = createProvider(oauthConfig);
+    const provider = createProvider(oauthConfig) as Provider & { sendWithTools: NonNullable<Provider['sendWithTools']> };
     const result = await provider.sendWithTools('step', [], { model: 'gpt-5.4-mini' });
     const parsed = JSON.parse(result);
     expect(parsed.tool_calls).toEqual([
       { id: 'fc-1', name: 'think', arguments: { thought: 'reasoning' } },
     ]);
+  });
+
+  it('parses Codex Responses API usage fields (input_tokens / output_tokens)', async () => {
+    let captured: { promptTokens?: number; completionTokens?: number; totalTokens?: number } | undefined;
+    fetchSpy.mockResolvedValue(
+      sseResponse([
+        {
+          type: 'response.completed',
+          response: {
+            usage: {
+              input_tokens: 42,
+              input_tokens_details: { cached_tokens: 0 },
+              output_tokens: 7,
+              output_tokens_details: {},
+              total_tokens: 49,
+            },
+          },
+        },
+      ])
+    );
+    const provider = createProvider(oauthConfig) as Provider & { sendWithTools: NonNullable<Provider['sendWithTools']> };
+    await provider.sendWithTools('step', [], {
+      model: 'gpt-5.4-mini',
+      onUsage: (u) => {
+        captured = u;
+      },
+    });
+    expect(captured).toEqual({ promptTokens: 42, completionTokens: 7, totalTokens: 49 });
   });
 });

@@ -206,6 +206,7 @@ interface AgentContext {
   promptContext?: string;
   usage: UsageInfo;
   apiSurfaceVerified: boolean;
+  tokenBudget?: number; // optional cap on total tokens for this run
 }
 
 function toCoreTask(row: {
@@ -275,19 +276,21 @@ export async function runAgentTask(
   // Wire up credential persistence for OAuth token refresh
   if (selection.provider.refreshToken) {
     const providerId = selection.provider.id;
-    selection.provider.onCredentialsUpdate = async (creds) => {
-      try {
-        await prisma.providerConfig.update({
-          where: { id: providerId },
-          data: {
-            apiKey: creds.apiKey,
-            refreshToken: creds.refreshToken,
-            tokenExpiresAt: new Date(creds.tokenExpiresAt),
-          },
-        });
-      } catch (err) {
-        console.warn('Failed to persist refreshed OAuth credentials:', err);
-      }
+    selection.provider.onCredentialsUpdate = (creds) => {
+      void (async () => {
+        try {
+          await prisma.providerConfig.update({
+            where: { id: providerId },
+            data: {
+              apiKey: creds.apiKey,
+              refreshToken: creds.refreshToken,
+              tokenExpiresAt: new Date(creds.tokenExpiresAt),
+            },
+          });
+        } catch (err) {
+          console.warn('Failed to persist refreshed OAuth credentials:', err);
+        }
+      })();
     };
   }
 
@@ -414,6 +417,7 @@ export async function runAgentTask(
     autoPublish: options.autoPublish ?? false,
     maxSteps: options.maxSteps ?? maxStepsForComplexity(task.complexity),
     explorationBudget: explorationBudgetForComplexity(task.complexity),
+    tokenBudget: options.tokenBudget,
     modifiedFiles: new Set<string>(),
     recentCommands: new Set<string>(),
     recentReads: new Map<string, number>(),
@@ -606,6 +610,24 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   ];
 
   while (stepIndex < ctx.maxSteps && !finished) {
+    if (
+      ctx.tokenBudget !== undefined &&
+      (ctx.usage.totalTokens ?? 0) > ctx.tokenBudget
+    ) {
+      logger.warn('Token budget exceeded, ending agent loop', {
+        taskId: ctx.task.id,
+        agentRunId: ctx.agentRunId,
+        tokenBudget: ctx.tokenBudget,
+        used: ctx.usage.totalTokens,
+      });
+      ctx.rootSpan.addEvent('token_budget.exceeded', {
+        budget: ctx.tokenBudget,
+        used: ctx.usage.totalTokens,
+      });
+      summary = `Token budget exceeded: used ${String(ctx.usage.totalTokens)} of ${String(ctx.tokenBudget)}`;
+      finished = true;
+      break;
+    }
     const response = await sendToProvider(ctx, messages);
 
     if (!response.toolCalls || response.toolCalls.length === 0) {

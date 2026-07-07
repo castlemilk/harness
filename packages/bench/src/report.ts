@@ -19,6 +19,32 @@ function resultLine(r: BenchmarkResult, idx: number): string {
   return `${String(idx + 1)}. ${symbol} ${r.task.name} [${status}] ${formatDuration(r.durationMs)}${score}${msg}`;
 }
 
+function traceSummaryBlock(r: BenchmarkResult): string[] {
+  const ts = r.traceSummary;
+  if (!ts || ts.totalSpans === 0) return [];
+  const lines: string[] = [];
+  lines.push(`  Trace: ${String(ts.totalSpans)} spans, ${formatDuration(ts.totalDurationMs)} wall`);
+  if (ts.totalTokens) {
+    const prompt = ts.promptTokens ?? 0;
+    const completion = ts.completionTokens ?? 0;
+    lines.push(`  Tokens: ${String(ts.totalTokens)} total (${String(prompt)} prompt + ${String(completion)} completion)`);
+  }
+  if (ts.toolSummary.length > 0) {
+    lines.push('  Tools:');
+    for (const t of ts.toolSummary) {
+      const sr = `${String(Math.round(t.successRate * 100))}%`;
+      lines.push(`    - ${t.tool.padEnd(20)} ${String(t.total).padStart(4)} calls  ${sr.padStart(4)} success  ${String(t.failure).padStart(3)} fail`);
+    }
+  }
+  if (ts.topErrors.length > 0) {
+    lines.push('  Top errors:');
+    for (const e of ts.topErrors.slice(0, 5)) {
+      lines.push(`    - [${e.tool}] ${e.message.slice(0, 120)}`);
+    }
+  }
+  return lines;
+}
+
 export async function writeReport(report: BenchmarkReport, outputDir = '.omega/reports'): Promise<string> {
   await fs.mkdir(outputDir, { recursive: true });
   const ts = nowIso();
@@ -42,7 +68,7 @@ export async function writeReport(report: BenchmarkReport, outputDir = '.omega/r
     '',
     '## Results',
     '',
-    ...report.results.map((r, i) => resultLine(r, i)),
+    ...report.results.flatMap((r, i) => [resultLine(r, i), ...traceSummaryBlock(r)]),
     '',
     '## Details',
     '',
@@ -64,5 +90,8 @@ export function printSummary(report: BenchmarkReport): void {
   console.log(`Duration: ${formatDuration(report.totalDurationMs)}`);
   for (const r of report.results) {
     console.log(resultLine(r, report.results.indexOf(r)));
+    for (const line of traceSummaryBlock(r)) {
+      console.log(line);
+    }
   }
 }

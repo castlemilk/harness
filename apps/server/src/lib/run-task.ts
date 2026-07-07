@@ -37,6 +37,10 @@ export async function runTask(prisma: PrismaClient, taskId: string, options: { d
 
   const tags: string[] = task.tags ? (JSON.parse(task.tags) as string[]) : [];
   if (tags.includes('agent') || tags.includes('self-improve')) {
+    const tokenBudget = process.env.OMEGA_TOKEN_BUDGET
+      ? Number(process.env.OMEGA_TOKEN_BUDGET)
+      : undefined;
+
     if (options.detached) {
       void (async () => {
         try {
@@ -45,6 +49,7 @@ export async function runTask(prisma: PrismaClient, taskId: string, options: { d
             projectName: task.project.name,
             autoPublish: tags.includes('publish'),
             isolated: true,
+            tokenBudget,
           });
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -58,6 +63,7 @@ export async function runTask(prisma: PrismaClient, taskId: string, options: { d
       projectName: task.project.name,
       autoPublish: tags.includes('publish'),
       isolated: true,
+      tokenBudget,
     });
     return agentResult.task;
   }

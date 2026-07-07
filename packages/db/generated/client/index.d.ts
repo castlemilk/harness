@@ -8929,6 +8929,8 @@ export namespace Prisma {
     kind: string | null
     baseUrl: string | null
     apiKey: string | null
+    refreshToken: string | null
+    tokenExpiresAt: Date | null
     defaultModel: string | null
     capabilities: string | null
     enabled: boolean | null
@@ -8941,6 +8943,8 @@ export namespace Prisma {
     kind: string | null
     baseUrl: string | null
     apiKey: string | null
+    refreshToken: string | null
+    tokenExpiresAt: Date | null
     defaultModel: string | null
     capabilities: string | null
     enabled: boolean | null
@@ -8953,6 +8957,8 @@ export namespace Prisma {
     kind: number
     baseUrl: number
     apiKey: number
+    refreshToken: number
+    tokenExpiresAt: number
     defaultModel: number
     capabilities: number
     enabled: number
@@ -8967,6 +8973,8 @@ export namespace Prisma {
     kind?: true
     baseUrl?: true
     apiKey?: true
+    refreshToken?: true
+    tokenExpiresAt?: true
     defaultModel?: true
     capabilities?: true
     enabled?: true
@@ -8979,6 +8987,8 @@ export namespace Prisma {
     kind?: true
     baseUrl?: true
     apiKey?: true
+    refreshToken?: true
+    tokenExpiresAt?: true
     defaultModel?: true
     capabilities?: true
     enabled?: true
@@ -8991,6 +9001,8 @@ export namespace Prisma {
     kind?: true
     baseUrl?: true
     apiKey?: true
+    refreshToken?: true
+    tokenExpiresAt?: true
     defaultModel?: true
     capabilities?: true
     enabled?: true
@@ -9076,6 +9088,8 @@ export namespace Prisma {
     kind: string
     baseUrl: string | null
     apiKey: string | null
+    refreshToken: string | null
+    tokenExpiresAt: Date | null
     defaultModel: string
     capabilities: string
     enabled: boolean
@@ -9105,6 +9119,8 @@ export namespace Prisma {
     kind?: boolean
     baseUrl?: boolean
     apiKey?: boolean
+    refreshToken?: boolean
+    tokenExpiresAt?: boolean
     defaultModel?: boolean
     capabilities?: boolean
     enabled?: boolean
@@ -9117,6 +9133,8 @@ export namespace Prisma {
     kind?: boolean
     baseUrl?: boolean
     apiKey?: boolean
+    refreshToken?: boolean
+    tokenExpiresAt?: boolean
     defaultModel?: boolean
     capabilities?: boolean
     enabled?: boolean
@@ -9129,6 +9147,8 @@ export namespace Prisma {
     kind?: boolean
     baseUrl?: boolean
     apiKey?: boolean
+    refreshToken?: boolean
+    tokenExpiresAt?: boolean
     defaultModel?: boolean
     capabilities?: boolean
     enabled?: boolean
@@ -9145,6 +9165,8 @@ export namespace Prisma {
       kind: string
       baseUrl: string | null
       apiKey: string | null
+      refreshToken: string | null
+      tokenExpiresAt: Date | null
       defaultModel: string
       capabilities: string
       enabled: boolean
@@ -9547,6 +9569,8 @@ export namespace Prisma {
     readonly kind: FieldRef<"ProviderConfig", 'String'>
     readonly baseUrl: FieldRef<"ProviderConfig", 'String'>
     readonly apiKey: FieldRef<"ProviderConfig", 'String'>
+    readonly refreshToken: FieldRef<"ProviderConfig", 'String'>
+    readonly tokenExpiresAt: FieldRef<"ProviderConfig", 'DateTime'>
     readonly defaultModel: FieldRef<"ProviderConfig", 'String'>
     readonly capabilities: FieldRef<"ProviderConfig", 'String'>
     readonly enabled: FieldRef<"ProviderConfig", 'Boolean'>
@@ -11912,6 +11936,8 @@ export namespace Prisma {
     kind: 'kind',
     baseUrl: 'baseUrl',
     apiKey: 'apiKey',
+    refreshToken: 'refreshToken',
+    tokenExpiresAt: 'tokenExpiresAt',
     defaultModel: 'defaultModel',
     capabilities: 'capabilities',
     enabled: 'enabled',
@@ -12621,6 +12647,8 @@ export namespace Prisma {
     kind?: StringFilter<"ProviderConfig"> | string
     baseUrl?: StringNullableFilter<"ProviderConfig"> | string | null
     apiKey?: StringNullableFilter<"ProviderConfig"> | string | null
+    refreshToken?: StringNullableFilter<"ProviderConfig"> | string | null
+    tokenExpiresAt?: DateTimeNullableFilter<"ProviderConfig"> | Date | string | null
     defaultModel?: StringFilter<"ProviderConfig"> | string
     capabilities?: StringFilter<"ProviderConfig"> | string
     enabled?: BoolFilter<"ProviderConfig"> | boolean
@@ -12633,6 +12661,8 @@ export namespace Prisma {
     kind?: SortOrder
     baseUrl?: SortOrderInput | SortOrder
     apiKey?: SortOrderInput | SortOrder
+    refreshToken?: SortOrderInput | SortOrder
+    tokenExpiresAt?: SortOrderInput | SortOrder
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
@@ -12648,6 +12678,8 @@ export namespace Prisma {
     kind?: StringFilter<"ProviderConfig"> | string
     baseUrl?: StringNullableFilter<"ProviderConfig"> | string | null
     apiKey?: StringNullableFilter<"ProviderConfig"> | string | null
+    refreshToken?: StringNullableFilter<"ProviderConfig"> | string | null
+    tokenExpiresAt?: DateTimeNullableFilter<"ProviderConfig"> | Date | string | null
     defaultModel?: StringFilter<"ProviderConfig"> | string
     capabilities?: StringFilter<"ProviderConfig"> | string
     enabled?: BoolFilter<"ProviderConfig"> | boolean
@@ -12660,6 +12692,8 @@ export namespace Prisma {
     kind?: SortOrder
     baseUrl?: SortOrderInput | SortOrder
     apiKey?: SortOrderInput | SortOrder
+    refreshToken?: SortOrderInput | SortOrder
+    tokenExpiresAt?: SortOrderInput | SortOrder
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
@@ -12678,6 +12712,8 @@ export namespace Prisma {
     kind?: StringWithAggregatesFilter<"ProviderConfig"> | string
     baseUrl?: StringNullableWithAggregatesFilter<"ProviderConfig"> | string | null
     apiKey?: StringNullableWithAggregatesFilter<"ProviderConfig"> | string | null
+    refreshToken?: StringNullableWithAggregatesFilter<"ProviderConfig"> | string | null
+    tokenExpiresAt?: DateTimeNullableWithAggregatesFilter<"ProviderConfig"> | Date | string | null
     defaultModel?: StringWithAggregatesFilter<"ProviderConfig"> | string
     capabilities?: StringWithAggregatesFilter<"ProviderConfig"> | string
     enabled?: BoolWithAggregatesFilter<"ProviderConfig"> | boolean
@@ -13467,6 +13503,8 @@ export namespace Prisma {
     kind: string
     baseUrl?: string | null
     apiKey?: string | null
+    refreshToken?: string | null
+    tokenExpiresAt?: Date | string | null
     defaultModel: string
     capabilities: string
     enabled?: boolean
@@ -13479,6 +13517,8 @@ export namespace Prisma {
     kind: string
     baseUrl?: string | null
     apiKey?: string | null
+    refreshToken?: string | null
+    tokenExpiresAt?: Date | string | null
     defaultModel: string
     capabilities: string
     enabled?: boolean
@@ -13491,6 +13531,8 @@ export namespace Prisma {
     kind?: StringFieldUpdateOperationsInput | string
     baseUrl?: NullableStringFieldUpdateOperationsInput | string | null
     apiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    refreshToken?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     defaultModel?: StringFieldUpdateOperationsInput | string
     capabilities?: StringFieldUpdateOperationsInput | string
     enabled?: BoolFieldUpdateOperationsInput | boolean
@@ -13503,6 +13545,8 @@ export namespace Prisma {
     kind?: StringFieldUpdateOperationsInput | string
     baseUrl?: NullableStringFieldUpdateOperationsInput | string | null
     apiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    refreshToken?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     defaultModel?: StringFieldUpdateOperationsInput | string
     capabilities?: StringFieldUpdateOperationsInput | string
     enabled?: BoolFieldUpdateOperationsInput | boolean
@@ -13515,6 +13559,8 @@ export namespace Prisma {
     kind: string
     baseUrl?: string | null
     apiKey?: string | null
+    refreshToken?: string | null
+    tokenExpiresAt?: Date | string | null
     defaultModel: string
     capabilities: string
     enabled?: boolean
@@ -13527,6 +13573,8 @@ export namespace Prisma {
     kind?: StringFieldUpdateOperationsInput | string
     baseUrl?: NullableStringFieldUpdateOperationsInput | string | null
     apiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    refreshToken?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     defaultModel?: StringFieldUpdateOperationsInput | string
     capabilities?: StringFieldUpdateOperationsInput | string
     enabled?: BoolFieldUpdateOperationsInput | boolean
@@ -13539,6 +13587,8 @@ export namespace Prisma {
     kind?: StringFieldUpdateOperationsInput | string
     baseUrl?: NullableStringFieldUpdateOperationsInput | string | null
     apiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    refreshToken?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     defaultModel?: StringFieldUpdateOperationsInput | string
     capabilities?: StringFieldUpdateOperationsInput | string
     enabled?: BoolFieldUpdateOperationsInput | boolean
@@ -14260,6 +14310,8 @@ export namespace Prisma {
     kind?: SortOrder
     baseUrl?: SortOrder
     apiKey?: SortOrder
+    refreshToken?: SortOrder
+    tokenExpiresAt?: SortOrder
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
@@ -14272,6 +14324,8 @@ export namespace Prisma {
     kind?: SortOrder
     baseUrl?: SortOrder
     apiKey?: SortOrder
+    refreshToken?: SortOrder
+    tokenExpiresAt?: SortOrder
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
@@ -14284,6 +14338,8 @@ export namespace Prisma {
     kind?: SortOrder
     baseUrl?: SortOrder
     apiKey?: SortOrder
+    refreshToken?: SortOrder
+    tokenExpiresAt?: SortOrder
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder

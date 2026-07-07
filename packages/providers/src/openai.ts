@@ -36,24 +36,18 @@ function extractUsage(data: unknown): UsageInfo | undefined {
   const usage = (data as { usage?: unknown }).usage;
   if (typeof usage !== 'object' || usage === null) return undefined;
   const usageRecord = usage as Record<string, unknown>;
-  const promptTokens =
-    typeof usageRecord.prompt_tokens === 'number'
-      ? usageRecord.prompt_tokens
-      : typeof usageRecord.promptTokens === 'number'
-        ? usageRecord.promptTokens
-        : undefined;
-  const completionTokens =
-    typeof usageRecord.completion_tokens === 'number'
-      ? usageRecord.completion_tokens
-      : typeof usageRecord.completionTokens === 'number'
-        ? usageRecord.completionTokens
-        : undefined;
-  const totalTokens =
-    typeof usageRecord.total_tokens === 'number'
-      ? usageRecord.total_tokens
-      : typeof usageRecord.totalTokens === 'number'
-        ? usageRecord.totalTokens
-        : undefined;
+  // Chat Completions API: prompt_tokens / completion_tokens / total_tokens.
+  // Responses API + Codex: input_tokens / output_tokens / total_tokens.
+  const readNum = (...keys: string[]): number | undefined => {
+    for (const k of keys) {
+      const v = usageRecord[k];
+      if (typeof v === 'number') return v;
+    }
+    return undefined;
+  };
+  const promptTokens = readNum('prompt_tokens', 'promptTokens', 'input_tokens');
+  const completionTokens = readNum('completion_tokens', 'completionTokens', 'output_tokens');
+  const totalTokens = readNum('total_tokens', 'totalTokens');
   if (promptTokens === undefined && completionTokens === undefined && totalTokens === undefined) {
     return undefined;
   }
@@ -241,8 +235,14 @@ export class OpenAIProvider implements Provider {
     );
     if (!res.ok) {
       const body = await res.text().catch(() => '');
+      let parsedBody: { messages?: { role?: string; content?: string; tool_calls?: { id?: string }[]; tool_call_id?: string }[] } = {};
+      try {
+        parsedBody = JSON.parse(requestBody) as typeof parsedBody;
+      } catch {
+        // ignore parse errors
+      }
       const summary = JSON.stringify(
-        JSON.parse(requestBody).messages.map((m: { role?: string; content?: string; tool_calls?: { id?: string }[]; tool_call_id?: string }) => ({
+        (parsedBody.messages ?? []).map((m) => ({
           role: m.role,
           contentLen: m.content?.length ?? 0,
           toolCallIds: m.tool_calls?.map((tc) => tc.id),
@@ -318,19 +318,17 @@ export class OpenAIProvider implements Provider {
               type: 'function_call',
               call_id: tc.id ?? '',
               name: fn.name ?? '',
-              arguments: typeof fn.arguments === 'string' ? fn.arguments : JSON.stringify(fn.arguments ?? {}),
+              arguments: typeof fn.arguments === 'string' ? fn.arguments : '{}',
             });
           }
           continue;
         }
-        if (m.role === 'tool') {
-          items.push({
-            type: 'function_call_output',
-            call_id: m.tool_call_id ?? '',
-            output: m.content ?? '',
-          });
-          continue;
-        }
+        items.push({
+          type: 'function_call_output',
+          call_id: m.tool_call_id ?? '',
+          output: m.content ?? '',
+        });
+        continue;
       }
     } else {
       items.push({
@@ -401,7 +399,10 @@ export class OpenAIProvider implements Provider {
     toolCalls: { id: string; name: string; arguments: Record<string, unknown> }[];
     usage?: UsageInfo;
   }> {
-    const reader = res.body!.getReader();
+    if (!res.body) {
+      throw new Error('Codex SSE response has no body');
+    }
+    const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
 
@@ -422,16 +423,17 @@ export class OpenAIProvider implements Provider {
 
       switch (data.type) {
         case 'response.output_text.delta': {
-          text += (data.delta as string) ?? '';
+          const delta = typeof data.delta === 'string' ? data.delta : '';
+          text += delta;
           break;
         }
         case 'response.output_item.added': {
           const item = data.item as Record<string, unknown> | undefined;
           if (item?.type === 'function_call') {
             currentToolCall = {
-              id: (item.id as string) ?? '',
-              name: (item.name as string) ?? '',
-              arguments: (item.arguments as string) ?? '{}',
+              id: typeof item.id === 'string' ? item.id : '',
+              name: typeof item.name === 'string' ? item.name : '',
+              arguments: typeof item.arguments === 'string' ? item.arguments : '{}',
             };
           }
           break;
@@ -439,7 +441,7 @@ export class OpenAIProvider implements Provider {
         case 'response.output_item.done': {
           const item = data.item as Record<string, unknown> | undefined;
           if (item?.type === 'function_call' && currentToolCall) {
-            const argsStr = (item.arguments as string) ?? currentToolCall.arguments;
+            const argsStr = typeof item.arguments === 'string' ? item.arguments : currentToolCall.arguments;
             let parsed: Record<string, unknown>;
             try {
               parsed = JSON.parse(argsStr) as Record<string, unknown>;
@@ -448,7 +450,7 @@ export class OpenAIProvider implements Provider {
             }
             toolCalls.push({
               id: currentToolCall.id,
-              name: (item.name as string) ?? currentToolCall.name,
+              name: typeof item.name === 'string' ? item.name : currentToolCall.name,
               arguments: parsed,
             });
             currentToolCall = null;
@@ -466,17 +468,16 @@ export class OpenAIProvider implements Provider {
       }
     };
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
+    let readResult = await reader.read();
+    while (!readResult.done) {
+      buffer += decoder.decode(readResult.value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
 
       for (const line of lines) {
         processLine(line);
       }
+      readResult = await reader.read();
     }
 
     // Process remaining buffer

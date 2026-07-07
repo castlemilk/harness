@@ -2,6 +2,7 @@ export * from './types.js';
 export * from './api-client.js';
 export { runBenchmark } from './runner.js';
 export { writeReport, printSummary } from './report.js';
+export { compareReports, writeCompareReport } from './compare.js';
 export { syntheticSuite } from './suites/synthetic.js';
 export { loadDeepSWESuite, type DeepSWEOptions } from './adapters/deepswe.js';
 export {

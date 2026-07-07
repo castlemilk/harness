@@ -1121,6 +1121,11 @@ async function sendToProvider(
 
   const baseMessages = truncateMessages(messages);
 
+  // Turn-level retry: survives provider outages longer than the provider's own
+  // HTTP-retry window (e.g. GLM's multi-minute 429 overload bursts). Up to 3
+  // extra attempts with 30/60/90s backoff, logged as warnings.
+  const TURN_BACKOFFS_MS = [30_000, 60_000, 90_000];
+  for (let attempt = 0; ; attempt++) {
   try {
     // Prefer native tool calls when the provider supports them.
     if (typeof provider.sendWithTools === 'function') {
@@ -1165,9 +1170,22 @@ async function sendToProvider(
     await span.end('ok');
     return parsed;
   } catch (err) {
+    if (attempt < TURN_BACKOFFS_MS.length) {
+      const waitMs = TURN_BACKOFFS_MS[attempt];
+      logger.warn('Provider call failed, retrying turn after backoff', {
+        attempt: attempt + 1,
+        waitMs,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      await new Promise((resolve) => {
+        setTimeout(resolve, waitMs);
+      });
+      continue;
+    }
     span.recordError(err);
     await span.end('error');
     throw err;
+  }
   }
 }
 

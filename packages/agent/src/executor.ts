@@ -548,14 +548,16 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
   await addTrace(ctx, 'user', buildTaskPrompt(ctx.task.title, ctx.task.description ?? undefined));
 
   const planSpan = ctx.tracer.startSpan('agent.plan', ctx.rootSpan.toContext());
-  const plan = await createPlan(
-    ctx.provider,
-    ctx.task.title,
-    ctx.task.description ?? undefined,
-    ctx.promptContext,
-    (usage) => {
-      recordUsage(ctx, usage);
-    }
+  const plan = await withProviderRetry('planner', () =>
+    createPlan(
+      ctx.provider,
+      ctx.task.title,
+      ctx.task.description ?? undefined,
+      ctx.promptContext,
+      (usage) => {
+        recordUsage(ctx, usage);
+      }
+    )
   );
   planSpan.setAttributes({ planSteps: plan.plan.length });
   planSpan.addEvent('plan.created');
@@ -589,7 +591,7 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
     if (!response.toolCalls || response.toolCalls.length === 0) {
       noActionCount++;
       if (noActionCount >= 2) {
-        const reflection = await reflectOnTrace(ctx, 8);
+        const reflection = await withProviderRetry('reflection', () => reflectOnTrace(ctx, 8));
         messages.push({
           role: 'user',
           content: reflection ? `${FORCE_ACTION_PROMPT}\n\n${reflection}` : FORCE_ACTION_PROMPT,
@@ -1099,6 +1101,29 @@ function truncateMessages(
     if (idx >= windowStart) return m;
     return trimContent(m);
   });
+}
+
+// Wraps a provider-touching call (planner, reflection) with turn-level retry so a
+// multi-minute provider outage (e.g. GLM 429 bursts) doesn't kill the task from a
+// path that bypasses sendToProvider. sendToProvider has its own inline equivalent.
+async function withProviderRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  const backoffsMs = [30_000, 60_000, 90_000];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt >= backoffsMs.length) throw err;
+      const waitMs = backoffsMs[attempt];
+      logger.warn(`${label} call failed, retrying after backoff`, {
+        attempt: attempt + 1,
+        waitMs,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      await new Promise((resolve) => {
+        setTimeout(resolve, waitMs);
+      });
+    }
+  }
 }
 
 async function sendToProvider(

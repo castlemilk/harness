@@ -2,6 +2,36 @@ import type { Provider, ProviderConfig, SendOptions, ToolDefinition, UsageInfo }
 
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 
+const MAX_RETRIES = 5;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+// Exponential backoff with full jitter. Sequence (base ms) for attempts 0..N:
+// ~1500, 3000, 6000, 12000, 24000 — capped at 30s.
+function backoffMs(attempt: number): number {
+  const base = Math.min(1500 * 2 ** attempt, 30_000);
+  return Math.floor(Math.random() * base);
+}
+
+// Parse a Retry-After header (seconds or HTTP-date). Returns ms or undefined.
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const secs = Number(value);
+  if (Number.isFinite(secs)) return Math.min(Math.max(secs, 0) * 1000, 60_000);
+  const date = Date.parse(value);
+  if (!Number.isNaN(date)) return Math.min(Math.max(date - Date.now(), 0), 60_000);
+  return undefined;
+}
+
+function isTransientStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+
 function extractUsage(data: unknown): UsageInfo | undefined {
   if (typeof data !== 'object' || data === null) return undefined;
   const usage = (data as { usage?: unknown }).usage;
@@ -40,6 +70,34 @@ export class OpenAIProvider implements Provider {
 
   protected get baseUrl(): string {
     return (this.config.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, '');
+  }
+
+  // Fetch with retry on transient failures (429, 5xx, network errors). The body
+  // must be a string so it is reusable across attempts. Returns the final
+  // response (which may still be non-OK for non-transient or exhausted cases).
+  private async fetchWithRetry(url: string, init: RequestInit, label: string): Promise<Response> {
+    for (let attempt = 0; ; attempt++) {
+      let res: Response;
+      try {
+        res = await fetch(url, init);
+      } catch (err) {
+        if (attempt >= MAX_RETRIES) throw err;
+        const wait = backoffMs(attempt);
+        console.warn(`${label}: network error, retry ${String(attempt + 1)}/${String(MAX_RETRIES)} in ${String(wait)}ms`);
+        await sleep(wait);
+        continue;
+      }
+      if (isTransientStatus(res.status) && attempt < MAX_RETRIES) {
+        // Drain/discard the body so the connection can be reused.
+        await res.text().catch(() => undefined);
+        const retryAfter = parseRetryAfter(res.headers.get('retry-after'));
+        const wait = retryAfter ?? backoffMs(attempt);
+        console.warn(`${label}: ${String(res.status)} transient, retry ${String(attempt + 1)}/${String(MAX_RETRIES)} in ${String(wait)}ms`);
+        await sleep(wait);
+        continue;
+      }
+      return res;
+    }
   }
 
   protected readonly supportsTemperature: boolean = true;
@@ -86,20 +144,24 @@ export class OpenAIProvider implements Provider {
   }
 
   async send(prompt: string, opts?: SendOptions): Promise<string> {
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.authHeaders(),
+    const res = await this.fetchWithRetry(
+      `${this.baseUrl}/chat/completions`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.authHeaders(),
+        },
+        body: JSON.stringify({
+          model: opts?.model ?? this.config.defaultModel,
+          messages: this.buildMessages(prompt, opts),
+          ...(this.supportsTemperature && opts?.temperature !== undefined
+            ? { temperature: opts.temperature }
+            : {}),
+        }),
       },
-      body: JSON.stringify({
-        model: opts?.model ?? this.config.defaultModel,
-        messages: this.buildMessages(prompt, opts),
-        ...(this.supportsTemperature && opts?.temperature !== undefined
-          ? { temperature: opts.temperature }
-          : {}),
-      }),
-    });
+      'OpenAI',
+    );
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       throw new Error(`OpenAI request failed: ${res.status.toString()} ${res.statusText} — ${body.slice(0, 500)}`);
@@ -126,14 +188,18 @@ export class OpenAIProvider implements Provider {
         ? { temperature: opts.temperature }
         : {}),
     });
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.authHeaders(),
+    const res = await this.fetchWithRetry(
+      `${this.baseUrl}/chat/completions`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.authHeaders(),
+        },
+        body: requestBody,
       },
-      body: requestBody,
-    });
+      'OpenAI tools',
+    );
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       const summary = JSON.stringify(

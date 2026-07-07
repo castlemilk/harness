@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig, SendOptions, UsageInfo } from '@omega/core';
+import type { Provider, ProviderConfig, SendOptions, ToolDefinition, UsageInfo } from '@omega/core';
 
 const DEFAULT_BASE_URL = 'http://localhost:11434';
 
@@ -18,6 +18,34 @@ export class OllamaProvider implements Provider {
     if (!res.ok) return [this.config.defaultModel];
     const data = (await res.json()) as { models?: { name: string }[] };
     return data.models?.map((m) => m.name) ?? [this.config.defaultModel];
+  }
+
+  private buildMessages(prompt: string, opts?: SendOptions): Record<string, unknown>[] {
+    if (opts?.messages && opts.messages.length > 0) {
+      const hasSystem = opts.messages.some((m) => m.role === 'system');
+      const msgs = opts.messages.map((m) => {
+        const base: Record<string, unknown> = {
+          role: m.role,
+          content: m.content ?? '',
+        };
+        if (m.tool_calls && m.tool_calls.length > 0) {
+          base.tool_calls = m.tool_calls;
+        }
+        if (m.role === 'tool') {
+          base.tool_call_id = m.tool_call_id ?? '';
+        }
+        if (m.name) base.name = m.name;
+        return base;
+      });
+      if (opts.system && !hasSystem) {
+        msgs.unshift({ role: 'system', content: opts.system });
+      }
+      return msgs;
+    }
+    return [
+      ...(opts?.system ? [{ role: 'system', content: opts.system }] : []),
+      { role: 'user', content: prompt },
+    ];
   }
 
   async send(prompt: string, opts?: SendOptions): Promise<string> {
@@ -50,6 +78,67 @@ export class OllamaProvider implements Provider {
       usage.totalTokens = usage.promptTokens + usage.completionTokens;
     }
     opts?.onUsage?.(usage);
+    return data.message?.content ?? '';
+  }
+
+  async sendWithTools(prompt: string, tools: ToolDefinition[], opts?: SendOptions): Promise<string> {
+    const body = JSON.stringify({
+      model: opts?.model ?? this.config.defaultModel,
+      messages: this.buildMessages(prompt, opts),
+      tools: tools.map((t) => ({
+        type: 'function',
+        function: { name: t.name, description: t.description, parameters: t.parameters },
+      })),
+      stream: false,
+      options: opts?.temperature !== undefined ? { temperature: opts.temperature } : undefined,
+    });
+    const res = await fetch(`${this.baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+    if (!res.ok) {
+      const b = await res.text().catch(() => '');
+      throw new Error(`Ollama tools request failed: ${res.status.toString()} ${res.statusText} — ${b.slice(0, 500)}`);
+    }
+    const data = (await res.json()) as {
+      message?: {
+        content?: string | null;
+        tool_calls?: { function?: { name?: string; arguments?: unknown } }[];
+      };
+      prompt_eval_count?: number;
+      eval_count?: number;
+    };
+    const usage: UsageInfo = {
+      promptTokens: data.prompt_eval_count,
+      completionTokens: data.eval_count,
+    };
+    if (usage.promptTokens !== undefined && usage.completionTokens !== undefined) {
+      usage.totalTokens = usage.promptTokens + usage.completionTokens;
+    }
+    opts?.onUsage?.(usage);
+
+    const toolCalls = data.message?.tool_calls;
+    if (toolCalls && toolCalls.length > 0) {
+      const normalized = toolCalls
+        .map((tc, i) => ({
+          id: tc.function?.name ? `call_${tc.function.name}_${i}` : `call_${i}`,
+          name: tc.function?.name ?? '',
+          arguments: (() => {
+            const args = tc.function?.arguments;
+            if (typeof args === 'string') {
+              try { return JSON.parse(args) as Record<string, unknown>; }
+              catch { return {}; }
+            }
+            if (typeof args === 'object' && args !== null) {
+              return args as Record<string, unknown>;
+            }
+            return {};
+          })(),
+        }))
+        .filter((tc) => tc.name);
+      return JSON.stringify({ tool_calls: normalized });
+    }
     return data.message?.content ?? '';
   }
 }

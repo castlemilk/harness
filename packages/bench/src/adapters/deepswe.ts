@@ -99,9 +99,9 @@ function languageGuidance(language: string | undefined): string {
 - Format: gofmt -w .`;
   } else if (lang === 'python') {
     cmds = `Language: Python.
-- Install deps if missing: pip install -e .  (or: pip install -r requirements.txt)
-- Run existing tests: python -m pytest -q
-- If no pytest, fall back to: python -m unittest`;
+- Install deps if missing: python3 -m pip install -e .  (or: python3 -m pip install -r requirements.txt)
+- Run existing tests: python3 -m pytest -q
+- If no pytest, fall back to: python3 -m unittest`;
   } else if (lang === 'rust') {
     cmds = `Language: Rust.
 - Build/compile check (run first, must exit 0): cargo build

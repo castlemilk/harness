@@ -111,15 +111,17 @@ async function installWorktreeDependencies(projectPath: string): Promise<void> {
   }
 
   // Python: prefer requirements files, then editable install of the package.
+  // Use python3/pip3 (macOS and many Linux images have no bare `python`).
   const hasPyproject = await pathExists(path.join(projectPath, 'pyproject.toml'));
   const hasSetupPy = await pathExists(path.join(projectPath, 'setup.py'));
   const hasRequirements = await pathExists(path.join(projectPath, 'requirements.txt'));
   if (hasPyproject || hasSetupPy || hasRequirements) {
+    const pyBin = (await pathExists('/opt/homebrew/bin/python3')) || (await pathExists('/usr/bin/python3')) ? 'python3' : 'python';
     if (hasRequirements) {
-      await tryInstall('python', ['-m', 'pip', 'install', '-r', 'requirements.txt'], projectPath, 300_000, 'python (requirements)');
+      await tryInstall(pyBin, ['-m', 'pip', 'install', '-r', 'requirements.txt'], projectPath, 300_000, 'python (requirements)');
     }
     if (hasPyproject || hasSetupPy) {
-      await tryInstall('python', ['-m', 'pip', 'install', '-e', '.'], projectPath, 300_000, 'python (editable)');
+      await tryInstall(pyBin, ['-m', 'pip', 'install', '-e', '.'], projectPath, 300_000, 'python (editable)');
     }
     return;
   }

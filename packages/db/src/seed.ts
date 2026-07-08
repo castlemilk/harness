@@ -19,6 +19,7 @@ export async function seedDefaults(): Promise<void> {
       update: {
         apiKey: process.env.KIMI_API_KEY,
         defaultModel: 'moonshot-v1-32k',
+        enabled: true,
         capabilities: JSON.stringify([
           { name: 'moonshot-v1-32k', level: 'advanced', supportsTools: true },
           { name: 'moonshot-v1-128k', level: 'advanced', supportsTools: true },
@@ -31,6 +32,7 @@ export async function seedDefaults(): Promise<void> {
         baseUrl: 'https://api.kimi.com/coding/v1',
         apiKey: process.env.KIMI_API_KEY,
         defaultModel: 'moonshot-v1-32k',
+        enabled: true,
         capabilities: JSON.stringify([
           { name: 'moonshot-v1-32k', level: 'advanced', supportsTools: true },
           { name: 'moonshot-v1-128k', level: 'advanced', supportsTools: true },
@@ -39,6 +41,14 @@ export async function seedDefaults(): Promise<void> {
       },
     });
     console.log('Seeded Kimi provider.');
+  }
+  // Disable Kimi if OMEGA_DISABLE_KIMI is set (quota exhausted etc.)
+  if (process.env.OMEGA_DISABLE_KIMI) {
+    await prisma.providerConfig.update({
+      where: { name: 'kimi' },
+      data: { enabled: false },
+    });
+    console.log('Kimi provider disabled (OMEGA_DISABLE_KIMI).');
   }
 
   // GLM (z.ai) coding plan — OpenAI-compatible. Key format: <id>.<secret>.

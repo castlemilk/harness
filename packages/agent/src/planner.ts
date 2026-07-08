@@ -55,8 +55,10 @@ export async function createPlan(
   const contextBlock = context ? `\n\nProject context:\n${context}` : '';
   const prompt = `${PLAN_PROMPT}${contextBlock}\n\nTask: ${taskTitle}\n${taskDescription ? `Description: ${taskDescription}\n` : ''}`;
   // Try tool-aware path first, fall back to plain send.
+  // Skips sendWithTools for providers known to 429 on tool endpoints (GLM/Z.AI).
   let raw: string;
-  if ('sendWithTools' in provider && typeof provider.sendWithTools === 'function') {
+  const providerConfig = 'config' in provider ? (provider as { config: { name: string } }).config : undefined;
+  if (providerConfig?.name !== 'glm' && 'sendWithTools' in provider && typeof provider.sendWithTools === 'function') {
     raw = await provider.sendWithTools(prompt, PLANNING_TOOLS, {
       system: PLAN_PROMPT,
       temperature: 0.2,

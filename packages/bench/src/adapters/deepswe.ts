@@ -124,9 +124,12 @@ function buildDeepSweDescription(instruction: string, language: string | undefin
   return `${guidance}
 
 BUILD GATE (critical): the verifier scores you zero if the project does not compile or the existing test suite breaks. Before calling finish you MUST:
-  1. Run the build/compile command above and confirm zero errors.
-  2. Run the existing test command above and confirm the pre-existing tests still pass.
-  3. If either fails, fix it before finishing. Do NOT finish while the build is broken.
+   1. Run the build/compile command above and confirm zero errors.
+   2. Run the existing test command above and confirm the pre-existing tests still pass.
+   3. If either fails, fix it before finishing. Do NOT finish while the build is broken.
+
+SCOPE CONSTRAINT: Only edit source files directly related to the task. Do NOT modify CI/CD configs (.github/, .coderabbit.yaml, .codesandbox/), documentation (README.md, AUTHORS, CONTRIBUTING.md), meta files (.release-it.json, .prettierignore), build configs (package.json, rollup.config.js, webpack.config.js, tsconfig.json), or project scaffolding. Do NOT delete existing files. Do NOT create new files unless necessary for the implementation. Every extraneous change wastes steps and risks breaking the verifier.
+
 Implement precisely to the spec below - the hidden test suite checks exact behaviour (error message text, formatting, attribute names, signatures).
 
 ---

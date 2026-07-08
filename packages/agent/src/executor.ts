@@ -101,10 +101,17 @@ async function installWorktreeDependencies(projectPath: string): Promise<void> {
         await tryInstall('pnpm', ['install', '--prefer-offline'], projectPath, 300_000, 'node (pnpm)');
       } else if (lockfile === 'yarn') {
         await tryInstall('yarn', ['install'], projectPath, 300_000, 'node (yarn)');
+        if (!(await pathExists(path.join(projectPath, 'node_modules')))) {
+          await tryInstall('yarn', ['install', '--ignore-scripts'], projectPath, 300_000, 'node (yarn ignore-scripts)');
+        }
       } else {
         await tryInstall('npm', ['ci'], projectPath, 300_000, 'node (npm)');
-        const npmOk = await pathExists(path.join(projectPath, 'node_modules'));
-        if (!npmOk) await tryInstall('npm', ['install'], projectPath, 300_000, 'node (npm)');
+        if (!(await pathExists(path.join(projectPath, 'node_modules')))) {
+          await tryInstall('npm', ['install'], projectPath, 300_000, 'node (npm)');
+          if (!(await pathExists(path.join(projectPath, 'node_modules')))) {
+            await tryInstall('npm', ['install', '--ignore-scripts'], projectPath, 300_000, 'node (npm ignore-scripts)');
+          }
+        }
       }
     }
     return;
@@ -193,8 +200,6 @@ interface AgentContext {
   maxSteps: number;
   explorationBudget: { beforeFirstEdit: number; betweenEdits: number };
   modifiedFiles: Set<string>;
-  recentCommands: Set<string>;
-  recentReads: Map<string, number>;
   consecutiveThinks: number;
   explorationCount: number;
   editCount: number;
@@ -419,8 +424,6 @@ export async function runAgentTask(
     explorationBudget: explorationBudgetForComplexity(task.complexity),
     tokenBudget: options.tokenBudget,
     modifiedFiles: new Set<string>(),
-    recentCommands: new Set<string>(),
-    recentReads: new Map<string, number>(),
     consecutiveThinks: 0,
     explorationCount: 0,
     editCount: 0,
@@ -815,11 +818,9 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
 
       if (call.name === 'write_file' && typeof call.arguments.path === 'string') {
         ctx.modifiedFiles.add(call.arguments.path);
-        ctx.recentReads.delete(call.arguments.path);
       }
       if (call.name === 'edit_file' && typeof call.arguments.path === 'string') {
         ctx.modifiedFiles.add(call.arguments.path);
-        ctx.recentReads.delete(call.arguments.path);
       }
 
       const explorationTools = ['think', 'read_file', 'list_files', 'search', 'run_command', 'lsp_diagnostics', 'lsp_hover', 'lsp_symbol'];
@@ -878,29 +879,10 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
         }
       } else if (call.name === 'read_file' && typeof call.arguments.path === 'string') {
         ctx.consecutiveThinks = 0;
-        const filePath = call.arguments.path.trim();
-        const lastRead = ctx.recentReads.get(filePath);
-        if (lastRead !== undefined && stepIndex - lastRead < 10) {
-          result = {
-            success: false,
-            output: `Duplicate read rejected: "${filePath}" was already read at step ${String(lastRead)}. Use the previous content or move on to the next concrete step.`,
-          };
-        } else {
-          ctx.recentReads.set(filePath, stepIndex);
-          result = await executeTool(ctx.projectPath, call.name, call.arguments);
-        }
+        result = await executeTool(ctx.projectPath, call.name, call.arguments);
       } else if (call.name === 'run_command' && typeof call.arguments.command === 'string') {
         ctx.consecutiveThinks = 0;
-        const command = call.arguments.command.trim();
-        if (ctx.recentCommands.has(command)) {
-          result = {
-            success: false,
-            output: `Duplicate command rejected: "${command}" was already run in this session. Do not repeat commands. Use the previous output or move on to the next concrete step.`,
-          };
-        } else {
-          ctx.recentCommands.add(command);
-          result = await executeTool(ctx.projectPath, call.name, call.arguments);
-        }
+        result = await executeTool(ctx.projectPath, call.name, call.arguments);
       } else {
         ctx.consecutiveThinks = 0;
         result = await executeTool(ctx.projectPath, call.name, call.arguments);
@@ -919,10 +901,8 @@ async function executeAgentLoop(ctx: AgentContext): Promise<AgentResult> {
           ? {}
           : { error: result.output.slice(0, 500) }),
       });
-      // Allow verification commands to be re-run after a file change.
-      if ((call.name === 'edit_file' || call.name === 'write_file') && result.success) {
-        ctx.recentCommands.clear();
-      }
+      // Allow test commands to be re-run after edits (note: duplicate command
+      // restriction was removed, so commands always execute).
       if (call.name === 'verify_api_surface' && result.success) {
         ctx.apiSurfaceVerified = true;
       }
@@ -1195,7 +1175,8 @@ async function sendToProvider(
   for (let attempt = 0; ; attempt++) {
   try {
     // Prefer native tool calls when the provider supports them.
-    if (typeof provider.sendWithTools === 'function') {
+    // Skips sendWithTools for providers known to 429 on tool endpoints — uses text fallback instead.
+    if (typeof provider.sendWithTools === 'function' && ctx.provider.config.name !== 'glm') {
       const sendMessages = prompt ? [...baseMessages, { role: 'user' as const, content: prompt }] : baseMessages;
       const raw = await provider.sendWithTools(prompt ?? 'Execute the next step.', AGENT_TOOLS, {
         system: ctx.systemPrompt,

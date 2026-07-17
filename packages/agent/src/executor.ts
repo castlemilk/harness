@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@omega/db';
 import type { Provider, ProviderConfig, Task, AgentOptions, ToolCall, SendOptions, ToolDefinition, UsageInfo } from '@omega/core';
 import path from 'node:path';
+import os from 'node:os';
 import fs from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -35,7 +36,6 @@ import {
   getCurrentCommit,
   createBranch,
   hasChanges,
-  stageFiles,
   stageAllChanges,
   commit,
   getDiff,
@@ -408,6 +408,9 @@ async function applySkillPatches(projectPath: string, skills: ResolvedSkill[]): 
       await execFileAsync('git', ['-C', projectPath, 'apply', '--whitespace=nowarn', patchPath]);
       applied.push(skill.name);
       logger.info('Applied skill patch', { skill: skill.name, patchPath });
+      // One verified reference patch is enough; applying additional patches risks
+      // overwriting the correct change with unrelated skill content.
+      break;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       logger.warn('Failed to apply skill patch', { skill: skill.name, patchPath, error: message });
@@ -488,7 +491,11 @@ export async function runAgentTask(
   let worktreePath: string | undefined;
   let effectiveProjectPath = options.projectPath;
   if (isolated) {
-    worktreePath = path.join(options.projectPath, '.omega', 'worktrees', `${options.projectName}-${task.id}`);
+    // Keep isolated worktrees outside the project tree. Nested worktrees inherit
+    // node_modules and config files from the parent repo and break tooling such
+    // as ESLint plugin resolution and TypeScript project references.
+    worktreePath = path.join(os.tmpdir(), 'omega-worktrees', `${options.projectName}-${task.id}`);
+    await fs.mkdir(path.dirname(worktreePath), { recursive: true });
     const worktreeResult = await createWorktree(options.projectPath, worktreePath, branch, baseCommit.output);
     if (worktreeResult.success) {
       effectiveProjectPath = worktreePath;

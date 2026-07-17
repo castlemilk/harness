@@ -7,8 +7,8 @@ interface TaskStep {
   idx: number;
   name: string;
   status: string;
-  input: string;
-  output: string;
+  input?: string | null;
+  output?: string | null;
   error?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -67,14 +67,6 @@ function StepCard({ step }: { step: TaskStep }) {
             <div>
               <div className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">Output</div>
               <pre className="bg-gray-50 p-1.5 rounded text-[10px] overflow-auto max-h-48 whitespace-pre-wrap">{displayOutput}</pre>
-              {truncated && !expanded && (
-                <button
-                  onClick={() => { setExpanded(true); }}
-                  className="mt-1 text-blue-600 text-[10px] hover:underline"
-                >
-                  show full output ({String(output.length)} chars)
-                </button>
-              )}
             </div>
           )}
           {step.error && (
@@ -113,11 +105,18 @@ export function TaskSteps({ taskId }: Props) {
   if (steps.length === 0) return <div className="text-xs text-gray-400">No task steps recorded.</div>;
 
   const filtered = steps.filter((s) => {
-    if (filter === 'all') return true;
-    if (filter === 'error') return s.status === 'failed' || Boolean(s.error);
-    if (filter === 'edit') return ['edit_file', 'edit_lines', 'apply_patch', 'write_file'].includes(s.name);
-    if (filter === 'test') return ['run_command', 'validate_patch', 'publish'].includes(s.name);
-    return true;
+    switch (filter) {
+      case 'all':
+        return true;
+      case 'error':
+        return s.status === 'failed' || Boolean(s.error);
+      case 'edit':
+        return ['edit_file', 'edit_lines', 'apply_patch', 'write_file'].includes(s.name);
+      case 'test':
+        return ['run_command', 'validate_patch', 'publish'].includes(s.name);
+      default:
+        return true;
+    }
   });
 
   const counts = {

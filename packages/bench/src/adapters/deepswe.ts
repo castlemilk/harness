@@ -145,7 +145,7 @@ ${cleanedInstruction}`;
 
 async function commandExists(cmd: string): Promise<boolean> {
   try {
-    await execFileAsync('command', ['-v', cmd], { timeout: 10_000 });
+    await execFileAsync('sh', ['-c', `command -v ${cmd}`], { timeout: 10_000 });
     return true;
   } catch {
     return false;
@@ -239,7 +239,7 @@ async function installProjectDependencies(projectPath: string, language?: string
     if (/--timeout[ =]/.test(testShText) || /\bpytest-timeout\b/.test(testShText)) {
       pytestExtras.push('pytest-timeout');
     }
-    if (/pytest-asyncio/.test(testShText) || /\basyncio\b/.test(testShText)) {
+    if (testShText.includes('pytest-asyncio') || /\basyncio\b/.test(testShText)) {
       pytestExtras.push('pytest-asyncio');
     }
     if (pytestExtras.length > 0) {

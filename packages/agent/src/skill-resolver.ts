@@ -174,12 +174,14 @@ export async function resolveSkills(
   const signature = await detectProjectSignature(projectPath);
 
   // Add task-description hints as synthetic framework/language signals.
+  // Use whole-word matching so common substrings (e.g. "go" inside "go ahead")
+  // do not pollute the signature with unrelated languages.
   if (taskDescription) {
     const lower = taskDescription.toLowerCase();
     const hintMap: Record<string, string[]> = {
-      typescript: ['typescript', 'ts'],
-      go: ['go', 'golang'],
-      python: ['python', 'py'],
+      typescript: ['typescript'],
+      go: ['golang', '\\bgo\\b'],
+      python: ['python'],
       rust: ['rust'],
       react: ['react'],
       nextjs: ['next.js', 'nextjs'],
@@ -188,8 +190,8 @@ export async function resolveSkills(
       frontend: ['frontend', 'ui', 'component', 'css', 'html'],
     };
     for (const [hint, terms] of Object.entries(hintMap)) {
-      if (terms.some((t) => lower.includes(t))) {
-        if (['frontend'].includes(hint)) {
+      if (terms.some((t) => new RegExp(t).exec(lower) !== null)) {
+        if (hint === 'frontend') {
           signature.frameworks.add('frontend');
         } else {
           signature.languages.add(hint);

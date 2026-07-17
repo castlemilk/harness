@@ -18,7 +18,7 @@ If you need to revert, prefer `git checkout -- <file>`, `git restore`, or creati
 
 Agent benchmark runs and self-improvement loops must operate on isolated state:
 
-- Server-side agent tasks run inside a git worktree under `.omega/worktrees/<project>-<task-id>/` by default.
+- Server-side agent tasks run inside a git worktree under `${OMEGA_STORAGE_ROOT:-~/.omega}/work/worktrees/<project>-<task-id>/` by default.
 - If worktree creation fails, the runner falls back to a branch named `agent/<task-id>` in the project directory.
 - Never commit directly to `main` or to the user's current working branch.
 - Worktrees are removed after the run; branches may be kept for inspection.

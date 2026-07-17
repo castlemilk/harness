@@ -252,7 +252,7 @@ git clone https://github.com/datacurve-ai/deep-swe.git
 harness bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 10 --sample-seed 0
 ```
 
-Reports are written to `.omega/reports/benchmark-<timestamp>.json` and `.md`. The latest report is surfaced in the web UI metrics panel.
+Reports are written to `${OMEGA_STORAGE_ROOT:-~/.omega}/reports/benchmark-<timestamp>.json` and `.md`. The latest report is surfaced in the web UI metrics panel.
 
 `harness bench optimise` reads the latest report and the trace-flow of a failed task, then creates a `self-improve` task you can run to edit `packages/agent/src/prompts.ts` based on the observed failures.
 
@@ -262,7 +262,7 @@ Tasks that mention public API requirements (e.g., "expose `logic.selectorHealth(
 
 ## Git worktree isolation
 
-Server-side agent runs are executed inside a dedicated git worktree at `.omega/worktrees/<project>-<task>/`. The worktree is created from the project's current commit, the agent makes changes there, and the worktree is removed after the run. This keeps the main working directory clean and allows multiple agent tasks to run without interfering with each other. If worktree creation fails, the runner falls back to the previous in-repo branch behavior.
+Server-side agent runs are executed inside a dedicated git worktree at `${OMEGA_STORAGE_ROOT:-~/.omega}/work/worktrees/<project>-<task>/`. The worktree is created from the project's current commit, the agent makes changes there, and the worktree is removed after the run. This keeps the main working directory clean and allows multiple agent tasks to run without interfering with each other. If worktree creation fails, the runner falls back to the previous in-repo branch behavior.
 
 ## Trace-driven prompts
 

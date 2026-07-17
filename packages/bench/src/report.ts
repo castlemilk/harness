@@ -53,6 +53,20 @@ export async function writeReport(report: BenchmarkReport, outputDir = '.omega/r
 
   await fs.writeFile(jsonFile, JSON.stringify(report, null, 2), 'utf-8');
 
+  // Keep a stable "latest" symlink so scripts and the UI can always find the
+  // most recent report without guessing the timestamp.
+  const latestFile = path.join(outputDir, 'benchmark-latest.json');
+  try {
+    await fs.unlink(latestFile);
+  } catch {
+    // ignore if it does not exist
+  }
+  try {
+    await fs.symlink(path.basename(jsonFile), latestFile);
+  } catch {
+    // symlinks can fail on some filesystems; the timestamped file is still there
+  }
+
   const passRate = report.total > 0 ? Math.round((report.passed / report.total) * 100) : 0;
   const md = [
     '# Omega Benchmark Report',

@@ -452,10 +452,11 @@ async function ensureNextest(): Promise<string> {
   if (install.exitCode !== 0) {
     throw new Error(`Failed to install cargo-nextest: ${install.stderr}\n${install.stdout}`);
   }
-  // The DeepSWE verifier selects a 'junit' profile that writes to target/nextest/junit/junit.xml.
+  // The DeepSWE verifier selects a 'junit' profile and copies
+  // target/nextest/junit/junit.xml after each run.
   await fs.writeFile(
     configPath,
-    '[profile.junit]\njunit = { path = "junit" }\n',
+    '[profile.junit]\njunit = { path = "junit.xml" }\n',
     'utf-8'
   );
   return cacheDir;

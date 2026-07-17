@@ -3,16 +3,36 @@ import type { ToolDefinition } from '@omega/core';
 export const AGENT_TOOLS: ToolDefinition[] = [
   {
     name: 'read_file',
-    description: 'Read a file relative to project root.',
+    description: 'Read a file, or a range of lines, relative to project root. Use line_offset and line_count to read only the section you need; this keeps context small and saves tokens. Set line_numbers=true before using edit_lines.',
     parameters: {
       type: 'object',
-      properties: { path: { type: 'string' } },
+      properties: {
+        path: { type: 'string' },
+        line_numbers: { type: 'boolean', description: 'Prefix each line with its 1-based line number, useful for edit_lines.' },
+        line_offset: { type: 'number', description: '1-based starting line to read from. Omit to start at line 1.' },
+        line_count: { type: 'number', description: 'Maximum number of lines to read. Omit to read to end of file.' },
+      },
       required: ['path'],
     },
   },
   {
+    name: 'edit_lines',
+    description:
+      'Replace a range of lines in an existing file relative to project root. Use when edit_file old_string matching fails. Lines are 1-based and inclusive.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: { type: 'string' },
+        start_line: { type: 'number', description: '1-based start line to replace (inclusive).' },
+        end_line: { type: 'number', description: '1-based end line to replace (inclusive).' },
+        new_string: { type: 'string', description: 'Replacement content. Replaces the whole line range.' },
+      },
+      required: ['path', 'start_line', 'end_line', 'new_string'],
+    },
+  },
+  {
     name: 'write_file',
-    description: 'Write content to a file relative to project root.',
+    description: 'Write content to a new file relative to project root. Do NOT use this to overwrite an existing file; use edit_file for existing files.',
     parameters: {
       type: 'object',
       properties: { path: { type: 'string' }, content: { type: 'string' } },
@@ -31,6 +51,18 @@ export const AGENT_TOOLS: ToolDefinition[] = [
         new_string: { type: 'string' },
       },
       required: ['path', 'old_string', 'new_string'],
+    },
+  },
+  {
+    name: 'apply_patch',
+    description:
+      'Apply a unified diff patch to one or more files relative to project root. Use this for coordinated multi-file changes or when edit_file keeps failing. The patch must use git unified diff format (--- / +++ headers and @@ hunks). New files can be created with --- /dev/null.',
+    parameters: {
+      type: 'object',
+      properties: {
+        patch: { type: 'string', description: 'Unified diff patch string.' },
+      },
+      required: ['patch'],
     },
   },
   {

@@ -1,6 +1,11 @@
 import type { Provider, ProviderConfig, SendOptions, ToolDefinition, UsageInfo } from '@omega/core';
+import { fetchWithRetry } from './fetch-retry.js';
 
 const DEFAULT_BASE_URL = 'http://localhost:11434';
+
+// Local endpoint: if the server is down, fail fast rather than backing off
+// for minutes.
+const OLLAMA_RETRY = { maxRetries: 2 } as const;
 
 export class OllamaProvider implements Provider {
   readonly config: ProviderConfig;
@@ -14,7 +19,7 @@ export class OllamaProvider implements Provider {
   }
 
   async listModels(): Promise<string[]> {
-    const res = await fetch(`${this.baseUrl}/api/tags`);
+    const res = await fetchWithRetry(`${this.baseUrl}/api/tags`, undefined, 'Ollama tags', { maxRetries: 1 });
     if (!res.ok) return [this.config.defaultModel];
     const data = (await res.json()) as { models?: { name: string }[] };
     return data.models?.map((m) => m.name) ?? [this.config.defaultModel];
@@ -66,19 +71,24 @@ export class OllamaProvider implements Provider {
   }
 
   async send(prompt: string, opts?: SendOptions): Promise<string> {
-    const res = await fetch(`${this.baseUrl}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: opts?.model ?? this.config.defaultModel,
-        messages: [
-          ...(opts?.system ? [{ role: 'system', content: opts.system }] : []),
-          { role: 'user', content: prompt },
-        ],
-        stream: false,
-        options: opts?.temperature !== undefined ? { temperature: opts.temperature } : undefined,
-      }),
-    });
+    const res = await fetchWithRetry(
+      `${this.baseUrl}/api/chat`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: opts?.model ?? this.config.defaultModel,
+          messages: [
+            ...(opts?.system ? [{ role: 'system', content: opts.system }] : []),
+            { role: 'user', content: prompt },
+          ],
+          stream: false,
+          options: opts?.temperature !== undefined ? { temperature: opts.temperature } : undefined,
+        }),
+      },
+      'Ollama chat',
+      OLLAMA_RETRY,
+    );
     if (!res.ok) {
       throw new Error(`Ollama request failed: ${res.status.toString()} ${res.statusText}`);
     }
@@ -112,11 +122,16 @@ export class OllamaProvider implements Provider {
       bodyObj.options = { temperature: opts.temperature };
     }
     const body = JSON.stringify(bodyObj);
-    const res = await fetch(`${this.baseUrl}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    });
+    const res = await fetchWithRetry(
+      `${this.baseUrl}/api/chat`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      },
+      'Ollama tools chat',
+      OLLAMA_RETRY,
+    );
     if (!res.ok) {
       const b = await res.text().catch(() => '');
       throw new Error(`Ollama tools request failed: ${res.status.toString()} ${res.statusText} — ${b.slice(0, 500)}`);

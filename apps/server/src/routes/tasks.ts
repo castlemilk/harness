@@ -22,6 +22,10 @@ const updateSchema = z.object({
   model: z.string().optional(),
 });
 
+const runSchema = z.object({
+  tokenBudget: z.number().optional(),
+});
+
 export function taskRoutes(prisma: PrismaClient): Router {
   const r = Router();
 
@@ -70,7 +74,8 @@ export function taskRoutes(prisma: PrismaClient): Router {
 
   r.post('/:id/run', asyncHandler(async (req, res) => {
     try {
-      const result = await runTask(prisma, req.params.id, { detached: true });
+      const body = runSchema.parse(req.body ?? {});
+      const result = await runTask(prisma, req.params.id, { detached: true, tokenBudget: body.tokenBudget });
       res.status(202).json(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

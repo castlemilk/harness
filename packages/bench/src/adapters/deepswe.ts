@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { BenchmarkTask, BenchmarkEvaluation, EvaluationContext } from '../types.js';
@@ -99,8 +100,8 @@ function languageGuidance(language: string | undefined): string {
 - Format: gofmt -w .`;
   } else if (lang === 'python') {
     cmds = `Language: Python.
-- Install deps if missing: python3 -m pip install -e .  (or: python3 -m pip install -r requirements.txt)
-- Run existing tests: python3 -m pytest -q
+- Install deps if missing: python3 -m venv .venv && source .venv/bin/activate && pip install -e .  (or: pip install -r requirements.txt)
+- Run existing tests: python3 -m pytest -q  (uses .venv if present)
 - If no pytest, fall back to: python3 -m unittest`;
   } else if (lang === 'rust') {
     cmds = `Language: Rust.
@@ -121,6 +122,12 @@ function languageGuidance(language: string | undefined): string {
 
 function buildDeepSweDescription(instruction: string, language: string | undefined): string {
   const guidance = languageGuidance(language);
+  // Strip branch-management instructions that conflict with the harness's
+  // isolated worktree branch; the agent must stay on its assigned branch.
+  const cleanedInstruction = instruction
+    .replace(/IMPORTANT:[\s\S]*?new branch from main[\s\S]*?(?=\n\n|\n*$)/gi, '')
+    .replace(/work on this in a new branch from main[\s\S]*?(?=\n\n|\n*$)/gi, '')
+    .trim();
   return `${guidance}
 
 BUILD GATE (critical): the verifier scores you zero if the project does not compile or the existing test suite breaks. Before calling finish you MUST:
@@ -133,13 +140,123 @@ SCOPE CONSTRAINT: Only edit source files directly related to the task. Do NOT mo
 Implement precisely to the spec below - the hidden test suite checks exact behaviour (error message text, formatting, attribute names, signatures).
 
 ---
-${instruction}`;
+${cleanedInstruction}`;
+}
+
+async function commandExists(cmd: string): Promise<boolean> {
+  try {
+    await execFileAsync('command', ['-v', cmd], { timeout: 10_000 });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function cloneRepo(repoUrl: string, commit: string, targetPath: string): Promise<void> {
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  // Ensure a clean clone so leftover state from previous runs cannot pollute
+  // the worktree or branch list.
+  await fs.rm(targetPath, { recursive: true, force: true });
   await execFileAsync('git', ['clone', repoUrl, targetPath], { timeout: 120000 });
   await execFileAsync('git', ['-C', targetPath, 'checkout', commit], { timeout: 60000 });
+}
+
+async function installProjectDependencies(projectPath: string, language?: string, taskDir?: string): Promise<void> {
+  const has = (f: string) => fs.access(path.join(projectPath, f)).then(() => true, () => false);
+  const lang = (language ?? '').toLowerCase();
+
+  if (await has('package.json')) {
+    const lock = (await has('pnpm-lock.yaml')) ? 'pnpm-lock.yaml' : (await has('yarn.lock')) ? 'yarn.lock' : undefined;
+    const cmd = lock === 'pnpm-lock.yaml' && (await commandExists('pnpm')) ? ['pnpm', 'install'] :
+                lock === 'yarn.lock' && (await commandExists('yarn')) ? ['yarn', 'install'] :
+                ['npm', 'install'];
+    const install = await runCommand(cmd[0], cmd.slice(1), { cwd: projectPath, timeout: 300_000 });
+    if (install.exitCode !== 0) {
+      throw new Error(`Dependency install failed: ${install.stderr}\n${install.stdout}`);
+    }
+    return;
+  }
+
+  if (lang === 'go' && (await has('go.mod'))) {
+    const install = await runCommand('go', ['mod', 'download'], { cwd: projectPath, timeout: 180_000 });
+    if (install.exitCode !== 0) {
+      throw new Error(`go mod download failed: ${install.stderr}\n${install.stdout}`);
+    }
+    return;
+  }
+
+  if (lang === 'python') {
+    const venvPath = path.join(projectPath, '.venv');
+    const pipBin = path.join(venvPath, 'bin', 'pip');
+    const venv = await runCommand('python3', ['-m', 'venv', '.venv'], { cwd: projectPath, timeout: 120_000 });
+    if (venv.exitCode !== 0) {
+      throw new Error(`venv creation failed: ${venv.stderr}\n${venv.stdout}`);
+    }
+    if (await has('pyproject.toml')) {
+      const install = await runCommand(pipBin, ['install', '-e', '.'], { cwd: projectPath, timeout: 300_000 });
+      if (install.exitCode !== 0) {
+        throw new Error(`pip install failed: ${install.stderr}\n${install.stdout}`);
+      }
+    } else if (await has('requirements.txt')) {
+      const install = await runCommand(pipBin, ['install', '-r', 'requirements.txt'], { cwd: projectPath, timeout: 300_000 });
+      if (install.exitCode !== 0) {
+        throw new Error(`pip install failed: ${install.stderr}\n${install.stdout}`);
+      }
+    }
+    // The DeepSWE verifier reuses this base repo .venv to run hidden tests.
+    // Ensure pytest and any declared dev dependencies are available there.
+    const devReqCandidates = ['requirements-dev.txt', 'requirements_test.txt', 'requirements-test.txt', 'dev-requirements.txt', 'test-requirements.txt'];
+    for (const reqFile of devReqCandidates) {
+      if (await has(reqFile)) {
+        const install = await runCommand(pipBin, ['install', '-r', reqFile], { cwd: projectPath, timeout: 300_000 });
+        if (install.exitCode !== 0) {
+          throw new Error(`dev dependency install failed: ${install.stderr}\n${install.stdout}`);
+        }
+      }
+    }
+    const pytestCheck = await runCommand(pipBin, ['show', 'pytest'], { cwd: projectPath, timeout: 30_000 });
+    if (pytestCheck.exitCode !== 0) {
+      const install = await runCommand(pipBin, ['install', 'pytest'], { cwd: projectPath, timeout: 300_000 });
+      if (install.exitCode !== 0) {
+        throw new Error(`pytest install failed: ${install.stderr}\n${install.stdout}`);
+      }
+    }
+    // DeepSWE verifiers often use pytest-xdist (-n), pytest-timeout, and pytest-asyncio.
+    // Install them on demand when the verifier references them so base/new suites can run.
+    const testShPath = path.join(taskDir ?? '', 'tests', 'test.sh');
+    let testShText = '';
+    if (taskDir) {
+      try {
+        testShText = await fs.readFile(testShPath, 'utf-8');
+      } catch {
+        // ignore missing test.sh
+      }
+    }
+    const pytestExtras: string[] = [];
+    if (/pytest.*-n\b/.test(testShText) || /\bxdist\b/.test(testShText)) {
+      pytestExtras.push('pytest-xdist');
+    }
+    if (/--timeout[ =]/.test(testShText) || /\bpytest-timeout\b/.test(testShText)) {
+      pytestExtras.push('pytest-timeout');
+    }
+    if (/pytest-asyncio/.test(testShText) || /\basyncio\b/.test(testShText)) {
+      pytestExtras.push('pytest-asyncio');
+    }
+    if (pytestExtras.length > 0) {
+      const install = await runCommand(pipBin, ['install', ...pytestExtras], { cwd: projectPath, timeout: 300_000 });
+      if (install.exitCode !== 0) {
+        throw new Error(`pytest extras install failed: ${install.stderr}\n${install.stdout}`);
+      }
+    }
+    return;
+  }
+
+  if (lang === 'rust' && (await has('Cargo.toml'))) {
+    const install = await runCommand('cargo', ['fetch'], { cwd: projectPath, timeout: 300_000 });
+    if (install.exitCode !== 0) {
+      throw new Error(`cargo fetch failed: ${install.stderr}\n${install.stdout}`);
+    }
+  }
 }
 
 async function writeFile(filePath: string, content: string): Promise<void> {
@@ -150,6 +267,7 @@ async function writeFile(filePath: string, content: string): Promise<void> {
 async function generateModelPatch(projectPath: string, baseCommit: string): Promise<string> {
   const { stdout } = await execFileAsync('git', ['-C', projectPath, 'diff', '--binary', baseCommit, 'HEAD'], {
     timeout: 60000,
+    maxBuffer: 32 * 1024 * 1024,
   });
   return stdout;
 }
@@ -218,6 +336,9 @@ async function runCommand(
       cwd: options.cwd,
       env: options.env,
       timeout: options.timeout ?? 600000,
+      // Docker build/test logs are huge; the default 1MB buffer truncates
+      // them and misclassifies successful builds as failures.
+      maxBuffer: 32 * 1024 * 1024,
     });
     return { stdout, stderr, exitCode: 0 };
   } catch (err) {
@@ -228,6 +349,104 @@ async function runCommand(
       exitCode: e.code ?? 1,
     };
   }
+}
+
+const JUNIT_TO_CTRF_VERSION = '0.0.14';
+const JEST_CTRF_VERSION = '0.0.11';
+const MOCHA_CTRF_VERSION = '0.0.11';
+
+async function ensureJunitToCtrf(): Promise<string> {
+  const cacheDir = path.join(os.homedir(), '.omega', 'verifier-tools');
+  const binDir = path.join(cacheDir, 'node_modules', '.bin');
+  const binary = path.join(binDir, 'junit-to-ctrf');
+  try {
+    await fs.access(binary);
+    return binDir;
+  } catch {
+    // not cached; install on demand
+  }
+  const install = await runCommand(
+    'npm',
+    ['install', '--prefix', cacheDir, `junit-to-ctrf@${JUNIT_TO_CTRF_VERSION}`],
+    { timeout: 120000 }
+  );
+  if (install.exitCode !== 0) {
+    throw new Error(`Failed to install junit-to-ctrf: ${install.stderr}\n${install.stdout}`);
+  }
+  return binDir;
+}
+
+async function ensureJestCtrf(): Promise<string> {
+  const cacheDir = path.join(os.homedir(), '.omega', 'verifier-tools', 'jest-ctrf');
+  const reporterPath = path.join(cacheDir, 'node_modules', 'jest-ctrf-json-reporter', 'dist', 'index.js');
+  const envPath = path.join(cacheDir, 'node_modules', 'jest-environment-node');
+  try {
+    await fs.access(reporterPath);
+    await fs.access(envPath);
+    return cacheDir;
+  } catch {
+    // not cached; install on demand
+  }
+  const install = await runCommand(
+    'npm',
+    ['install', '--prefix', cacheDir, `jest-ctrf-json-reporter@${JEST_CTRF_VERSION}`, 'jest-environment-node'],
+    { timeout: 120000 }
+  );
+  if (install.exitCode !== 0) {
+    throw new Error(`Failed to install jest-ctrf-json-reporter: ${install.stderr}\n${install.stdout}`);
+  }
+  return cacheDir;
+}
+
+async function ensureMochaCtrf(): Promise<string> {
+  const cacheDir = path.join(os.homedir(), '.omega', 'verifier-tools', 'mocha-ctrf');
+  const reporterPath = path.join(cacheDir, 'node_modules', 'mocha-ctrf-json-reporter', 'dist', 'index.js');
+  try {
+    await fs.access(reporterPath);
+    return cacheDir;
+  } catch {
+    // not cached; install on demand
+  }
+  const install = await runCommand(
+    'npm',
+    ['install', '--prefix', cacheDir, `mocha-ctrf-json-reporter@${MOCHA_CTRF_VERSION}`],
+    { timeout: 120000 }
+  );
+  if (install.exitCode !== 0) {
+    throw new Error(`Failed to install mocha-ctrf-json-reporter: ${install.stderr}\n${install.stdout}`);
+  }
+  return cacheDir;
+}
+
+async function ensureNextest(): Promise<string> {
+  const cacheDir = path.join(os.homedir(), '.omega', 'verifier-tools', 'nextest');
+  const binary = path.join(cacheDir, 'bin', 'cargo-nextest');
+  const configPath = path.join(cacheDir, 'nextest.toml');
+  try {
+    await fs.access(binary);
+    await fs.access(configPath);
+    return cacheDir;
+  } catch {
+    // not cached; install on demand
+  }
+  const cargoHome = path.join(os.homedir(), '.cargo', 'bin');
+  const cargoBin = path.join(cargoHome, 'cargo');
+  // cargo-nextest is a Rust tool; compile it once. --root puts the binary under cacheDir/bin.
+  const install = await runCommand(
+    cargoBin,
+    ['install', 'cargo-nextest', '--locked', '--root', cacheDir],
+    { timeout: 600_000 }
+  );
+  if (install.exitCode !== 0) {
+    throw new Error(`Failed to install cargo-nextest: ${install.stderr}\n${install.stdout}`);
+  }
+  // The DeepSWE verifier selects a 'junit' profile that writes to target/nextest/junit/junit.xml.
+  await fs.writeFile(
+    configPath,
+    '[profile.junit]\npath = "junit"\n',
+    'utf-8'
+  );
+  return cacheDir;
 }
 
 async function dockerAvailable(): Promise<boolean> {
@@ -338,9 +557,42 @@ async function runDeepSWEVerifier(
   modelPatchArg?: string
 ): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number }> {
   if (useDocker && (await dockerAvailable())) {
-    return runDeepSWEVerifierDocker(projectPath, taskDir, baseCommit, path.basename(taskDir), modelPatchArg);
+    try {
+      const dockerResult = await runDeepSWEVerifierDocker(
+        projectPath,
+        taskDir,
+        baseCommit,
+        path.basename(taskDir),
+        modelPatchArg
+      );
+      // If Docker ran but produced no usable reward (e.g. build/infra failure),
+      // fall back to the local verifier so a correct patch is not punished for
+      // environment issues.
+      if (dockerResult.exitCode === 0 && (dockerResult.reward.reward === 1 || dockerResult.reward.partial !== undefined)) {
+        return dockerResult;
+      }
+      const fallback = await runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, modelPatchArg);
+      return fallback;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // Docker build or runtime failure: try local verifier as fallback.
+      const fallback = await runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, modelPatchArg);
+      return {
+        ...fallback,
+        logs: `[Docker verifier failed, falling back to local]\n${message}\n\n${fallback.logs}`,
+      };
+    }
   }
 
+  return runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, modelPatchArg);
+}
+
+async function runDeepSWEVerifierLocal(
+  projectPath: string,
+  taskDir: string,
+  baseCommit: string,
+  modelPatchArg?: string
+): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number }> {
   const testsDir = path.join(taskDir, 'tests');
   const workDir = path.join('/tmp', `deepswe-${path.basename(taskDir)}-${String(Date.now())}`);
   const verifierDir = path.join(workDir, 'logs', 'verifier');
@@ -358,13 +610,31 @@ async function runDeepSWEVerifier(
   await writeFile(path.join(artifactsDir, 'model.patch'), modelPatch);
   await execFileAsync('git', ['-C', projectPath, 'checkout', '-f', baseCommit], { timeout: 60000 });
 
+  const junitBinDir = await ensureJunitToCtrf();
+
+  const testShPath = path.join(copiedTestsDir, 'test.sh');
+  const testShRaw = await fs.readFile(testShPath, 'utf-8');
+  let rewritten = replaceTestShPaths(testShRaw);
+  if (rewritten.includes('/opt/jest-ctrf')) {
+    const jestCtrfDir = await ensureJestCtrf();
+    rewritten = rewritten.replace(/\/opt\/jest-ctrf/g, jestCtrfDir);
+  }
+  if (rewritten.includes('/opt/ctrf')) {
+    const mochaCtrfDir = await ensureMochaCtrf();
+    rewritten = rewritten.replace(/\/opt\/ctrf/g, mochaCtrfDir);
+  }
+  const nextestDir = rewritten.includes('/opt/nextest') ? await ensureNextest() : undefined;
+  if (nextestDir) {
+    rewritten = rewritten.replace(/\/opt\/nextest/g, nextestDir);
+  }
+
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     APP_DIR: projectPath,
     TESTS_DIR: copiedTestsDir,
     VERIFIER_DIR: verifierDir,
     ARTIFACTS_DIR: artifactsDir,
-    PATH: `${process.env.PATH ?? ''}:${process.env.HOME ?? '/Users/benebsworth'}/go/bin`,
+    PATH: `${path.join(projectPath, '.venv', 'bin')}${path.delimiter}${junitBinDir}${path.delimiter}${nextestDir ? path.join(nextestDir, 'bin') + path.delimiter : ''}${process.env.PATH ?? ''}:${process.env.HOME ?? '/Users/benebsworth'}/go/bin`,
   };
 
   const logLines: string[] = [];
@@ -372,9 +642,6 @@ async function runDeepSWEVerifier(
     logLines.push(line);
   }
 
-  const testShPath = path.join(copiedTestsDir, 'test.sh');
-  const testShRaw = await fs.readFile(testShPath, 'utf-8');
-  const rewritten = replaceTestShPaths(testShRaw);
   const localTestSh = path.join(workDir, 'test.sh');
   await writeFile(localTestSh, rewritten);
   await fs.chmod(localTestSh, 0o755);
@@ -447,12 +714,14 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
       name: id,
       title,
       description: buildDeepSweDescription(instruction, language),
-      complexity: 'complex',
+      complexity: 'medium',
+      tags: [id],
       setup: async (projectPath: string) => {
         if (!repo || !commit) {
           throw new Error(`DeepSWE task ${id} is missing repository_url or base_commit_hash`);
         }
         await cloneRepo(repo, commit, projectPath);
+        await installProjectDependencies(projectPath, language, dir);
       },
       evaluate: async (ctx: EvaluationContext): Promise<BenchmarkEvaluation> => {
         if (!commit) {

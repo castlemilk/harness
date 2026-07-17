@@ -1,35 +1,10 @@
 import type { Provider, ProviderConfig, SendOptions, ToolDefinition, UsageInfo } from '@omega/core';
 import { refreshAccessToken } from './oauth.js';
+import { fetchWithRetry } from './fetch-retry.js';
 
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 const CODEX_BASE_URL = 'https://chatgpt.com/backend-api/codex';
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
-
-const MAX_RETRIES = 8;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
-function backoffMs(attempt: number): number {
-  const base = Math.min(2000 * 2 ** attempt, 60_000);
-  return Math.floor(Math.random() * base);
-}
-
-function parseRetryAfter(value: string | null): number | undefined {
-  if (!value) return undefined;
-  const secs = Number(value);
-  if (Number.isFinite(secs)) return Math.min(Math.max(secs, 0) * 1000, 60_000);
-  const date = Date.parse(value);
-  if (!Number.isNaN(date)) return Math.min(Math.max(date - Date.now(), 0), 60_000);
-  return undefined;
-}
-
-function isTransientStatus(status: number): boolean {
-  return status === 429 || status >= 500;
-}
 
 function extractUsage(data: unknown): UsageInfo | undefined {
   if (typeof data !== 'object' || data === null) return undefined;
@@ -69,30 +44,6 @@ export class OpenAIProvider implements Provider {
     return !!this.config.refreshToken;
   }
 
-  private async fetchWithRetry(url: string, init: RequestInit, label: string): Promise<Response> {
-    for (let attempt = 0; ; attempt++) {
-      let res: Response;
-      try {
-        res = await fetch(url, init);
-      } catch (err) {
-        if (attempt >= MAX_RETRIES) throw err;
-        const wait = backoffMs(attempt);
-        console.warn(`${label}: network error, retry ${String(attempt + 1)}/${String(MAX_RETRIES)} in ${String(wait)}ms`);
-        await sleep(wait);
-        continue;
-      }
-      if (isTransientStatus(res.status) && attempt < MAX_RETRIES) {
-        await res.text().catch(() => undefined);
-        const retryAfter = parseRetryAfter(res.headers.get('retry-after'));
-        const wait = retryAfter ?? backoffMs(attempt);
-        console.warn(`${label}: ${String(res.status)} transient, retry ${String(attempt + 1)}/${String(MAX_RETRIES)} in ${String(wait)}ms`);
-        await sleep(wait);
-        continue;
-      }
-      return res;
-    }
-  }
-
   protected readonly supportsTemperature: boolean = true;
 
   protected async ensureTokenFresh(): Promise<void> {
@@ -119,18 +70,22 @@ export class OpenAIProvider implements Provider {
   async listModels(): Promise<string[]> {
     await this.ensureTokenFresh();
     if (this.isOAuth) {
-      const res = await this.fetchWithRetry(
+      const res = await fetchWithRetry(
         `${CODEX_BASE_URL}/models?client_version=1.0.0`,
         { headers: this.authHeaders() },
         'Codex models',
+        { maxRetries: 1 },
       );
       if (!res.ok) return [this.config.defaultModel];
       const data = (await res.json()) as { models?: { slug: string }[] };
       return data.models?.map((m) => m.slug) ?? [this.config.defaultModel];
     }
-    const res = await fetch(`${this.baseUrl}/models`, {
-      headers: this.authHeaders(),
-    });
+    const res = await fetchWithRetry(
+      `${this.baseUrl}/models`,
+      { headers: this.authHeaders() },
+      'OpenAI models',
+      { maxRetries: 1 },
+    );
     if (!res.ok) return [this.config.defaultModel];
     const data = (await res.json()) as { data?: { id: string }[] };
     return data.data?.map((m) => m.id) ?? [this.config.defaultModel];
@@ -173,7 +128,7 @@ export class OpenAIProvider implements Provider {
     if (this.isOAuth) {
       return this.sendCodex(prompt, opts);
     }
-    const res = await this.fetchWithRetry(
+    const res = await fetchWithRetry(
       `${this.baseUrl}/chat/completions`,
       {
         method: 'POST',
@@ -221,7 +176,7 @@ export class OpenAIProvider implements Provider {
         ? { temperature: opts.temperature }
         : {}),
     });
-    const res = await this.fetchWithRetry(
+    const res = await fetchWithRetry(
       `${this.baseUrl}/chat/completions`,
       {
         method: 'POST',
@@ -362,7 +317,7 @@ export class OpenAIProvider implements Provider {
       ...(opts?.system ? { instructions: opts.system } : {}),
     };
 
-    const res = await this.fetchWithRetry(
+    const res = await fetchWithRetry(
       `${CODEX_BASE_URL}/responses`,
       {
         method: 'POST',

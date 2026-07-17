@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { TraceFlow } from './TraceFlow.js';
+import { TaskSteps } from './TaskSteps.js';
+import { FailurePatterns, F2pP2pSummary, ResultF2pP2p, ScoreDistribution, DurationChart, TokenChart } from './BenchmarkAnalysis.js';
 
 export interface BenchmarkRunBody {
   suite?: 'synthetic' | 'deep-swe';
@@ -187,7 +189,18 @@ function ResultRow({
         <span className="font-medium truncate" title={result.task.title}>
           {result.task.name}
         </span>
-        <span className={statusColor(result.status)}>{result.status}</span>
+        <span
+          className={
+            result.status === 'timeout'
+              ? statusColor('timeout')
+              : result.evaluation.passed
+                ? 'text-green-600'
+                : 'text-red-600'
+          }
+          title={`agent run: ${result.status}`}
+        >
+          {result.status === 'timeout' ? 'timeout' : result.evaluation.passed ? 'passed' : 'failed'}
+        </span>
       </div>
       <div className="flex justify-between text-gray-500 mt-0.5">
         <span>{formatDuration(result.durationMs)}</span>
@@ -197,6 +210,7 @@ function ResultRow({
         <span>score {result.evaluation.score ?? '—'}</span>
         <span>{f2pBadge(result.evaluation.metrics) ?? ''}</span>
       </div>
+      <ResultF2pP2p result={result} />
       {version && (
         <div className="text-[10px] text-blue-600 truncate" title={version.hash}>
           {version.name}
@@ -259,8 +273,10 @@ function BenchmarkResults({
   onSelectResult: (result: BenchmarkResult) => void;
   versions: PromptVersion[];
 }) {
-  const [filter, setFilter] = useState<'all' | 'done' | 'failed' | 'timeout'>('all');
-  const filtered = report.results.filter((r) => (filter === 'all' ? true : r.status === filter));
+  const [filter, setFilter] = useState<'all' | 'passed' | 'failed' | 'timeout'>('all');
+  const verdictOf = (r: BenchmarkResult): 'passed' | 'failed' | 'timeout' =>
+    r.status === 'timeout' ? 'timeout' : r.evaluation.passed ? 'passed' : 'failed';
+  const filtered = report.results.filter((r) => (filter === 'all' ? true : verdictOf(r) === filter));
   return (
     <div className="space-y-2">
       <div className="flex justify-between items-center">
@@ -271,7 +287,7 @@ function BenchmarkResults({
           className="text-[10px] border border-gray-200 rounded px-1 py-0.5"
         >
           <option value="all">all</option>
-          <option value="done">done</option>
+          <option value="passed">passed</option>
           <option value="failed">failed</option>
           <option value="timeout">timeout</option>
         </select>
@@ -377,6 +393,11 @@ function ResultDetail({ result, version }: { result: BenchmarkResult; version?: 
 
       <MetricsGrid metrics={result.evaluation.metrics} />
       <VerifierLogs metrics={result.evaluation.metrics} />
+
+      <div>
+        <h5 className="font-medium text-xs text-gray-500 mb-1 uppercase tracking-wide">Agent steps</h5>
+        <TaskSteps taskId={result.harnessTaskId} />
+      </div>
 
       <div>
         <h5 className="font-medium text-xs text-gray-500 mb-1 uppercase tracking-wide">Trace flow</h5>
@@ -702,12 +723,25 @@ export function BenchmarkPanel() {
           <h3 className="font-semibold">{benchmarkReport.suite}</h3>
           <div className="text-[10px] text-gray-500">{benchmarkReport.timestamp}</div>
           <BenchmarkSummary report={benchmarkReport} versions={promptVersions} />
-          <BenchmarkResults
-            report={benchmarkReport}
-            selectedResult={selectedResult}
-            onSelectResult={setSelectedResult}
-            versions={promptVersions}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="md:col-span-1 space-y-3">
+              <F2pP2pSummary report={benchmarkReport} />
+              <ScoreDistribution report={benchmarkReport} />
+              <FailurePatterns report={benchmarkReport} />
+            </div>
+            <div className="md:col-span-2 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <DurationChart report={benchmarkReport} />
+                <TokenChart report={benchmarkReport} />
+              </div>
+              <BenchmarkResults
+                report={benchmarkReport}
+                selectedResult={selectedResult}
+                onSelectResult={setSelectedResult}
+                versions={promptVersions}
+              />
+            </div>
+          </div>
           {benchmarkReport.failureAnalysis && (
             <div className="bg-red-50 p-2 rounded text-xs text-red-700">
               <div className="font-medium mb-1">Failure analysis</div>

@@ -8,6 +8,7 @@ import {
   runBenchmark,
   syntheticSuite,
   loadDeepSWESuite,
+  runPierBenchmark,
   writeReport,
   printSummary,
   compareReports,
@@ -40,10 +41,10 @@ function currentProject(apiUrl: string): Promise<{ id: string }> {
 
 const runCmd = new Command('run')
   .description('Run a benchmark suite')
-  .option('--suite <name>', 'suite name: synthetic | deep-swe', 'synthetic')
-  .option('--path <dir>', 'path to DeepSWE tasks directory (for deep-swe suite)')
-  .option('--n-tasks <n>', 'limit number of tasks (for deep-swe)', parseInt)
-  .option('--sample-seed <n>', 'seed for deterministic sampling (for deep-swe)', parseInt)
+  .option('--suite <name>', 'suite name: synthetic | deep-swe | pier', 'synthetic')
+  .option('--path <dir>', 'path to DeepSWE tasks directory (for deep-swe/pier suites)')
+  .option('--n-tasks <n>', 'limit number of tasks (for deep-swe/pier)', parseInt)
+  .option('--sample-seed <n>', 'seed for deterministic sampling (for deep-swe/pier)', parseInt)
   .option('--task-id <id>', 'run only specific DeepSWE task(s) by id (repeatable)', collectTaskIds, [])
   .option('--timeout <ms>', 'per-task timeout in ms', '1800000')
   .option('--output-dir <dir>', 'report output directory', '.omega/reports')
@@ -52,6 +53,11 @@ const runCmd = new Command('run')
   .option('--model <model>', 'model to use for benchmark tasks')
   .option('--docker', 'run DeepSWE verifiers in Docker (required for most Node.js tasks)')
   .option('--token-budget <n>', 'per-task token cap; abort agent loop if exceeded', parseInt)
+  .option('--agent <name>', 'Pier agent to use (e.g. mini-swe-agent)', 'mini-swe-agent')
+  .option('--env-file <file>', 'Pier env file with API credentials')
+  .option('--jobs-dir <dir>', 'Pier jobs directory')
+  .option('--n-concurrent <n>', 'Pier concurrent trials', parseInt)
+  .option('--pier-extra <arg>', 'extra Pier CLI arg (repeatable)', collectTaskIds, [])
   .action(async (opts: {
     suite: string;
     path?: string;
@@ -65,11 +71,46 @@ const runCmd = new Command('run')
     model?: string;
     docker?: boolean;
     tokenBudget?: number;
+    agent?: string;
+    envFile?: string;
+    jobsDir?: string;
+    nConcurrent?: number;
+    pierExtra: string[];
   }) => {
+    const timeoutMs = Number(opts.timeout);
+
+    if (opts.suite === 'pier') {
+      if (!opts.path) {
+        throw new Error('--path is required for the pier suite');
+      }
+      // Pier expects model names like "kimi/moonshot-v1-128k".
+      let pierModel = opts.model;
+      if (pierModel && opts.provider && !pierModel.includes('/')) {
+        pierModel = `${opts.provider}/${pierModel}`;
+      }
+      const report = await runPierBenchmark({
+        tasksDir: opts.path,
+        agent: opts.agent,
+        model: pierModel,
+        nTasks: opts.nTasks,
+        sampleSeed: opts.sampleSeed,
+        taskIds: opts.taskId.length > 0 ? opts.taskId : undefined,
+        jobsDir: opts.jobsDir,
+        envFile: opts.envFile ? path.resolve(opts.envFile) : undefined,
+        nConcurrent: opts.nConcurrent,
+        timeoutMs,
+        extraArgs: opts.pierExtra.length > 0 ? opts.pierExtra : undefined,
+        suiteName: 'pier',
+      });
+      const reportFile = await writeReport(report, opts.outputDir);
+      printSummary(report);
+      console.log(`\nReport written to ${reportFile}`);
+      return;
+    }
+
     const apiUrl = getApiUrl();
     await waitForApi(apiUrl);
 
-    const timeoutMs = Number(opts.timeout);
     let tasks;
     let suiteName: string;
 
@@ -87,6 +128,9 @@ const runCmd = new Command('run')
       suiteName = 'deep-swe';
     } else if (opts.suite === 'synthetic') {
       tasks = syntheticSuite();
+      if (opts.taskId.length > 0) {
+        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
+      }
       suiteName = 'synthetic';
     } else {
       throw new Error(`Unknown suite: ${opts.suite}`);

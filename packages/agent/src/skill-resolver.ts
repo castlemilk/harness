@@ -151,8 +151,11 @@ async function detectProjectSignature(projectPath: string): Promise<FileSignatur
   return { languages, frameworks, hasTests };
 }
 
-function skillMatches(signature: FileSignature, skillName: string, description: string): boolean {
+function skillMatches(signature: FileSignature, skillName: string, description: string, taskTags?: string[]): boolean {
   const haystack = `${skillName} ${description}`.toLowerCase();
+  for (const tag of taskTags ?? []) {
+    if (haystack.includes(tag.toLowerCase())) return true;
+  }
   for (const lang of signature.languages) {
     if (haystack.includes(lang.toLowerCase())) return true;
   }
@@ -165,7 +168,8 @@ function skillMatches(signature: FileSignature, skillName: string, description: 
 export async function resolveSkills(
   prisma: PrismaClient,
   projectPath: string,
-  taskDescription?: string | null
+  taskDescription?: string | null,
+  taskTags?: string[]
 ): Promise<ResolvedSkill[]> {
   const signature = await detectProjectSignature(projectPath);
 
@@ -198,7 +202,7 @@ export async function resolveSkills(
   const matched = artifacts
     .filter((a) => {
       const manifest = JSON.parse(a.manifest) as { name: string; description: string };
-      return skillMatches(signature, manifest.name, manifest.description);
+      return skillMatches(signature, manifest.name, manifest.description, taskTags);
     })
     .map((a) => {
       const manifest = JSON.parse(a.manifest) as { name: string; description: string; instructions: string };

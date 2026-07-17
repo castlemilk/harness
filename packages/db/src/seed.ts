@@ -44,7 +44,7 @@ export async function seedDefaults(): Promise<void> {
   }
   // Disable Kimi if OMEGA_DISABLE_KIMI is set (quota exhausted etc.)
   if (process.env.OMEGA_DISABLE_KIMI) {
-    await prisma.providerConfig.update({
+    await prisma.providerConfig.updateMany({
       where: { name: 'kimi' },
       data: { enabled: false },
     });

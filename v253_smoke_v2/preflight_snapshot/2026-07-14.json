@@ -1,0 +1,25 @@
+{
+ "closed_trades": [],
+ "cycle_date": "2026-07-14",
+ "cycle_ts": "2026-07-14T02:25:58.002365+00:00",
+ "equity": 100000.0,
+ "last_completed_date": "2026-07-14",
+ "open_positions": [],
+ "pnl_record": {
+  "closed_this_cycle": 0,
+  "cycle_date": "2026-07-14",
+  "cycle_ts": "2026-07-14T02:25:58.002365+00:00",
+  "drift_seconds": 0.002,
+  "equity": 100000.0,
+  "feeds_blocked": [],
+  "open_n": 0,
+  "realised_pnl": 0.0,
+  "unrealised_pnl": 0.0
+ },
+ "realised_pnl": 0.0,
+ "schema_version": 1,
+ "seed_state": {
+  "cycle_n": 1
+ },
+ "signals_state": {}
+}

@@ -39,7 +39,7 @@ function planSpan(traceFlow: TraceFlowInfo | undefined): TraceSpanNode | undefin
   return findSpans(traceFlow, (s) => s.name === 'agent.plan').shift();
 }
 
-function validationSummary(result: BenchmarkResult): { allPassed?: boolean; lint?: { success?: boolean }; test?: { success?: boolean }; build?: { success?: boolean } } | undefined {
+function validationSummary(result: BenchmarkResult): { allPassed?: boolean; lint?: { passed?: boolean }; test?: { passed?: boolean }; build?: { passed?: boolean } } | undefined {
   if (!result.agentRun?.validationSummary) return undefined;
   try {
     return JSON.parse(result.agentRun.validationSummary) as Record<string, unknown>;
@@ -64,7 +64,7 @@ export function classifyFailure(result: BenchmarkResult, traceFlow?: TraceFlowIn
     const failedSteps: string[] = [];
     for (const key of ['lint', 'test', 'build'] as const) {
       const step = validation[key];
-      if (step && !step.success) {
+      if (step && !step.passed) {
         failedSteps.push(key);
       }
     }

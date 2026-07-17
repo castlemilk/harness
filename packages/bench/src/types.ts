@@ -4,6 +4,7 @@ export interface BenchmarkTask {
   title: string;
   description?: string;
   complexity?: 'simple' | 'medium' | 'complex';
+  tags?: string[];
   setup?: (projectPath: string) => Promise<void>;
   evaluate: (ctx: EvaluationContext) => BenchmarkEvaluation | Promise<BenchmarkEvaluation>;
 }

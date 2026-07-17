@@ -56,4 +56,5 @@ export interface AgentOptions {
   baseBranch?: string;
   isolated?: boolean;
   tokenBudget?: number; // abort the agent loop if total tokens exceed this cap
+  retainWorktree?: boolean; // keep isolated worktree after the run for debugging
 }

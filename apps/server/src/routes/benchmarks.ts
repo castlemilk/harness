@@ -24,10 +24,27 @@ interface RunStatus {
   output?: string;
 }
 
+function isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function readStatus(): Promise<RunStatus> {
   try {
     const raw = await fs.readFile(statusFile, 'utf-8');
-    return JSON.parse(raw) as RunStatus;
+    const status = JSON.parse(raw) as RunStatus;
+    if (status.running && typeof status.pid === 'number' && !isPidAlive(status.pid)) {
+      // Stale status: the recorded process is gone (e.g. server restarted
+      // while a run was in flight). Clear it so new runs are not blocked.
+      const cleared: RunStatus = { running: false, output: status.output };
+      await writeStatus(cleared);
+      return cleared;
+    }
+    return status;
   } catch {
     return { running: false };
   }

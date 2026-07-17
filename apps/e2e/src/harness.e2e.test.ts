@@ -153,8 +153,15 @@ describe('harness e2e with Kimi', () => {
     expect(taskRes.status).toBe(201);
     const task = (await taskRes.json()) as { id: string };
 
+    const patchRes = await fetch(`${API}/tasks/${task.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'kimi-mock', model: 'moonshot-v1-8k' }),
+    });
+    expect(patchRes.status).toBe(200);
+
     const runRes = await fetch(`${API}/tasks/${task.id}/run`, { method: 'POST' });
-    expect(runRes.status).toBe(200);
+    expect(runRes.status).toBe(202);
     const ran = (await runRes.json()) as { status: string; result?: string; error?: string };
 
     if (ran.status !== 'done') {

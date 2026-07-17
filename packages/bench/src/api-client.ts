@@ -55,8 +55,12 @@ export async function createTask(
   });
 }
 
-export async function runTask(apiUrl: string, taskId: string): Promise<void> {
-  await apiFetch(`${apiUrl}/tasks/${taskId}/run`, { method: 'POST' });
+export async function runTask(apiUrl: string, taskId: string, tokenBudget?: number): Promise<void> {
+  await apiFetch(`${apiUrl}/tasks/${taskId}/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tokenBudget }),
+  });
 }
 
 export async function getTask(apiUrl: string, taskId: string): Promise<{ status: string; result?: string; error?: string }> {

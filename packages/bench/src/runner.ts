@@ -91,7 +91,7 @@ export async function runBenchmark(
       const harnessTask = await createTask(apiUrl, project.id, task.title, {
         description: task.description,
         complexity: task.complexity ?? 'simple',
-        tags: ['benchmark', 'agent'],
+        tags: ['benchmark', 'agent', task.name, ...(task.tags ?? [])],
       });
       harnessTaskId = harnessTask.id;
 
@@ -103,14 +103,7 @@ export async function runBenchmark(
         });
       }
 
-      // The bench only controls token-budget via env (the server's run-task
-      // reads OMEGA_TOKEN_BUDGET). Set it once per process so each created
-      // task inherits the cap via the detached executor path.
-      if (options.tokenBudget !== undefined && process.env.OMEGA_TOKEN_BUDGET === undefined) {
-        process.env.OMEGA_TOKEN_BUDGET = String(options.tokenBudget);
-      }
-
-      await runTask(apiUrl, harnessTask.id);
+      await runTask(apiUrl, harnessTask.id, options.tokenBudget);
       const finished = await waitForTask(apiUrl, harnessTask.id, timeoutMs);
       status = finished.status === 'timeout' ? 'timeout' : (finished.status as BenchmarkResult['status']);
 

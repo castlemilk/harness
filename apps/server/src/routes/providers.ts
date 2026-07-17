@@ -42,12 +42,27 @@ function normalizeCapabilities(input: unknown): string {
   return JSON.stringify([]);
 }
 
+function sanitizeProvider(provider: {
+  apiKey?: string | null;
+  refreshToken?: string | null;
+  tokenExpiresAt?: Date | null;
+  [key: string]: unknown;
+}) {
+  const { apiKey, refreshToken, tokenExpiresAt, ...rest } = provider;
+  return {
+    ...rest,
+    hasApiKey: Boolean(apiKey),
+    hasRefreshToken: Boolean(refreshToken),
+    tokenExpiresAt: tokenExpiresAt ?? undefined,
+  };
+}
+
 export function providerRoutes(prisma: PrismaClient): Router {
   const r = Router();
 
   r.get('/', asyncHandler(async (_req, res) => {
     const providers = await prisma.providerConfig.findMany({ orderBy: { createdAt: 'desc' } });
-    res.json(providers);
+    res.json(providers.map(sanitizeProvider));
   }));
 
   r.post('/', asyncHandler(async (req, res) => {
@@ -65,7 +80,7 @@ export function providerRoutes(prisma: PrismaClient): Router {
         enabled: body.enabled ?? true,
       },
     });
-    res.status(201).json(provider);
+    res.status(201).json(sanitizeProvider(provider));
   }));
 
   r.patch('/:id/toggle', asyncHandler(async (req, res) => {
@@ -78,7 +93,7 @@ export function providerRoutes(prisma: PrismaClient): Router {
       where: { id: req.params.id },
       data: { enabled: !existing.enabled },
     });
-    res.json(provider);
+    res.json(sanitizeProvider(provider));
   }));
 
   r.patch('/:id', asyncHandler(async (req, res) => {
@@ -102,7 +117,7 @@ export function providerRoutes(prisma: PrismaClient): Router {
       where: { id: req.params.id },
       data,
     });
-    res.json(provider);
+    res.json(sanitizeProvider(provider));
   }));
 
   r.delete('/:id', asyncHandler(async (req, res) => {

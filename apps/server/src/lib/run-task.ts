@@ -26,9 +26,13 @@ function toCoreConfig(row: {
   };
 }
 
-export async function runTask(prisma: PrismaClient, taskId: string, options: { detached?: boolean } = {}) {
+export async function runTask(prisma: PrismaClient, taskId: string, options: { detached?: boolean; tokenBudget?: number } = {}) {
   const task = await prisma.task.findUnique({ where: { id: taskId }, include: { project: true } });
   if (!task) throw new Error('Task not found');
+
+  if (task.status === 'in_progress') {
+    throw new Error(`Task ${taskId} is already in progress`);
+  }
 
   await prisma.task.update({
     where: { id: taskId },
@@ -37,9 +41,9 @@ export async function runTask(prisma: PrismaClient, taskId: string, options: { d
 
   const tags: string[] = task.tags ? (JSON.parse(task.tags) as string[]) : [];
   if (tags.includes('agent') || tags.includes('self-improve')) {
-    const tokenBudget = process.env.OMEGA_TOKEN_BUDGET
+    const tokenBudget = options.tokenBudget ?? (process.env.OMEGA_TOKEN_BUDGET
       ? Number(process.env.OMEGA_TOKEN_BUDGET)
-      : undefined;
+      : undefined);
 
     if (options.detached) {
       void (async () => {

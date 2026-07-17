@@ -79,6 +79,7 @@ describe('harness gRPC task ingestion', () => {
     PORT: '4002',
     GRPC_PORT: '50052',
     KIMI_API_KEY: '',
+    GLM_API_KEY: '',
   };
 
   beforeAll(async () => {

@@ -7,9 +7,9 @@ export interface PromptContextSummary {
 }
 
 interface ValidationSummary {
-  lint?: { success: boolean };
-  test?: { success: boolean };
-  build?: { success: boolean };
+  lint?: { passed: boolean };
+  test?: { passed: boolean };
+  build?: { passed: boolean };
   allPassed?: boolean;
 }
 
@@ -196,7 +196,7 @@ export async function buildPromptContext(
     if (!summary || summary.allPassed) continue;
     for (const key of ['lint', 'test', 'build'] as const) {
       const step = summary[key];
-      if (step && !step.success) {
+      if (step && !step.passed) {
         failureCounts[key] = (failureCounts[key] ?? 0) + 1;
       }
     }

@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const root = path.resolve(__filename, '..', '..');
-const reportsDir = path.join(root, '.omega', 'reports');
+const storageRoot = process.env.OMEGA_STORAGE_ROOT ?? path.join(os.homedir(), '.omega');
+const reportsDir = path.join(storageRoot, 'reports');
 
 function nowIso() {
   return new Date().toISOString().replace(/[:.]/g, '-');

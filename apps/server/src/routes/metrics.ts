@@ -2,12 +2,10 @@ import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { omegaReportsDir } from '@omega/core';
 import { asyncHandler } from '../lib/async-handler.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const root = path.resolve(__filename, '..', '..', '..', '..');
-const reportsDir = path.join(root, '.omega', 'reports');
+const reportsDir = omegaReportsDir();
 
 async function latestReport(pattern: RegExp): Promise<{ file: string; data: unknown } | undefined> {
   try {

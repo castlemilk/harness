@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { omegaVerifierToolsDir, omegaWorkDir } from '@omega/core';
 import type { BenchmarkTask, BenchmarkEvaluation, EvaluationContext } from '../types.js';
 
 const execFileAsync = promisify(execFile);
@@ -356,7 +357,7 @@ const JEST_CTRF_VERSION = '0.0.11';
 const MOCHA_CTRF_VERSION = '0.0.11';
 
 async function ensureJunitToCtrf(): Promise<string> {
-  const cacheDir = path.join(os.homedir(), '.omega', 'verifier-tools');
+  const cacheDir = omegaVerifierToolsDir();
   const binDir = path.join(cacheDir, 'node_modules', '.bin');
   const binary = path.join(binDir, 'junit-to-ctrf');
   try {
@@ -377,7 +378,7 @@ async function ensureJunitToCtrf(): Promise<string> {
 }
 
 async function ensureJestCtrf(): Promise<string> {
-  const cacheDir = path.join(os.homedir(), '.omega', 'verifier-tools', 'jest-ctrf');
+  const cacheDir = path.join(omegaVerifierToolsDir(), 'jest-ctrf');
   const reporterPath = path.join(cacheDir, 'node_modules', 'jest-ctrf-json-reporter', 'dist', 'index.js');
   const envPath = path.join(cacheDir, 'node_modules', 'jest-environment-node');
   try {
@@ -399,7 +400,7 @@ async function ensureJestCtrf(): Promise<string> {
 }
 
 async function ensureMochaCtrf(): Promise<string> {
-  const cacheDir = path.join(os.homedir(), '.omega', 'verifier-tools', 'mocha-ctrf');
+  const cacheDir = path.join(omegaVerifierToolsDir(), 'mocha-ctrf');
   const reporterPath = path.join(cacheDir, 'node_modules', 'mocha-ctrf-json-reporter', 'dist', 'index.js');
   try {
     await fs.access(reporterPath);
@@ -419,7 +420,7 @@ async function ensureMochaCtrf(): Promise<string> {
 }
 
 async function ensureNextest(): Promise<string> {
-  const cacheDir = path.join(os.homedir(), '.omega', 'verifier-tools', 'nextest');
+  const cacheDir = path.join(omegaVerifierToolsDir(), 'nextest');
   const binary = path.join(cacheDir, 'bin', 'cargo-nextest');
   const configPath = path.join(cacheDir, 'nextest.toml');
   try {
@@ -493,7 +494,7 @@ async function runDeepSWEVerifierDocker(
 ): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number }> {
   const absoluteTaskDir = path.resolve(taskDir);
   const testsDir = path.join(absoluteTaskDir, 'tests');
-  const workDir = path.join('/tmp', `deepswe-${path.basename(taskDir)}-${String(Date.now())}`);
+  const workDir = path.join(omegaWorkDir(), 'deepswe', `${path.basename(taskDir)}-${String(Date.now())}`);
   const verifierDir = path.join(workDir, 'logs', 'verifier');
   const artifactsDir = path.join(workDir, 'logs', 'artifacts');
   const logFile = path.join(workDir, 'verifier.log');
@@ -594,7 +595,7 @@ async function runDeepSWEVerifierLocal(
   modelPatchArg?: string
 ): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number }> {
   const testsDir = path.join(taskDir, 'tests');
-  const workDir = path.join('/tmp', `deepswe-${path.basename(taskDir)}-${String(Date.now())}`);
+  const workDir = path.join(omegaWorkDir(), 'deepswe', `${path.basename(taskDir)}-${String(Date.now())}`);
   const verifierDir = path.join(workDir, 'logs', 'verifier');
   const artifactsDir = path.join(workDir, 'logs', 'artifacts');
   const copiedTestsDir = path.join(workDir, 'tests');

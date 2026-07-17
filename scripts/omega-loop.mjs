@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const root = path.resolve(__filename, '..', '..');
-const iterationsDir = path.join(root, '.omega', 'iterations');
+const storageRoot = process.env.OMEGA_STORAGE_ROOT ?? path.join(os.homedir(), '.omega');
+const iterationsDir = path.join(storageRoot, 'iterations');
 
 const config = {
   apiUrl: process.env.OMEGA_LOOP_API_URL ?? 'http://localhost:4000',

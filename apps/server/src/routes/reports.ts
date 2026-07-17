@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { omegaReportsDir } from '@omega/core';
 import { asyncHandler } from '../lib/async-handler.js';
 
-const REPORTS_DIR = path.resolve('.omega/reports');
+const REPORTS_DIR = omegaReportsDir();
 
 interface ReportRef {
   file: string;

@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@omega/db';
 import type { Provider, ProviderConfig, Task, AgentOptions, ToolCall, SendOptions, ToolDefinition, UsageInfo } from '@omega/core';
+import { omegaWorkDir } from '@omega/core';
 import path from 'node:path';
-import os from 'node:os';
 import fs from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -494,7 +494,7 @@ export async function runAgentTask(
     // Keep isolated worktrees outside the project tree. Nested worktrees inherit
     // node_modules and config files from the parent repo and break tooling such
     // as ESLint plugin resolution and TypeScript project references.
-    worktreePath = path.join(os.tmpdir(), 'omega-worktrees', `${options.projectName}-${task.id}`);
+    worktreePath = path.join(omegaWorkDir(), 'worktrees', `${options.projectName}-${task.id}`);
     await fs.mkdir(path.dirname(worktreePath), { recursive: true });
     const worktreeResult = await createWorktree(options.projectPath, worktreePath, branch, baseCommit.output);
     if (worktreeResult.success) {

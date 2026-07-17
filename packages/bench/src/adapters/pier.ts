@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { omegaJobsDir } from '@omega/core';
 import type { BenchmarkTask, BenchmarkEvaluation, BenchmarkResult, BenchmarkReport } from '../types.js';
 
 export interface PierOptions {
@@ -140,7 +141,7 @@ async function runPierForTask(taskDir: string, opts: PierOptions): Promise<{ rew
   const taskName = path.basename(resolvedTaskDir);
   const jobTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const jobsDir =
-    opts.jobsDir ?? path.join('/tmp', `omega-pier-${jobTimestamp}-${Math.random().toString(36).slice(2, 8)}`);
+    opts.jobsDir ?? path.join(omegaJobsDir(), `pier-${jobTimestamp}-${Math.random().toString(36).slice(2, 8)}`);
   await fs.mkdir(jobsDir, { recursive: true });
 
   const args = pierArgs(opts, resolvedTaskDir);

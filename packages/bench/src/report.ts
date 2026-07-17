@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { omegaReportsDir } from '@omega/core';
 import type { BenchmarkReport, BenchmarkResult } from './types.js';
 
 function nowIso(): string {
@@ -45,7 +46,7 @@ function traceSummaryBlock(r: BenchmarkResult): string[] {
   return lines;
 }
 
-export async function writeReport(report: BenchmarkReport, outputDir = '.omega/reports'): Promise<string> {
+export async function writeReport(report: BenchmarkReport, outputDir = omegaReportsDir()): Promise<string> {
   await fs.mkdir(outputDir, { recursive: true });
   const ts = nowIso();
   const jsonFile = path.join(outputDir, `benchmark-${ts}.json`);

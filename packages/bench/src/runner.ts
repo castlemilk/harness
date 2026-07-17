@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
+import { omegaWorkDir } from '@omega/core';
 import type { BenchmarkReport, BenchmarkResult, BenchmarkTask, BenchmarkEvaluation, TraceFlowInfo } from './types.js';
 import {
   ensureProject,
@@ -62,7 +63,7 @@ export async function runBenchmark(
     results: [],
   };
 
-  const baseDir = path.join('/tmp', `omega-bench-${String(Date.now())}`);
+  const baseDir = path.join(omegaWorkDir(), 'bench', String(Date.now()));
   await fs.mkdir(baseDir, { recursive: true });
 
   for (const task of tasks) {

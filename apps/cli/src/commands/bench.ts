@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import path from 'node:path';
+import { omegaReportsDir } from '@omega/core';
 
 function collectTaskIds(value: string, previous: string[]): string[] {
   return previous.concat(value);
@@ -47,7 +48,7 @@ const runCmd = new Command('run')
   .option('--sample-seed <n>', 'seed for deterministic sampling (for deep-swe/pier)', parseInt)
   .option('--task-id <id>', 'run only specific DeepSWE task(s) by id (repeatable)', collectTaskIds, [])
   .option('--timeout <ms>', 'per-task timeout in ms', '1800000')
-  .option('--output-dir <dir>', 'report output directory', '.omega/reports')
+  .option('--output-dir <dir>', 'report output directory')
   .option('--project-prefix <prefix>', 'project name prefix for created harness projects', 'bench')
   .option('--provider <name>', 'provider to use for benchmark tasks')
   .option('--model <model>', 'model to use for benchmark tasks')
@@ -65,7 +66,7 @@ const runCmd = new Command('run')
     sampleSeed?: number;
     taskId: string[];
     timeout: string;
-    outputDir: string;
+    outputDir?: string;
     projectPrefix: string;
     provider?: string;
     model?: string;
@@ -78,6 +79,7 @@ const runCmd = new Command('run')
     pierExtra: string[];
   }) => {
     const timeoutMs = Number(opts.timeout);
+    const outputDir = opts.outputDir ?? omegaReportsDir();
 
     if (opts.suite === 'pier') {
       if (!opts.path) {
@@ -102,7 +104,7 @@ const runCmd = new Command('run')
         extraArgs: opts.pierExtra.length > 0 ? opts.pierExtra : undefined,
         suiteName: 'pier',
       });
-      const reportFile = await writeReport(report, opts.outputDir);
+      const reportFile = await writeReport(report, outputDir);
       printSummary(report);
       console.log(`\nReport written to ${reportFile}`);
       return;
@@ -156,19 +158,19 @@ const runCmd = new Command('run')
       },
     });
 
-    const reportFile = await writeReport(report, opts.outputDir);
+    const reportFile = await writeReport(report, outputDir);
     printSummary(report);
     console.log(`\nReport written to ${reportFile}`);
   });
 
 const optimiseCmd = new Command('optimise')
   .description('Create a self-improve task from the latest benchmark report')
-  .option('--output-dir <dir>', 'report output directory', '.omega/reports')
-  .action(async (opts: { outputDir: string }) => {
+  .option('--output-dir <dir>', 'report output directory')
+  .action(async (opts: { outputDir?: string }) => {
     const apiUrl = getApiUrl();
     await waitForApi(apiUrl);
 
-    const context = await loadOptimisationContext(apiUrl, opts.outputDir);
+    const context = await loadOptimisationContext(apiUrl, opts.outputDir ?? omegaReportsDir());
     if (!context) {
       console.log('No benchmark report found. Run `omega bench run` first.');
       return;

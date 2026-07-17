@@ -4,11 +4,12 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { z } from 'zod';
+import { omegaReportsDir } from '@omega/core';
 import { asyncHandler } from '../lib/async-handler.js';
 
 const root = process.cwd();
-const reportsDir = path.join(root, '.omega', 'reports');
-const statusFile = path.join(root, '.omega', 'bench-run-status.json');
+const reportsDir = omegaReportsDir();
+const statusFile = path.join(omegaReportsDir(), 'bench-run-status.json');
 
 const runSchema = z.object({
   suite: z.enum(['synthetic', 'deep-swe']).optional(),

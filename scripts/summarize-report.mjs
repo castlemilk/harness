@@ -1,5 +1,9 @@
 import fs from 'node:fs';
-const r = JSON.parse(fs.readFileSync(process.argv[2] ?? '.omega/reports/benchmark-latest.json', 'utf8'));
+import path from 'node:path';
+import os from 'node:os';
+
+const storageRoot = process.env.OMEGA_STORAGE_ROOT ?? path.join(os.homedir(), '.omega');
+const r = JSON.parse(fs.readFileSync(process.argv[2] ?? path.join(storageRoot, 'reports', 'benchmark-latest.json'), 'utf8'));
 console.log('total', r.total, 'passed', r.passed, 'failed', r.failed, 'timeouts', r.timeouts);
 console.log('totalDurationHours', (r.totalDurationMs / 3600000).toFixed(2));
 const scores = [];

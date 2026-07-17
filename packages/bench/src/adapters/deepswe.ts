@@ -628,6 +628,10 @@ async function runDeepSWEVerifierLocal(
   const testShPath = path.join(copiedTestsDir, 'test.sh');
   const testShRaw = await fs.readFile(testShPath, 'utf-8');
   let rewritten = replaceTestShPaths(testShRaw);
+  // The shared verifier frame single-quotes the base JUnit glob, which
+  // prevents ${VERIFIER_DIR} from expanding after our path rewrite. Switch to
+  // double quotes so the absolute path is passed to junit-to-ctrf.
+  rewritten = rewritten.replace(/'(\$\{VERIFIER_DIR\}\/base\*\.xml)'/g, '"$1"');
   if (rewritten.includes('/opt/jest-ctrf')) {
     const jestCtrfDir = await ensureJestCtrf();
     rewritten = rewritten.replace(/\/opt\/jest-ctrf/g, jestCtrfDir);

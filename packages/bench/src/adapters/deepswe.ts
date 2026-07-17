@@ -257,6 +257,17 @@ async function installProjectDependencies(projectPath: string, language?: string
     if (install.exitCode !== 0) {
       throw new Error(`cargo fetch failed: ${install.stderr}\n${install.stdout}`);
     }
+    // Some Rust workspaces (e.g. pest) require a bootstrap binary to be built
+    // before the main crates can compile their build scripts.
+    if (await has('bootstrap/Cargo.toml')) {
+      const bootstrap = await runCommand('cargo', ['build', '--package', 'pest_bootstrap'], {
+        cwd: projectPath,
+        timeout: 300_000,
+      });
+      if (bootstrap.exitCode !== 0) {
+        throw new Error(`cargo bootstrap build failed: ${bootstrap.stderr}\n${bootstrap.stdout}`);
+      }
+    }
   }
 }
 
@@ -444,7 +455,7 @@ async function ensureNextest(): Promise<string> {
   // The DeepSWE verifier selects a 'junit' profile that writes to target/nextest/junit/junit.xml.
   await fs.writeFile(
     configPath,
-    '[profile.junit]\npath = "junit"\n',
+    '[profile.junit]\njunit = { path = "junit" }\n',
     'utf-8'
   );
   return cacheDir;

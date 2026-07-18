@@ -833,46 +833,47 @@ async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Pro
     { role: 'assistant', content: `Plan: ${JSON.stringify(plan)}` },
   ];
 
-  // Auto-apply any reference-patch skills so the agent starts from a known-good
-  // implementation and only needs to verify. This makes one-shot skill workflows
-  // reliable even when the model would otherwise explore.
-  const appliedSkills = await applySkillPatches(ctx.projectPath, skills);
-  if (appliedSkills.length > 0) {
-    await addTrace(
-      ctx,
-      'system',
-      `Reference patch applied automatically from skill(s): ${appliedSkills.join(', ')}. Verify the changes with the skill's verification command, then finish if tests pass.`
-    );
-    messages.push({
-      role: 'user',
-      content:
-        `IMPORTANT: The reference patch for this task has already been applied automatically from skill(s): ${appliedSkills.join(', ')}. ` +
-        `Do NOT run \`git apply\` again. Skip directly to the skill's verification command, run it, and call finish with success=true if it passes. ` +
-        `Only make further edits if the verification command fails.`
-    });
-    // Strip the "apply patch" workflow from the system prompt so the model is not
-    // tempted to re-run git apply after we already applied it.
-    const trimPatchWorkflow = (text: string): string =>
-      text.replace(
-        /### ONE-SHOT PATCH WORKFLOW\s*[\s\S]*?(?=### Verification)/gi,
-        '### Patch status\nThe reference patch has already been applied. Proceed directly to verification below.\n\n'
+  // Skills are guidance by default. The model reads the skill instructions
+  // (including reference patch paths) and can choose to apply them, but we no
+  // longer auto-apply solution patches and skip verification. That "oracle" path
+  // is available behind OMEGA_SKILL_ORACLE=true for experiments where the patch
+  // is known to be complete and the environment is known to run its tests.
+  const skillOracle = process.env.OMEGA_SKILL_ORACLE === 'true';
+  let appliedSkills: string[] = [];
+  if (skillOracle) {
+    appliedSkills = await applySkillPatches(ctx.projectPath, skills);
+    if (appliedSkills.length > 0) {
+      await addTrace(
+        ctx,
+        'system',
+        `Reference patch applied automatically from skill(s): ${appliedSkills.join(', ')}. Verify the changes with the skill's verification command, then finish if tests pass.`
       );
-    ctx.systemPrompt = trimPatchWorkflow(ctx.systemPrompt);
-    if (ctx.promptContext) {
-      ctx.promptContext = trimPatchWorkflow(ctx.promptContext);
-    }
-    if (messages[0]?.content) {
-      messages[0].content = ctx.systemPrompt;
-    }
+      messages.push({
+        role: 'user',
+        content:
+          `IMPORTANT: The reference patch for this task has already been applied automatically from skill(s): ${appliedSkills.join(', ')}. ` +
+          `Do NOT run \`git apply\` again. Skip directly to the skill's verification command, run it, and call finish with success=true if it passes. ` +
+          `Only make further edits if the verification command fails.`
+      });
+      const trimPatchWorkflow = (text: string): string =>
+        text.replace(
+          /### ONE-SHOT PATCH WORKFLOW\s*[\s\S]*?(?=### Verification)/gi,
+          '### Patch status\nThe reference patch has already been applied. Proceed directly to verification below.\n\n'
+        );
+      ctx.systemPrompt = trimPatchWorkflow(ctx.systemPrompt);
+      if (ctx.promptContext) {
+        ctx.promptContext = trimPatchWorkflow(ctx.promptContext);
+      }
+      if (messages[0]?.content) {
+        messages[0].content = ctx.systemPrompt;
+      }
 
-    // Oracle path: if a verified reference patch was applied, commit the changes
-    // and finish immediately. The downstream verifier will grade the patch.
-    // This avoids environment-specific test failures and long exploration loops.
-    success = true;
-    finished = true;
-    summary = `Finished via skill reference patch: ${appliedSkills.join(', ')}`;
-    await checkpointCommit(ctx);
-    ctx.rootSpan.addEvent('agent.skill_oracle.finish', { skills: appliedSkills.join(', ') });
+      success = true;
+      finished = true;
+      summary = `Finished via skill reference patch: ${appliedSkills.join(', ')}`;
+      await checkpointCommit(ctx);
+      ctx.rootSpan.addEvent('agent.skill_oracle.finish', { skills: appliedSkills.join(', ') });
+    }
   }
 
   while (stepIndex < ctx.maxSteps && !finished) {

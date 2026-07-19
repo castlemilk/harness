@@ -92,6 +92,7 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
     ],
   },
   'bandit-interprocedural-taint-checks': { pip: ['setuptools', 'wheel', 'GitPython', 'sarif-om', 'jschema_to_python'] },
+  'sqlfmt-create-table-ddl-formatting': { pip: ['black'] },
   'python-statemachine-state-data-scoping': {
     pip: [
       'pytest-benchmark',
@@ -569,6 +570,71 @@ function normalisePatch(patch: string): string {
   return patch.endsWith('\n') ? patch : `${patch}\n`;
 }
 
+async function forceCheckout(projectPath: string, baseCommit: string, maxAttempts = 3): Promise<void> {
+  const lockFile = path.join(projectPath, '.git', 'index.lock');
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await execFileAsync('git', ['-C', projectPath, 'checkout', '-f', baseCommit], { timeout: 60000 });
+      return;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('index.lock') && attempt < maxAttempts) {
+        try {
+          const stat = await fs.stat(lockFile);
+          // Only remove stale locks older than 30 seconds; a live Git process may
+          // legitimately hold the lock.
+          if (Date.now() - stat.mtime.getTime() > 30_000) {
+            await fs.unlink(lockFile);
+            console.log(`[deepswe] Removed stale .git/index.lock in ${projectPath}`);
+          }
+        } catch {
+          // lock file may have been removed by another retry
+        }
+        // Brief backoff before retrying.
+        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+async function ensureTaskDepsInstalled(projectPath: string, taskName: string): Promise<void> {
+  const extraDeps = EXTRA_TASK_DEPS[taskName] as { pip?: string[]; npm?: string[] } | undefined;
+  if (!extraDeps) return;
+
+  const venvBin = path.join(projectPath, '.venv', 'bin');
+  const pipBin = path.join(venvBin, 'pip');
+  const hasVenv = await fs.access(pipBin).then(() => true, () => false);
+
+  if (extraDeps.pip && extraDeps.pip.length > 0 && hasVenv) {
+    console.log(`[deepswe] Ensuring verifier deps for ${taskName}: ${extraDeps.pip.join(' ')}`);
+    const envPath = `${venvBin}${path.delimiter}${process.env.PATH ?? ''}`;
+    const result = await runCommand(pipBin, ['install', ...extraDeps.pip], {
+      cwd: projectPath,
+      env: { ...process.env, PATH: envPath, VIRTUAL_ENV: path.dirname(venvBin) },
+      timeout: 300_000,
+    });
+    if (result.exitCode !== 0) {
+      console.warn(`[deepswe] Verifier dep install failed for ${taskName}: ${result.stderr}`);
+    }
+  }
+
+  if (extraDeps.npm && extraDeps.npm.length > 0) {
+    const nodeModulesDir = await findNodePackageDir(projectPath);
+    if (nodeModulesDir) {
+      console.log(`[deepswe] Ensuring verifier npm deps for ${taskName}: ${extraDeps.npm.join(' ')}`);
+      const result = await runCommand('npm', ['install', '--no-save', ...extraDeps.npm], {
+        cwd: nodeModulesDir,
+        timeout: 300_000,
+      });
+      if (result.exitCode !== 0) {
+        console.warn(`[deepswe] Verifier npm dep install failed for ${taskName}: ${result.stderr}`);
+      }
+    }
+  }
+}
+
 async function rewriteConfig(
   taskDir: string,
   copiedTestsDir: string,
@@ -1042,6 +1108,7 @@ async function runDeepSWEVerifier(
   taskDir: string,
   baseCommit: string,
   useDocker: boolean,
+  taskName: string,
   modelPatchArg?: string
 ): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number }> {
   if (useDocker && (await dockerAvailable())) {
@@ -1059,12 +1126,12 @@ async function runDeepSWEVerifier(
       if (dockerResult.exitCode === 0 && (dockerResult.reward.reward === 1 || dockerResult.reward.partial !== undefined)) {
         return dockerResult;
       }
-      const fallback = await runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, modelPatchArg);
+      const fallback = await runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, taskName, modelPatchArg);
       return fallback;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       // Docker build or runtime failure: try local verifier as fallback.
-      const fallback = await runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, modelPatchArg);
+      const fallback = await runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, taskName, modelPatchArg);
       return {
         ...fallback,
         logs: `[Docker verifier failed, falling back to local]\n${message}\n\n${fallback.logs}`,
@@ -1072,13 +1139,14 @@ async function runDeepSWEVerifier(
     }
   }
 
-  return runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, modelPatchArg);
+  return runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, taskName, modelPatchArg);
 }
 
 async function runDeepSWEVerifierLocal(
   projectPath: string,
   taskDir: string,
   baseCommit: string,
+  taskName: string,
   modelPatchArg?: string
 ): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number }> {
   const testsDir = path.join(taskDir, 'tests');
@@ -1096,7 +1164,11 @@ async function runDeepSWEVerifierLocal(
 
   const modelPatch = normalisePatch(modelPatchArg ?? (await generateModelPatch(projectPath, baseCommit)));
   await writeFile(path.join(artifactsDir, 'model.patch'), modelPatch);
-  await execFileAsync('git', ['-C', projectPath, 'checkout', '-f', baseCommit], { timeout: 60000 });
+  await forceCheckout(projectPath, baseCommit);
+
+  // Re-install any task-specific verifier dependencies that may be missing from
+  // a cached or reused project worktree.
+  await ensureTaskDepsInstalled(projectPath, taskName);
 
   const junitBinDir = await ensureJunitToCtrf();
 
@@ -1244,12 +1316,16 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
         if (!commit) {
           return { passed: false, message: 'Missing base_commit_hash' };
         }
-        const storedPatch = ctx.diffs.length > 0 ? ctx.diffs[0].patch : undefined;
+        const storedPatch = ctx.diffs
+          .slice()
+          .reverse()
+          .find((d) => typeof d.patch === 'string' && d.patch.length > 0)?.patch;
         const { reward, logs, logFile, exitCode } = await runDeepSWEVerifier(
           ctx.projectPath,
           dir,
           commit,
           options.useDocker ?? false,
+          id,
           storedPatch
         );
         const passed = reward.reward === 1;

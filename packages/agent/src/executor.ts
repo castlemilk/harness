@@ -414,7 +414,10 @@ async function applySkillPatches(
       // lose it with a later `git checkout -f HEAD` or working-tree reset.
       if (await hasChanges(projectPath)) {
         await stageAllChanges(projectPath);
-        await commit(projectPath, `skill: apply reference patch from ${skill.name}`);
+        const commitResult = await commit(projectPath, `skill: apply reference patch from ${skill.name}`);
+        if (!commitResult.success) {
+          throw new Error(`skill patch commit failed: ${commitResult.output}`);
+        }
       }
       applied.push(skill.name);
       logger.info('Applied skill patch', { skill: skill.name, patchPath });
@@ -430,6 +433,16 @@ async function applySkillPatches(
   // commit. Later cleanup or a detached worktree can reset HEAD, so waiting
   // until the end of the run risks producing an empty model.patch.
   const diff = await getDiff(projectPath, baseCommit);
+  if (applied.length > 0 && diff.output.length === 0) {
+    logger.warn('Skill patch was applied but produced an empty diff; falling back to HEAD~1 diff', {
+      projectPath,
+      baseCommit,
+    });
+    const headDiff = await getDiff(projectPath, 'HEAD~1');
+    if (headDiff.output.length > 0) {
+      return { applied, patch: headDiff.output };
+    }
+  }
   return { applied, patch: diff.output };
 }
 

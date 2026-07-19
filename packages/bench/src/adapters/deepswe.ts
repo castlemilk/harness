@@ -208,9 +208,14 @@ async function installProjectDependencies(projectPath: string, language?: string
   }
 
   if (lang === 'python') {
-    // Many DeepSWE Python tasks depend on packages (pydantic-core, orjson, etc.)
-    // that do not yet provide wheels for CPython 3.14. Prefer 3.13 when available.
-    const pythonBin = await commandExists('python3.13') ? 'python3.13' : 'python3';
+    // DeepSWE Python tasks often pin older packages (pydantic-core, msgspec,
+    // orjson, etc.) whose published wheels target CPython ≤3.11. Prefer 3.11 for
+    // the broadest compatibility; fall back through newer interpreters.
+    const pythonBin =
+      (await commandExists('python3.11')) ? 'python3.11' :
+      (await commandExists('python3.12')) ? 'python3.12' :
+      (await commandExists('python3.13')) ? 'python3.13' :
+      'python3';
     const venvPath = path.join(projectPath, '.venv');
     const pipBin = path.join(venvPath, 'bin', 'pip');
     const venv = await runCommand(pythonBin, ['-m', 'venv', '.venv'], { cwd: projectPath, timeout: 120_000 });

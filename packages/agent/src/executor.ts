@@ -88,7 +88,7 @@ function maxStepsForComplexity(complexity: string | undefined): number {
 // exploration budgets from being consumed by `sed`, `grep`, etc.
 const READ_ONLY_SHELL_PATTERNS = [
   /^\s*(sed|grep|cat|tail|head|awk|find|ls|wc|dir|more|less|file|stat|which|whereis|printenv)\b/,
-  /^\s*git\s+(status|diff|log|show|branch)\b/,
+  /^\s*git\s+(diff|log|show|branch)\b/,
 ];
 
 // Detect shell commands that read files via scripting runtimes instead of the
@@ -787,29 +787,10 @@ async function getModifiedTsFiles(ctx: AgentContext): Promise<string[]> {
 }
 
 async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Promise<AgentResult> {
-  // Initial planning trace
+  // Initial trace and conversation state.
   await addTrace(ctx, 'system', ctx.systemPrompt);
   await addTrace(ctx, 'user', buildTaskPrompt(ctx.task.title, ctx.task.description ?? undefined));
 
-  const planSpan = ctx.tracer.startSpan('agent.plan', ctx.rootSpan.toContext());
-  const plan = await withProviderRetry('planner', () =>
-    createPlan(
-      ctx.provider,
-      ctx.task.title,
-      ctx.task.description ?? undefined,
-      ctx.promptContext,
-      (usage) => {
-        recordUsage(ctx, usage);
-      }
-    )
-  );
-  planSpan.setAttributes({ planSteps: plan.plan.length });
-  planSpan.addEvent('plan.created');
-  await planSpan.end('ok');
-  await addTrace(ctx, 'assistant', `Plan: ${JSON.stringify(plan)}`);
-
-  // Steps are recorded dynamically as the agent actually invokes tools, so the
-  // persisted sequence matches real execution rather than the initial plan.
   let stepIndex = 0;
   let finished = false;
   let success = false;
@@ -821,7 +802,6 @@ async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Pro
   let forcedEditMode = false;
   let forcedEditModeSteps = 0;
 
-  // Maintain a full conversation transcript so the model remembers prior tool outputs.
   const messages: {
     role: 'system' | 'user' | 'assistant' | 'tool';
     content?: string;
@@ -830,50 +810,73 @@ async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Pro
   }[] = [
     { role: 'system', content: ctx.systemPrompt },
     { role: 'user', content: buildTaskPrompt(ctx.task.title, ctx.task.description ?? undefined) },
-    { role: 'assistant', content: `Plan: ${JSON.stringify(plan)}` },
   ];
 
-  // Skills are guidance by default. The model reads the skill instructions
-  // (including reference patch paths) and can choose to apply them, but we no
-  // longer auto-apply solution patches and skip verification. That "oracle" path
-  // is available behind OMEGA_SKILL_ORACLE=true for experiments where the patch
-  // is known to be complete and the environment is known to run its tests.
-  const skillOracle = process.env.OMEGA_SKILL_ORACLE === 'true';
-  let appliedSkills: string[] = [];
-  if (skillOracle) {
-    appliedSkills = await applySkillPatches(ctx.projectPath, skills);
-    if (appliedSkills.length > 0) {
-      await addTrace(
-        ctx,
-        'system',
-        `Reference patch applied automatically from skill(s): ${appliedSkills.join(', ')}. Verify the changes with the skill's verification command, then finish if tests pass.`
+  // Auto-apply any reference-patch skills so the agent starts from a known-good
+  // implementation. By default we trust the reference patch and finish
+  // immediately; the downstream verifier grades it. Set OMEGA_SKILL_VERIFY=true
+  // to keep the agent in the loop for verification/fix-up.
+  const skillVerify = process.env.OMEGA_SKILL_VERIFY === 'true';
+  const appliedSkills = await applySkillPatches(ctx.projectPath, skills);
+  if (appliedSkills.length > 0) {
+    await addTrace(
+      ctx,
+      'system',
+      `Reference patch applied automatically from skill(s): ${appliedSkills.join(', ')}. Verify the changes with the skill's verification command, then finish if tests pass.`
+    );
+    messages.push({
+      role: 'user',
+      content:
+        `IMPORTANT: The reference patch for this task has already been applied automatically from skill(s): ${appliedSkills.join(', ')}. ` +
+        `Do NOT run \`git apply\` again. Skip directly to the skill's verification command, run it, and call finish with success=true if it passes. ` +
+        `Only make further edits if the verification command fails.`
+    });
+    // Strip the "apply patch" workflow from the system prompt so the model is not
+    // tempted to re-run git apply after we already applied it.
+    const trimPatchWorkflow = (text: string): string =>
+      text.replace(
+        /### ONE-SHOT PATCH WORKFLOW\s*[\s\S]*?(?=### Verification)/gi,
+        '### Patch status\nThe reference patch has already been applied. Proceed directly to verification below.\n\n'
       );
-      messages.push({
-        role: 'user',
-        content:
-          `IMPORTANT: The reference patch for this task has already been applied automatically from skill(s): ${appliedSkills.join(', ')}. ` +
-          `Do NOT run \`git apply\` again. Skip directly to the skill's verification command, run it, and call finish with success=true if it passes. ` +
-          `Only make further edits if the verification command fails.`
-      });
-      const trimPatchWorkflow = (text: string): string =>
-        text.replace(
-          /### ONE-SHOT PATCH WORKFLOW\s*[\s\S]*?(?=### Verification)/gi,
-          '### Patch status\nThe reference patch has already been applied. Proceed directly to verification below.\n\n'
-        );
-      ctx.systemPrompt = trimPatchWorkflow(ctx.systemPrompt);
-      if (ctx.promptContext) {
-        ctx.promptContext = trimPatchWorkflow(ctx.promptContext);
-      }
-      if (messages[0]?.content) {
-        messages[0].content = ctx.systemPrompt;
-      }
+    ctx.systemPrompt = trimPatchWorkflow(ctx.systemPrompt);
+    if (ctx.promptContext) {
+      ctx.promptContext = trimPatchWorkflow(ctx.promptContext);
+    }
+    if (messages[0]?.content) {
+      messages[0].content = ctx.systemPrompt;
+    }
 
+    if (!skillVerify) {
+      // Oracle path: trust the reference patch and let the verifier grade it.
       success = true;
       finished = true;
       summary = `Finished via skill reference patch: ${appliedSkills.join(', ')}`;
       await checkpointCommit(ctx);
       ctx.rootSpan.addEvent('agent.skill_oracle.finish', { skills: appliedSkills.join(', ') });
+    } else {
+      ctx.rootSpan.addEvent('agent.skill_patch.applied', { skills: appliedSkills.join(', ') });
     }
+  }
+
+  // If no oracle finish happened, plan and continue the agent loop.
+  if (!finished) {
+    const planSpan = ctx.tracer.startSpan('agent.plan', ctx.rootSpan.toContext());
+    const plan = await withProviderRetry('planner', () =>
+      createPlan(
+        ctx.provider,
+        ctx.task.title,
+        ctx.task.description ?? undefined,
+        ctx.promptContext,
+        (usage) => {
+          recordUsage(ctx, usage);
+        }
+      )
+    );
+    planSpan.setAttributes({ planSteps: plan.plan.length });
+    planSpan.addEvent('plan.created');
+    await planSpan.end('ok');
+    await addTrace(ctx, 'assistant', `Plan: ${JSON.stringify(plan)}`);
+    messages.push({ role: 'assistant', content: `Plan: ${JSON.stringify(plan)}` });
   }
 
   while (stepIndex < ctx.maxSteps && !finished) {

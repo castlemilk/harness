@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import type { Dirent } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { execFile } from 'node:child_process';
@@ -42,6 +43,20 @@ interface Reward {
   partial?: number;
   apply_failed?: boolean;
 }
+
+// Per-task dependency/environment overrides. These cover test-only or
+// environment-drift packages that are not declared in the project's own
+// install metadata but are required for the DeepSWE verifier to pass.
+const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
+  'mobly-grouped-test-barriers': { pip: ['pytz'] },
+  'dateutil-rfc5545-timezone-interop': { pip: ['pytest<8'] },
+  'bandit-incremental-cache-control': { pip: ['GitPython', 'sarif-om'] },
+  'adaptix-name-mapping-aliases': { pip: ['attrs==22.2.0'] },
+  'langchain-request-coalescing': { pip: ['blockbuster'] },
+  'returns-validated-error-accumulation': { pip: ['pytest-asyncio'] },
+  'fastapi-implicit-head-options': { pip: ['httpx<0.28'] },
+  'bandit-interprocedural-taint-checks': { pip: ['setuptools', 'wheel'] },
+};
 
 function parseToml(raw: string): DeepSWETaskToml {
   const result: DeepSWETaskToml = { task: {}, metadata: {} };
@@ -162,21 +177,43 @@ async function cloneRepo(repoUrl: string, commit: string, targetPath: string): P
   await execFileAsync('git', ['-C', targetPath, 'checkout', commit], { timeout: 60000 });
 }
 
-async function installProjectDependencies(projectPath: string, language?: string, taskDir?: string): Promise<void> {
+async function findNodePackageDir(projectPath: string): Promise<string | undefined> {
+  if (await fs.access(path.join(projectPath, 'package.json')).then(() => true, () => false)) {
+    return projectPath;
+  }
+  const entries = await fs.readdir(projectPath, { withFileTypes: true }).catch(() => [] as Dirent[]);
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const candidate = path.join(projectPath, entry.name, 'package.json');
+    if (await fs.access(candidate).then(() => true, () => false)) {
+      return path.dirname(candidate);
+    }
+  }
+  return undefined;
+}
+
+async function installProjectDependencies(
+  projectPath: string,
+  language?: string,
+  taskDir?: string,
+  taskName?: string
+): Promise<void> {
   const has = (f: string) => fs.access(path.join(projectPath, f)).then(() => true, () => false);
   const lang = (language ?? '').toLowerCase();
 
-  if (await has('package.json')) {
-    const lock = (await has('pnpm-lock.yaml')) ? 'pnpm-lock.yaml' : (await has('yarn.lock')) ? 'yarn.lock' : undefined;
+  const nodePackageDir = await findNodePackageDir(projectPath);
+  if (nodePackageDir) {
+    const nodeHas = (f: string) => fs.access(path.join(nodePackageDir, f)).then(() => true, () => false);
+    const lock = (await nodeHas('pnpm-lock.yaml')) ? 'pnpm-lock.yaml' : (await nodeHas('yarn.lock')) ? 'yarn.lock' : undefined;
     const cmd = lock === 'pnpm-lock.yaml' && (await commandExists('pnpm')) ? ['pnpm', 'install'] :
                 lock === 'yarn.lock' && (await commandExists('yarn')) ? ['yarn', 'install'] :
                 ['npm', 'install'];
     const ensureNodeBinaries = async (): Promise<boolean> => {
       try {
-        const pkgRaw = await fs.readFile(path.join(projectPath, 'package.json'), 'utf-8');
+        const pkgRaw = await fs.readFile(path.join(nodePackageDir, 'package.json'), 'utf-8');
         const pkg = JSON.parse(pkgRaw) as { scripts?: Record<string, string> };
         const testScript = pkg.scripts?.test ?? '';
-        const binDir = path.join(projectPath, 'node_modules', '.bin');
+        const binDir = path.join(nodePackageDir, 'node_modules', '.bin');
         const bins = await fs.readdir(binDir).catch(() => [] as string[]);
         const needs = (name: string) => testScript.includes(name) && !bins.includes(name);
         return !needs('mocha') && !needs('jest') && !needs('vitest') && !needs('tap') && !needs('ava');
@@ -185,7 +222,7 @@ async function installProjectDependencies(projectPath: string, language?: string
       }
     };
     const runInstall = async (): Promise<void> => {
-      const install = await runCommand(cmd[0], cmd.slice(1), { cwd: projectPath, timeout: 300_000 });
+      const install = await runCommand(cmd[0], cmd.slice(1), { cwd: nodePackageDir, timeout: 300_000 });
       if (install.exitCode !== 0) {
         throw new Error(`Dependency install failed: ${install.stderr}\n${install.stdout}`);
       }
@@ -193,7 +230,7 @@ async function installProjectDependencies(projectPath: string, language?: string
     await runInstall();
     if (!(await ensureNodeBinaries())) {
       console.warn('[deepswe] node_modules missing test binaries, reinstalling');
-      await fs.rm(path.join(projectPath, 'node_modules'), { recursive: true, force: true });
+      await fs.rm(path.join(nodePackageDir, 'node_modules'), { recursive: true, force: true });
       await runInstall();
     }
     return;
@@ -312,6 +349,17 @@ async function installProjectDependencies(projectPath: string, language?: string
         if (pytestExtras.length > 0) {
           const install = await runCommand(pipBin, ['install', ...pytestExtras], { cwd: projectPath, timeout: 300_000 });
           if (install.exitCode !== 0) failed = fail('pytest extras install', install.stderr);
+        }
+      }
+
+      const extraDeps = taskName ? EXTRA_TASK_DEPS[taskName] : undefined;
+      if (!failed && extraDeps?.pip) {
+        const extras = extraDeps.pip;
+        console.log(`[deepswe] Installing extra deps for ${String(taskName)}: ${extras.join(' ')}`);
+        const install = await runCommand(pipBin, ['install', ...extras], { cwd: projectPath, timeout: 300_000 });
+        if (install.exitCode !== 0) {
+          // Treat as fatal: the verifier is known to need these packages.
+          failed = fail('extra task deps install', install.stderr);
         }
       }
 
@@ -782,6 +830,8 @@ async function runDeepSWEVerifierLocal(
     ARTIFACTS_DIR: artifactsDir,
     // Kysely's .mocharc.js requires std-env@4 which is ESM-only.
     NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --experimental-require-module`.trim(),
+    // Suppress Node 22 experimental-warning noise that leaks into testem/child assertions.
+    NODE_NO_WARNINGS: '1',
     // Kombu's SQS tests hard-code us-east-1 expectations; neutralise local AWS region.
     AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION ?? 'us-east-1',
     AWS_REGION: process.env.AWS_REGION ?? 'us-east-1',
@@ -872,7 +922,7 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
           throw new Error(`DeepSWE task ${id} is missing repository_url or base_commit_hash`);
         }
         await cloneRepo(repo, commit, projectPath);
-        await installProjectDependencies(projectPath, language, dir);
+        await installProjectDependencies(projectPath, language, dir, id);
       },
       evaluate: async (ctx: EvaluationContext): Promise<BenchmarkEvaluation> => {
         if (!commit) {

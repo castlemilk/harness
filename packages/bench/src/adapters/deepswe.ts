@@ -371,14 +371,64 @@ async function rewriteConfig(
   return rewritten;
 }
 
+const PATH_TO_ENV: Record<string, string> = {
+  '/logs/verifier': 'VERIFIER_DIR',
+  '/logs/artifacts': 'ARTIFACTS_DIR',
+  '/tests': 'TESTS_DIR',
+  '/app': 'APP_DIR',
+};
+
+function applyShellReplacements(line: string): string {
+  return line
+    .replace(/\/logs\/verifier/g, '${VERIFIER_DIR}')
+    .replace(/\/logs\/artifacts/g, '${ARTIFACTS_DIR}')
+    .replace(/\/tests/g, '${TESTS_DIR}')
+    .replace(/\/app\b/g, '${APP_DIR}')
+    .replace(/\/app\//g, '${APP_DIR}/');
+}
+
+function applyPythonReplacements(line: string): string {
+  // Inside single-quoted heredocs shell variables are not expanded, so rewrite
+  // any literal harness paths to Python env lookups.
+  function rewrite(prefix: string, quote: string, body: string): string {
+    for (const [literalPath, envVar] of Object.entries(PATH_TO_ENV)) {
+      if (body.startsWith(`${literalPath}/`)) {
+        const rest = body.slice(literalPath.length + 1);
+        const fallback = literalPath.replace(/'/g, "\\'");
+        return `__import__('os').path.join(__import__('os').environ.get('${envVar}', '${fallback}'), ${prefix}${quote}${rest})`;
+      }
+    }
+    return `${prefix}${quote}${body}${quote}`;
+  }
+  return line.replace(/(f?)(["'])(\/[^"']+\/[^"']*)\2/gi, (_m, prefix: string, quote: string, body: string) => rewrite(prefix, quote, body));
+}
+
 function replaceTestShPaths(script: string): string {
-  let replaced = script;
-  replaced = replaced.replace(/\/logs\/verifier/g, '${VERIFIER_DIR}');
-  replaced = replaced.replace(/\/logs\/artifacts/g, '${ARTIFACTS_DIR}');
-  replaced = replaced.replace(/\/tests/g, '${TESTS_DIR}');
-  replaced = replaced.replace(/\/app\b/g, '${APP_DIR}');
-  replaced = replaced.replace(/\/app\//g, '${APP_DIR}/');
-  return replaced;
+  const lines = script.split('\n');
+  let inSingleQuotedHeredoc = false;
+  let heredocTerminator: string | null = null;
+  const result: string[] = [];
+
+  for (const line of lines) {
+    if (!inSingleQuotedHeredoc) {
+      const heredocMatch = /<<-?'(\w+)'/.exec(line);
+      if (heredocMatch) {
+        inSingleQuotedHeredoc = true;
+        heredocTerminator = heredocMatch[1];
+        result.push(applyShellReplacements(line));
+        continue;
+      }
+      result.push(applyShellReplacements(line));
+    } else {
+      if (heredocTerminator && line.trim() === heredocTerminator) {
+        inSingleQuotedHeredoc = false;
+        heredocTerminator = null;
+      }
+      result.push(applyPythonReplacements(line));
+    }
+  }
+
+  return result.join('\n');
 }
 
 async function runCommand(
@@ -694,6 +744,11 @@ async function runDeepSWEVerifierLocal(
     TESTS_DIR: copiedTestsDir,
     VERIFIER_DIR: verifierDir,
     ARTIFACTS_DIR: artifactsDir,
+    // Kysely's .mocharc.js requires std-env@4 which is ESM-only.
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --experimental-require-module`.trim(),
+    // Kombu's SQS tests hard-code us-east-1 expectations; neutralise local AWS region.
+    AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION ?? 'us-east-1',
+    AWS_REGION: process.env.AWS_REGION ?? 'us-east-1',
     PATH: `${path.join(projectPath, '.venv', 'bin')}${path.delimiter}${junitBinDir}${path.delimiter}${nextestDir ? path.join(nextestDir, 'bin') + path.delimiter : ''}${process.env.PATH ?? ''}:${process.env.HOME ?? '/Users/benebsworth'}/go/bin`,
   };
 

@@ -52,9 +52,9 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
   'dateutil-rfc5545-timezone-interop': { pip: ['pytest<8'] },
   'bandit-incremental-cache-control': { pip: ['GitPython', 'sarif-om'] },
   'adaptix-name-mapping-aliases': { pip: ['attrs==22.2.0'] },
-  'langchain-request-coalescing': { pip: ['blockbuster'] },
-  'returns-validated-error-accumulation': { pip: ['pytest-asyncio'] },
-  'fastapi-implicit-head-options': { pip: ['httpx<0.28'] },
+  'langchain-request-coalescing': { pip: ['blockbuster', 'pytest-mock'] },
+  'returns-validated-error-accumulation': { pip: ['anyio', 'pytest-asyncio'] },
+  'fastapi-implicit-head-options': { pip: ['httpx<0.28', 'inline-snapshot'] },
   'bandit-interprocedural-taint-checks': { pip: ['setuptools', 'wheel'] },
 };
 
@@ -205,6 +205,21 @@ async function findPnpmWorkspaceRoot(projectPath: string): Promise<string | unde
     current = next;
   }
   return undefined;
+}
+
+async function ensureGitignoreLines(projectPath: string, lines: string[]): Promise<void> {
+  const gitignorePath = path.join(projectPath, '.gitignore');
+  let content = '';
+  try {
+    content = await fs.readFile(gitignorePath, 'utf-8');
+  } catch {
+    // no .gitignore yet
+  }
+  const existing = new Set(content.split(/\r?\n/));
+  const missing = lines.filter((l) => !existing.has(l));
+  if (missing.length === 0) return;
+  const prefix = content.endsWith('\n') || content.length === 0 ? '' : '\n';
+  await fs.writeFile(gitignorePath, `${content}${prefix}${missing.join('\n')}\n`, 'utf-8');
 }
 
 async function installProjectDependencies(
@@ -392,6 +407,9 @@ async function installProjectDependencies(
             console.warn(`[deepswe] dateutil zoneinfo rebuild failed: ${update.stderr}`);
           }
         }
+        // Make sure the venv and node_modules are never committed by the bench
+        // init commit; otherwise the verifier's git checkout strips them out.
+        await ensureGitignoreLines(projectPath, ['.venv/', 'node_modules/']);
         console.log(`[deepswe] Python venv ready with ${pythonBin}`);
         return;
       }
@@ -667,6 +685,149 @@ async function ensureNextest(): Promise<string> {
   return cacheDir;
 }
 
+// Node 22's built-in junit reporter does not include a `file` attribute on
+// <testcase>, so DeepSWE's report fixup cannot build whitelisted test ids for
+// node:test suites (e.g. optique). This small reporter emits JUnit XML with the
+// file attribute populated from the test runner events.
+async function ensureNodeJUnitReporter(): Promise<string> {
+  const cacheDir = omegaVerifierToolsDir();
+  const reporterPath = path.join(cacheDir, 'node-junit-with-file.js');
+  try {
+    await fs.access(reporterPath);
+    return reporterPath;
+  } catch {
+    // not cached; write on demand
+  }
+  const source = `'use strict';
+const os = require('os');
+
+function escapeXml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+module.exports = async function * (source) {
+  const events = [];
+  for await (const event of source) {
+    events.push(event);
+  }
+
+  const root = { name: 'Root', children: [], nesting: -1 };
+  const stack = [root];
+  for (const event of events) {
+    if (event.type === 'test:start') {
+      let parent = root;
+      for (let i = stack.length - 1; i >= 0; i--) {
+        if (stack[i].nesting < event.data.nesting) {
+          parent = stack[i];
+          break;
+        }
+      }
+      const node = {
+        name: event.data.name,
+        file: event.data.file,
+        line: event.data.line,
+        children: [],
+        status: undefined,
+        duration: 0,
+        error: undefined,
+        skip: false,
+        nesting: event.data.nesting,
+      };
+      parent.children.push(node);
+      stack.push(node);
+    } else if (event.type === 'test:pass') {
+      for (let i = stack.length - 1; i >= 0; i--) {
+        const n = stack[i];
+        if (n.name === event.data.name && n.nesting === event.data.nesting) {
+          n.status = 'passed';
+          n.duration = event.data.details?.duration_ms ?? 0;
+          break;
+        }
+      }
+    } else if (event.type === 'test:fail') {
+      for (let i = stack.length - 1; i >= 0; i--) {
+        const n = stack[i];
+        if (n.name === event.data.name && n.nesting === event.data.nesting) {
+          n.status = 'failed';
+          n.duration = event.data.details?.duration_ms ?? 0;
+          const err = event.data.details?.error;
+          n.error = err ? (err.message || String(err)) : 'failed';
+          break;
+        }
+      }
+    } else if (event.type === 'test:skip' || event.type === 'test:todo') {
+      for (let i = stack.length - 1; i >= 0; i--) {
+        const n = stack[i];
+        if (n.name === event.data.name && n.nesting === event.data.nesting) {
+          n.status = 'skipped';
+          n.skip = true;
+          break;
+        }
+      }
+    }
+  }
+
+  function count(node) {
+    let tests = 0;
+    let failures = 0;
+    let skipped = 0;
+    let time = 0;
+    if (node.children.length === 0) {
+      tests = 1;
+      if (node.status === 'failed') failures = 1;
+      if (node.status === 'skipped') skipped = 1;
+      time = node.duration || 0;
+    } else {
+      for (const c of node.children) {
+        const cc = count(c);
+        tests += cc.tests;
+        failures += cc.failures;
+        skipped += cc.skipped;
+        time += cc.time;
+      }
+    }
+    return { tests, failures, skipped, time };
+  }
+
+  function renderNode(node, depth) {
+    const indent = '  '.repeat(depth);
+    if (node.children.length === 0) {
+      let out = indent + '<testcase name="' + escapeXml(node.name) + '" time="' + (node.duration / 1000).toFixed(6) + '" file="' + escapeXml(node.file ?? '') + '" classname="test"';
+      if (node.status === 'failed' && node.error) {
+        out += '>\n' + indent + '  <failure message="' + escapeXml(node.error) + '">' + escapeXml(node.error) + '</failure>\n' + indent + '</testcase>';
+      } else if (node.status === 'skipped') {
+        out += '>\n' + indent + '  <skipped/>\n' + indent + '</testcase>';
+      } else {
+        out += '/>';
+      }
+      return out + '\n';
+    }
+    const c = count(node);
+    let out = indent + '<testsuite name="' + escapeXml(node.name) + '" time="' + (c.time / 1000).toFixed(6) + '" disabled="0" errors="0" tests="' + c.tests + '" failures="' + c.failures + '" skipped="' + c.skipped + '" hostname="' + escapeXml(os.hostname()) + '">\n';
+    for (const child of node.children) {
+      out += renderNode(child, depth + 1);
+    }
+    out += indent + '</testsuite>\n';
+    return out;
+  }
+
+  yield '<?xml version="1.0" encoding="utf-8"?>\n';
+  yield '<testsuites>\n';
+  for (const child of root.children) {
+    yield renderNode(child, 1);
+  }
+  yield '</testsuites>\n';
+};
+`;
+  await fs.writeFile(reporterPath, source, 'utf-8');
+  return reporterPath;
+}
+
 async function dockerAvailable(): Promise<boolean> {
   try {
     const { exitCode } = await runCommand('docker', ['info'], { timeout: 10000 });
@@ -849,6 +1010,13 @@ async function runDeepSWEVerifierLocal(
   if (nextestDir) {
     rewritten = rewritten.replace(/\/opt\/nextest/g, nextestDir);
   }
+  // Node 22's built-in junit reporter omits the `file` attribute that DeepSWE
+  // needs to build whitelisted ids. Swap it for a custom reporter when the
+  // test frame uses node:test with JUnit output.
+  if (rewritten.includes('--test-reporter=junit') && rewritten.includes('node --experimental-transform-types --test')) {
+    const reporterPath = await ensureNodeJUnitReporter();
+    rewritten = rewritten.replace(/--test-reporter=junit\b/g, `--test-reporter=${reporterPath}`);
+  }
 
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -863,6 +1031,9 @@ async function runDeepSWEVerifierLocal(
     // Kombu's SQS tests hard-code us-east-1 expectations; neutralise local AWS region.
     AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION ?? 'us-east-1',
     AWS_REGION: process.env.AWS_REGION ?? 'us-east-1',
+    // Pin a deterministic timezone so property tests (e.g. dateutil) do not fail
+    // because of mismatched local-DST assumptions on the host.
+    TZ: 'UTC',
     PATH: `${path.join(projectPath, '.venv', 'bin')}${path.delimiter}${junitBinDir}${path.delimiter}${nextestDir ? path.join(nextestDir, 'bin') + path.delimiter : ''}${process.env.PATH ?? ''}:${process.env.HOME ?? '/Users/benebsworth'}/go/bin`,
   };
 

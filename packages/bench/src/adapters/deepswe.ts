@@ -82,6 +82,7 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
       'dirty-equals',
       'pytest-sugar',
       'pytest-cov',
+      'pytest-xdist',
       'strawberry-graphql',
     ],
   },
@@ -99,6 +100,9 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
       'django',
       'docutils',
       'Sphinx',
+      'pydot',
+      'sphinx-gallery',
+      'myst-parser',
     ],
   },
 };
@@ -779,7 +783,7 @@ async function ensureNodeJUnitReporter(): Promise<string> {
   const reporterPath = path.join(cacheDir, 'node-junit-with-file.js');
   // Always rewrite the reporter so bug fixes are picked up; the file is tiny.
   await fs.rm(reporterPath, { force: true });
-  const source = `'use strict';
+  const source = String.raw`'use strict';
 const os = require('os');
 
 function escapeXml(str) {

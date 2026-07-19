@@ -64,6 +64,7 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
       'pydantic',
       'freezegun',
       'langsmith',
+      'jsonpatch',
     ],
   },
   'returns-validated-error-accumulation': {
@@ -86,10 +87,11 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
       'pytest-sugar',
       'pytest-cov',
       'pytest-xdist',
+      'pytest-timeout',
       'strawberry-graphql',
     ],
   },
-  'bandit-interprocedural-taint-checks': { pip: ['setuptools', 'wheel', 'GitPython', 'sarif-om'] },
+  'bandit-interprocedural-taint-checks': { pip: ['setuptools', 'wheel', 'GitPython', 'sarif-om', 'jschema_to_python'] },
   'python-statemachine-state-data-scoping': {
     pip: [
       'pytest-benchmark',

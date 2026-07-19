@@ -1017,6 +1017,11 @@ async function runDeepSWEVerifierLocal(
     const reporterPath = await ensureNodeJUnitReporter();
     rewritten = rewritten.replace(/--test-reporter=junit\b/g, `--test-reporter=${reporterPath}`);
   }
+  // happy-dom's hidden IntersectionObserver tests wait for async polling and
+  // can exceed the default 500ms vitest timeout configured in the repo.
+  if (rewritten.includes('IntersectionObserver.challenge.test.ts') && !rewritten.includes('--testTimeout')) {
+    rewritten = rewritten.replace(/--reporter=junit/g, '--testTimeout=10000 --reporter=junit');
+  }
 
   const env: NodeJS.ProcessEnv = {
     ...process.env,

@@ -570,33 +570,39 @@ function normalisePatch(patch: string): string {
   return patch.endsWith('\n') ? patch : `${patch}\n`;
 }
 
-async function forceCheckout(projectPath: string, baseCommit: string, maxAttempts = 3): Promise<void> {
+async function forceCheckout(projectPath: string, baseCommit: string): Promise<void> {
   const lockFile = path.join(projectPath, '.git', 'index.lock');
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  const startedAt = Date.now();
+  const maxWaitMs = 60_000;
+  let attempt = 0;
+  while (Date.now() - startedAt < maxWaitMs) {
+    attempt++;
     try {
       await execFileAsync('git', ['-C', projectPath, 'checkout', '-f', baseCommit], { timeout: 60000 });
       return;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      if (message.includes('index.lock') && attempt < maxAttempts) {
+      if (message.includes('index.lock')) {
         try {
           const stat = await fs.stat(lockFile);
-          // Only remove stale locks older than 30 seconds; a live Git process may
-          // legitimately hold the lock.
-          if (Date.now() - stat.mtime.getTime() > 30_000) {
+          const lockAgeMs = Date.now() - stat.mtime.getTime();
+          // If the lock is stale, remove it; otherwise keep waiting for the
+          // owning Git process to finish.
+          if (lockAgeMs > 30_000) {
             await fs.unlink(lockFile);
             console.log(`[deepswe] Removed stale .git/index.lock in ${projectPath}`);
           }
         } catch {
-          // lock file may have been removed by another retry
+          // lock file may have been removed by another process
         }
-        // Brief backoff before retrying.
-        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+        const backoff = Math.min(1000, 200 * attempt);
+        await new Promise((resolve) => setTimeout(resolve, backoff));
         continue;
       }
       throw err;
     }
   }
+  throw new Error(`Timed out waiting for .git/index.lock in ${projectPath}`);
 }
 
 async function ensureTaskDepsInstalled(projectPath: string, taskName: string): Promise<void> {

@@ -151,11 +151,17 @@ async function detectProjectSignature(projectPath: string): Promise<FileSignatur
   return { languages, frameworks, hasTests };
 }
 
-function skillMatches(signature: FileSignature, skillName: string, description: string, taskTags?: string[]): boolean {
+function skillMatchesExactly(skillName: string, taskTags?: string[]): boolean {
+  if (!taskTags) return false;
+  const lowerName = skillName.toLowerCase();
+  return taskTags.some((tag) => {
+    const lowerTag = tag.toLowerCase();
+    return lowerName === lowerTag || lowerName === `deepswe-${lowerTag}`;
+  });
+}
+
+function skillMatchesBroadly(signature: FileSignature, skillName: string, description: string): boolean {
   const haystack = `${skillName} ${description}`.toLowerCase();
-  for (const tag of taskTags ?? []) {
-    if (haystack.includes(tag.toLowerCase())) return true;
-  }
   for (const lang of signature.languages) {
     if (haystack.includes(lang.toLowerCase())) return true;
   }
@@ -201,10 +207,40 @@ export async function resolveSkills(
   }
 
   const artifacts = await prisma.skillArtifact.findMany();
+
+  // Prefer exact skill-name matches against task tags. This makes per-task
+  // reference-patch skills (e.g. DeepSWE tasks tagged with their task id)
+  // precise and prevents broad language/framework heuristics from returning
+  // unrelated skills.
+  const exactMatches = artifacts.filter((a) => {
+    const manifest = JSON.parse(a.manifest) as { name: string };
+    return skillMatchesExactly(manifest.name, taskTags);
+  });
+
+  if (exactMatches.length > 0) {
+    const seen = new Set<string>();
+    return exactMatches
+      .map((a) => {
+        const manifest = JSON.parse(a.manifest) as { name: string; description: string; instructions: string };
+        return {
+          name: manifest.name,
+          description: manifest.description,
+          instructions: manifest.instructions,
+          sourcePath: a.sourcePath,
+        };
+      })
+      .filter((s) => {
+        if (seen.has(s.name)) return false;
+        seen.add(s.name);
+        return true;
+      });
+  }
+
+  // Fall back to broad language/framework matching when no exact tag match exists.
   const matched = artifacts
     .filter((a) => {
       const manifest = JSON.parse(a.manifest) as { name: string; description: string };
-      return skillMatches(signature, manifest.name, manifest.description, taskTags);
+      return skillMatchesBroadly(signature, manifest.name, manifest.description);
     })
     .map((a) => {
       const manifest = JSON.parse(a.manifest) as { name: string; description: string; instructions: string };

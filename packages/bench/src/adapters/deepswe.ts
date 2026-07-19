@@ -95,6 +95,8 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
       'pydantic-settings',
       'uvicorn',
       'email-validator',
+      'fastapi-cli',
+      'trio',
     ],
   },
   'bandit-interprocedural-taint-checks': { pip: ['setuptools', 'wheel', 'GitPython', 'sarif-om', 'jschema_to_python'] },

@@ -208,9 +208,12 @@ async function installProjectDependencies(projectPath: string, language?: string
   }
 
   if (lang === 'python') {
+    // Many DeepSWE Python tasks depend on packages (pydantic-core, orjson, etc.)
+    // that do not yet provide wheels for CPython 3.14. Prefer 3.13 when available.
+    const pythonBin = await commandExists('python3.13') ? 'python3.13' : 'python3';
     const venvPath = path.join(projectPath, '.venv');
     const pipBin = path.join(venvPath, 'bin', 'pip');
-    const venv = await runCommand('python3', ['-m', 'venv', '.venv'], { cwd: projectPath, timeout: 120_000 });
+    const venv = await runCommand(pythonBin, ['-m', 'venv', '.venv'], { cwd: projectPath, timeout: 120_000 });
     if (venv.exitCode !== 0) {
       throw new Error(`venv creation failed: ${venv.stderr}\n${venv.stdout}`);
     }

@@ -116,9 +116,10 @@ function languageGuidance(language: string | undefined): string {
 - Format: gofmt -w .`;
   } else if (lang === 'python') {
     cmds = `Language: Python.
-- Install deps if missing: python3 -m venv .venv && source .venv/bin/activate && pip install -e .  (or: pip install -r requirements.txt)
-- Run existing tests: python3 -m pytest -q  (uses .venv if present)
-- If no pytest, fall back to: python3 -m unittest`;
+- Use interpreter: python3.12 (DeepSWE tasks pin older native deps; python3.13+ often fails to build pydantic-core/msgspec/orjson wheels). If python3.12 is unavailable, fall back to python3.
+- Install deps if missing: python3.12 -m venv .venv && source .venv/bin/activate && pip install -e .  (or: pip install -r requirements.txt)
+- Run existing tests: python3.12 -m pytest -q  (uses .venv if present)
+- If no pytest, fall back to: python3.12 -m unittest`;
   } else if (lang === 'rust') {
     cmds = `Language: Rust.
 - Build/compile check (run first, must exit 0): cargo build
@@ -245,11 +246,11 @@ async function installProjectDependencies(
   }
 
   if (lang === 'python') {
-    // DeepSWE Python tasks target a range of interpreters. Try the system python3
-    // first; if old pinned native deps (pydantic-core, msgspec, orjson) fail to
-    // build, retry with progressively older interpreters that are more likely to
-    // have published wheels.
-    const candidates = ['python3', 'python3.13', 'python3.12', 'python3.11'];
+    // DeepSWE Python tasks target a range of interpreters. Older task snapshots
+    // pin native deps (pydantic-core, msgspec, orjson) that do not build on
+    // python3.13+ (internal C API changes / PyO3 version ceilings). Prefer 3.12
+    // first, then fall back through older and newer interpreters.
+    const candidates = ['python3.12', 'python3.11', 'python3.10', 'python3', 'python3.13', 'python3.14'];
     const errors: string[] = [];
 
     for (const pythonBin of candidates) {

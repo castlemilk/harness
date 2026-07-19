@@ -397,6 +397,7 @@ async function applySkillPatches(
   skills: ResolvedSkill[]
 ): Promise<{ applied: string[]; patch: string }> {
   const applied: string[] = [];
+  let appliedPatchPath: string | undefined;
   const execFileAsync = promisify(execFile);
   for (const skill of skills) {
     const match = /git apply[^`\n]*\s+([\S]+\.patch)/.exec(skill.instructions);
@@ -420,6 +421,7 @@ async function applySkillPatches(
         }
       }
       applied.push(skill.name);
+      appliedPatchPath = patchPath;
       logger.info('Applied skill patch', { skill: skill.name, patchPath });
       // One verified reference patch is enough; applying additional patches risks
       // overwriting the correct change with unrelated skill content.
@@ -434,13 +436,21 @@ async function applySkillPatches(
   // until the end of the run risks producing an empty model.patch.
   const diff = await getDiff(projectPath, baseCommit);
   if (applied.length > 0 && diff.output.length === 0) {
-    logger.warn('Skill patch was applied but produced an empty diff; falling back to HEAD~1 diff', {
+    logger.warn('Skill patch was applied but produced an empty diff; falling back to raw patch file', {
       projectPath,
       baseCommit,
+      patchPath: appliedPatchPath,
     });
-    const headDiff = await getDiff(projectPath, 'HEAD~1');
-    if (headDiff.output.length > 0) {
-      return { applied, patch: headDiff.output };
+    if (appliedPatchPath) {
+      try {
+        const rawPatch = await fs.readFile(appliedPatchPath, 'utf-8');
+        if (rawPatch.length > 0) {
+          return { applied, patch: rawPatch };
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        logger.warn('Failed to read raw skill patch file', { patchPath: appliedPatchPath, error: message });
+      }
     }
   }
   return { applied, patch: diff.output };
@@ -876,14 +886,14 @@ async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Pro
     }
 
     if (!skillVerify) {
-      // Oracle path: trust the reference patch and let the verifier grade it.
-      success = true;
-      finished = true;
-      summary = `Finished via skill reference patch: ${appliedSkills.join(', ')}`;
-      await checkpointCommit(ctx);
-      // Persist the captured skill patch immediately so a later HEAD reset does
-      // not cause the verifier to receive an empty model.patch.
       if (skillPatch) {
+        // Oracle path: trust the reference patch and let the verifier grade it.
+        success = true;
+        finished = true;
+        summary = `Finished via skill reference patch: ${appliedSkills.join(', ')}`;
+        await checkpointCommit(ctx);
+        // Persist the captured skill patch immediately so a later HEAD reset does
+        // not cause the verifier to receive an empty model.patch.
         await ctx.prisma.taskDiff.create({
           data: {
             taskId: ctx.task.id,
@@ -891,8 +901,16 @@ async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Pro
             patch: skillPatch,
           },
         });
+        ctx.rootSpan.addEvent('agent.skill_oracle.finish', { skills: appliedSkills.join(', ') });
+      } else {
+        // The skill claimed to apply but produced no diff. Do not claim success;
+        // let the agent run normally so a real patch is captured.
+        logger.warn('Skill patch reported applied but produced empty diff; falling back to agent loop', {
+          taskId: ctx.task.id,
+          skills: appliedSkills.join(', '),
+        });
+        ctx.rootSpan.addEvent('agent.skill_patch.empty_fallback', { skills: appliedSkills.join(', ') });
       }
-      ctx.rootSpan.addEvent('agent.skill_oracle.finish', { skills: appliedSkills.join(', ') });
     } else {
       ctx.rootSpan.addEvent('agent.skill_patch.applied', { skills: appliedSkills.join(', ') });
     }

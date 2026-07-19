@@ -383,6 +383,15 @@ async function installProjectDependencies(
       }
 
       if (!failed) {
+        // dateutil's test suite needs the bundled timezone database; the
+        // verifier runs offline so the data tarball must be built during setup.
+        if (taskName === 'dateutil-rfc5545-timezone-interop' && (await fs.access(path.join(projectPath, 'updatezinfo.py')).then(() => true, () => false))) {
+          console.log('[deepswe] Rebuilding dateutil zoneinfo database');
+          const update = await runCommand(path.join(venvPath, 'bin', 'python'), ['updatezinfo.py'], { cwd: projectPath, timeout: 300_000 });
+          if (update.exitCode !== 0) {
+            console.warn(`[deepswe] dateutil zoneinfo rebuild failed: ${update.stderr}`);
+          }
+        }
         console.log(`[deepswe] Python venv ready with ${pythonBin}`);
         return;
       }

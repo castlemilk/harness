@@ -379,12 +379,19 @@ const PATH_TO_ENV: Record<string, string> = {
 };
 
 function applyShellReplacements(line: string): string {
-  return line
+  let replaced = line
     .replace(/\/logs\/verifier/g, '${VERIFIER_DIR}')
     .replace(/\/logs\/artifacts/g, '${ARTIFACTS_DIR}')
     .replace(/\/tests/g, '${TESTS_DIR}')
     .replace(/\/app\b/g, '${APP_DIR}')
     .replace(/\/app\//g, '${APP_DIR}/');
+  // Single-quoted shell strings do not expand variables; convert any that now
+  // contain rewritten harness paths to double-quoted so the env vars resolve.
+  replaced = replaced.replace(
+    /'([^']*\$\{(?:VERIFIER_DIR|ARTIFACTS_DIR|TESTS_DIR|APP_DIR)\}[^']*)'/g,
+    '"$1"'
+  );
+  return replaced;
 }
 
 function applyPythonReplacements(line: string): string {
@@ -395,7 +402,7 @@ function applyPythonReplacements(line: string): string {
       if (body.startsWith(`${literalPath}/`)) {
         const rest = body.slice(literalPath.length + 1);
         const fallback = literalPath.replace(/'/g, "\\'");
-        return `__import__('os').path.join(__import__('os').environ.get('${envVar}', '${fallback}'), ${prefix}${quote}${rest})`;
+        return `__import__('os').path.join(__import__('os').environ.get('${envVar}', '${fallback}'), ${prefix}${quote}${rest}${quote})`;
       }
     }
     return `${prefix}${quote}${body}${quote}`;

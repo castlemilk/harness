@@ -208,99 +208,114 @@ async function installProjectDependencies(projectPath: string, language?: string
   }
 
   if (lang === 'python') {
-    // DeepSWE Python tasks often pin older packages (pydantic-core, msgspec,
-    // orjson, etc.) whose published wheels target CPython ≤3.11. Prefer 3.11 for
-    // the broadest compatibility; fall back through newer interpreters.
-    const pythonBin =
-      (await commandExists('python3.11')) ? 'python3.11' :
-      (await commandExists('python3.12')) ? 'python3.12' :
-      (await commandExists('python3.13')) ? 'python3.13' :
-      'python3';
-    const venvPath = path.join(projectPath, '.venv');
-    const pipBin = path.join(venvPath, 'bin', 'pip');
-    const venv = await runCommand(pythonBin, ['-m', 'venv', '.venv'], { cwd: projectPath, timeout: 120_000 });
-    if (venv.exitCode !== 0) {
-      throw new Error(`venv creation failed: ${venv.stderr}\n${venv.stdout}`);
-    }
-    if (await has('pyproject.toml') || await has('setup.py')) {
-      const install = await runCommand(pipBin, ['install', '-e', '.'], { cwd: projectPath, timeout: 300_000 });
-      if (install.exitCode !== 0) {
-        throw new Error(`pip install failed: ${install.stderr}\n${install.stdout}`);
+    // DeepSWE Python tasks target a range of interpreters. Try the system python3
+    // first; if old pinned native deps (pydantic-core, msgspec, orjson) fail to
+    // build, retry with progressively older interpreters that are more likely to
+    // have published wheels.
+    const candidates = ['python3', 'python3.13', 'python3.12', 'python3.11'];
+    const errors: string[] = [];
+
+    for (const pythonBin of candidates) {
+      if (!(await commandExists(pythonBin))) continue;
+      const venvPath = path.join(projectPath, '.venv');
+      await fs.rm(venvPath, { recursive: true, force: true });
+      const pipBin = path.join(venvPath, 'bin', 'pip');
+      const venv = await runCommand(pythonBin, ['-m', 'venv', '.venv'], { cwd: projectPath, timeout: 120_000 });
+      if (venv.exitCode !== 0) {
+        errors.push(`${pythonBin} venv: ${venv.stderr}`);
+        continue;
       }
-    } else if (await has('requirements.txt')) {
-      const install = await runCommand(pipBin, ['install', '-r', 'requirements.txt'], { cwd: projectPath, timeout: 300_000 });
-      if (install.exitCode !== 0) {
-        throw new Error(`pip install failed: ${install.stderr}\n${install.stdout}`);
+
+      const fail = (stage: string, stderr: string): boolean => {
+        errors.push(`${pythonBin} ${stage}: ${stderr}`);
+        return true;
+      };
+      let failed = false;
+
+      if (await has('pyproject.toml') || await has('setup.py')) {
+        const install = await runCommand(pipBin, ['install', '-e', '.'], { cwd: projectPath, timeout: 300_000 });
+        if (install.exitCode !== 0) failed = fail('pip install -e .', install.stderr);
+      } else if (await has('requirements.txt')) {
+        const install = await runCommand(pipBin, ['install', '-r', 'requirements.txt'], { cwd: projectPath, timeout: 300_000 });
+        if (install.exitCode !== 0) failed = fail('pip install -r requirements.txt', install.stderr);
       }
-    }
-    // The DeepSWE verifier reuses this base repo .venv to run hidden tests.
-    // Install any declared dev/test requirements and PEP 735 dependency groups.
-    const reqFiles: string[] = [];
-    const rootCandidates = ['requirements-dev.txt', 'requirements_test.txt', 'requirements-test.txt', 'dev-requirements.txt', 'test-requirements.txt'];
-    for (const reqFile of rootCandidates) {
-      if (await has(reqFile)) reqFiles.push(reqFile);
-    }
-    const requirementsDir = path.join(projectPath, 'requirements');
-    try {
-      const reqEntries = await fs.readdir(requirementsDir);
-      for (const entry of reqEntries) {
-        if (entry.endsWith('.txt')) reqFiles.push(path.join('requirements', entry));
-        if (entry === 'extras') {
-          const extrasDir = path.join(requirementsDir, 'extras');
-          const extraEntries = await fs.readdir(extrasDir);
-          for (const extra of extraEntries) {
-            if (extra.endsWith('.txt')) reqFiles.push(path.join('requirements', 'extras', extra));
+
+      if (!failed) {
+        // The DeepSWE verifier reuses this base repo .venv to run hidden tests.
+        // Install any declared dev/test requirements and PEP 735 dependency groups.
+        const reqFiles: string[] = [];
+        const rootCandidates = ['requirements-dev.txt', 'requirements_test.txt', 'requirements-test.txt', 'dev-requirements.txt', 'test-requirements.txt'];
+        for (const reqFile of rootCandidates) {
+          if (await has(reqFile)) reqFiles.push(reqFile);
+        }
+        const requirementsDir = path.join(projectPath, 'requirements');
+        try {
+          const reqEntries = await fs.readdir(requirementsDir);
+          for (const entry of reqEntries) {
+            if (entry.endsWith('.txt')) reqFiles.push(path.join('requirements', entry));
+            if (entry === 'extras') {
+              const extrasDir = path.join(requirementsDir, 'extras');
+              const extraEntries = await fs.readdir(extrasDir);
+              for (const extra of extraEntries) {
+                if (extra.endsWith('.txt')) reqFiles.push(path.join('requirements', 'extras', extra));
+              }
+            }
+          }
+        } catch {
+          // no requirements directory
+        }
+        for (const reqFile of reqFiles) {
+          const install = await runCommand(pipBin, ['install', '-r', reqFile], { cwd: projectPath, timeout: 300_000 });
+          if (install.exitCode !== 0) {
+            // Optional extras can be incompatible with the current interpreter.
+            console.warn(`[deepswe] optional requirements install failed for ${reqFile} with ${pythonBin}: ${install.stderr}`);
           }
         }
+        for (const group of ['dev', 'test', 'tests']) {
+          const install = await runCommand(pipBin, ['install', '--group', group], { cwd: projectPath, timeout: 300_000 });
+          if (install.exitCode !== 0) {
+            // dependency group may not exist; that's fine.
+          }
+        }
+        const pytestCheck = await runCommand(pipBin, ['show', 'pytest'], { cwd: projectPath, timeout: 30_000 });
+        if (pytestCheck.exitCode !== 0) {
+          const install = await runCommand(pipBin, ['install', 'pytest'], { cwd: projectPath, timeout: 300_000 });
+          if (install.exitCode !== 0) failed = fail('pytest install', install.stderr);
+        }
       }
-    } catch {
-      // no requirements directory
-    }
-    for (const reqFile of reqFiles) {
-      const install = await runCommand(pipBin, ['install', '-r', reqFile], { cwd: projectPath, timeout: 300_000 });
-      if (install.exitCode !== 0) {
-        // Optional extras can be incompatible with the current interpreter.
-        console.warn(`[deepswe] optional requirements install failed for ${reqFile}: ${install.stderr}`);
+
+      if (!failed) {
+        // DeepSWE verifiers often use pytest-xdist (-n), pytest-timeout, pytest-asyncio,
+        // pytest-benchmark, pytest-django, and pytest-mock.
+        const testShPath = path.join(taskDir ?? '', 'tests', 'test.sh');
+        let testShText = '';
+        if (taskDir) {
+          try {
+            testShText = await fs.readFile(testShPath, 'utf-8');
+          } catch {
+            // ignore missing test.sh
+          }
+        }
+        const pytestExtras: string[] = [];
+        if (/pytest.*-n\b/.test(testShText) || /\bxdist\b/.test(testShText)) pytestExtras.push('pytest-xdist');
+        if (/--timeout[ =]/.test(testShText) || /\bpytest-timeout\b/.test(testShText)) pytestExtras.push('pytest-timeout');
+        if (testShText.includes('pytest-asyncio') || /\basyncio\b/.test(testShText)) pytestExtras.push('pytest-asyncio');
+        if (testShText.includes('pytest-benchmark') || testShText.includes('--benchmark')) pytestExtras.push('pytest-benchmark');
+        if (testShText.includes('pytest-django') || /\bdjango\b/.test(testShText)) pytestExtras.push('pytest-django');
+        if (testShText.includes('pytest-mock') || /\bpytest-mock\b/.test(testShText)) pytestExtras.push('pytest-mock');
+        if (pytestExtras.length > 0) {
+          const install = await runCommand(pipBin, ['install', ...pytestExtras], { cwd: projectPath, timeout: 300_000 });
+          if (install.exitCode !== 0) failed = fail('pytest extras install', install.stderr);
+        }
       }
-    }
-    for (const group of ['dev', 'test', 'tests']) {
-      const install = await runCommand(pipBin, ['install', '--group', group], { cwd: projectPath, timeout: 300_000 });
-      if (install.exitCode !== 0) {
-        // dependency group may not exist; that's fine.
-      }
-    }
-    const pytestCheck = await runCommand(pipBin, ['show', 'pytest'], { cwd: projectPath, timeout: 30_000 });
-    if (pytestCheck.exitCode !== 0) {
-      const install = await runCommand(pipBin, ['install', 'pytest'], { cwd: projectPath, timeout: 300_000 });
-      if (install.exitCode !== 0) {
-        throw new Error(`pytest install failed: ${install.stderr}\n${install.stdout}`);
-      }
-    }
-    // DeepSWE verifiers often use pytest-xdist (-n), pytest-timeout, pytest-asyncio,
-    // pytest-benchmark, pytest-django, and pytest-mock.
-    const testShPath = path.join(taskDir ?? '', 'tests', 'test.sh');
-    let testShText = '';
-    if (taskDir) {
-      try {
-        testShText = await fs.readFile(testShPath, 'utf-8');
-      } catch {
-        // ignore missing test.sh
-      }
-    }
-    const pytestExtras: string[] = [];
-    if (/pytest.*-n\b/.test(testShText) || /\bxdist\b/.test(testShText)) pytestExtras.push('pytest-xdist');
-    if (/--timeout[ =]/.test(testShText) || /\bpytest-timeout\b/.test(testShText)) pytestExtras.push('pytest-timeout');
-    if (testShText.includes('pytest-asyncio') || /\basyncio\b/.test(testShText)) pytestExtras.push('pytest-asyncio');
-    if (testShText.includes('pytest-benchmark') || testShText.includes('--benchmark')) pytestExtras.push('pytest-benchmark');
-    if (testShText.includes('pytest-django') || /\bdjango\b/.test(testShText)) pytestExtras.push('pytest-django');
-    if (testShText.includes('pytest-mock') || /\bpytest-mock\b/.test(testShText)) pytestExtras.push('pytest-mock');
-    if (pytestExtras.length > 0) {
-      const install = await runCommand(pipBin, ['install', ...pytestExtras], { cwd: projectPath, timeout: 300_000 });
-      if (install.exitCode !== 0) {
-        throw new Error(`pytest extras install failed: ${install.stderr}\n${install.stdout}`);
+
+      if (!failed) {
+        console.log(`[deepswe] Python venv ready with ${pythonBin}`);
+        return;
       }
     }
-    return;
+
+    throw new Error(`Failed to create usable Python venv with any interpreter:\n${errors.join('\n---\n')}`);
   }
 
   if (lang === 'rust' && (await has('Cargo.toml'))) {

@@ -268,7 +268,13 @@ async function installProjectDependencies(projectPath: string, language?: string
           const install = await runCommand(pipBin, ['install', '-r', reqFile], { cwd: projectPath, timeout: 300_000 });
           if (install.exitCode !== 0) {
             // Optional extras can be incompatible with the current interpreter.
-            console.warn(`[deepswe] optional requirements install failed for ${reqFile} with ${pythonBin}: ${install.stderr}`);
+            // If a native wheel build failed for a known pinned dep, treat this
+            // interpreter as unsuitable so we retry with an older one.
+            const stderr = install.stderr;
+            console.warn(`[deepswe] optional requirements install failed for ${reqFile} with ${pythonBin}: ${stderr}`);
+            if (/Failed (?:building wheel|to build).*\b(?:pydantic-core|msgspec|orjson)\b/is.test(stderr)) {
+              failed = fail(`native wheel build in ${reqFile}`, stderr);
+            }
           }
         }
         for (const group of ['dev', 'test', 'tests']) {

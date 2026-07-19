@@ -193,6 +193,20 @@ async function findNodePackageDir(projectPath: string): Promise<string | undefin
   return undefined;
 }
 
+async function findPnpmWorkspaceRoot(projectPath: string): Promise<string | undefined> {
+  let current = path.resolve(projectPath);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  while (true) {
+    if (await fs.access(path.join(current, 'pnpm-workspace.yaml')).then(() => true, () => false)) {
+      return current;
+    }
+    const next = path.dirname(current);
+    if (next === current) break;
+    current = next;
+  }
+  return undefined;
+}
+
 async function installProjectDependencies(
   projectPath: string,
   language?: string,
@@ -204,17 +218,21 @@ async function installProjectDependencies(
 
   const nodePackageDir = await findNodePackageDir(projectPath);
   if (nodePackageDir) {
-    const nodeHas = (f: string) => fs.access(path.join(nodePackageDir, f)).then(() => true, () => false);
+    // pnpm workspaces keep the lockfile at the workspace root; installing from
+    // a sub-package fails when dependencies use workspace/catalog protocols.
+    const workspaceRoot = await findPnpmWorkspaceRoot(nodePackageDir);
+    const installDir = workspaceRoot ?? nodePackageDir;
+    const nodeHas = (f: string) => fs.access(path.join(installDir, f)).then(() => true, () => false);
     const lock = (await nodeHas('pnpm-lock.yaml')) ? 'pnpm-lock.yaml' : (await nodeHas('yarn.lock')) ? 'yarn.lock' : undefined;
     const cmd = lock === 'pnpm-lock.yaml' && (await commandExists('pnpm')) ? ['pnpm', 'install'] :
                 lock === 'yarn.lock' && (await commandExists('yarn')) ? ['yarn', 'install'] :
                 ['npm', 'install'];
     const ensureNodeBinaries = async (): Promise<boolean> => {
       try {
-        const pkgRaw = await fs.readFile(path.join(nodePackageDir, 'package.json'), 'utf-8');
+        const pkgRaw = await fs.readFile(path.join(installDir, 'package.json'), 'utf-8');
         const pkg = JSON.parse(pkgRaw) as { scripts?: Record<string, string> };
         const testScript = pkg.scripts?.test ?? '';
-        const binDir = path.join(nodePackageDir, 'node_modules', '.bin');
+        const binDir = path.join(installDir, 'node_modules', '.bin');
         const bins = await fs.readdir(binDir).catch(() => [] as string[]);
         const needs = (name: string) => testScript.includes(name) && !bins.includes(name);
         return !needs('mocha') && !needs('jest') && !needs('vitest') && !needs('tap') && !needs('ava');
@@ -223,7 +241,7 @@ async function installProjectDependencies(
       }
     };
     const runInstall = async (): Promise<void> => {
-      const install = await runCommand(cmd[0], cmd.slice(1), { cwd: nodePackageDir, timeout: 300_000 });
+      const install = await runCommand(cmd[0], cmd.slice(1), { cwd: installDir, timeout: 300_000 });
       if (install.exitCode !== 0) {
         throw new Error(`Dependency install failed: ${install.stderr}\n${install.stdout}`);
       }
@@ -231,7 +249,7 @@ async function installProjectDependencies(
     await runInstall();
     if (!(await ensureNodeBinaries())) {
       console.warn('[deepswe] node_modules missing test binaries, reinstalling');
-      await fs.rm(path.join(nodePackageDir, 'node_modules'), { recursive: true, force: true });
+      await fs.rm(path.join(installDir, 'node_modules'), { recursive: true, force: true });
       await runInstall();
     }
     return;

@@ -52,10 +52,55 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
   'dateutil-rfc5545-timezone-interop': { pip: ['pytest<8'] },
   'bandit-incremental-cache-control': { pip: ['GitPython', 'sarif-om'] },
   'adaptix-name-mapping-aliases': { pip: ['attrs==22.2.0'] },
-  'langchain-request-coalescing': { pip: ['blockbuster', 'pytest-mock'] },
-  'returns-validated-error-accumulation': { pip: ['anyio', 'pytest-asyncio'] },
-  'fastapi-implicit-head-options': { pip: ['httpx<0.28', 'inline-snapshot'] },
+  'langchain-request-coalescing': {
+    pip: [
+      'blockbuster',
+      'pytest-mock',
+      'syrupy',
+      'pytest-benchmark',
+      'pytest-socket',
+      'pytest-codspeed',
+      'pytest-subtests',
+    ],
+  },
+  'returns-validated-error-accumulation': {
+    pip: ['anyio', 'pytest-asyncio', 'hypothesis', 'pytest-subtests'],
+  },
+  'fastapi-implicit-head-options': {
+    pip: [
+      'httpx<0.28',
+      'inline-snapshot',
+      'python-multipart',
+      'orjson',
+      'ujson',
+      'sqlmodel',
+      'flask',
+      'pyjwt',
+      'pwdlib[argon2]',
+      'a2wsgi',
+      'pyyaml',
+      'dirty-equals',
+      'pytest-sugar',
+      'pytest-cov',
+      'strawberry-graphql',
+    ],
+  },
   'bandit-interprocedural-taint-checks': { pip: ['setuptools', 'wheel'] },
+  'python-statemachine-state-data-scoping': {
+    pip: [
+      'pytest-benchmark',
+      'pytest-xdist',
+      'pytest-timeout',
+      'pytest-asyncio',
+      'pytest-mock',
+      'pytest-cov',
+      'pytest-sugar',
+      'pytest-django',
+      'django',
+      'docutils',
+      'Sphinx',
+    ],
+  },
 };
 
 function parseToml(raw: string): DeepSWETaskToml {
@@ -222,6 +267,31 @@ async function ensureGitignoreLines(projectPath: string, lines: string[]): Promi
   await fs.writeFile(gitignorePath, `${content}${prefix}${missing.join('\n')}\n`, 'utf-8');
 }
 
+async function readPytestAddopts(projectPath: string): Promise<string> {
+  const fragments: string[] = [];
+  const pyprojectPath = path.join(projectPath, 'pyproject.toml');
+  try {
+    const raw = await fs.readFile(pyprojectPath, 'utf-8');
+    const sectionMatch = /\[tool\.pytest\.ini_options\]([^[]*)/s.exec(raw);
+    if (sectionMatch) {
+      fragments.push(sectionMatch[1]);
+    }
+  } catch {
+    // ignore missing pyproject.toml
+  }
+  const setupCfgPath = path.join(projectPath, 'setup.cfg');
+  try {
+    const raw = await fs.readFile(setupCfgPath, 'utf-8');
+    const sectionMatch = /\[tool:pytest\]([^[]*)/s.exec(raw);
+    if (sectionMatch) {
+      fragments.push(sectionMatch[1]);
+    }
+  } catch {
+    // ignore missing setup.cfg
+  }
+  return fragments.join('\n');
+}
+
 async function installProjectDependencies(
   projectPath: string,
   language?: string,
@@ -364,15 +434,22 @@ async function installProjectDependencies(
       if (!failed) {
         // DeepSWE verifiers often use pytest-xdist (-n), pytest-timeout, pytest-asyncio,
         // pytest-benchmark, pytest-django, and pytest-mock.
-        const testShPath = path.join(taskDir ?? '', 'tests', 'test.sh');
+        const testShPaths = [
+          path.join(taskDir ?? '', 'tests', 'test.sh'),
+          path.join(taskDir ?? '', 'test.sh'),
+          path.join(projectPath, 'test.sh'),
+        ];
         let testShText = '';
-        if (taskDir) {
+        for (const testShPath of testShPaths) {
           try {
-            testShText = await fs.readFile(testShPath, 'utf-8');
+            testShText += await fs.readFile(testShPath, 'utf-8');
           } catch {
             // ignore missing test.sh
           }
         }
+        // Project pytest config (e.g. pyproject.toml addopts) may reference plugins
+        // that the verifier needs but that are not listed in test.sh.
+        testShText += await readPytestAddopts(projectPath);
         const pytestExtras: string[] = [];
         if (/pytest.*-n\b/.test(testShText) || /\bxdist\b/.test(testShText)) pytestExtras.push('pytest-xdist');
         if (/--timeout[ =]/.test(testShText) || /\bpytest-timeout\b/.test(testShText)) pytestExtras.push('pytest-timeout');
@@ -380,6 +457,14 @@ async function installProjectDependencies(
         if (testShText.includes('pytest-benchmark') || testShText.includes('--benchmark')) pytestExtras.push('pytest-benchmark');
         if (testShText.includes('pytest-django') || /\bdjango\b/.test(testShText)) pytestExtras.push('pytest-django');
         if (testShText.includes('pytest-mock') || /\bpytest-mock\b/.test(testShText)) pytestExtras.push('pytest-mock');
+        if (testShText.includes('pytest-cov') || /\bcov\b/.test(testShText)) pytestExtras.push('pytest-cov');
+        if (testShText.includes('pytest-sugar') || /\bsugar\b/.test(testShText)) pytestExtras.push('pytest-sugar');
+        if (testShText.includes('pytest-rerunfailures') || /\brerunfailures\b/.test(testShText)) pytestExtras.push('pytest-rerunfailures');
+        if (testShText.includes('pytest-check-links') || /\bcheck-links\b/.test(testShText)) pytestExtras.push('pytest-check-links');
+        if (testShText.includes('--snapshot-warn-unused') || /\bsnapshot-warn-unused\b/.test(testShText)) pytestExtras.push('syrupy');
+        if (testShText.includes('pytest-socket') || /\bpytest-socket\b/.test(testShText)) pytestExtras.push('pytest-socket');
+        if (testShText.includes('pytest-codspeed') || /\bpytest-codspeed\b/.test(testShText)) pytestExtras.push('pytest-codspeed');
+        if (testShText.includes('pytest-subtests') || /\bpytest-subtests\b/.test(testShText)) pytestExtras.push('pytest-subtests');
         if (pytestExtras.length > 0) {
           const install = await runCommand(pipBin, ['install', ...pytestExtras], { cwd: projectPath, timeout: 300_000 });
           if (install.exitCode !== 0) failed = fail('pytest extras install', install.stderr);
@@ -692,12 +777,8 @@ async function ensureNextest(): Promise<string> {
 async function ensureNodeJUnitReporter(): Promise<string> {
   const cacheDir = omegaVerifierToolsDir();
   const reporterPath = path.join(cacheDir, 'node-junit-with-file.js');
-  try {
-    await fs.access(reporterPath);
-    return reporterPath;
-  } catch {
-    // not cached; write on demand
-  }
+  // Always rewrite the reporter so bug fixes are picked up; the file is tiny.
+  await fs.rm(reporterPath, { force: true });
   const source = `'use strict';
 const os = require('os');
 
@@ -1020,7 +1101,10 @@ async function runDeepSWEVerifierLocal(
   // happy-dom's hidden IntersectionObserver tests wait for async polling and
   // can exceed the default 500ms vitest timeout configured in the repo.
   if (rewritten.includes('IntersectionObserver.challenge.test.ts') && !rewritten.includes('--testTimeout')) {
-    rewritten = rewritten.replace(/--reporter=junit/g, '--testTimeout=10000 --reporter=junit');
+    rewritten = rewritten.replace(
+      /IntersectionObserver\.challenge\.test\.ts/g,
+      'IntersectionObserver.challenge.test.ts --testTimeout=10000'
+    );
   }
 
   const env: NodeJS.ProcessEnv = {

@@ -406,6 +406,12 @@ async function applySkillPatches(projectPath: string, skills: ResolvedSkill[]): 
     }
     try {
       await execFileAsync('git', ['-C', projectPath, 'apply', '--whitespace=nowarn', patchPath]);
+      // Commit the reference patch immediately so the agent cannot accidentally
+      // lose it with a later `git checkout -f HEAD` or working-tree reset.
+      if (await hasChanges(projectPath)) {
+        await stageAllChanges(projectPath);
+        await commit(projectPath, `skill: apply reference patch from ${skill.name}`);
+      }
       applied.push(skill.name);
       logger.info('Applied skill patch', { skill: skill.name, patchPath });
       // One verified reference patch is enough; applying additional patches risks

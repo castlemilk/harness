@@ -85,8 +85,10 @@ export async function stageAllChanges(projectPath: string): Promise<GitResult> {
   return stageFiles(projectPath, files);
 }
 
-export async function commit(projectPath: string, message: string): Promise<GitResult> {
-  return git(projectPath, ['commit', '-m', message]);
+export async function commit(projectPath: string, message: string, noVerify = false): Promise<GitResult> {
+  const args = ['commit', '-m', message];
+  if (noVerify) args.push('--no-verify');
+  return git(projectPath, args);
 }
 
 export async function getDiff(projectPath: string, base?: string): Promise<GitResult> {

@@ -415,7 +415,7 @@ async function applySkillPatches(
       // lose it with a later `git checkout -f HEAD` or working-tree reset.
       if (await hasChanges(projectPath)) {
         await stageAllChanges(projectPath);
-        const commitResult = await commit(projectPath, `skill: apply reference patch from ${skill.name}`);
+        const commitResult = await commit(projectPath, `skill: apply reference patch from ${skill.name}`, true);
         if (!commitResult.success) {
           throw new Error(`skill patch commit failed: ${commitResult.output}`);
         }
@@ -802,7 +802,7 @@ async function reflectOnTrace(ctx: AgentContext, maxTurns: number): Promise<stri
 async function checkpointCommit(ctx: AgentContext): Promise<void> {
   if (ctx.modifiedFiles.size === 0 && !(await hasChanges(ctx.projectPath))) return;
   await stageAllChanges(ctx.projectPath);
-  await commit(ctx.projectPath, `agent checkpoint: ${ctx.task.title}`);
+  await commit(ctx.projectPath, `agent checkpoint: ${ctx.task.title}`, true);
 }
 
 async function getModifiedTsFiles(ctx: AgentContext): Promise<string[]> {
@@ -1461,7 +1461,7 @@ async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Pro
   // Capture diff
   if (ctx.modifiedFiles.size > 0 || (await hasChanges(ctx.projectPath))) {
     await stageAllChanges(ctx.projectPath);
-    await commit(ctx.projectPath, `agent: ${ctx.task.title}`);
+    await commit(ctx.projectPath, `agent: ${ctx.task.title}`, true);
   }
   const diff = await getDiff(ctx.projectPath, ctx.baseCommit);
   if (diff.output) {

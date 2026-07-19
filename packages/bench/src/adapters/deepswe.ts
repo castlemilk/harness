@@ -50,7 +50,7 @@ interface Reward {
 const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
   'mobly-grouped-test-barriers': { pip: ['pytz'] },
   'dateutil-rfc5545-timezone-interop': { pip: ['pytest<8'] },
-  'bandit-incremental-cache-control': { pip: ['GitPython', 'sarif-om'] },
+  'bandit-incremental-cache-control': { pip: ['GitPython', 'sarif-om', 'jschema_to_python'] },
   'adaptix-name-mapping-aliases': { pip: ['attrs==22.2.0'] },
   'langchain-request-coalescing': {
     pip: [
@@ -61,6 +61,9 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
       'pytest-socket',
       'pytest-codspeed',
       'pytest-subtests',
+      'pydantic',
+      'freezegun',
+      'langsmith',
     ],
   },
   'returns-validated-error-accumulation': {
@@ -86,7 +89,7 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
       'strawberry-graphql',
     ],
   },
-  'bandit-interprocedural-taint-checks': { pip: ['setuptools', 'wheel'] },
+  'bandit-interprocedural-taint-checks': { pip: ['setuptools', 'wheel', 'GitPython', 'sarif-om'] },
   'python-statemachine-state-data-scoping': {
     pip: [
       'pytest-benchmark',

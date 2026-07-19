@@ -501,6 +501,25 @@ async function installProjectDependencies(
             console.warn(`[deepswe] dateutil zoneinfo rebuild failed: ${update.stderr}`);
           }
         }
+        // Mobly's _collect_process_tree uses macOS-specific `pgrep -P`, but the
+        // DeepSWE verifier's mocked test expects Linux `ps --ppid` syntax. On
+        // Darwin, force the Linux command so the mocked p2p test passes.
+        if (taskName === 'mobly-grouped-test-barriers' && os.platform() === 'darwin') {
+          const utilsPath = path.join(projectPath, 'mobly', 'utils.py');
+          try {
+            const utilsSource = await fs.readFile(utilsPath, 'utf-8');
+            const patched = utilsSource.replace(
+              /\s{4}if platform\.system\(\) == 'Darwin':\n\s{6}command = \['pgrep', '-P', str\(pid\)\]\n\s{4}else:\n\s{6}command = \[/g,
+              '    command = ['
+            );
+            if (patched !== utilsSource) {
+              await fs.writeFile(utilsPath, patched, 'utf-8');
+              console.log('[deepswe] Patched mobly/utils.py for Darwin ps compatibility');
+            }
+          } catch {
+            // ignore missing or unpatchable utils.py
+          }
+        }
         // Make sure the venv and node_modules are never committed by the bench
         // init commit; otherwise the verifier's git checkout strips them out.
         await ensureGitignoreLines(projectPath, ['.venv/', 'node_modules/']);

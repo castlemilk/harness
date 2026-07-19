@@ -391,7 +391,11 @@ function toCoreTask(row: {
   };
 }
 
-async function applySkillPatches(projectPath: string, skills: ResolvedSkill[]): Promise<string[]> {
+async function applySkillPatches(
+  projectPath: string,
+  baseCommit: string,
+  skills: ResolvedSkill[]
+): Promise<{ applied: string[]; patch: string }> {
   const applied: string[] = [];
   const execFileAsync = promisify(execFile);
   for (const skill of skills) {
@@ -422,7 +426,11 @@ async function applySkillPatches(projectPath: string, skills: ResolvedSkill[]): 
       logger.warn('Failed to apply skill patch', { skill: skill.name, patchPath, error: message });
     }
   }
-  return applied;
+  // Capture the diff immediately while HEAD is guaranteed to be on the skill
+  // commit. Later cleanup or a detached worktree can reset HEAD, so waiting
+  // until the end of the run risks producing an empty model.patch.
+  const diff = await getDiff(projectPath, baseCommit);
+  return { applied, patch: diff.output };
 }
 
 export async function runAgentTask(
@@ -823,7 +831,9 @@ async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Pro
   // immediately; the downstream verifier grades it. Set OMEGA_SKILL_VERIFY=true
   // to keep the agent in the loop for verification/fix-up.
   const skillVerify = process.env.OMEGA_SKILL_VERIFY === 'true';
-  const appliedSkills = await applySkillPatches(ctx.projectPath, skills);
+  const skillPatchResult = await applySkillPatches(ctx.projectPath, ctx.baseCommit, skills);
+  const appliedSkills = skillPatchResult.applied;
+  const skillPatch = skillPatchResult.patch;
   if (appliedSkills.length > 0) {
     await addTrace(
       ctx,
@@ -858,6 +868,17 @@ async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Pro
       finished = true;
       summary = `Finished via skill reference patch: ${appliedSkills.join(', ')}`;
       await checkpointCommit(ctx);
+      // Persist the captured skill patch immediately so a later HEAD reset does
+      // not cause the verifier to receive an empty model.patch.
+      if (skillPatch) {
+        await ctx.prisma.taskDiff.create({
+          data: {
+            taskId: ctx.task.id,
+            branch: ctx.branch,
+            patch: skillPatch,
+          },
+        });
+      }
       ctx.rootSpan.addEvent('agent.skill_oracle.finish', { skills: appliedSkills.join(', ') });
     } else {
       ctx.rootSpan.addEvent('agent.skill_patch.applied', { skills: appliedSkills.join(', ') });

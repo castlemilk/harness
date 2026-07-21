@@ -28,7 +28,7 @@ export type ExternalCli =
 
 interface CliSpec {
   command: string;
-  args: (prompt: string) => string[];
+  args: (prompt: string, cwd?: string) => string[];
   env?: NodeJS.ProcessEnv;
   /** Spawn via PTY instead of execFile. Required for CLIs that gate stdout on isatty(). */
   pty?: boolean;
@@ -51,7 +51,7 @@ function cliSpec(cli: ExternalCli): CliSpec {
     case 'agy':
       return {
         command: 'agy',
-        args: (prompt) => ['-p', prompt, '--dangerously-skip-permissions'],
+        args: (prompt, cwd) => ['-p', prompt, '--dangerously-skip-permissions', ...(cwd ? ['--add-dir', cwd] : [])],
         pty: true,
       };
     case 'gemini-cli':
@@ -59,7 +59,7 @@ function cliSpec(cli: ExternalCli): CliSpec {
       logger.warn('gemini-cli is deprecated, use agy instead');
       return {
         command: 'agy',
-        args: (prompt) => ['-p', prompt, '--dangerously-skip-permissions'],
+        args: (prompt, cwd) => ['-p', prompt, '--dangerously-skip-permissions', ...(cwd ? ['--add-dir', cwd] : [])],
         pty: true,
       };
     case 'opencode':
@@ -168,7 +168,7 @@ export async function runExternalAgentTask(
       if (spec.pty) {
         // PTY path — required for CLIs that gate stdout on isatty()
         const timeoutMs = options.timeoutMs ?? 15 * 60 * 1000;
-        const result = await spawnWithPty(spec.command, spec.args(prompt), {
+        const result = await spawnWithPty(spec.command, spec.args(prompt, options.projectPath), {
           cwd: options.projectPath,
           env: spec.env,
           timeoutMs,
@@ -176,7 +176,7 @@ export async function runExternalAgentTask(
         stdout = result.stdout;
         stderr = result.stderr;
       } else {
-        const result = await execFileAsync(spec.command, spec.args(prompt), {
+        const result = await execFileAsync(spec.command, spec.args(prompt, options.projectPath), {
           cwd: options.projectPath,
           timeout: options.timeoutMs ?? 15 * 60 * 1000,
           maxBuffer: 32 * 1024 * 1024,

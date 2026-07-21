@@ -2,60 +2,101 @@ import { logger } from './logger.js';
 
 interface OpencodeEvent {
   type: string;
-  part?: { text?: string };
+  part?: {
+    type?: string;
+    text?: string;
+    tool?: string;
+    callID?: string;
+    state?: { status?: string; input?: unknown };
+    tokens?: { total?: number; input?: number; output?: number };
+  };
   input?: number;
   output?: number;
-  error?: string;
 }
 
-/**
- * Parse opencode JSONL output and extract the final model text response.
- *
- * opencode --format json emits newline-delimited JSON events:
- *   {"type":"text","part":{"text":"..."}}
- *   {"type":"step_finish","input":1234,"output":567}
- *   {"type":"tool_use","tool":"edit_file","status":"success"}
- *   {"type":"error","error":"something went wrong"}
- *
- * We extract `text` events, log token usage from `step_finish`, and discard
- * everything else (tool_use, step_start noise).
- */
-export function extractOpencodeResult(raw: string): string {
-  const lines = raw.split('\n').filter((l) => l.trim());
-  const textParts: string[] = [];
+export interface OpencodeMetrics {
+  toolCalls: Record<string, number>;
+  totalToolCalls: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+}
 
+export function parseOpencodeMetrics(raw: string): OpencodeMetrics {
+  const metrics: OpencodeMetrics = { toolCalls: {}, totalToolCalls: 0 };
+
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let totalTokens = 0;
+  let anyToken = false;
+
+  const lines = raw.split('\n');
   for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
     let event: OpencodeEvent;
     try {
-      event = JSON.parse(line) as OpencodeEvent;
+      event = JSON.parse(trimmed) as OpencodeEvent;
     } catch {
-      logger.warn('opencode: skipping malformed JSONL line', { line: line.slice(0, 200) });
       continue;
     }
 
-    switch (event.type) {
-      case 'text':
-        if (event.part?.text) textParts.push(event.part.text);
-        break;
-      case 'step_finish':
-        if (event.input != null || event.output != null) {
-          logger.info('opencode: step finished', { tokensIn: event.input, tokensOut: event.output });
-        }
-        break;
-      case 'error':
-        logger.warn('opencode: error event', { error: event.error });
-        break;
-      default:
-        // tool_use, step_start, etc — discard
-        break;
+    // Token usage lives on step_finish events.
+    if (event.type === 'step_finish') {
+      const part = event.part ?? {};
+      const t = part.tokens ?? {
+        input: event.input,
+        output: event.output,
+      };
+      if (typeof t.input === 'number' && t.input > 0) {
+        anyToken = true;
+        inputTokens += t.input;
+      }
+      if (typeof t.output === 'number' && t.output > 0) {
+        anyToken = true;
+        outputTokens += t.output;
+      }
+      if (typeof t.total === 'number' && t.total > 0) {
+        anyToken = true;
+        totalTokens += t.total;
+      }
+    } else if (event.type === 'tool_use') {
+      const name = event.part?.tool;
+      if (typeof name === 'string') {
+        metrics.toolCalls[name] = (metrics.toolCalls[name] ?? 0) + 1;
+        metrics.totalToolCalls += 1;
+      }
     }
   }
 
-  // Fallback: if no text events found, return raw output
-  if (textParts.length === 0) {
-    logger.warn('opencode: no text events found in output, returning raw');
-    return raw;
+  if (anyToken) {
+    metrics.inputTokens = inputTokens;
+    metrics.outputTokens = outputTokens;
+    metrics.totalTokens = totalTokens > 0 ? totalTokens : inputTokens + outputTokens;
   }
 
-  return textParts.join('\n');
+  if (metrics.totalToolCalls === 0 && !anyToken) {
+    logger.warn('opencode: no metrics (tokens or tool calls) extracted from output');
+  }
+  return metrics;
+}
+
+/**
+ * Backward-compat: keep the simple text extractor used by the existing CLI spec.
+ */
+export function extractOpencodeResult(raw: string): string {
+  const textParts: string[] = [];
+  for (const line of raw.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    let event: OpencodeEvent;
+    try {
+      event = JSON.parse(trimmed) as OpencodeEvent;
+    } catch {
+      continue;
+    }
+    if (event.type === 'text' && event.part?.text) textParts.push(event.part.text);
+  }
+  return textParts.length > 0 ? textParts.join('\n') : raw;
 }

@@ -6,9 +6,40 @@ import { Tracer } from './tracer.js';
 import { getCurrentCommit, getDiff, getCurrentBranch, hasChanges, stageAllChanges, commit } from './git.js';
 import { logger } from './logger.js';
 import { spawnWithPty } from './pty-spawn.js';
-import { extractOpencodeResult } from './opencode-output.js';
+import { extractOpencodeResult, parseOpencodeMetrics } from './opencode-output.js';
+import { parseClaudeCodeStreamJson } from './claude-code-output.js';
 
 const execFileAsync = promisify(execFile);
+
+function buildAgentRunMetricsUpdate(
+  spec: CliSpec,
+  output: string
+): {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  costUsd?: number;
+  turnCount?: number;
+  toolCalls?: string;
+} {
+  if (!spec.metricsParser) return {};
+  try {
+    const m = spec.metricsParser(output);
+    return {
+      promptTokens: m.inputTokens,
+      completionTokens: m.outputTokens,
+      totalTokens: m.totalTokens,
+      costUsd: m.costUsd,
+      turnCount: m.turns,
+      toolCalls: m.toolCalls ? JSON.stringify(m.toolCalls) : undefined,
+    };
+  } catch (err) {
+    logger.warn('External agent metrics parser failed', {
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return {};
+  }
+}
 
 export interface ExternalAgentOptions extends AgentOptions {
   /** Which external agent CLI to drive. */
@@ -34,6 +65,19 @@ interface CliSpec {
   pty?: boolean;
   /** Post-process captured stdout before storing. */
   outputTransform?: (raw: string) => string;
+  /** Extract structured metrics (tokens, cost, tool calls, turns) from stdout. */
+  metricsParser?: (raw: string) => ExtractedMetrics;
+}
+
+interface ExtractedMetrics {
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheCreationTokens?: number;
+  cacheReadTokens?: number;
+  totalTokens?: number;
+  costUsd?: number;
+  turns?: number;
+  toolCalls?: Record<string, number>;
 }
 
 function cliSpec(cli: ExternalCli): CliSpec {
@@ -46,7 +90,9 @@ function cliSpec(cli: ExternalCli): CliSpec {
     case 'claude-code':
       return {
         command: 'claude',
-        args: (prompt) => ['-p', prompt],
+        args: (prompt) => ['-p', prompt, '--output-format', 'stream-json', '--verbose'],
+        pty: true,
+        metricsParser: parseClaudeCodeStreamJson,
       };
     case 'agy':
       return {
@@ -70,6 +116,7 @@ function cliSpec(cli: ExternalCli): CliSpec {
         command: 'opencode',
         args: (prompt, cwd) => ['run', prompt, '--format', 'json', '--model', 'opencode/big-pickle', '--auto', '--port', String(4096 + Math.floor(Math.random() * 1000)), ...(cwd ? ['--dir', cwd] : [])],
         outputTransform: extractOpencodeResult,
+        metricsParser: parseOpencodeMetrics,
       };
     case 'cursor-cli':
       return {
@@ -260,7 +307,10 @@ export async function runExternalAgentTask(
     });
     await prisma.agentRun.update({
       where: { id: agentRun.id },
-      data: { resultStatus: passed ? 'done' : 'failed' },
+      data: {
+        resultStatus: passed ? 'done' : 'failed',
+        ...buildAgentRunMetricsUpdate(spec, output),
+      },
     });
     rootSpan.setAttributes({ passed, diffBytes: patch.length });
     await rootSpan.end(passed ? 'ok' : 'error');

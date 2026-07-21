@@ -8,6 +8,7 @@ export { syntheticSuite } from './suites/synthetic.js';
 export { fastSuite } from './suites/fast.js';
 export { deepSuite } from './suites/deep.js';
 export { hardSuite, HARD_DEEPSWE_TASK_IDS } from './suites/hard.js';
+export { harderSuite } from './suites/harder.js';
 export { runModelEval, runHarnessEval, writeModelEvalReport, summarizeModelEval, parseModelList, type ModelEvalModel, type ModelEvalResult, type ModelEvalSummary, type HarnessEvalOptions } from './model-eval.js';
 export { loadDeepSWESuite, type DeepSWEOptions } from './adapters/deepswe.js';
 export { loadPierSuite, runPierBenchmark, type PierOptions } from './adapters/pier.js';

@@ -11,6 +11,7 @@ import {
   fastSuite,
   deepSuite,
   hardSuite,
+  harderSuite,
   loadDeepSWESuite,
   runPierBenchmark,
   writeReport,
@@ -50,7 +51,7 @@ function currentProject(apiUrl: string): Promise<{ id: string }> {
 
 const runCmd = new Command('run')
   .description('Run a benchmark suite')
-  .option('--suite <name>', 'suite name: synthetic | fast | hard | deep-swe | pier', 'synthetic')
+  .option('--suite <name>', 'suite name: synthetic | fast | hard | harder | deep-swe | pier', 'synthetic')
   .option('--path <dir>', 'path to DeepSWE tasks directory (for deep-swe/pier suites)')
   .option('--n-tasks <n>', 'limit number of tasks (for deep-swe/pier)', parseInt)
   .option('--sample-seed <n>', 'seed for deterministic sampling (for deep-swe/pier)', parseInt)
@@ -161,6 +162,12 @@ const runCmd = new Command('run')
         tasks = tasks.filter((t) => opts.taskId.includes(t.id));
       }
       suiteName = 'hard';
+    } else if (opts.suite === 'harder') {
+      tasks = harderSuite();
+      if (opts.taskId.length > 0) {
+        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
+      }
+      suiteName = 'harder';
     } else {
       throw new Error(`Unknown suite: ${opts.suite}`);
     }
@@ -258,7 +265,7 @@ const compareCmd = new Command('compare')
 
 const evalCmd = new Command('eval')
   .description('Run a benchmark suite across multiple models and compare results')
-  .option('--suite <name>', 'suite name: synthetic | fast | deep | hard | deep-swe', 'deep')
+  .option('--suite <name>', 'suite name: synthetic | fast | deep | hard | harder | deep-swe', 'deep')
   .option('--models <list>', 'comma-separated models as provider/model or model (default provider kimi)', 'kimi/moonshot-v1-128k')
   .option('--harnesses <list>', 'comma-separated external agent harnesses (codex, claude-code, agy, opencode, cursor-cli, aider) to evaluate instead of internal models')
   .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
@@ -289,6 +296,8 @@ const evalCmd = new Command('eval')
     } else if (opts.suite === 'hard') {
       if (!opts.path) throw new Error('--path is required for the hard suite');
       tasks = await hardSuite(opts.path);
+    } else if (opts.suite === 'harder') {
+      tasks = harderSuite();
     } else if (opts.suite === 'deep-swe') {
       if (!opts.path) throw new Error('--path is required for the deep-swe suite');
       tasks = await loadDeepSWESuite({ tasksDir: opts.path });

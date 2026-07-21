@@ -63,9 +63,12 @@ function cliSpec(cli: ExternalCli): CliSpec {
         pty: true,
       };
     case 'opencode':
+      // opencode `run` forks a headless server that stays running after the
+      // prompt completes, causing the parent to hang until timeout. The eval
+      // runner's poll-based timeout will eventually catch and report this.
       return {
         command: 'opencode',
-        args: (prompt) => ['run', prompt, '--format', 'json', '--model', 'opencode/big-pickle'],
+        args: (prompt, cwd) => ['run', prompt, '--format', 'json', '--model', 'opencode/big-pickle', '--auto', '--port', String(4096 + Math.floor(Math.random() * 1000)), ...(cwd ? ['--dir', cwd] : [])],
         outputTransform: extractOpencodeResult,
       };
     case 'cursor-cli':

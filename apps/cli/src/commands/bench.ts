@@ -8,6 +8,9 @@ function collectTaskIds(value: string, previous: string[]): string[] {
 import {
   runBenchmark,
   syntheticSuite,
+  fastSuite,
+  deepSuite,
+  hardSuite,
   loadDeepSWESuite,
   runPierBenchmark,
   writeReport,
@@ -17,6 +20,10 @@ import {
   buildOptimisePrompt,
   submitOptimiseTask,
   ensureProject,
+  runModelEval,
+  runHarnessEval,
+  writeModelEvalReport,
+  parseModelList,
 } from '@omega/bench';
 import { getApiUrl } from '../api.js';
 
@@ -42,7 +49,7 @@ function currentProject(apiUrl: string): Promise<{ id: string }> {
 
 const runCmd = new Command('run')
   .description('Run a benchmark suite')
-  .option('--suite <name>', 'suite name: synthetic | deep-swe | pier', 'synthetic')
+  .option('--suite <name>', 'suite name: synthetic | fast | hard | deep-swe | pier', 'synthetic')
   .option('--path <dir>', 'path to DeepSWE tasks directory (for deep-swe/pier suites)')
   .option('--n-tasks <n>', 'limit number of tasks (for deep-swe/pier)', parseInt)
   .option('--sample-seed <n>', 'seed for deterministic sampling (for deep-swe/pier)', parseInt)
@@ -134,6 +141,21 @@ const runCmd = new Command('run')
         tasks = tasks.filter((t) => opts.taskId.includes(t.id));
       }
       suiteName = 'synthetic';
+    } else if (opts.suite === 'fast') {
+      tasks = fastSuite();
+      if (opts.taskId.length > 0) {
+        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
+      }
+      suiteName = 'fast';
+    } else if (opts.suite === 'hard') {
+      if (!opts.path) {
+        throw new Error('--path is required for the hard suite');
+      }
+      tasks = await hardSuite(opts.path);
+      if (opts.taskId.length > 0) {
+        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
+      }
+      suiteName = 'hard';
     } else {
       throw new Error(`Unknown suite: ${opts.suite}`);
     }
@@ -214,8 +236,92 @@ const compareCmd = new Command('compare')
     }
   );
 
+const evalCmd = new Command('eval')
+  .description('Run a benchmark suite across multiple models and compare results')
+  .option('--suite <name>', 'suite name: synthetic | fast | deep | hard | deep-swe', 'deep')
+  .option('--models <list>', 'comma-separated models as provider/model or model (default provider kimi)', 'kimi/moonshot-v1-128k')
+  .option('--harnesses <list>', 'comma-separated external agent harnesses (codex, claude-code, gemini-cli, opencode, cursor-cli, aider) to evaluate instead of internal models')
+  .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
+  .option('--path <dir>', 'path to DeepSWE tasks directory (for hard/deep-swe suites)')
+  .option('--timeout <ms>', 'per-task timeout in ms', '600000')
+  .option('--token-budget <n>', 'per-task token cap', parseInt)
+  .option('--project-prefix <prefix>', 'project name prefix for created harness projects', 'eval')
+  .action(async (opts: {
+    suite: string;
+    models: string;
+    harnesses?: string;
+    taskId: string[];
+    path?: string;
+    timeout: string;
+    tokenBudget?: number;
+    projectPrefix: string;
+  }) => {
+    const apiUrl = getApiUrl();
+    await waitForApi(apiUrl);
+
+    let tasks;
+    if (opts.suite === 'fast') {
+      tasks = fastSuite();
+    } else if (opts.suite === 'deep') {
+      tasks = deepSuite();
+    } else if (opts.suite === 'synthetic') {
+      tasks = syntheticSuite();
+    } else if (opts.suite === 'hard') {
+      if (!opts.path) throw new Error('--path is required for the hard suite');
+      tasks = await hardSuite(opts.path);
+    } else if (opts.suite === 'deep-swe') {
+      if (!opts.path) throw new Error('--path is required for the deep-swe suite');
+      tasks = await loadDeepSWESuite({ tasksDir: opts.path });
+    } else {
+      throw new Error(`Unknown suite: ${opts.suite}`);
+    }
+    if (opts.taskId.length > 0) {
+      tasks = tasks.filter((t) => opts.taskId.includes(t.id));
+    }
+
+    const timeoutMs = Number(opts.timeout);
+
+    if (opts.harnesses) {
+      const harnesses = opts.harnesses.split(',').map((h) => h.trim()).filter(Boolean);
+      console.log(`Running ${String(tasks.length)} tasks across ${String(harnesses.length)} external harness(es): ${harnesses.join(', ')}`);
+      const results = await runHarnessEval(tasks, {
+        apiUrl,
+        harnesses,
+        timeoutMs,
+        tokenBudget: opts.tokenBudget,
+        projectPrefix: opts.projectPrefix,
+        suiteName: opts.suite,
+        onHarnessProgress: (cli, report) => {
+          console.log(`✓ external:${cli}: ${String(report.passed)}/${String(report.total)} passed (${(report.totalDurationMs / 1000).toFixed(1)}s)`);
+        },
+      });
+      const reportFile = await writeModelEvalReport(results, opts.suite);
+      console.log(`\nHarness eval report written to ${reportFile}`);
+      return;
+    }
+
+    const models = parseModelList(opts.models);
+    console.log(`Running ${String(tasks.length)} tasks across ${String(models.length)} model(s): ${models.map((m) => `${m.provider}/${m.model}`).join(', ')}`);
+
+    const results = await runModelEval(tasks, {
+      apiUrl,
+      models,
+      timeoutMs,
+      tokenBudget: opts.tokenBudget,
+      projectPrefix: opts.projectPrefix,
+      suiteName: opts.suite,
+      onModelProgress: (m, report) => {
+        console.log(`✓ ${m.provider}/${m.model}: ${String(report.passed)}/${String(report.total)} passed (${(report.totalDurationMs / 1000).toFixed(1)}s)`);
+      },
+    });
+
+    const reportFile = await writeModelEvalReport(results, opts.suite);
+    console.log(`\nModel eval report written to ${reportFile}`);
+  });
+
 export const benchCmd = new Command('bench')
   .description('Run benchmarks and optimise prompts')
   .addCommand(runCmd)
+  .addCommand(evalCmd)
   .addCommand(optimiseCmd)
   .addCommand(compareCmd);

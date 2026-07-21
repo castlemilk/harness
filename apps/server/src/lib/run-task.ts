@@ -1,6 +1,6 @@
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
-import { runAgentTask } from '@omega/agent';
+import { runAgentTask, runOrchestratedTask, runExternalAgentTask, type ExternalCli } from '@omega/agent';
 import type { PrismaClient } from '@omega/db';
 import type { ProviderConfig as CoreProviderConfig, Task } from '@omega/core';
 
@@ -26,7 +26,17 @@ function toCoreConfig(row: {
   };
 }
 
-export async function runTask(prisma: PrismaClient, taskId: string, options: { detached?: boolean; tokenBudget?: number } = {}) {
+export async function runTask(
+  prisma: PrismaClient,
+  taskId: string,
+  options: {
+    detached?: boolean;
+    tokenBudget?: number;
+    maxSubtasks?: number;
+    maxIterations?: number;
+    concurrency?: number;
+  } = {}
+) {
   const task = await prisma.task.findUnique({ where: { id: taskId }, include: { project: true } });
   if (!task) throw new Error('Task not found');
 
@@ -40,21 +50,65 @@ export async function runTask(prisma: PrismaClient, taskId: string, options: { d
   });
 
   const tags: string[] = task.tags ? (JSON.parse(task.tags) as string[]) : [];
-  if (tags.includes('agent') || tags.includes('self-improve')) {
+
+  // Tasks tagged external:<cli> are driven by an external coding-agent CLI
+  // (Codex, Claude Code, Gemini CLI, OpenCode, Cursor CLI, Aider).
+  const externalTag = tags.find((t) => t.startsWith('external:'));
+  if (externalTag) {
+    const cli = externalTag.split(':')[1] as ExternalCli;
+    const run = () =>
+      runExternalAgentTask(prisma, taskId, {
+        projectPath: task.project.path,
+        projectName: task.project.name,
+        autoPublish: tags.includes('publish'),
+        cli,
+      });
+    if (options.detached) {
+      void (async () => {
+        try {
+          await run();
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`Detached external agent task ${taskId} failed:`, message);
+        }
+      })();
+      return { status: 'in_progress', taskId };
+    }
+    return run();
+  }
+
+  if (tags.includes('agent') || tags.includes('self-improve') || tags.includes('orchestrate')) {
     const tokenBudget = options.tokenBudget ?? (process.env.OMEGA_TOKEN_BUDGET
       ? Number(process.env.OMEGA_TOKEN_BUDGET)
       : undefined);
 
-    if (options.detached) {
-      void (async () => {
-        try {
-          await runAgentTask(prisma, taskId, {
+    // Tasks tagged 'orchestrate' go through the multi-agent orchestrator
+    // (high-tier planner/reviewer + smaller sub-agent models); the
+    // orchestrator runs its sub-agents non-isolated in the project path.
+    const orchestrate = tags.includes('orchestrate');
+    const run = () =>
+      orchestrate
+        ? runOrchestratedTask(prisma, taskId, {
+            projectPath: task.project.path,
+            projectName: task.project.name,
+            autoPublish: tags.includes('publish'),
+            tokenBudget,
+            maxSubtasks: options.maxSubtasks,
+            maxIterations: options.maxIterations,
+            concurrency: options.concurrency,
+          })
+        : runAgentTask(prisma, taskId, {
             projectPath: task.project.path,
             projectName: task.project.name,
             autoPublish: tags.includes('publish'),
             isolated: true,
             tokenBudget,
           });
+
+    if (options.detached) {
+      void (async () => {
+        try {
+          await run();
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           console.error(`Detached agent task ${taskId} failed:`, message);
@@ -62,14 +116,8 @@ export async function runTask(prisma: PrismaClient, taskId: string, options: { d
       })();
       return { status: 'in_progress', taskId };
     }
-    const agentResult = await runAgentTask(prisma, taskId, {
-      projectPath: task.project.path,
-      projectName: task.project.name,
-      autoPublish: tags.includes('publish'),
-      isolated: true,
-      tokenBudget,
-    });
-    return agentResult.task;
+    const agentResult = await run();
+    return 'task' in agentResult ? agentResult.task : prisma.task.findUnique({ where: { id: taskId } });
   }
 
   const configs = await prisma.providerConfig.findMany();

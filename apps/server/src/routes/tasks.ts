@@ -24,6 +24,9 @@ const updateSchema = z.object({
 
 const runSchema = z.object({
   tokenBudget: z.number().optional(),
+  maxSubtasks: z.number().int().min(1).max(20).optional(),
+  maxIterations: z.number().int().min(1).max(10).optional(),
+  concurrency: z.number().int().min(1).max(5).optional(),
 });
 
 export function taskRoutes(prisma: PrismaClient): Router {
@@ -36,6 +39,222 @@ export function taskRoutes(prisma: PrismaClient): Router {
       orderBy: { createdAt: 'desc' },
     });
     res.json(tasks);
+  }));
+
+  r.get('/stream', asyncHandler(async (_req, res) => {
+    // Snapshot current task updatedAt values before opening the stream so
+    // errors here still surface through the JSON error handler.
+    const initial = await prisma.task.findMany();
+    const lastUpdated = new Map<string, number>(initial.map((t) => [t.id, t.updatedAt.getTime()]));
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    });
+    res.flushHeaders();
+
+    const send = (event: string, data: unknown) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      clearInterval(poll);
+      clearInterval(heartbeat);
+      res.end();
+    };
+
+    const tick = async (): Promise<void> => {
+      if (closed) return;
+      try {
+        const tasks = await prisma.task.findMany();
+        for (const task of tasks) {
+          const updated = task.updatedAt.getTime();
+          if (lastUpdated.get(task.id) !== updated) {
+            lastUpdated.set(task.id, updated);
+            send('task', {
+              id: task.id,
+              status: task.status,
+              result: task.result ?? undefined,
+              error: task.error ?? undefined,
+              provider: task.provider ?? undefined,
+              model: task.model ?? undefined,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('SSE task stream poll error', err);
+      }
+    };
+
+    const poll = setInterval(() => {
+      void tick();
+    }, 1000);
+    const heartbeat = setInterval(() => {
+      res.write(': ping\n\n');
+    }, 15000);
+    _req.on('close', close);
+  }));
+
+  r.get('/:id/stream', asyncHandler(async (req, res) => {
+    const taskId = req.params.id;
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+
+    const [traces, spans, diffs, agentRun] = await Promise.all([
+      prisma.taskTrace.findMany({ where: { taskId }, orderBy: { createdAt: 'asc' } }),
+      prisma.traceSpan.findMany({ where: { taskId }, orderBy: { startTime: 'asc' } }),
+      prisma.taskDiff.findMany({ where: { taskId }, orderBy: { createdAt: 'asc' } }),
+      prisma.agentRun.findFirst({ where: { taskId }, orderBy: { createdAt: 'desc' } }),
+    ]);
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    });
+    res.flushHeaders();
+
+    const send = (event: string, data: unknown) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    const seenTraces = new Set<string>(traces.map((t) => t.id));
+    const seenSpans = new Set<string>(spans.map((s) => s.id));
+    const seenDiffs = new Set<string>(diffs.map((d) => d.id));
+    let lastTaskUpdated = task.updatedAt.getTime();
+    let lastRunKey = agentRun
+      ? `${agentRun.resultStatus}:${String(agentRun.totalTokens ?? '')}:${String(agentRun.updatedAt.getTime())}`
+      : '';
+
+    send('init', {
+      task: {
+        id: task.id,
+        status: task.status,
+        result: task.result ?? undefined,
+        error: task.error ?? undefined,
+        provider: task.provider ?? undefined,
+        model: task.model ?? undefined,
+      },
+      traces,
+      spans,
+      diffs,
+      agentRun,
+    });
+
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      clearInterval(poll);
+      clearInterval(heartbeat);
+      res.end();
+    };
+
+    const tick = async (): Promise<void> => {
+      if (closed) return;
+      try {
+        const [current, newTraces, newSpans, newDiffs, run] = await Promise.all([
+          prisma.task.findUnique({ where: { id: taskId } }),
+          prisma.taskTrace.findMany({ where: { taskId }, orderBy: { createdAt: 'asc' } }),
+          prisma.traceSpan.findMany({ where: { taskId }, orderBy: { startTime: 'asc' } }),
+          prisma.taskDiff.findMany({ where: { taskId }, orderBy: { createdAt: 'asc' } }),
+          prisma.agentRun.findFirst({ where: { taskId }, orderBy: { createdAt: 'desc' } }),
+        ]);
+
+        for (const trace of newTraces) {
+          if (seenTraces.has(trace.id)) continue;
+          seenTraces.add(trace.id);
+          send('trace', {
+            id: trace.id,
+            role: trace.role,
+            content: trace.content ?? undefined,
+            toolCalls: trace.toolCalls ? (JSON.parse(trace.toolCalls) as unknown) : undefined,
+            createdAt: trace.createdAt,
+            stepId: trace.stepId ?? undefined,
+          });
+        }
+
+        for (const span of newSpans) {
+          if (seenSpans.has(span.id)) continue;
+          seenSpans.add(span.id);
+          send('span', {
+            id: span.id,
+            name: span.name,
+            spanId: span.spanId,
+            parentId: span.parentId ?? undefined,
+            startTime: span.startTime,
+            endTime: span.endTime ?? undefined,
+            status: span.status,
+            attributes: span.attributes ? (JSON.parse(span.attributes) as unknown) : undefined,
+            events: span.events ? (JSON.parse(span.events) as unknown) : undefined,
+          });
+        }
+
+        for (const diff of newDiffs) {
+          if (seenDiffs.has(diff.id)) continue;
+          seenDiffs.add(diff.id);
+          send('diff', {
+            id: diff.id,
+            branch: diff.branch,
+            patch: diff.patch,
+            createdAt: diff.createdAt,
+          });
+        }
+
+        if (run) {
+          const key = `${run.resultStatus}:${String(run.totalTokens ?? '')}:${String(run.updatedAt.getTime())}`;
+          if (key !== lastRunKey) {
+            lastRunKey = key;
+            send('agent-run', {
+              id: run.id,
+              resultStatus: run.resultStatus,
+              branch: run.branch,
+              baseCommit: run.baseCommit,
+              promptTokens: run.promptTokens ?? undefined,
+              completionTokens: run.completionTokens ?? undefined,
+              totalTokens: run.totalTokens ?? undefined,
+              promptVersionId: run.promptVersionId ?? undefined,
+            });
+          }
+        }
+
+        if (current) {
+          const updated = current.updatedAt.getTime();
+          if (updated !== lastTaskUpdated) {
+            lastTaskUpdated = updated;
+            send('task', {
+              id: current.id,
+              status: current.status,
+              result: current.result ?? undefined,
+              error: current.error ?? undefined,
+              provider: current.provider ?? undefined,
+              model: current.model ?? undefined,
+            });
+          }
+          if (current.status === 'done' || current.status === 'failed') {
+            send('end', { id: current.id, status: current.status });
+            close();
+          }
+        }
+      } catch (err) {
+        console.error('SSE task stream poll error', err);
+      }
+    };
+
+    const poll = setInterval(() => {
+      void tick();
+    }, 500);
+    const heartbeat = setInterval(() => {
+      res.write(': ping\n\n');
+    }, 15000);
+    req.on('close', close);
   }));
 
   r.get('/:id', asyncHandler(async (req, res) => {
@@ -75,7 +294,13 @@ export function taskRoutes(prisma: PrismaClient): Router {
   r.post('/:id/run', asyncHandler(async (req, res) => {
     try {
       const body = runSchema.parse(req.body ?? {});
-      const result = await runTask(prisma, req.params.id, { detached: true, tokenBudget: body.tokenBudget });
+      const result = await runTask(prisma, req.params.id, {
+        detached: true,
+        tokenBudget: body.tokenBudget,
+        maxSubtasks: body.maxSubtasks,
+        maxIterations: body.maxIterations,
+        concurrency: body.concurrency,
+      });
       res.status(202).json(result);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

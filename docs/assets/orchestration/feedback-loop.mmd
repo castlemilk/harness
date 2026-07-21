@@ -1,0 +1,23 @@
+sequenceDiagram
+    participant O as Orchestrator
+    participant A as Sub-agent i
+    participant G as Git/Project
+    participant P as Reviewer (high-tier)
+    participant D as DB
+
+    loop each round (≤ maxIterations)
+        O->>D: mark ready subtasks running
+        par bounded concurrency (default 1)
+            O->>A: runAgentTask(subtask, isolated:false)
+            A->>G: read/edit/test/commit
+            A-->>O: done | failed + notes
+        end
+        O->>P: review(subtask statuses, cumulative diff)
+        alt status = done
+            P-->>O: done
+            O->>D: finalize
+        else status = continue
+            P-->>O: nextSubtasks?
+            O->>D: enqueue follow-up subtasks
+        end
+    end

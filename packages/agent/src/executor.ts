@@ -8,7 +8,7 @@ import { promisify } from 'node:util';
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
 import { createPlan } from './planner.js';
-import { executeTool, validatePatch, type ToolResult } from './tools.js';
+import { executeTool, validatePatch, codeOverview, type ToolResult } from './tools.js';
 import { validateProject, type ValidationSummary } from './validator.js';
 import { publishOmega, type PublishResult } from './publisher.js';
 import {
@@ -123,7 +123,17 @@ async function pathExists(filePath: string): Promise<boolean> {
 async function tryInstall(cmd: string, args: string[], cwd: string, timeoutMs: number, label: string): Promise<void> {
   try {
     logger.info(`Installing ${label} dependencies in worktree`, { cwd, command: `${cmd} ${args.join(' ')}` });
-    await execFileAsync(cmd, args, { cwd, timeout: timeoutMs });
+    await execFileAsync(cmd, args, {
+      cwd,
+      timeout: timeoutMs,
+      env: {
+        ...process.env,
+        // See deepswe.ts: corepack on Node 22.9 fails pnpm/yarn signature
+        // verification; disable integrity checks and auto-pinning.
+        COREPACK_INTEGRITY_KEYS: '0',
+        COREPACK_ENABLE_AUTO_PIN: '0',
+      },
+    });
   } catch (err) {
     logger.warn(`${label} dependency install failed`, {
       cwd,
@@ -141,8 +151,12 @@ async function commandExists(cmd: string): Promise<boolean> {
   }
 }
 
-async function nodeModulesPresent(projectPath: string): Promise<boolean> {
-  return pathExists(path.join(projectPath, 'node_modules'));
+async function nodeDependenciesInstalled(projectPath: string): Promise<boolean> {
+  if (await pathExists(path.join(projectPath, 'node_modules'))) return true;
+  // Yarn 2+ PnP projects do not create node_modules; dependencies live in .yarn
+  // and are resolved via .pnp.cjs.
+  if (await pathExists(path.join(projectPath, '.pnp.cjs'))) return true;
+  return false;
 }
 
 async function packageHasDependencies(projectPath: string): Promise<boolean> {
@@ -166,9 +180,23 @@ async function packageHasDependencies(projectPath: string): Promise<boolean> {
 // verified: if node_modules is still missing after all attempts, the function
 // throws so the task fails with a clear error instead of silently breaking.
 async function installWorktreeDependencies(projectPath: string): Promise<void> {
+  // Pure Deno projects manage their own deps via deno cache; do not try
+  // npm/pnpm. Mixed projects (deno.json + package.json/lockfile) still need
+  // the Node install.
+  const hasDenoConfig =
+    (await pathExists(path.join(projectPath, 'deno.json'))) ||
+    (await pathExists(path.join(projectPath, 'deno.jsonc')));
+  const hasNodePackage =
+    (await pathExists(path.join(projectPath, 'package.json'))) ||
+    (await pathExists(path.join(projectPath, 'pnpm-lock.yaml'))) ||
+    (await pathExists(path.join(projectPath, 'package-lock.json'))) ||
+    (await pathExists(path.join(projectPath, 'yarn.lock')));
+  if (hasDenoConfig && !hasNodePackage) {
+    return;
+  }
   const hasPackageJson = await pathExists(path.join(projectPath, 'package.json'));
   if (hasPackageJson) {
-    if (await nodeModulesPresent(projectPath)) return;
+    if (await nodeDependenciesInstalled(projectPath)) return;
 
     // Projects with no declared dependencies do not need a node_modules folder.
     const needsDependencies = await packageHasDependencies(projectPath);
@@ -180,33 +208,57 @@ async function installWorktreeDependencies(projectPath: string): Promise<void> {
     const hasPnpmLock = await pathExists(path.join(projectPath, 'pnpm-lock.yaml'));
     const hasYarnLock = await pathExists(path.join(projectPath, 'yarn.lock'));
 
-    if (hasPnpmLock && (await commandExists('pnpm'))) {
-      await tryInstall('pnpm', ['install', '--prefer-offline'], projectPath, 300_000, 'node (pnpm)');
-      attempts.push('pnpm install');
-      if (await nodeModulesPresent(projectPath)) return;
+    let packageManager = '';
+    try {
+      const pkgRaw = await fs.readFile(path.join(projectPath, 'package.json'), 'utf-8');
+      const pkg = JSON.parse(pkgRaw) as { packageManager?: string };
+      packageManager = pkg.packageManager ?? '';
+    } catch {
+      // ignore malformed package.json
     }
 
-    if (hasYarnLock && (await commandExists('yarn'))) {
-      await tryInstall('yarn', ['install'], projectPath, 300_000, 'node (yarn)');
-      attempts.push('yarn install');
-      if (await nodeModulesPresent(projectPath)) return;
-      await tryInstall('yarn', ['install', '--ignore-scripts'], projectPath, 300_000, 'node (yarn ignore-scripts)');
-      attempts.push('yarn install --ignore-scripts');
-      if (await nodeModulesPresent(projectPath)) return;
+    if (hasPnpmLock) {
+      // Corepack's default pnpm (11.x) requires Node >= 22.13; pin a
+      // compatible version on this host.
+      if (await commandExists('corepack')) {
+        await tryInstall('corepack', ['pnpm@10.18.0', 'install', '--prefer-offline'], projectPath, 300_000, 'node (corepack pnpm)');
+        attempts.push('corepack pnpm@10.18.0 install');
+        if (await nodeDependenciesInstalled(projectPath)) return;
+      } else if (await commandExists('pnpm')) {
+        await tryInstall('pnpm', ['install', '--prefer-offline'], projectPath, 300_000, 'node (pnpm)');
+        attempts.push('pnpm install');
+        if (await nodeDependenciesInstalled(projectPath)) return;
+      }
+    }
+
+    if (hasYarnLock) {
+      if (/^yarn@[2-9]/.test(packageManager) && (await commandExists('corepack'))) {
+        await tryInstall('corepack', ['yarn', 'install'], projectPath, 300_000, 'node (corepack yarn)');
+        attempts.push('corepack yarn install');
+        if (await nodeDependenciesInstalled(projectPath)) return;
+      }
+      if (await commandExists('yarn')) {
+        await tryInstall('yarn', ['install'], projectPath, 300_000, 'node (yarn)');
+        attempts.push('yarn install');
+        if (await nodeDependenciesInstalled(projectPath)) return;
+        await tryInstall('yarn', ['install', '--ignore-scripts'], projectPath, 300_000, 'node (yarn ignore-scripts)');
+        attempts.push('yarn install --ignore-scripts');
+        if (await nodeDependenciesInstalled(projectPath)) return;
+      }
     }
 
     // Fallback to npm when lockfile-specific tools are unavailable or failed.
     if (!hasPnpmLock && !hasYarnLock) {
       await tryInstall('npm', ['ci'], projectPath, 300_000, 'node (npm)');
       attempts.push('npm ci');
-      if (await nodeModulesPresent(projectPath)) return;
+      if (await nodeDependenciesInstalled(projectPath)) return;
     }
     await tryInstall('npm', ['install'], projectPath, 300_000, 'node (npm)');
     attempts.push('npm install');
-    if (await nodeModulesPresent(projectPath)) return;
+    if (await nodeDependenciesInstalled(projectPath)) return;
     await tryInstall('npm', ['install', '--ignore-scripts'], projectPath, 300_000, 'node (npm ignore-scripts)');
     attempts.push('npm install --ignore-scripts');
-    if (await nodeModulesPresent(projectPath)) return;
+    if (await nodeDependenciesInstalled(projectPath)) return;
 
     throw new Error(`Dependency install failed: node_modules is missing after attempts: ${attempts.join(', ')}`);
   }
@@ -258,13 +310,13 @@ async function installWorktreeDependencies(projectPath: string): Promise<void> {
 function explorationBudgetForComplexity(complexity: string | undefined): { beforeFirstEdit: number; betweenEdits: number } {
   switch (complexity) {
     case 'simple':
-      return { beforeFirstEdit: 6, betweenEdits: 8 };
+      return { beforeFirstEdit: 3, betweenEdits: 5 };
     case 'medium':
-      return { beforeFirstEdit: 10, betweenEdits: 12 };
+      return { beforeFirstEdit: 5, betweenEdits: 7 };
     case 'complex':
-      return { beforeFirstEdit: 14, betweenEdits: 16 };
+      return { beforeFirstEdit: 7, betweenEdits: 9 };
     default:
-      return { beforeFirstEdit: 8, betweenEdits: 10 };
+      return { beforeFirstEdit: 4, betweenEdits: 6 };
   }
 }
 
@@ -357,6 +409,8 @@ interface AgentContext {
   usage: UsageInfo;
   apiSurfaceVerified: boolean;
   tokenBudget?: number; // optional cap on total tokens for this run
+  repoOverview?: string;
+  stuckSolveAttempted?: boolean;
 }
 
 function toCoreTask(row: {
@@ -456,6 +510,66 @@ async function applySkillPatches(
   return { applied, patch: diff.output };
 }
 
+function extractPatch(raw: string): string | undefined {
+  const fence = /```(?:diff|patch)?\n([\s\S]*?)```/.exec(raw);
+  let text = fence ? fence[1] : raw;
+  const diffIdx = text.search(/^diff --git /m);
+  const altIdx = text.search(/^--- a\//m);
+  if (diffIdx === -1 && altIdx === -1) return undefined;
+  text = text.slice(diffIdx !== -1 ? diffIdx : altIdx);
+  const lines = text.split('\n');
+  const out: string[] = [];
+  for (const line of lines) {
+    if (/^(diff --git|--- |\+\+\+ |@@ |index |new file|deleted file|[-+ \\]|\\ No newline)/.test(line)) {
+      out.push(line);
+    } else if (out.length > 0 && line.trim() === '') {
+      out.push(line);
+    } else if (out.length > 0) {
+      break;
+    }
+  }
+  const patch = out.join('\n').trim();
+  return patch.length > 0 ? `${patch}\n` : undefined;
+}
+
+async function tryStuckSolve(ctx: AgentContext): Promise<boolean> {
+  if (ctx.stuckSolveAttempted) return false;
+  ctx.stuckSolveAttempted = true;
+  const prompt = `Task: ${ctx.task.title}\n\nDescription:\n${ctx.task.description ?? ''}\n\n${ctx.repoOverview ?? ''}\n\nProduce the smallest unified diff patch (git apply format) that makes concrete progress on this task. Output ONLY the diff, no explanation, no markdown fences.`;
+  try {
+    const raw = await ctx.provider.send(prompt, {
+      system: 'You are a senior software engineer. Output ONLY a unified diff patch in git apply format. No explanation, no markdown fences.',
+      model: ctx.model,
+      temperature: 0.2,
+    });
+    const patch = extractPatch(raw);
+    if (!patch) return false;
+    const tmp = path.join(ctx.projectPath, '.stuck-solve.patch');
+    await fs.writeFile(tmp, patch, 'utf-8');
+    try {
+      await execFileAsync('git', ['-C', ctx.projectPath, 'apply', '--whitespace=nowarn', tmp]);
+      logger.info('Stuck-solver applied a draft patch', { taskId: ctx.task.id, agentRunId: ctx.agentRunId });
+      return true;
+    } catch (err) {
+      logger.warn('Stuck-solver patch failed to apply', {
+        taskId: ctx.task.id,
+        agentRunId: ctx.agentRunId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return false;
+    } finally {
+      await fs.rm(tmp, { force: true }).catch(() => undefined);
+    }
+  } catch (err) {
+    logger.warn('Stuck-solver provider call failed', {
+      taskId: ctx.task.id,
+      agentRunId: ctx.agentRunId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}
+
 export async function runAgentTask(
   prisma: PrismaClient,
   taskId: string,
@@ -517,14 +631,18 @@ export async function runAgentTask(
     throw new Error('Not a git repository');
   }
 
-  // Stash any uncommitted changes so the agent starts from a clean base.
+  // Isolated runs (the default) get a clean base: uncommitted changes are
+  // stashed and the agent works in a separate worktree/branch. Non-isolated
+  // runs execute directly in options.projectPath on the current branch, so
+  // they must NOT stash, create branches, or checkout — the caller (e.g. the
+  // orchestrator) owns the working tree.
+  const isolated = options.isolated ?? true;
   let stashed = false;
-  if (await hasChanges(options.projectPath)) {
+  if (isolated && (await hasChanges(options.projectPath))) {
     const stashResult = await stashAll(options.projectPath);
     stashed = stashResult.success;
   }
 
-  const isolated = options.isolated ?? false;
   let worktreePath: string | undefined;
   let effectiveProjectPath = options.projectPath;
   if (isolated) {
@@ -555,15 +673,10 @@ export async function runAgentTask(
         logger.warn('Failed to clean other branches from project', { projectPath: options.projectPath, error: String(err) });
       });
     }
-  } else {
-    const branchResult = await createBranch(options.projectPath, branch, baseCommit.output);
-    if (!branchResult.success) {
-      await checkoutBranch(options.projectPath, branch);
-    }
-    await deleteOtherLocalBranches(options.projectPath, branch).catch((err: unknown) => {
-      logger.warn('Failed to clean other branches from project', { projectPath: options.projectPath, error: String(err) });
-    });
   }
+  // Non-isolated mode: no worktree, no branch, no checkout. The agent loop
+  // still commits at the end (see executeAgentLoop), which is what the
+  // orchestrator relies on to accumulate subtask changes on the current branch.
 
   let agentRun;
   let agentResult: AgentResult | undefined;
@@ -572,6 +685,7 @@ export async function runAgentTask(
   let skills: ResolvedSkill[] = [];
   let combinedContext = '';
   let systemPrompt = '';
+  let repoOverviewText = '';
   try {
     // Isolated worktrees lack installed dependencies. Install per-language so the
     // agent's build/test verification (the build gate) can actually run.
@@ -582,14 +696,24 @@ export async function runAgentTask(
       lookbackRuns: 5,
       taskDescription: task.description,
     });
-    skills = await resolveSkills(
-      prisma,
-      effectiveProjectPath,
-      task.description,
-      task.tags ? (JSON.parse(task.tags) as string[]) : undefined
-    );
+    const taskTags = task.tags ? (JSON.parse(task.tags) as string[]) : [];
+    // Sub-agents created by the orchestrator should not have task-specific
+    // reference skills auto-applied; they implement their own subtask.
+    skills = taskTags.includes('subtask')
+      ? []
+      : await resolveSkills(prisma, effectiveProjectPath, task.description, taskTags);
     const skillContext = formatSkillContext(skills);
-    combinedContext = [promptContext.text, skillContext].filter(Boolean).join('\n\n');
+    // Seed a condensed repository overview so the agent starts with a structural
+    // map instead of spending its first steps on blind exploration.
+    try {
+      const overview = await codeOverview(effectiveProjectPath);
+      if (overview.success && overview.output) {
+        repoOverviewText = `Repository overview:\n${overview.output.slice(0, 2000)}`;
+      }
+    } catch {
+      // ignore overview failures
+    }
+    combinedContext = [promptContext.text, skillContext, repoOverviewText].filter(Boolean).join('\n\n');
     systemPrompt = buildSystemPrompt(combinedContext);
 
     const currentPrompts = await loadCurrentPrompts(skillContext);
@@ -681,6 +805,7 @@ export async function runAgentTask(
     promptContext: combinedContext,
     usage: {},
     apiSurfaceVerified: false,
+    repoOverview: repoOverviewText,
   };
 
   logger.info('Agent task started', {
@@ -745,7 +870,7 @@ export async function runAgentTask(
           });
         }
       }
-    } else {
+    } else if (isolated) {
       await checkoutBranch(options.projectPath, baseBranch.output);
     }
     if (stashed) {
@@ -1256,25 +1381,42 @@ async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Pro
       // Hard rejection when the agent wanders without editing; advisory only for
       // the milder pre-first-edit over-budget case before the hard threshold.
       const budgetAdvisory =
-        !stuckWithoutEdits && !wanderingTooLong && !forcedEditMode && (explorationBudgetExhausted || wanderingAfterEdits);
+        !forcedEditMode && (explorationBudgetExhausted || wanderingAfterEdits || stuckWithoutEdits || wanderingTooLong);
 
       const allowedInForcedMode = new Set(['edit_file', 'write_file', 'edit_lines', 'apply_patch', 'read_file', 'search', 'think']);
       // Patch application via run_command (git apply) is itself an edit; do not
       // reject it in forced-edit mode or skill-based one-shot workflows break.
+      if (stuckWithoutEdits && !forcedEditMode) {
+        // Last-resort unblock: ask the provider for a minimal patch when the
+        // agent has explored for a while without making any edit.
+        const solved = await tryStuckSolve(ctx);
+        if (solved) {
+          ctx.editCount++;
+          ctx.explorationAtLastEdit = ctx.explorationCount;
+          ctx.explorationSinceLastEdit = 0;
+          result = {
+            success: true,
+            output: 'Stuck-solver applied a draft patch to break the exploration loop. Review the change, then run the project build/test command and fix any issues.',
+          };
+          // Skip the current exploration tool so the agent sees the solver output
+          // and moves on to verification.
+          toolResults.push({ toolCallId: call.id, output: result.output });
+          messages.push({ role: 'tool', tool_call_id: call.id, content: result.output });
+          processedToolCallIds.add(call.id);
+          await addTrace(ctx, 'tool', result.output, undefined, stepId);
+          await ctx.prisma.taskStep.update({
+            where: { id: stepId },
+            data: { status: 'done', output: sanitizeForDb(result.output) },
+          });
+          await toolSpan.end('ok');
+          stepIndex++;
+          continue;
+        }
+      }
       if (forcedEditMode && !allowedInForcedMode.has(call.name) && !isPatchCommand) {
         result = {
           success: false,
           output: 'EDIT-FIRST MODE: you have explored too long without editing. read_file, search, and think are still allowed, but run_command, list_files, code_overview, lsp_*, finish, publish, validate_patch, and verify_api_surface are rejected until you make a concrete source change. Make an edit now (use edit_file, edit_lines, apply_patch, or write_file for a new file).',
-        };
-      } else if (stuckWithoutEdits) {
-        result = {
-          success: false,
-          output: `Forcing action: you have used ${String(ctx.explorationCount)} exploration steps and made ${String(ctx.editCount)} edits. Stop exploring and use edit_file, edit_lines, apply_patch, or write_file (for a new file) to advance the task.`,
-        };
-      } else if (wanderingTooLong) {
-        result = {
-          success: false,
-          output: `Forcing action: ${String(ctx.explorationSinceLastEdit)} exploration steps since your last edit. Stop exploring and use edit_file or edit_lines to advance the task now.`,
         };
       } else if (call.name === 'run_command' && typeof call.arguments.command === 'string' && isReadOnlyShellCommand(call.arguments.command)) {
         result = {
@@ -1309,9 +1451,13 @@ async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Pro
 
       if (budgetAdvisory && result.success) {
         const sinceEdit = ctx.explorationCount - ctx.explorationAtLastEdit;
+        const strong = stuckWithoutEdits || wanderingTooLong;
+        const notice = strong
+          ? `\n[EDIT-FIRST ADVISORY] You have used ${String(ctx.explorationCount)} exploration steps and made ${String(ctx.editCount)} edits (${String(sinceEdit)} since your last edit). Treat this as an instruction, not a tool failure: make the smallest edit_file/edit_lines/apply_patch change now, even if partial, then run the project's build/test command.`
+          : `\n[budget notice] ${String(sinceEdit)} exploration steps since your last edit. Make a concrete edit or run the focused tests next — do not re-read files you already know.`;
         result = {
           success: true,
-          output: `${result.output}\n[budget notice] ${String(sinceEdit)} exploration steps since your last edit. Make a concrete edit or run the focused tests next — do not re-read files you already know.`,
+          output: `${result.output}${notice}`,
         };
       }
 

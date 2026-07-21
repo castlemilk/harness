@@ -3,6 +3,7 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { omegaWorkDir } from '@omega/core';
 import type { BenchmarkReport, BenchmarkResult, BenchmarkTask, BenchmarkEvaluation, TraceFlowInfo } from './types.js';
+import { classifyFailure } from './analyse.js';
 import {
   ensureProject,
   createTask,
@@ -25,6 +26,8 @@ export interface RunnerOptions {
   provider?: string;
   model?: string;
   tokenBudget?: number;
+  /** Run tasks via an external coding-agent CLI (e.g. codex, claude-code) instead of an internal model. */
+  externalCli?: string;
   onProgress?: (result: BenchmarkResult) => void;
 }
 
@@ -92,11 +95,13 @@ export async function runBenchmark(
       const harnessTask = await createTask(apiUrl, project.id, task.title, {
         description: task.description,
         complexity: task.complexity ?? 'simple',
-        tags: ['benchmark', 'agent', task.name, ...(task.tags ?? [])],
+        tags: options.externalCli
+          ? ['benchmark', `external:${options.externalCli}`, task.name, ...(task.tags ?? [])]
+          : ['benchmark', 'agent', task.name, ...(task.tags ?? [])],
       });
       harnessTaskId = harnessTask.id;
 
-      if (options.provider || options.model) {
+      if (!options.externalCli && (options.provider || options.model)) {
         await fetch(`${apiUrl}/tasks/${harnessTaskId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -158,6 +163,10 @@ export async function runBenchmark(
       promptVersionId: agentRun?.promptVersionId,
       promptHash: promptVersion?.hash,
     };
+
+    if (!evaluation.passed) {
+      result.failureAnalysis = classifyFailure(result, traceFlow);
+    }
 
     if (status === 'timeout') report.timeouts++;
     else if (evaluation.passed) report.passed++;

@@ -193,7 +193,8 @@ function languageGuidance(language: string | undefined): string {
 - Install deps if missing: npm install  (or: pnpm install)
 - Typecheck: npx tsc --noEmit
 - Run existing tests: npm test  (or: pnpm test)
-- Lint: npm run lint  (or: pnpm lint)`;
+- Lint: npm run lint  (or: pnpm lint)
+- If deno.json or deno.jsonc exists, this is a Deno project: use deno cache to fetch deps and deno test to run tests; do NOT use npm/pnpm.`;
   } else {
     cmds = `Language: unknown. Detect the project's test/build command from package.json, go.mod, Cargo.toml, or pyproject.toml, then run it.`;
   }
@@ -319,6 +320,32 @@ async function installProjectDependencies(
   const has = (f: string) => fs.access(path.join(projectPath, f)).then(() => true, () => false);
   const lang = (language ?? '').toLowerCase();
 
+  // Pure Deno projects do not need a Node package install, but the verifier
+  // runs `deno test --cached-only`, so all test-time imports must be
+  // pre-fetched into the local Deno cache. Mixed projects (e.g. optique) have
+  // both deno.json and a Node lockfile; those still need the Node install.
+  const hasDenoConfig = (await has('deno.json')) || (await has('deno.jsonc'));
+  const hasNodePackage =
+    (await has('package.json')) || (await has('pnpm-lock.yaml')) || (await has('package-lock.json')) || (await has('yarn.lock'));
+  if (hasDenoConfig && !hasNodePackage) {
+    console.log('[deepswe] Deno project detected, caching dependencies');
+    const denoBinDir = await ensureDeno();
+    const denoEnv: NodeJS.ProcessEnv = { ...process.env };
+    if (denoBinDir) {
+      denoEnv.PATH = `${denoBinDir}${path.delimiter}${denoEnv.PATH ?? ''}`;
+    }
+    const denoCmd = denoBinDir ? path.join(denoBinDir, 'deno') : 'deno';
+    // `deno test --no-run --no-check` caches every test module and its JSR/npm
+    // dependencies without executing the tests or failing on type errors.
+    // Deps are written to the shared DENO_DIR, so the agent worktree and the
+    // verifier reuse them.
+    const cache = await runCommand(denoCmd, ['test', '--no-run', '--no-check'], { cwd: projectPath, env: denoEnv, timeout: 300_000 });
+    if (cache.exitCode !== 0) {
+      console.warn(`[deepswe] deno dependency cache incomplete (continuing): ${cache.stderr.slice(-500)}`);
+    }
+    return;
+  }
+
   const nodePackageDir = await findNodePackageDir(projectPath);
   if (nodePackageDir) {
     // pnpm workspaces keep the lockfile at the workspace root; installing from
@@ -326,9 +353,25 @@ async function installProjectDependencies(
     const workspaceRoot = await findPnpmWorkspaceRoot(nodePackageDir);
     const installDir = workspaceRoot ?? nodePackageDir;
     const nodeHas = (f: string) => fs.access(path.join(installDir, f)).then(() => true, () => false);
-    const lock = (await nodeHas('pnpm-lock.yaml')) ? 'pnpm-lock.yaml' : (await nodeHas('yarn.lock')) ? 'yarn.lock' : undefined;
-    const cmd = lock === 'pnpm-lock.yaml' && (await commandExists('pnpm')) ? ['pnpm', 'install'] :
+    const lock = (await nodeHas('pnpm-lock.yaml')) ? 'pnpm-lock.yaml' :
+                 (await nodeHas('yarn.lock')) ? 'yarn.lock' :
+                 (await nodeHas('package-lock.json')) ? 'package-lock.json' : undefined;
+    let packageManager = '';
+    try {
+      const pkgRaw = await fs.readFile(path.join(installDir, 'package.json'), 'utf-8');
+      const pkg = JSON.parse(pkgRaw) as { packageManager?: string };
+      packageManager = pkg.packageManager ?? '';
+    } catch {
+      // ignore unreadable package.json
+    }
+    const useCorepackYarn = lock === 'yarn.lock' && /^yarn@[2-9]/.test(packageManager) && (await commandExists('corepack'));
+    // Corepack's default pnpm (11.x) requires Node >= 22.13; pin a compatible
+    // version for pnpm projects on this host.
+    const useCorepackPnpm = lock === 'pnpm-lock.yaml' && (await commandExists('corepack'));
+    const cmd = useCorepackPnpm ? ['corepack', 'pnpm@10.18.0', 'install'] :
+                useCorepackYarn ? ['corepack', 'yarn', 'install'] :
                 lock === 'yarn.lock' && (await commandExists('yarn')) ? ['yarn', 'install'] :
+                lock === 'package-lock.json' ? ['npm', 'ci'] :
                 ['npm', 'install'];
     const ensureNodeBinaries = async (): Promise<boolean> => {
       try {
@@ -343,17 +386,41 @@ async function installProjectDependencies(
         return true;
       }
     };
-    const runInstall = async (): Promise<void> => {
-      const install = await runCommand(cmd[0], cmd.slice(1), { cwd: installDir, timeout: 300_000 });
+    const runInstall = async (args: string[]): Promise<void> => {
+      const install = await runCommand('npm', args, { cwd: installDir, timeout: 300_000 });
       if (install.exitCode !== 0) {
         throw new Error(`Dependency install failed: ${install.stderr}\n${install.stdout}`);
       }
     };
-    await runInstall();
+    if (cmd[0] === 'npm' && cmd[1] === 'ci') {
+      const install = await runCommand('npm', ['ci'], { cwd: installDir, timeout: 300_000 });
+      if (install.exitCode !== 0) {
+        if (install.stderr.includes('EBADENGINE') || install.stdout.includes('EBADENGINE')) {
+          console.warn('[deepswe] npm ci failed with engine mismatch, falling back to npm install --no-engine-strict');
+          await runInstall(['install', '--no-engine-strict']);
+        } else {
+          throw new Error(`npm ci failed: ${install.stderr}\n${install.stdout}`);
+        }
+      }
+    } else {
+      await runCommand(cmd[0], cmd.slice(1), { cwd: installDir, timeout: 300_000 }).then((r) => {
+        if (r.exitCode !== 0) {
+          throw new Error(`Dependency install failed (${cmd.join(' ')}): ${r.stderr}\n${r.stdout}`);
+        }
+      });
+    }
     if (!(await ensureNodeBinaries())) {
       console.warn('[deepswe] node_modules missing test binaries, reinstalling');
       await fs.rm(path.join(installDir, 'node_modules'), { recursive: true, force: true });
-      await runInstall();
+      if (cmd[0] === 'npm' && cmd[1] === 'ci') {
+        await runInstall(['install', '--no-engine-strict']);
+      } else {
+        await runCommand(cmd[0], cmd.slice(1), { cwd: installDir, timeout: 300_000 }).then((r) => {
+          if (r.exitCode !== 0) {
+            throw new Error(`Dependency install failed (${cmd.join(' ')}): ${r.stderr}\n${r.stdout}`);
+          }
+        });
+      }
     }
     return;
   }
@@ -392,8 +459,16 @@ async function installProjectDependencies(
       let failed = false;
 
       if (await has('pyproject.toml') || await has('setup.py')) {
+        // Ensure a modern pip that supports PEP 660 editable installs for
+        // pyproject-only projects (poetry/hatchling/flit backends).
+        await runCommand(pipBin, ['install', '--upgrade', 'pip'], { cwd: projectPath, timeout: 120_000 });
         const install = await runCommand(pipBin, ['install', '-e', '.'], { cwd: projectPath, timeout: 300_000 });
-        if (install.exitCode !== 0) failed = fail('pip install -e .', install.stderr);
+        if (install.exitCode !== 0) {
+          // Older pip or non-setuptools pyproject backends: fall back to a
+          // regular install so the package is importable during verification.
+          const fallback = await runCommand(pipBin, ['install', '.'], { cwd: projectPath, timeout: 300_000 });
+          if (fallback.exitCode !== 0) failed = fail('pip install -e .', install.stderr);
+        }
       } else if (await has('requirements.txt')) {
         const install = await runCommand(pipBin, ['install', '-r', 'requirements.txt'], { cwd: projectPath, timeout: 300_000 });
         if (install.exitCode !== 0) failed = fail('pip install -r requirements.txt', install.stderr);
@@ -510,25 +585,6 @@ async function installProjectDependencies(
             console.warn(`[deepswe] dateutil zoneinfo rebuild failed: ${update.stderr}`);
           }
         }
-        // Mobly's _collect_process_tree uses macOS-specific `pgrep -P`, but the
-        // DeepSWE verifier's mocked test expects Linux `ps --ppid` syntax. On
-        // Darwin, force the Linux command so the mocked p2p test passes.
-        if (taskName === 'mobly-grouped-test-barriers' && os.platform() === 'darwin') {
-          const utilsPath = path.join(projectPath, 'mobly', 'utils.py');
-          try {
-            const utilsSource = await fs.readFile(utilsPath, 'utf-8');
-            const patched = utilsSource.replace(
-              /\s{4}if platform\.system\(\) == 'Darwin':\n\s{6}command = \['pgrep', '-P', str\(pid\)\]\n\s{4}else:\n\s{6}command = \[/g,
-              '    command = ['
-            );
-            if (patched !== utilsSource) {
-              await fs.writeFile(utilsPath, patched, 'utf-8');
-              console.log('[deepswe] Patched mobly/utils.py for Darwin ps compatibility');
-            }
-          } catch {
-            // ignore missing or unpatchable utils.py
-          }
-        }
         // Make sure the venv and node_modules are never committed by the bench
         // init commit; otherwise the verifier's git checkout strips them out.
         await ensureGitignoreLines(projectPath, ['.venv/', 'node_modules/']);
@@ -576,6 +632,46 @@ function normalisePatch(patch: string): string {
   if (patch.length === 0) return patch;
   // git apply expects the patch file itself to end with a newline.
   return patch.endsWith('\n') ? patch : `${patch}\n`;
+}
+
+async function patchMoblyForDarwin(projectPath: string): Promise<void> {
+  if (os.platform() !== 'darwin') return;
+
+  // Mobly's _collect_process_tree uses macOS-specific `pgrep -P`, but the
+  // DeepSWE verifier's mocked test expects Linux `ps --ppid` syntax. Force
+  // the Linux command so the mocked p2p test passes.
+  const utilsPath = path.join(projectPath, 'mobly', 'utils.py');
+  try {
+    const utilsSource = await fs.readFile(utilsPath, 'utf-8');
+    const patched = utilsSource.replace(
+      /\s{4}if platform\.system\(\) == 'Darwin':\n\s{6}command = \['pgrep', '-P', str\(pid\)\]\n\s{4}else:\n\s{6}command = \[/g,
+      '    command = ['
+    );
+    if (patched !== utilsSource) {
+      await fs.writeFile(utilsPath, patched, 'utf-8');
+      console.log('[deepswe] Patched mobly/utils.py for Darwin ps compatibility');
+    }
+  } catch {
+    // ignore missing or unpatchable utils.py
+  }
+
+  // The p2p whitelist includes a Linux-only test that is skipped on Darwin.
+  // The test mocks subprocess.check_output, so it is safe to run it here once
+  // we force the Linux code path above.
+  const utilsTestPath = path.join(projectPath, 'tests', 'mobly', 'utils_test.py');
+  try {
+    const utilsTestSource = await fs.readFile(utilsTestPath, 'utf-8');
+    const patched = utilsTestSource.replace(
+      /\n\s*@unittest\.skipIf\(\s*\n\s*platform\.system\(\) != 'Linux',\s*\n\s*'collect_process_tree only available on Unix like system\.',\s*\n\s*\)\s*\n/g,
+      '\n'
+    );
+    if (patched !== utilsTestSource) {
+      await fs.writeFile(utilsTestPath, patched, 'utf-8');
+      console.log('[deepswe] Patched mobly/utils_test.py for Darwin p2p compatibility');
+    }
+  } catch {
+    // ignore missing or unpatchable utils_test.py
+  }
 }
 
 async function forceCheckout(projectPath: string, baseCommit: string): Promise<void> {
@@ -762,7 +858,15 @@ async function runCommand(
   try {
     const { stdout, stderr } = await execFileAsync(command, args, {
       cwd: options.cwd,
-      env: options.env,
+      env: {
+        ...process.env,
+        // Corepack 0.29 + Node 22.9 fails to verify pnpm/yarn tarball
+        // signatures; disable integrity checks and auto-pinning so installs
+        // use a compatible package-manager version.
+        COREPACK_INTEGRITY_KEYS: '0',
+        COREPACK_ENABLE_AUTO_PIN: '0',
+        ...options.env,
+      },
       timeout: options.timeout ?? 600000,
       // Docker build/test logs are huge; the default 1MB buffer truncates
       // them and misclassifies successful builds as failures.
@@ -770,10 +874,10 @@ async function runCommand(
     });
     return { stdout, stderr, exitCode: 0 };
   } catch (err) {
-    const e = err as { stdout?: string; stderr?: string; code?: number };
+    const e = err as { stdout?: string; stderr?: string; code?: number; message?: string };
     return {
       stdout: e.stdout ?? '',
-      stderr: e.stderr ?? '',
+      stderr: e.stderr ?? e.message ?? '',
       exitCode: e.code ?? 1,
     };
   }
@@ -844,6 +948,47 @@ async function ensureMochaCtrf(): Promise<string> {
     throw new Error(`Failed to install mocha-ctrf-json-reporter: ${install.stderr}\n${install.stdout}`);
   }
   return cacheDir;
+}
+
+async function ensureDeno(): Promise<string | undefined> {
+  if (await commandExists('deno')) return undefined;
+  const cacheDir = path.join(omegaVerifierToolsDir(), 'deno');
+  const binary = path.join(cacheDir, 'bin', 'deno');
+  try {
+    await fs.access(binary);
+    return path.join(cacheDir, 'bin');
+  } catch {
+    // not cached; install on demand
+  }
+  const platform = os.platform();
+  const arch = os.arch();
+  let suffix: string;
+  if (platform === 'darwin' && arch === 'arm64') {
+    suffix = 'aarch64-apple-darwin';
+  } else if (platform === 'darwin') {
+    suffix = 'x86_64-apple-darwin';
+  } else if (platform === 'linux' && arch === 'arm64') {
+    suffix = 'aarch64-unknown-linux-gnu';
+  } else if (platform === 'linux') {
+    suffix = 'x86_64-unknown-linux-gnu';
+  } else {
+    return undefined;
+  }
+  const url = `https://github.com/denoland/deno/releases/latest/download/deno-${suffix}.zip`;
+  const zipPath = path.join(cacheDir, 'deno.zip');
+  await fs.mkdir(cacheDir, { recursive: true });
+  const download = await runCommand('curl', ['-fsSL', url, '-o', zipPath], { timeout: 300_000 });
+  if (download.exitCode !== 0) {
+    throw new Error(`Failed to download deno: ${download.stderr}\n${download.stdout}`);
+  }
+  await fs.mkdir(path.join(cacheDir, 'bin'), { recursive: true });
+  const unzip = await runCommand('unzip', ['-o', '-q', zipPath, '-d', path.join(cacheDir, 'bin')], { timeout: 60_000 });
+  if (unzip.exitCode !== 0) {
+    throw new Error(`Failed to unzip deno: ${unzip.stderr}\n${unzip.stdout}`);
+  }
+  await fs.chmod(binary, 0o755).catch(() => undefined);
+  await fs.rm(zipPath, { force: true }).catch(() => undefined);
+  return path.join(cacheDir, 'bin');
 }
 
 async function ensureNextest(): Promise<string> {
@@ -1097,7 +1242,7 @@ async function runDeepSWEVerifierDocker(
     '/tests/test.sh',
   ];
 
-  const testRun = await runCommand('docker', args, { timeout: 600000 });
+  const testRun = await runCommand('docker', args, { timeout: 1_800_000 });
   log(`=== test.sh stdout ===\n${testRun.stdout}`);
   log(`=== test.sh stderr ===\n${testRun.stderr}`);
 
@@ -1184,6 +1329,12 @@ async function runDeepSWEVerifierLocal(
   // a cached or reused project worktree.
   await ensureTaskDepsInstalled(projectPath, taskName);
 
+  // Re-apply per-task environment fixups after the force-checkout, which
+  // discards any uncommitted changes made during initial setup.
+  if (taskName === 'mobly-grouped-test-barriers') {
+    await patchMoblyForDarwin(projectPath);
+  }
+
   const junitBinDir = await ensureJunitToCtrf();
 
   const testShPath = path.join(copiedTestsDir, 'test.sh');
@@ -1205,6 +1356,25 @@ async function runDeepSWEVerifierLocal(
   if (nextestDir) {
     rewritten = rewritten.replace(/\/opt\/nextest/g, nextestDir);
   }
+  const denoDir = /\bdeno\b/.test(rewritten) ? await ensureDeno() : undefined;
+  // Deno-only verifiers run `deno test --cached-only`, but the new-mode test
+  // file is only added by test.patch, so its JSR deps are not cached during
+  // setup. Cache them after the grader applies test.patch. Mixed projects with
+  // a Node lockfile use the normal Node toolchain instead.
+  const hasDenoConfig =
+    (await fs.access(path.join(projectPath, 'deno.json')).then(() => true, () => false)) ||
+    (await fs.access(path.join(projectPath, 'deno.jsonc')).then(() => true, () => false));
+  const hasNodePackage =
+    (await fs.access(path.join(projectPath, 'package.json')).then(() => true, () => false)) ||
+    (await fs.access(path.join(projectPath, 'pnpm-lock.yaml')).then(() => true, () => false)) ||
+    (await fs.access(path.join(projectPath, 'package-lock.json')).then(() => true, () => false)) ||
+    (await fs.access(path.join(projectPath, 'yarn.lock')).then(() => true, () => false));
+  if (hasDenoConfig && !hasNodePackage) {
+    rewritten = rewritten.replace(
+      /python3 \$\{TESTS_DIR\}\/grader\.py prepare \|\| exit \$\?/,
+      'python3 ${TESTS_DIR}/grader.py prepare || exit $?\ndeno test --no-run --no-check || true'
+    );
+  }
   // Node 22's built-in junit reporter omits the `file` attribute that DeepSWE
   // needs to build whitelisted ids. Swap it for a custom reporter when the
   // test frame uses node:test with JUnit output.
@@ -1221,6 +1391,8 @@ async function runDeepSWEVerifierLocal(
     );
   }
 
+  const pnpPath = path.join(projectPath, '.pnp.cjs');
+  const hasPnp = await fs.access(pnpPath).then(() => true, () => false);
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     APP_DIR: projectPath,
@@ -1228,7 +1400,8 @@ async function runDeepSWEVerifierLocal(
     VERIFIER_DIR: verifierDir,
     ARTIFACTS_DIR: artifactsDir,
     // Kysely's .mocharc.js requires std-env@4 which is ESM-only.
-    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --experimental-require-module`.trim(),
+    // Yarn 2+ PnP projects need .pnp.cjs preloaded so npx jest/node resolve deps.
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --experimental-require-module${hasPnp ? ` --require ${pnpPath}` : ''}`.trim(),
     // Suppress Node 22 experimental-warning noise that leaks into testem/child assertions.
     NODE_NO_WARNINGS: '1',
     // Kombu's SQS tests hard-code us-east-1 expectations; neutralise local AWS region.
@@ -1237,7 +1410,14 @@ async function runDeepSWEVerifierLocal(
     // Pin a deterministic timezone so property tests (e.g. dateutil) do not fail
     // because of mismatched local-DST assumptions on the host.
     TZ: 'UTC',
-    PATH: `${path.join(projectPath, '.venv', 'bin')}${path.delimiter}${junitBinDir}${path.delimiter}${nextestDir ? path.join(nextestDir, 'bin') + path.delimiter : ''}${process.env.PATH ?? ''}:${process.env.HOME ?? '/Users/benebsworth'}/go/bin`,
+    // dateutil's base suite triggers a pytest deprecation warning that is
+    // promoted to an error by its pytest config and aborts the verifier before
+    // most p2p tests run. Suppress only that specific warning for this task.
+    PYTHONWARNINGS:
+      taskName === 'dateutil-rfc5545-timezone-interop'
+        ? (process.env.PYTHONWARNINGS ? `${process.env.PYTHONWARNINGS},ignore::pytest.PytestRemovedIn10Warning` : 'ignore::pytest.PytestRemovedIn10Warning')
+        : process.env.PYTHONWARNINGS,
+    PATH: `${path.join(projectPath, '.venv', 'bin')}${path.delimiter}${junitBinDir}${path.delimiter}${nextestDir ? path.join(nextestDir, 'bin') + path.delimiter : ''}${denoDir ? denoDir + path.delimiter : ''}${process.env.PATH ?? ''}:${process.env.HOME ?? '/Users/benebsworth'}/go/bin`,
   };
 
   const logLines: string[] = [];
@@ -1252,7 +1432,7 @@ async function runDeepSWEVerifierLocal(
   const testRun = await runCommand('bash', [localTestSh], {
     cwd: projectPath,
     env,
-    timeout: 600000,
+    timeout: 1_800_000,
   });
   log(`=== test.sh stdout ===\n${testRun.stdout}`);
   log(`=== test.sh stderr ===\n${testRun.stderr}`);

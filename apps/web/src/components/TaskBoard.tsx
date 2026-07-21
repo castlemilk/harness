@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../lib/api.js';
+import { api, streamUrls } from '../lib/api.js';
 import { TaskDetail } from './TaskDetail.js';
 
 export interface Task {
@@ -33,6 +33,7 @@ export function TaskBoard({ projectId }: Props) {
     tags: '',
   });
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [kindFilter, setKindFilter] = useState<'all' | 'agent' | 'orchestrate' | 'external'>('all');
 
   async function load() {
     if (!projectId) return;
@@ -44,6 +45,62 @@ export function TaskBoard({ projectId }: Props) {
 
   useEffect(() => {
     void load();
+  }, [projectId]);
+
+  // Live updates: patch task status/result/error in place from the SSE stream.
+  useEffect(() => {
+    if (!projectId) return;
+    let es: EventSource | null = null;
+    let retryMs = 1000;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+
+    function connect() {
+      if (stopped) return;
+      es = new EventSource(streamUrls.tasks());
+      es.addEventListener('task', (ev) => {
+        retryMs = 1000;
+        const data = JSON.parse((ev).data as string) as {
+          id: string;
+          status: string;
+          result?: string | null;
+          error?: string | null;
+          provider?: string | null;
+          model?: string | null;
+        };
+        setTasks((prev) => {
+          const idx = prev.findIndex((t) => t.id === data.id);
+          if (idx === -1) return prev;
+          const next = [...prev];
+          const existing = next[idx];
+          next[idx] = {
+            ...existing,
+            status: data.status,
+            result: data.result !== undefined ? data.result : existing.result,
+            error: data.error !== undefined ? data.error : existing.error,
+            provider: data.provider !== undefined ? data.provider : existing.provider,
+            model: data.model !== undefined ? data.model : existing.model,
+          };
+          return next;
+        });
+      });
+      es.onerror = () => {
+        es?.close();
+        es = null;
+        if (stopped) return;
+        retryTimer = setTimeout(() => {
+          retryMs = Math.min(retryMs * 2, 30000);
+          connect();
+        }, retryMs);
+      };
+    }
+
+    connect();
+    return () => {
+      stopped = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      es?.close();
+    };
   }, [projectId]);
 
   async function handleCreate(e: React.FormEvent) {
@@ -73,6 +130,24 @@ export function TaskBoard({ projectId }: Props) {
       return [];
     }
   }
+
+  function externalCli(t: Task): string | null {
+    const tag = tagsList(t).find((tag) => tag.startsWith('external:'));
+    return tag ? tag.split(':')[1] : null;
+  }
+
+  function taskKind(t: Task): 'orchestrate' | 'external' | 'agent' | 'other' {
+    const tags = tagsList(t);
+    if (tags.includes('orchestrate')) return 'orchestrate';
+    if (tags.some((tag) => tag.startsWith('external:'))) return 'external';
+    if (tags.includes('agent')) return 'agent';
+    return 'other';
+  }
+
+  const filteredTasks = tasks.filter((t) => {
+    if (kindFilter === 'all') return true;
+    return taskKind(t) === kindFilter;
+  });
 
   if (!projectId) {
     return (
@@ -122,6 +197,17 @@ export function TaskBoard({ projectId }: Props) {
             Add task
           </button>
         </form>
+        <div className="mt-2 flex gap-1 text-xs">
+          {(['all', 'agent', 'orchestrate', 'external'] as const).map((kind) => (
+            <button
+              key={kind}
+              onClick={() => { setKindFilter(kind); }}
+              className={`px-2 py-1 rounded ${kindFilter === kind ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+            >
+              {kind}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex-1 overflow-x-auto p-4">
@@ -135,7 +221,7 @@ export function TaskBoard({ projectId }: Props) {
                   {status.replace('_', ' ')}
                 </h3>
                 <div className="space-y-2">
-                  {tasks
+                  {filteredTasks
                     .filter((t) => t.status === status)
                     .map((t) => (
                       <div key={t.id} className="bg-white rounded-md p-3 shadow-sm text-sm">
@@ -145,11 +231,18 @@ export function TaskBoard({ projectId }: Props) {
                         )}
                         <div className="flex flex-wrap gap-1 mb-2">
                           <span className="px-1.5 py-0.5 bg-gray-200 rounded text-xs">{t.complexity}</span>
-                          {tagsList(t).map((tag) => (
-                            <span key={tag} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                              {tag}
+                          {externalCli(t) && (
+                            <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
+                              external:{externalCli(t)}
                             </span>
-                          ))}
+                          )}
+                          {tagsList(t)
+                            .filter((tag) => !tag.startsWith('external:'))
+                            .map((tag) => (
+                              <span key={tag} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                                {tag}
+                              </span>
+                            ))}
                         </div>
                         {t.provider && (
                           <div className="text-xs text-gray-400 mb-2">
@@ -178,7 +271,9 @@ export function TaskBoard({ projectId }: Props) {
                             </button>
                           )}
                         </div>
-                        {expandedTaskId === t.id && <TaskDetail taskId={t.id} />}
+                        {expandedTaskId === t.id && (
+                          <TaskDetail taskId={t.id} taskStatus={t.status} taskError={t.error} projectId={t.projectId} tags={tagsList(t)} />
+                        )}
                       </div>
                     ))}
                 </div>

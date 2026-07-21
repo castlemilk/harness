@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
+import type { BenchmarkBaselineComparison } from '../lib/api.js';
 import { TraceFlow } from './TraceFlow.js';
 import { TaskSteps } from './TaskSteps.js';
+import { DiffViewer } from './DiffViewer.js';
+import { ErrorBadge } from './ErrorBadge.js';
 import { FailurePatterns, F2pP2pSummary, ResultF2pP2p, ScoreDistribution, DurationChart, TokenChart } from './BenchmarkAnalysis.js';
 
 export interface BenchmarkRunBody {
@@ -45,6 +48,20 @@ export interface BenchmarkAgentRun {
   updatedAt?: string;
 }
 
+export interface BenchmarkFailureAnalysis {
+  category: string;
+  rootCause?: string;
+  evidence?: string;
+  verifierLogFile?: string;
+}
+
+export interface BenchmarkResultDiff {
+  id: string;
+  branch: string;
+  patch: string;
+  createdAt?: string;
+}
+
 export interface BenchmarkResult {
   task: BenchmarkTask;
   harnessTaskId: string;
@@ -52,6 +69,8 @@ export interface BenchmarkResult {
   status: 'done' | 'failed' | 'timeout';
   evaluation: BenchmarkEvaluation;
   agentRun?: BenchmarkAgentRun;
+  diffs?: BenchmarkResultDiff[];
+  failureAnalysis?: BenchmarkFailureAnalysis;
   spanCount?: number;
   usage?: {
     promptTokens?: number;
@@ -211,6 +230,14 @@ function ResultRow({
         <span>{f2pBadge(result.evaluation.metrics) ?? ''}</span>
       </div>
       <ResultF2pP2p result={result} />
+      {!result.evaluation.passed && result.failureAnalysis && (
+        <div className="mt-0.5">
+          <ErrorBadge
+            category={result.failureAnalysis.category}
+            title={result.failureAnalysis.rootCause}
+          />
+        </div>
+      )}
       {version && (
         <div className="text-[10px] text-blue-600 truncate" title={version.hash}>
           {version.name}
@@ -377,17 +404,47 @@ function ResultDetail({ result, version }: { result: BenchmarkResult; version?: 
 
       {!result.evaluation.passed && (
         <div className="bg-red-50 p-3 rounded text-xs text-red-700">
-          <div className="font-medium mb-1">Failure analysis</div>
+          <div className="font-medium mb-1 flex items-center gap-2">
+            Failure analysis
+            {result.failureAnalysis && <ErrorBadge category={result.failureAnalysis.category} />}
+          </div>
+          {result.failureAnalysis?.rootCause && (
+            <div className="mb-1">{result.failureAnalysis.rootCause}</div>
+          )}
           {result.evaluation.message ? (
             <div>{result.evaluation.message}</div>
           ) : (
-            <div className="text-red-500">No failure message recorded.</div>
+            !result.failureAnalysis?.rootCause && <div className="text-red-500">No failure message recorded.</div>
+          )}
+          {result.failureAnalysis?.evidence && (
+            <pre className="mt-2 bg-white p-2 rounded text-[10px] overflow-auto max-h-40 whitespace-pre-wrap">
+              {result.failureAnalysis.evidence}
+            </pre>
+          )}
+          {result.failureAnalysis?.verifierLogFile && (
+            <div className="mt-1 text-[10px] text-red-500 font-mono">
+              verifier log: {result.failureAnalysis.verifierLogFile}
+            </div>
           )}
           {result.agentRun?.validationSummary && (
             <pre className="mt-2 bg-white p-2 rounded text-[10px] overflow-auto max-h-40">
               {result.agentRun.validationSummary}
             </pre>
           )}
+        </div>
+      )}
+
+      {result.diffs && result.diffs.length > 0 && (
+        <div>
+          <h5 className="font-medium text-xs text-gray-500 mb-1 uppercase tracking-wide">Diffs</h5>
+          <div className="space-y-3">
+            {result.diffs.map((diff) => (
+              <div key={diff.id}>
+                <div className="text-[10px] text-gray-500 font-mono mb-1">{diff.branch}</div>
+                <DiffViewer patch={diff.patch} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -517,6 +574,163 @@ function PromptVersionComparison({
   );
 }
 
+function PassRateTrend({ reports }: { reports: BenchmarkReport[] }) {
+  const points = [...reports]
+    .filter((r) => r.total > 0)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  if (points.length < 2) {
+    return <div className="text-xs text-gray-400">Need at least two reports for a trend.</div>;
+  }
+  return (
+    <div className="bg-white border border-gray-200 p-3 rounded space-y-2">
+      <h5 className="font-medium text-xs text-gray-500 uppercase tracking-wide">Pass rate trend</h5>
+      <div className="flex items-end gap-1 h-24">
+        {points.map((r) => {
+          const rate = r.passed / r.total;
+          return (
+            <div key={r.timestamp} className="flex-1 flex flex-col items-center gap-1 min-w-0">
+              <span className="text-[9px] text-gray-500">{Math.round(rate * 100)}%</span>
+              <div
+                className={`w-full rounded-t ${rate >= 0.8 ? 'bg-green-500' : rate >= 0.5 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                style={{ height: `${String(Math.max(2, rate * 64))}px` }}
+                title={`${r.timestamp}: ${String(r.passed)}/${String(r.total)}`}
+              />
+              <span className="text-[9px] text-gray-400 truncate w-full text-center">
+                {new Date(r.timestamp).toLocaleDateString()}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function deltaText(delta: number | undefined, suffix = ''): string {
+  if (delta === undefined) return '—';
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${String(delta)}${suffix}`;
+}
+
+function BaselineComparisonView({ comparison }: { comparison: BenchmarkBaselineComparison }) {
+  const { summary } = comparison;
+  // Tolerate pass rates expressed either as fractions (0–1) or percents (0–100).
+  const toPct = (v: number) => (v > 1 ? v : v * 100);
+  const baselinePct = toPct(summary.passRateBaseline);
+  const candidatePct = toPct(summary.passRateCandidate);
+  const passDelta = candidatePct - baselinePct;
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="bg-gray-50 p-2 rounded">
+          <div className="font-medium truncate" title={comparison.baseline.file}>
+            Baseline: {comparison.baseline.file}
+          </div>
+          <div className="text-gray-500">{comparison.baseline.timestamp}</div>
+          <div>Pass rate: {Math.round(baselinePct)}%</div>
+        </div>
+        <div className="bg-gray-50 p-2 rounded">
+          <div className="font-medium truncate" title={comparison.candidate.file}>
+            Candidate: {comparison.candidate.file}
+          </div>
+          <div className="text-gray-500">{comparison.candidate.timestamp}</div>
+          <div>Pass rate: {Math.round(candidatePct)}%</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+        <div className="bg-gray-50 p-2 rounded">
+          <div className="text-gray-500">Pass rate Δ</div>
+          <div className={`font-medium ${passDelta > 0 ? 'text-green-600' : passDelta < 0 ? 'text-red-600' : ''}`}>
+            {passDelta > 0 ? '+' : ''}{Math.round(passDelta)}%
+          </div>
+        </div>
+        <div className="bg-gray-50 p-2 rounded">
+          <div className="text-gray-500">Passed Δ</div>
+          <div className={`font-medium ${summary.passedDelta > 0 ? 'text-green-600' : summary.passedDelta < 0 ? 'text-red-600' : ''}`}>
+            {deltaText(summary.passedDelta)}
+          </div>
+        </div>
+        <div className="bg-gray-50 p-2 rounded">
+          <div className="text-gray-500">Failed Δ</div>
+          <div className={`font-medium ${summary.failedDelta < 0 ? 'text-green-600' : summary.failedDelta > 0 ? 'text-red-600' : ''}`}>
+            {deltaText(summary.failedDelta)}
+          </div>
+        </div>
+        <div className="bg-gray-50 p-2 rounded">
+          <div className="text-gray-500">Regressions / improvements</div>
+          <div className="font-medium">
+            <span className="text-red-600">{summary.regressions.length}</span>
+            {' / '}
+            <span className="text-green-600">{summary.improvements.length}</span>
+          </div>
+        </div>
+      </div>
+
+      {summary.regressions.length > 0 && (
+        <div className="bg-red-50 p-2 rounded text-xs text-red-700">
+          <div className="font-medium mb-1">Regressions</div>
+          <ul className="list-disc list-inside">
+            {summary.regressions.map((r) => <li key={r}>{r}</li>)}
+          </ul>
+        </div>
+      )}
+      {summary.improvements.length > 0 && (
+        <div className="bg-green-50 p-2 rounded text-xs text-green-700">
+          <div className="font-medium mb-1">Improvements</div>
+          <ul className="list-disc list-inside">
+            {summary.improvements.map((r) => <li key={r}>{r}</li>)}
+          </ul>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-[11px]">
+          <thead>
+            <tr className="text-left text-gray-500 border-b border-gray-200">
+              <th className="py-1 pr-2">Task</th>
+              <th className="py-1 pr-2">Baseline</th>
+              <th className="py-1 pr-2">Candidate</th>
+              <th className="py-1 pr-2">Score Δ</th>
+              <th className="py-1 pr-2">Duration Δ</th>
+              <th className="py-1">Token Δ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {comparison.results.map((r) => {
+              const flipped = r.baselinePassed !== r.candidatePassed;
+              const scoreDelta =
+                r.baselineScore !== undefined && r.candidateScore !== undefined
+                  ? Math.round((r.candidateScore - r.baselineScore) * 100) / 100
+                  : undefined;
+              return (
+                <tr
+                  key={r.taskId}
+                  className={`border-b border-gray-100 ${
+                    flipped ? (r.candidatePassed ? 'bg-green-50' : 'bg-red-50') : ''
+                  }`}
+                >
+                  <td className="py-1 pr-2 truncate max-w-[200px]" title={r.taskName}>{r.taskName}</td>
+                  <td className={`py-1 pr-2 ${r.baselinePassed ? 'text-green-600' : 'text-red-600'}`}>
+                    {r.baselinePassed ? 'pass' : 'fail'}
+                  </td>
+                  <td className={`py-1 pr-2 ${r.candidatePassed ? 'text-green-600' : 'text-red-600'}`}>
+                    {r.candidatePassed ? 'pass' : 'fail'}
+                    {flipped && <span className="ml-1 text-[9px] text-gray-500">{r.candidatePassed ? '▲' : '▼'}</span>}
+                  </td>
+                  <td className="py-1 pr-2">{deltaText(scoreDelta)}</td>
+                  <td className="py-1 pr-2">{deltaText(r.durationDeltaMs, 'ms')}</td>
+                  <td className="py-1">{deltaText(r.tokenDelta)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function BenchmarkPanel() {
   const [benchmarkFiles, setBenchmarkFiles] = useState<string[]>([]);
   const [abFiles, setAbFiles] = useState<string[]>([]);
@@ -530,6 +744,48 @@ export function BenchmarkPanel() {
   const [runStatus, setRunStatus] = useState<BenchmarkRunStatus>({ running: false });
   const [runForm, setRunForm] = useState<BenchmarkRunBody>({ suite: 'synthetic', nTasks: undefined, provider: '', model: '', timeout: 120000 });
   const [error, setError] = useState('');
+  const [baseline, setBaseline] = useState<{ file: string | null; timestamp?: string } | null>(null);
+  const [comparison, setComparison] = useState<BenchmarkBaselineComparison | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+
+  async function loadBaseline() {
+    try {
+      const data = await api.getBenchmarkBaseline();
+      const report = data.report as unknown as BenchmarkReport | undefined;
+      setBaseline({ file: data.file, timestamp: report?.timestamp });
+    } catch {
+      setBaseline(null);
+    }
+  }
+
+  async function handleSetBaseline(file: string) {
+    try {
+      const data = await api.setBenchmarkBaseline(file);
+      const report = data.report as unknown as BenchmarkReport | undefined;
+      setBaseline({ file: data.file, timestamp: report?.timestamp });
+      setComparison(null);
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function handleCompare(file: string) {
+    if (comparison) {
+      setComparison(null);
+      return;
+    }
+    setCompareLoading(true);
+    try {
+      const data = await api.compareBenchmarkBaseline(file);
+      setComparison(data);
+      setError('');
+    } catch (err) {
+      setComparison(null);
+      setError(err instanceof Error ? err.message : String(err));
+    }
+    setCompareLoading(false);
+  }
 
   async function loadReports() {
     try {
@@ -561,6 +817,7 @@ export function BenchmarkPanel() {
     setSelectedFile(file);
     setSelectedKind(kind);
     setSelectedResult(undefined);
+    setComparison(null);
     try {
       const data = kind === 'ab'
         ? ((await api.getAbReport(file)) as unknown as AbReport)
@@ -604,6 +861,7 @@ export function BenchmarkPanel() {
     void loadReports();
     void loadPromptVersions();
     void loadRunStatus();
+    void loadBaseline();
   }, []);
 
   useEffect(() => {
@@ -720,8 +978,37 @@ export function BenchmarkPanel() {
 
       {benchmarkReport && (
         <div className="space-y-4">
-          <h3 className="font-semibold">{benchmarkReport.suite}</h3>
-          <div className="text-[10px] text-gray-500">{benchmarkReport.timestamp}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div>
+              <h3 className="font-semibold">{benchmarkReport.suite}</h3>
+              <div className="text-[10px] text-gray-500">{benchmarkReport.timestamp}</div>
+            </div>
+            <div className="ml-auto flex items-center gap-2 text-xs">
+              {baseline?.file && (
+                <span className="text-gray-500">
+                  Baseline: <span className="font-medium" title={baseline.file}>{baseline.file}</span>
+                  {baseline.timestamp && <span className="text-[10px] text-gray-400 ml-1">{baseline.timestamp}</span>}
+                </span>
+              )}
+              <button
+                onClick={() => { if (selectedFile) void handleSetBaseline(selectedFile); }}
+                disabled={!selectedFile || baseline?.file === selectedFile}
+                className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
+              >
+                {baseline?.file === selectedFile ? 'Current baseline' : 'Set as baseline'}
+              </button>
+              <button
+                onClick={() => { if (selectedFile) void handleCompare(selectedFile); }}
+                disabled={!selectedFile || !baseline?.file || compareLoading || baseline.file === selectedFile}
+                className={`px-2 py-1 rounded disabled:opacity-50 ${
+                  comparison ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 hover:bg-gray-200'
+                }`}
+              >
+                {compareLoading ? 'Comparing…' : comparison ? 'Hide comparison' : 'Compare to baseline'}
+              </button>
+            </div>
+          </div>
+          {comparison && <BaselineComparisonView comparison={comparison} />}
           <BenchmarkSummary report={benchmarkReport} versions={promptVersions} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="md:col-span-1 space-y-3">
@@ -764,6 +1051,11 @@ export function BenchmarkPanel() {
           <AbComparison report={abReport} />
         </div>
       )}
+
+      <div>
+        <h3 className="font-semibold mb-2">Pass rate trend</h3>
+        <PassRateTrend reports={allReports} />
+      </div>
 
       <div>
         <h3 className="font-semibold mb-2">Prompt version comparison</h3>

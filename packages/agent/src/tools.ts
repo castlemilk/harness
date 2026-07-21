@@ -895,7 +895,13 @@ export async function runCommand(projectPath: string, command: string): Promise<
 
   const advisory = !useShell && isFullSuiteTestCommand(cmd, cmdArgs) ? FULL_SUITE_HINT : '';
 
-  const env: NodeJS.ProcessEnv = { ...process.env };
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    // Corepack on Node 22.9 fails pnpm/yarn signature verification and
+    // auto-pins an incompatible version; disable both for agent-run installs.
+    COREPACK_INTEGRITY_KEYS: '0',
+    COREPACK_ENABLE_AUTO_PIN: '0',
+  };
   const venvBin = path.join(projectPath, '.venv', 'bin');
   if (await exists(venvBin)) {
     env.PATH = `${venvBin}${path.delimiter}${env.PATH ?? ''}`;

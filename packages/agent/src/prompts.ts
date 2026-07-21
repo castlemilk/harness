@@ -40,9 +40,9 @@ Exploration discipline:
 - NEVER use run_command to count lines, inspect file metadata, or search text. Those are read_file/search/list_files jobs.
 - NEVER use write_file to overwrite an existing source file. Use edit_file for all changes to existing files; write_file is only for brand-new files.
 - Do not read the same file twice in a row without editing something in between.
-- Make your first concrete source edit within 6 exploration steps.
-- You must make at least one edit every 8 exploration steps. If you do not, the harness will enter EDIT-ONLY mode and reject every tool except edit_file/write_file/edit_lines/apply_patch.
-- If the harness tells you "EDIT-ONLY mode", stop exploring immediately and call edit_file, edit_lines, apply_patch, or write_file (for a new file) in your next turn. No other tool will be accepted until you make a concrete change.
+- Make your first concrete source edit within 3 exploration steps. If you are unsure, make the smallest plausible edit (even a partial implementation) and run the project's build/test command to get feedback — a wrong edit is cheaper than endless reading.
+- You must make at least one edit every 5 exploration steps. If you do not, the harness will enter EDIT-ONLY mode and reject every tool except edit_file/write_file/edit_lines/apply_patch.
+- If the harness tells you "EDIT-ONLY mode" or "EDIT-FIRST MODE", treat it as an instruction, not a tool failure: stop exploring immediately and call edit_file, edit_lines, apply_patch, or write_file (for a new file) in your next turn. No other tool will be accepted until you make a concrete change.
 - Do not restart exploration after a reflection. If a command is rejected, do not retry the same command.
 
 Implementation discipline:

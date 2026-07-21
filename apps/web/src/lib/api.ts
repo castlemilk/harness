@@ -4,6 +4,15 @@ import type { Task } from '../components/TaskBoard.js';
 
 const API = String(import.meta.env.VITE_API_URL ?? 'http://localhost:4000');
 
+export function sseUrl(path: string): string {
+  return `${API}${path}`;
+}
+
+export const streamUrls = {
+  tasks: () => sseUrl('/tasks/stream'),
+  task: (id: string) => sseUrl(`/tasks/${id}/stream`),
+};
+
 async function request<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -21,6 +30,29 @@ async function request<T = unknown>(path: string, init?: RequestInit): Promise<T
     throw new Error(message);
   }
   return data as T;
+}
+
+export interface BenchmarkBaselineComparison {
+  baseline: { file: string; timestamp: string };
+  candidate: { file: string; timestamp: string };
+  summary: {
+    passedDelta: number;
+    failedDelta: number;
+    passRateBaseline: number;
+    passRateCandidate: number;
+    regressions: string[];
+    improvements: string[];
+  };
+  results: {
+    taskId: string;
+    taskName: string;
+    baselinePassed: boolean;
+    candidatePassed: boolean;
+    baselineScore?: number;
+    candidateScore?: number;
+    durationDeltaMs?: number;
+    tokenDelta?: number;
+  }[];
 }
 
 export const api = {
@@ -67,6 +99,18 @@ export const api = {
   getAbReport: (file: string) => request<Record<string, unknown>>(`/benchmarks/reports/${encodeURIComponent(file)}`),
   getBenchmarkRunStatus: () => request<{ running: boolean; pid?: number; output?: string }>('/benchmarks/run-status'),
   runBenchmark: (body: Record<string, unknown>) => request<{ pid: number; status: string }>('/benchmarks/run', { method: 'POST', body: JSON.stringify(body) }),
+
+  getBenchmarkBaseline: () =>
+    request<{ file: string | null; report?: Record<string, unknown> }>('/benchmarks/baseline'),
+  setBenchmarkBaseline: (file?: string) =>
+    request<{ file: string; report: Record<string, unknown> }>('/benchmarks/baseline', {
+      method: 'POST',
+      body: JSON.stringify(file ? { file } : {}),
+    }),
+  compareBenchmarkBaseline: (candidate: string) =>
+    request<BenchmarkBaselineComparison>(
+      `/benchmarks/baseline/compare?candidate=${encodeURIComponent(candidate)}`
+    ),
 
   getPromptVersions: () =>
     request<

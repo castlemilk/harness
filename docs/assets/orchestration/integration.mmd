@@ -1,0 +1,10 @@
+sequenceDiagram
+    participant O as Orchestrator
+    participant G as Git/Project
+    participant D as DB
+    participant U as User/CLI/UI
+
+    O->>G: git diff baseCommit..HEAD
+    O->>D: create TaskDiff (patch)
+    O->>D: update Task (done/failed + summary) and AgentRun (tokens)
+    O-->>U: OrchestratorResult (subtasks, iterations, summary)

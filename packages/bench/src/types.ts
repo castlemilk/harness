@@ -119,6 +119,14 @@ export interface BenchmarkReport {
 }
 
 export type FailureCategory =
+  | 'install_failure'
+  | 'dependency_error'
+  | 'build_failure'
+  | 'compile_error'
+  | 'test_failure'
+  | 'verifier_timeout'
+  | 'patch_apply_failed'
+  | 'model_error'
   | 'timeout'
   | 'validation_failure'
   | 'tool_misuse'
@@ -130,4 +138,5 @@ export interface FailureAnalysis {
   category: FailureCategory;
   rootCause: string;
   evidence: string[];
+  verifierLogFile?: string;
 }

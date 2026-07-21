@@ -3,6 +3,7 @@ export * from './api-client.js';
 export { runBenchmark } from './runner.js';
 export { writeReport, printSummary } from './report.js';
 export { compareReports, writeCompareReport } from './compare.js';
+export { generateTrend, formatTrend, type TrendEntry, type TrendOptions } from './trend.js';
 export { syntheticSuite } from './suites/synthetic.js';
 export { fastSuite } from './suites/fast.js';
 export { deepSuite } from './suites/deep.js';

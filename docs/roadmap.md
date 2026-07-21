@@ -17,10 +17,10 @@ Priorities: **P0** = do next, **P1** = high value, **P2** = later/background.
 
 - [x] P0 Orchestration knobs: `omega task create --orchestrate --max-subtasks N --max-iterations N --concurrency N --token-budget N` and `omega orchestrate <taskId>` shortcut.
 - [x] P0 UI orchestration view: task detail shows sub-agents (model/status/diff) and the orchestrator trace.
-- [ ] P0 Watch mode: `omega task run <id> --watch` streams the SSE trace (spans, subtask status, diffs) to the terminal.
+- [x] P0 Watch mode: `omega task run <id> --watch` streams the SSE trace (spans, subtask status, diffs) to the terminal.
 - [x] P0 Deep eval suite: 10 deeper tasks (debugging, refactor, API design, async, multi-file) for quicker capability evals.
 - [x] P0 Model eval: `omega bench eval --suite deep --models "kimi/moonshot-v1-128k,kimi/moonshot-v1-32k,kimi/moonshot-v1-8k"` runs a suite across models and writes a comparison report.
-- [ ] P0 Bench baselines: `omega bench run --suite fast|hard --baseline`, `omega bench compare --baseline <file>`, `omega bench trend` for pass-rate over time.
+- [x] P0 Bench baselines: `omega bench run --suite fast|hard --baseline`, `omega bench compare --baseline <file>`, `omega bench trend` for pass-rate over time.
 - [ ] P1 Smoke subset: `--suite smoke` (3 fast tasks) for <2-minute loops.
 - [ ] P1 Config profiles: `--profile cheap|balanced|premium` mapping to model tiers, concurrency, and token budgets.
 - [ ] P1 Task templates: `omega task create --template bugfix|feature|refactor|orchestrate` with prefilled description/checklist.
@@ -30,7 +30,7 @@ Priorities: **P0** = do next, **P1** = high value, **P2** = later/background.
 
 ## 2. Web UI
 
-- [ ] P0 Orchestration view: planner → subtasks → reviews tree/timeline with per-subtask model, status, tokens, and diff; click into each sub-agent’s trace.
+ - [x] P0 Orchestration view: planner → subtasks → reviews tree/timeline with per-subtask model, status, tokens, and diff; click into each sub-agent’s trace.
 - [ ] P0 Cost & model dashboard: tokens/duration/cost per model, task type, and suite; budget alerts.
 - [ ] P0 Benchmark explorer: baseline comparison, regression/improvement highlights, pass-rate trend, failure-taxonomy filters.
 - [ ] P1 Live trace waterfall: real-time span tree for `orchestrator.*` and `agent.tool.*`, with replay for finished runs.
@@ -57,8 +57,8 @@ Priorities: **P0** = do next, **P1** = high value, **P2** = later/background.
 
 ## 4. Measurability / improvement loop
 
-- [ ] P0 Core metrics: pass rate, tokens per solved task, cost per solved task, duration, failure taxonomy per model/task type/suite.
-- [ ] P0 Baselines & regressions: pin a known-good benchmark report; alert on dropped tasks or cost/latency regression.
+- [x] P0 Core metrics: pass rate, tokens per solved task, cost per solved task, duration, failure taxonomy per model/task type/suite.
+- [x] P0 Baselines & regressions: pin a known-good benchmark report; alert on dropped tasks or cost/latency regression.
 - [ ] P0 Benchmark CI: scheduled `omega bench run --suite fast|hard` with a posted report and failure on regression.
 - [ ] P1 A/B testing: run the same suite against prompt/model/orchestration variants and auto-compare; surface in UI.
 - [ ] P1 Trace-driven optimization: use trace/error taxonomy to auto-open optimisation tasks for top failure classes.

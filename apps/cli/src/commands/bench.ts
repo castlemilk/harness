@@ -16,6 +16,7 @@ import {
   writeReport,
   printSummary,
   compareReports,
+  generateTrend,
   loadOptimisationContext,
   buildOptimisePrompt,
   submitOptimiseTask,
@@ -66,6 +67,8 @@ const runCmd = new Command('run')
   .option('--jobs-dir <dir>', 'Pier jobs directory')
   .option('--n-concurrent <n>', 'Pier concurrent trials', parseInt)
   .option('--pier-extra <arg>', 'extra Pier CLI arg (repeatable)', collectTaskIds, [])
+  .option('--baseline <file>', 'compare against a baseline report after run; exit non-zero on regression')
+  .option('--fail-on-regression', 'exit with code 1 if pass rate drops vs baseline (used with --baseline)')
   .action(async (opts: {
     suite: string;
     path?: string;
@@ -84,6 +87,8 @@ const runCmd = new Command('run')
     jobsDir?: string;
     nConcurrent?: number;
     pierExtra: string[];
+    baseline?: string;
+    failOnRegression?: boolean;
   }) => {
     const timeoutMs = Number(opts.timeout);
     const outputDir = opts.outputDir ?? omegaReportsDir();
@@ -183,6 +188,21 @@ const runCmd = new Command('run')
     const reportFile = await writeReport(report, outputDir);
     printSummary(report);
     console.log(`\nReport written to ${reportFile}`);
+
+    // Baseline comparison
+    if (opts.baseline) {
+      const text = await compareReports({ baseline: opts.baseline, candidate: reportFile });
+      console.log('\n' + text);
+      if (opts.failOnRegression) {
+        const baselineReport = JSON.parse(await import('node:fs/promises').then((fs) => fs.readFile(opts.baseline!, 'utf-8'))) as { passed: number; total: number };
+        const baseRate = baselineReport.total > 0 ? baselineReport.passed / baselineReport.total : 0;
+        const candRate = report.total > 0 ? report.passed / report.total : 0;
+        if (candRate < baseRate) {
+          console.error(`\nRegression detected: pass rate dropped from ${String(Math.round(baseRate * 100))}% to ${String(Math.round(candRate * 100))}%`);
+          process.exit(1);
+        }
+      }
+    }
   });
 
 const optimiseCmd = new Command('optimise')
@@ -319,9 +339,24 @@ const evalCmd = new Command('eval')
     console.log(`\nModel eval report written to ${reportFile}`);
   });
 
+const trendCmd = new Command('trend')
+  .description('Show pass-rate trend across benchmark reports')
+  .option('--suite <name>', 'filter to a specific suite')
+  .option('--last <n>', 'show only the last N entries', parseInt)
+  .option('--output-dir <dir>', 'report output directory')
+  .action(async (opts: { suite?: string; last?: number; outputDir?: string }) => {
+    const text = await generateTrend({
+      outputDir: opts.outputDir,
+      suite: opts.suite,
+      last: opts.last,
+    });
+    console.log(text);
+  });
+
 export const benchCmd = new Command('bench')
   .description('Run benchmarks and optimise prompts')
   .addCommand(runCmd)
   .addCommand(evalCmd)
   .addCommand(optimiseCmd)
-  .addCommand(compareCmd);
+  .addCommand(compareCmd)
+  .addCommand(trendCmd);

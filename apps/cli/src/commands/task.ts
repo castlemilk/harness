@@ -1,6 +1,133 @@
 import { Command } from 'commander';
-import { apiFetch } from '../api.js';
+import { apiFetch, getApiUrl } from '../api.js';
 import { taskFeedCmd } from './task-feed.js';
+
+function formatStatus(status: string): string {
+  switch (status) {
+    case 'done': return '\x1b[32m✓ done\x1b[0m';
+    case 'failed': return '\x1b[31m✗ failed\x1b[0m';
+    case 'in_progress': return '\x1b[33m● running\x1b[0m';
+    default: return status;
+  }
+}
+
+function formatTs(ts: string): string {
+  const d = new Date(ts);
+  return d.toLocaleTimeString('en-US', { hour12: false });
+}
+
+async function streamTaskEvents(taskId: string): Promise<void> {
+  const url = `${getApiUrl()}/tasks/${taskId}/stream`;
+  let res: Response;
+  try {
+    res = await fetch(url);
+  } catch (err) {
+    console.error(`Failed to connect to SSE stream: ${err instanceof Error ? err.message : String(err)}`);
+    return;
+  }
+  if (!res.ok || !res.body) {
+    console.error(`SSE stream returned ${String(res.status)}`);
+    return;
+  }
+
+  console.log(`\n--- Streaming events for task ${taskId} (Ctrl+C to stop) ---\n`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let taskStatus = 'in_progress';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      let eventType = '';
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          try {
+            const parsed = JSON.parse(data) as Record<string, unknown>;
+            handleEvent(eventType, parsed);
+            if (eventType === 'task') {
+              taskStatus = (parsed.status as string) ?? taskStatus;
+            }
+          } catch {
+            // not JSON, skip
+          }
+          eventType = '';
+        } else if (line === '' && eventType) {
+          // empty line resets event type (SSE spec)
+          eventType = '';
+        }
+      }
+    }
+  } catch (err) {
+    if ((err as { code?: string }).code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+      console.error(`\nStream error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  if (taskStatus === 'done' || taskStatus === 'failed') {
+    console.log(`\nTask finished: ${formatStatus(taskStatus)}`);
+  }
+}
+
+function handleEvent(event: string, data: Record<string, unknown>): void {
+  const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+  switch (event) {
+    case 'init': {
+      const task = data.task as Record<string, unknown> | undefined;
+      if (task) {
+        console.log(`[${ts}] Task ${String(task.id).slice(0, 8)} status=${formatStatus(String(task.status ?? ''))}`);
+        if (task.provider) console.log(`         provider=${String(task.provider)} model=${String(task.model ?? '')}`);
+      }
+      const spans = data.spans as unknown[] | undefined;
+      const diffs = data.diffs as unknown[] | undefined;
+      if (spans && spans.length > 0) console.log(`         ${String(spans.length)} trace spans loaded`);
+      if (diffs && diffs.length > 0) console.log(`         ${String(diffs.length)} diffs loaded`);
+      break;
+    }
+    case 'task': {
+      const status = formatStatus(String(data.status ?? ''));
+      const result = typeof data.result === 'string' ? data.result.slice(0, 200) : '';
+      const error = typeof data.error === 'string' ? data.error.slice(0, 200) : '';
+      console.log(`[${ts}] Task status=${status}`);
+      if (result) console.log(`         result: ${result}`);
+      if (error) console.log(`         error: ${error}`);
+      break;
+    }
+    case 'span': {
+      const name = String(data.name ?? '');
+      const spanStatus = String(data.status ?? '');
+      const icon = spanStatus === 'ok' ? '✓' : spanStatus === 'error' ? '✗' : '·';
+      const attrs = data.attributes as Record<string, unknown> | undefined;
+      const detail = attrs?.cli ? ` (${String(attrs.cli)})` : '';
+      console.log(`[${ts}] ${icon} span: ${name}${detail}`);
+      break;
+    }
+    case 'diff': {
+      const patch = typeof data.patch === 'string' ? data.patch : '';
+      const lines = patch.split('\n').length;
+      console.log(`[${ts}] 📝 diff: ${String(lines)} lines`);
+      break;
+    }
+    case 'agent-run': {
+      const tokens = data.totalTokens ?? data.promptTokens;
+      if (tokens) console.log(`[${ts}] tokens: ${String(tokens)}`);
+      break;
+    }
+    default:
+      // Unknown event type, skip silently
+      break;
+  }
+}
 
 export const taskCmd = new Command('task').description('Manage tasks');
 
@@ -78,7 +205,8 @@ taskCmd
   .option('--max-subtasks <n>', 'orchestrator: max planned subtasks', parseInt)
   .option('--max-iterations <n>', 'orchestrator: max review rounds', parseInt)
   .option('--concurrency <n>', 'orchestrator: concurrent sub-agents', parseInt)
-  .action(async (id: string, opts: { tokenBudget?: number; maxSubtasks?: number; maxIterations?: number; concurrency?: number }) => {
+  .option('--watch', 'stream task events to the terminal via SSE')
+  .action(async (id: string, opts: { tokenBudget?: number; maxSubtasks?: number; maxIterations?: number; concurrency?: number; watch?: boolean }) => {
     const result = await apiFetch(`/tasks/${id}/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -90,6 +218,10 @@ taskCmd
       }),
     });
     console.log(JSON.stringify(result, null, 2));
+
+    if (opts.watch) {
+      await streamTaskEvents(id);
+    }
   });
 
 taskCmd

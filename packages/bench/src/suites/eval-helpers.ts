@@ -18,11 +18,19 @@ export function applyLatestPatch(): (ctx: EvaluationContext) => Promise<Benchmar
     const tmp = path.join(ctx.projectPath, '.bench-apply.patch');
     await fs.writeFile(tmp, patch.endsWith('\n') ? patch : `${patch}\n`, 'utf-8');
     try {
+      // Try strict apply first (fast, catches real conflicts).
       await execFileAsync('git', ['apply', '--whitespace=nowarn', tmp], { cwd: ctx.projectPath, timeout: 10_000 });
       return { passed: true, message: 'Applied model patch' };
-    } catch (err) {
-      const e = err as { stderr?: string; message?: string };
-      return { passed: false, message: `Failed to apply patch: ${e.stderr ?? e.message ?? 'unknown'}` };
+    } catch {
+      // Fallback: --3way uses merge-based application which is more forgiving
+      // when the working tree has drifted slightly from the patch context.
+      try {
+        await execFileAsync('git', ['apply', '--3way', '--whitespace=nowarn', tmp], { cwd: ctx.projectPath, timeout: 10_000 });
+        return { passed: true, message: 'Applied model patch (3way)' };
+      } catch (err) {
+        const e = err as { stderr?: string; message?: string };
+        return { passed: false, message: `Failed to apply patch: ${e.stderr ?? e.message ?? 'unknown'}` };
+      }
     } finally {
       await fs.unlink(tmp).catch(() => undefined);
     }

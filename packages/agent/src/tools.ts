@@ -7,6 +7,18 @@ import { runTypeCheck, runTypeScriptScript } from './ts-runner.js';
 
 const execFileAsync = promisify(execFile);
 
+// Corepack on Node 22.9 fails pnpm/yarn signature verification and auto-pins
+// an incompatible version. Use a pinned pnpm@10.18.0 via corepack for all
+// agent-triggered pnpm commands in worktrees.
+const COREPACK_ENV: NodeJS.ProcessEnv = {
+  COREPACK_INTEGRITY_KEYS: '0',
+  COREPACK_ENABLE_AUTO_PIN: '0',
+};
+
+export function pnpmArgs(args: string[]): { cmd: string; args: string[]; env: NodeJS.ProcessEnv } {
+  return { cmd: 'corepack', args: ['pnpm@10.18.0', ...args], env: { ...process.env, ...COREPACK_ENV } };
+}
+
 function isInsideProject(projectPath: string, target: string): boolean {
   const root = path.resolve(projectPath);
   return target === root || target.startsWith(root + path.sep);
@@ -1205,7 +1217,7 @@ export async function verifyApiSurface(
   try {
     await fs.access(entryPath);
   } catch {
-    const buildResult = await runCommand(projectPath, 'pnpm build');
+    const buildResult = await runCommand(projectPath, 'corepack pnpm@10.18.0 build');
     if (!buildResult.success) {
       // Build failed. Fall back to src/index.ts if it exists.
       const fallback = 'src/index.ts';

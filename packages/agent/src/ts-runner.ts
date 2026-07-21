@@ -5,6 +5,15 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
+// Corepack on Node 22.9 fails pnpm/yarn signature verification and auto-pins
+// an incompatible version. Use a pinned pnpm@10.18.0 via corepack for all
+// agent-triggered pnpm commands.
+const COREPACK_ENV: NodeJS.ProcessEnv = {
+  ...process.env,
+  COREPACK_INTEGRITY_KEYS: '0',
+  COREPACK_ENABLE_AUTO_PIN: '0',
+};
+
 export async function hasTsConfig(projectPath: string): Promise<boolean> {
   try {
     await fs.access(path.join(projectPath, 'tsconfig.json'));
@@ -60,9 +69,10 @@ export async function runTypeCheck(projectPath: string): Promise<{ success: bool
     const pkg = JSON.parse(pkgRaw) as { scripts?: Record<string, string> };
     const typeCheckScript = pkg.scripts?.typecheck ?? pkg.scripts?.['type-check'];
     if (typeCheckScript) {
-      const { stdout, stderr } = await execFileAsync('pnpm', ['run', 'typecheck'], {
+      const { stdout, stderr } = await execFileAsync('corepack', ['pnpm@10.18.0', 'run', 'typecheck'], {
         cwd: projectPath,
         timeout: 300_000,
+        env: COREPACK_ENV,
       });
       return { success: true, output: stdout + stderr };
     }

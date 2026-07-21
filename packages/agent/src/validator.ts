@@ -12,6 +12,12 @@ export interface ValidationSummary {
   allPassed: boolean;
 }
 
+const COREPACK_ENV: NodeJS.ProcessEnv = {
+  ...process.env,
+  COREPACK_INTEGRITY_KEYS: '0',
+  COREPACK_ENABLE_AUTO_PIN: '0',
+};
+
 async function runStep(
   projectPath: string,
   command: string,
@@ -21,6 +27,7 @@ async function runStep(
     const { stdout, stderr } = await execFileAsync(command, args, {
       cwd: projectPath,
       timeout: 300_000,
+      env: command === 'corepack' ? COREPACK_ENV : undefined,
     });
     return { passed: true, output: stdout + stderr };
   } catch (err) {
@@ -52,7 +59,9 @@ async function fileHasScript(projectPath: string, script: string): Promise<boole
 
 async function detectNodePm(projectPath: string): Promise<{ command: string; installArgs: string[] } | undefined> {
   if (await pathExists(path.join(projectPath, 'pnpm-lock.yaml'))) {
-    return { command: 'pnpm', installArgs: ['install', '--prefer-offline'] };
+    // Corepack on Node 22.9 fails pnpm signature verification; pin a
+    // compatible version for agent-triggered installs.
+    return { command: 'corepack', installArgs: ['pnpm@10.18.0', 'install', '--prefer-offline'] };
   }
   if (await pathExists(path.join(projectPath, 'yarn.lock'))) {
     return { command: 'yarn', installArgs: ['install'] };
@@ -109,9 +118,16 @@ async function validateNodeProject(projectPath: string): Promise<ValidationSumma
   }
 
   // npm requires the `run` subcommand for custom scripts; pnpm/yarn accept the
-  // script name directly.
-  const scriptArgs = (script: string): string[] =>
-    pm.command === 'npm' && script !== 'test' ? ['run', script] : [script];
+  // script name directly. Corepack pnpm needs the version prefix.
+  const scriptArgs = (script: string): string[] => {
+    if (pm.command === 'corepack') {
+      return ['pnpm@10.18.0', script];
+    }
+    if (pm.command === 'npm' && script !== 'test') {
+      return ['run', script];
+    }
+    return [script];
+  };
 
   const lint = (await fileHasScript(projectPath, 'lint'))
     ? await runStep(projectPath, pm.command, scriptArgs('lint'))

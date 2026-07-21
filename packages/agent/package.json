@@ -23,6 +23,8 @@
     "@omega/db": "workspace:*",
     "@omega/providers": "workspace:*",
     "@omega/router": "workspace:*",
+    "node-pty": "^1.0.0",
+    "strip-ansi": "^7.0.0",
     "tsx": "^4.22.4",
     "typescript-language-server": "^4.3.4"
   },

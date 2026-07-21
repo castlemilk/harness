@@ -5,6 +5,8 @@ import type { AgentOptions } from '@omega/core';
 import { Tracer } from './tracer.js';
 import { getCurrentCommit, getDiff, getCurrentBranch, hasChanges, stageAllChanges, commit } from './git.js';
 import { logger } from './logger.js';
+import { spawnWithPty } from './pty-spawn.js';
+import { extractOpencodeResult } from './opencode-output.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -15,12 +17,23 @@ export interface ExternalAgentOptions extends AgentOptions {
   timeoutMs?: number;
 }
 
-export type ExternalCli = 'codex' | 'claude-code' | 'gemini-cli' | 'opencode' | 'cursor-cli' | 'aider';
+export type ExternalCli =
+  | 'codex'
+  | 'claude-code'
+  | 'agy'
+  | 'opencode'
+  | 'cursor-cli'
+  | 'aider'
+  | 'gemini-cli'; // @deprecated — use 'agy'
 
 interface CliSpec {
   command: string;
   args: (prompt: string) => string[];
   env?: NodeJS.ProcessEnv;
+  /** Spawn via PTY instead of execFile. Required for CLIs that gate stdout on isatty(). */
+  pty?: boolean;
+  /** Post-process captured stdout before storing. */
+  outputTransform?: (raw: string) => string;
 }
 
 function cliSpec(cli: ExternalCli): CliSpec {
@@ -35,15 +48,25 @@ function cliSpec(cli: ExternalCli): CliSpec {
         command: 'claude',
         args: (prompt) => ['-p', prompt],
       };
-    case 'gemini-cli':
+    case 'agy':
       return {
-        command: 'gemini',
-        args: (prompt) => ['-p', prompt],
+        command: 'agy',
+        args: (prompt) => ['-p', prompt, '--dangerously-skip-permissions'],
+        pty: true,
+      };
+    case 'gemini-cli':
+      // @deprecated — gemini-cli was retired June 2026, use agy instead
+      logger.warn('gemini-cli is deprecated, use agy instead');
+      return {
+        command: 'agy',
+        args: (prompt) => ['-p', prompt, '--dangerously-skip-permissions'],
+        pty: true,
       };
     case 'opencode':
       return {
         command: 'opencode',
-        args: (prompt) => ['run', prompt],
+        args: (prompt) => ['run', prompt, '--format', 'json', '--model', 'opencode/big-pickle'],
+        outputTransform: extractOpencodeResult,
       };
     case 'cursor-cli':
       return {
@@ -81,15 +104,15 @@ function sanitizeForDb(value: string | null | undefined): string | null {
 }
 
 /**
- * Drive an external coding-agent CLI (Codex, Claude Code, Gemini CLI,
- * OpenCode, Cursor CLI, Aider) to complete a task in the project. The
- * external agent edits the working tree; we capture the git diff and record
- * it as the task's result.
+ * Drive an external coding-agent CLI (Codex, Claude Code, agy, OpenCode,
+ * Cursor CLI, Aider) to complete a task in the project. The external agent
+ * edits the working tree; we capture the git diff and record it as the
+ * task's result.
  */
 export async function runExternalAgentTask(
   prisma: PrismaClient,
   taskId: string,
-  options: ExternalAgentOptions
+  options: ExternalAgentOptions,
 ): Promise<{ status: 'done' | 'failed'; diff: string; output: string }> {
   const task = await prisma.task.findUnique({ where: { id: taskId } });
   if (!task) throw new Error('Task not found');
@@ -139,18 +162,48 @@ export async function runExternalAgentTask(
   try {
     const runSpan = tracer.startSpan(`external.${options.cli}`, rootSpan.toContext());
     try {
-      const { stdout, stderr } = await execFileAsync(spec.command, spec.args(prompt), {
-        cwd: options.projectPath,
-        timeout: options.timeoutMs ?? 15 * 60 * 1000,
-        maxBuffer: 32 * 1024 * 1024,
-        env: { ...process.env, ...spec.env },
-      });
+      let stdout: string;
+      let stderr: string;
+
+      if (spec.pty) {
+        // PTY path — required for CLIs that gate stdout on isatty()
+        const timeoutMs = options.timeoutMs ?? 15 * 60 * 1000;
+        const result = await spawnWithPty(spec.command, spec.args(prompt), {
+          cwd: options.projectPath,
+          env: spec.env,
+          timeoutMs,
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      } else {
+        const result = await execFileAsync(spec.command, spec.args(prompt), {
+          cwd: options.projectPath,
+          timeout: options.timeoutMs ?? 15 * 60 * 1000,
+          maxBuffer: 32 * 1024 * 1024,
+          env: { ...process.env, ...spec.env },
+        });
+        stdout = result.stdout;
+        stderr = result.stderr;
+      }
+
       output = `${stdout}\n${stderr}`.trim();
+
+      // Apply output transform if present (e.g. opencode JSONL → clean text)
+      if (spec.outputTransform) {
+        output = spec.outputTransform(output);
+      }
+
       success = true;
       await runSpan.end('ok');
     } catch (err) {
       const e = err as { stdout?: string; stderr?: string; message?: string };
       output = `${e.stdout ?? ''}\n${e.stderr ?? e.message ?? String(err)}`.trim();
+
+      // Apply output transform even on error (partial output may be useful)
+      if (spec.outputTransform) {
+        output = spec.outputTransform(output);
+      }
+
       runSpan.recordError(err);
       await runSpan.end('error');
     }

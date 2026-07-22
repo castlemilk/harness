@@ -79,6 +79,64 @@ export async function seedDefaults(): Promise<void> {
     console.log('Seeded GLM provider.');
   }
 
+  // MiniMax-M3 — OpenAI-compatible. Endpoint and key provided by env.
+  if (process.env.MINIMAX_API_KEY) {
+    const baseUrl = process.env.MINIMAX_BASE_URL ?? 'https://api.minimaxi.chat/v1';
+    await prisma.providerConfig.upsert({
+      where: { name: 'minimax' },
+      update: {
+        apiKey: process.env.MINIMAX_API_KEY,
+        baseUrl,
+        defaultModel: 'MiniMax-M3',
+        capabilities: JSON.stringify([
+          { name: 'MiniMax-M3', level: 'advanced', supportsTools: true },
+        ]),
+      },
+      create: {
+        name: 'minimax',
+        kind: 'generic',
+        baseUrl,
+        apiKey: process.env.MINIMAX_API_KEY,
+        defaultModel: 'MiniMax-M3',
+        enabled: true,
+        capabilities: JSON.stringify([
+          { name: 'MiniMax-M3', level: 'advanced', supportsTools: true },
+        ]),
+      },
+    });
+    console.log(`Seeded MiniMax provider (${baseUrl}).`);
+  }
+
+  // DeepSeek V4 — OpenAI-compatible.
+  if (process.env.DEEPSEEK_API_KEY) {
+    const baseUrl = process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com/v1';
+    await prisma.providerConfig.upsert({
+      where: { name: 'deepseek' },
+      update: {
+        apiKey: process.env.DEEPSEEK_API_KEY,
+        baseUrl,
+        defaultModel: 'deepseek-v4-pro',
+        capabilities: JSON.stringify([
+          { name: 'deepseek-v4-pro', level: 'advanced', supportsTools: true },
+          { name: 'deepseek-v4-flash', level: 'advanced', supportsTools: true },
+        ]),
+      },
+      create: {
+        name: 'deepseek',
+        kind: 'generic',
+        baseUrl,
+        apiKey: process.env.DEEPSEEK_API_KEY,
+        defaultModel: 'deepseek-v4-pro',
+        enabled: true,
+        capabilities: JSON.stringify([
+          { name: 'deepseek-v4-pro', level: 'advanced', supportsTools: true },
+          { name: 'deepseek-v4-flash', level: 'advanced', supportsTools: true },
+        ]),
+      },
+    });
+    console.log(`Seeded DeepSeek provider (${baseUrl}).`);
+  }
+
   console.log('Seeded default providers.');
 }
 

@@ -35,6 +35,9 @@ export interface AgentRunInfo {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  costUsd?: number;
+  turnCount?: number;
+  toolCalls?: string;
   promptVersionId?: string;
   createdAt: string;
   updatedAt: string;

@@ -35,6 +35,11 @@ export interface ModelEvalSummary {
   passRate: number;
   totalDurationMs: number;
   totalTokens: number | null;
+  totalCostUsd: number | null;
+  totalTurns: number | null;
+  averageTurns: number | null;
+  totalToolCalls: number | null;
+  toolBreakdown: Record<string, number>;
 }
 
 export interface HarnessEvalOptions {
@@ -86,17 +91,66 @@ export async function runModelEval(tasks: BenchmarkTask[], options: ModelEvalOpt
 
 export function summarizeModelEval(results: ModelEvalResult[]): ModelEvalSummary[] {
   return results.map((r) => {
-    const totalTokens = r.report.results.reduce((sum, res) => sum + (res.agentRun?.totalTokens ?? 0), 0);
+    let totalTokens = 0;
+    let anyTokens = false;
+    let totalCost = 0;
+    let anyCost = false;
+    let totalTurns = 0;
+    let anyTurns = false;
+    let totalToolCalls = 0;
+    let anyToolCalls = false;
+    const toolBreakdown: Record<string, number> = {};
+
+    for (const res of r.report.results) {
+      const tokens = res.agentRun?.totalTokens;
+      if (typeof tokens === 'number' && tokens > 0) {
+        totalTokens += tokens;
+        anyTokens = true;
+      }
+      const cost = res.agentRun?.costUsd;
+      if (typeof cost === 'number' && cost > 0) {
+        totalCost += cost;
+        anyCost = true;
+      }
+      const turns = res.agentRun?.turnCount;
+      if (typeof turns === 'number' && turns > 0) {
+        totalTurns += turns;
+        anyTurns = true;
+      }
+      const toolCallsJson = res.agentRun?.toolCalls;
+      if (typeof toolCallsJson === 'string' && toolCallsJson.length > 0) {
+        try {
+          const counts = JSON.parse(toolCallsJson) as Record<string, number>;
+          for (const [name, count] of Object.entries(counts)) {
+            if (typeof count === 'number' && count > 0) {
+              totalToolCalls += count;
+              toolBreakdown[name] = (toolBreakdown[name] ?? 0) + count;
+              anyToolCalls = true;
+            }
+          }
+        } catch {
+          // Skip malformed toolCalls JSON.
+        }
+      }
+    }
+
+    const total = r.report.total;
+
     return {
       provider: r.provider,
       model: r.model,
-      total: r.report.total,
+      total,
       passed: r.report.passed,
       failed: r.report.failed,
       timeouts: r.report.timeouts,
-      passRate: r.report.total > 0 ? r.report.passed / r.report.total : 0,
+      passRate: total > 0 ? r.report.passed / total : 0,
       totalDurationMs: r.report.totalDurationMs,
-      totalTokens: totalTokens > 0 ? totalTokens : null,
+      totalTokens: anyTokens ? totalTokens : null,
+      totalCostUsd: anyCost ? Number(totalCost.toFixed(4)) : null,
+      totalTurns: anyTurns ? totalTurns : null,
+      averageTurns: anyTurns && total > 0 ? Number((totalTurns / total).toFixed(1)) : null,
+      totalToolCalls: anyToolCalls ? totalToolCalls : null,
+      toolBreakdown,
     };
   });
 }
@@ -125,13 +179,25 @@ export async function writeModelEvalReport(
     '',
     `Timestamp: ${payload.timestamp}`,
     '',
-    '| Model | Passed | Failed | Timeouts | Pass rate | Duration (s) | Tokens |',
-    '| --- | --- | --- | --- | --- | --- | --- |',
+    '| Model | Passed | Failed | Timeouts | Pass rate | Duration (s) | Tokens | Cost (USD) | Turns (avg) | Tools |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     ...summaries.map(
       (s) =>
-        `| ${s.provider}/${s.model} | ${String(s.passed)}/${String(s.total)} | ${String(s.failed)} | ${String(s.timeouts)} | ${(s.passRate * 100).toFixed(0)}% | ${(s.totalDurationMs / 1000).toFixed(1)} | ${s.totalTokens !== null ? String(s.totalTokens) : '—'} |`
+        `| ${s.provider}/${s.model} | ${String(s.passed)}/${String(s.total)} | ${String(s.failed)} | ${String(s.timeouts)} | ${(s.passRate * 100).toFixed(0)}% | ${(s.totalDurationMs / 1000).toFixed(1)} | ${s.totalTokens !== null ? s.totalTokens.toLocaleString() : '—'} | ${s.totalCostUsd !== null ? `$${s.totalCostUsd.toFixed(2)}` : '—'} | ${s.averageTurns !== null ? String(s.averageTurns) : '—'} | ${s.totalToolCalls !== null ? String(s.totalToolCalls) : '—'} |`
     ),
     '',
+    '### Tool breakdown',
+    '',
+    ...summaries.flatMap((s) => {
+      const entries = Object.entries(s.toolBreakdown);
+      if (entries.length === 0) return [];
+      return [
+        `**${s.provider}/${s.model}**`,
+        '',
+        ...entries.sort((a, b) => b[1] - a[1]).map(([name, count]) => `  - ${name}: ${String(count)}`),
+        '',
+      ];
+    }),
   ];
   await fs.writeFile(md, lines.join('\n'), 'utf-8');
   return file;

@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { PrismaClient } from '@omega/db';
 import type { AgentOptions } from '@omega/core';
@@ -10,6 +10,66 @@ import { extractOpencodeResult, parseOpencodeMetrics } from './opencode-output.j
 import { parseClaudeCodeStreamJson } from './claude-code-output.js';
 
 const execFileAsync = promisify(execFile);
+
+/**
+ * Spawn a process with stdin closed and capture stdout/stderr.
+ * Required for CLIs like `opencode run` that read stdin interactively
+ * and would otherwise hang forever waiting for TUI input.
+ */
+function spawnWithStdinClosed(
+  command: string,
+  args: string[],
+  options: { cwd: string; env?: NodeJS.ProcessEnv; timeoutMs: number },
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  return new Promise((resolve, reject) => {
+    const child: ChildProcess = spawn(command, args, {
+      cwd: options.cwd,
+      env: { ...process.env, ...options.env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    const outChunks: Buffer[] = [];
+    const errChunks: Buffer[] = [];
+    child.stdout?.on('data', (d) => outChunks.push(d));
+    child.stderr?.on('data', (d) => errChunks.push(d));
+
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      try {
+        child.kill('SIGTERM');
+      } catch {
+        /* ignore */
+      }
+      setTimeout(() => {
+        if (settled) return;
+        try {
+          child.kill('SIGKILL');
+        } catch {
+          /* ignore */
+        }
+      }, 5_000);
+    }, options.timeoutMs);
+
+    child.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(err);
+    });
+
+    child.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({
+        stdout: Buffer.concat(outChunks).toString('utf8'),
+        stderr: Buffer.concat(errChunks).toString('utf8'),
+        exitCode: code ?? 1,
+      });
+    });
+  });
+}
 
 function buildAgentRunMetricsUpdate(
   spec: CliSpec,
@@ -209,6 +269,7 @@ export async function runExternalAgentTask(
 
   let output = '';
   let success = false;
+  let rawOutput = '';
   try {
     const runSpan = tracer.startSpan(`external.${options.cli}`, rootSpan.toContext());
     try {
@@ -226,22 +287,25 @@ export async function runExternalAgentTask(
         stdout = result.stdout;
         stderr = result.stderr;
       } else {
-        const result = await execFileAsync(spec.command, spec.args(prompt, options.projectPath), {
-          cwd: options.projectPath,
-          timeout: options.timeoutMs ?? 15 * 60 * 1000,
-          maxBuffer: 32 * 1024 * 1024,
-          env: { ...process.env, ...spec.env },
-        });
+        const result = await spawnWithStdinClosed(
+          spec.command,
+          spec.args(prompt, options.projectPath),
+          {
+            cwd: options.projectPath,
+            env: spec.env,
+            timeoutMs: options.timeoutMs ?? 15 * 60 * 1000,
+          },
+        );
         stdout = result.stdout;
         stderr = result.stderr;
       }
 
-      output = `${stdout}\n${stderr}`.trim();
+      // Keep the raw stdout around for metrics parsing — the outputTransform
+      // strips it down to plain text and the metricsParser needs the JSONL.
+      rawOutput = `${stdout}\n${stderr}`.trim();
 
       // Apply output transform if present (e.g. opencode JSONL → clean text)
-      if (spec.outputTransform) {
-        output = spec.outputTransform(output);
-      }
+      output = spec.outputTransform ? spec.outputTransform(rawOutput) : rawOutput;
 
       success = true;
       await runSpan.end('ok');
@@ -309,7 +373,7 @@ export async function runExternalAgentTask(
       where: { id: agentRun.id },
       data: {
         resultStatus: passed ? 'done' : 'failed',
-        ...buildAgentRunMetricsUpdate(spec, output),
+        ...buildAgentRunMetricsUpdate(spec, rawOutput),
       },
     });
     rootSpan.setAttributes({ passed, diffBytes: patch.length });

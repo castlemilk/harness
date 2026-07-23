@@ -18,6 +18,7 @@ import {
   printSummary,
   compareReports,
   generateTrend,
+  runConsensusEval,
   loadOptimisationContext,
   buildOptimisePrompt,
   submitOptimiseTask,
@@ -362,10 +363,112 @@ const trendCmd = new Command('trend')
     console.log(text);
   });
 
+const consensusCmd = new Command('consensus')
+  .description(
+    'Run multiple agents in parallel on each task and pick the first passing patch (best-of-N by eval). ' +
+      'Pass rate = fraction of tasks where ANY agent succeeded. ' +
+      'Cost = sum across all agents.',
+  )
+  .option('--suite <name>', 'suite name: fast | deep | harder | hard', 'harder')
+  .option(
+    '--models <list>',
+    'comma-separated models as provider/model (e.g. "external:agy,minimax/MiniMax-M3,deepseek/deepseek-v4-pro")',
+  )
+  .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
+  .option('--path <dir>', 'path to DeepSWE tasks directory (for hard suite)')
+  .option('--timeout <ms>', 'per-agent per-task timeout in ms', '600000')
+  .option('--token-budget <n>', 'per-agent token cap', parseInt)
+  .option('--project-prefix <prefix>', 'project name prefix for created harness projects', 'consensus')
+  .action(
+    async (opts: {
+      suite: string;
+      models: string;
+      taskId: string[];
+      path?: string;
+      timeout: string;
+      tokenBudget?: number;
+      projectPrefix: string;
+    }) => {
+      if (!opts.models) {
+        throw new Error('--models is required for consensus (e.g. "external:agy,minimax/MiniMax-M3")');
+      }
+      const apiUrl = getApiUrl();
+      await waitForApi(apiUrl);
+
+      let tasks;
+      if (opts.suite === 'fast') {
+        tasks = fastSuite();
+      } else if (opts.suite === 'deep') {
+        tasks = deepSuite();
+      } else if (opts.suite === 'harder') {
+        tasks = harderSuite();
+      } else if (opts.suite === 'hard') {
+        if (!opts.path) throw new Error('--path is required for the hard suite');
+        tasks = await hardSuite(opts.path);
+      } else {
+        throw new Error(`Unknown suite: ${opts.suite}`);
+      }
+      if (opts.taskId.length > 0) {
+        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
+      }
+
+      const models = opts.models.split(',').map((m) => m.trim()).filter(Boolean).map((m) => {
+        // Accepted formats:
+        //   provider/model      → e.g. "minimax/MiniMax-M3", "deepseek/deepseek-v4-pro"
+        //   external:<cli>      → e.g. "external:agy", "external:claude-code"
+        //   <cli> alone         → assumed external, e.g. "agy", "opencode"
+        if (m.startsWith('external:')) {
+          return { provider: 'external', model: m.slice('external:'.length) };
+        }
+        if (m.includes('/')) {
+          const [provider, ...rest] = m.split('/');
+          return { provider, model: rest.join('/') };
+        }
+        return { provider: 'external', model: m };
+      });
+
+      const timeoutMs = Number(opts.timeout);
+
+      console.log(
+        `Running ${String(tasks.length)} tasks across ${String(models.length)} agents in parallel: ${models.map((m) => `${m.provider}/${m.model}`).join(', ')}`,
+      );
+
+      const results = await runConsensusEval(tasks, {
+        apiUrl,
+        models,
+        timeoutMs,
+        tokenBudget: opts.tokenBudget,
+        projectPrefix: opts.projectPrefix,
+        suiteName: opts.suite,
+        onTaskProgress: (taskId, report) => {
+          const winner = report.winner
+            ? `winner: ${report.winner.provider}/${report.winner.model}`
+            : 'no winner';
+          console.log(
+            `  ${report.passed ? '✓' : '✗'} ${taskId} (${report.candidates.length} candidates, ${winner})`,
+          );
+        },
+      });
+
+      const reportFile = await writeModelEvalReport(results, opts.suite);
+      const consensus = results[0];
+      if (consensus.report.consensus) {
+        const c = consensus.report.consensus;
+        console.log(
+          `\nConsensus: ${String(c.passed)}/${String(c.total)} passed (${(c.passRate * 100).toFixed(0)}%)`,
+        );
+        console.log(`  total cost: $${c.totalCostUsd.toFixed(2)}  total tokens: ${c.totalTokens.toLocaleString()}`);
+        console.log(`  wins by model:`, c.winsByModel);
+        console.log(`\nReport written to ${reportFile}`);
+      }
+    },
+  );
+
 export const benchCmd = new Command('bench')
   .description('Run benchmarks and optimise prompts')
   .addCommand(runCmd)
   .addCommand(evalCmd)
   .addCommand(optimiseCmd)
   .addCommand(compareCmd)
-  .addCommand(trendCmd);
+  .addCommand(trendCmd)
+  .addCommand(consensusCmd);

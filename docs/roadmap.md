@@ -59,10 +59,17 @@ Priorities: **P0** = do next, **P1** = high value, **P2** = later/background.
 
 - [x] P0 Core metrics: pass rate, tokens per solved task, cost per solved task, duration, failure taxonomy per model/task type/suite.
 - [x] P0 Baselines & regressions: pin a known-good benchmark report; alert on dropped tasks or cost/latency regression.
+- [x] P0 Cost dashboard: `/lab/cost-dashboard/` with per-model cost, tokens, duration, budget alerts. Cost estimated from tokens using static pricing table.
+- [x] P0 Consensus runner: `omega bench consensus --suite harder --models "..."` — best-of-N patch selection across models.
+- [x] P0 Strategy eval: `omega bench strategy --suite hard-targeting --strategies "default,verify-before-finish,research-first"` — multi-strategy evaluation to measure which prompt strategies help which task types.
+- [x] P0 Hard-targeting suite: 10 adversarial tasks with hidden spec tests that catch naive fixes (event listener leaks, refactor breaking consumers, async races, config drift, spec ambiguity, adversarial fixes).
+- [x] P0 Internal model providers: MiniMax-M3, DeepSeek V4 Pro, Qwen 3.8 Max, GLM-5.2 configured as generic providers.
 - [ ] P0 Benchmark CI: scheduled `omega bench run --suite fast|hard` with a posted report and failure on regression.
 - [ ] P1 A/B testing: run the same suite against prompt/model/orchestration variants and auto-compare; surface in UI.
 - [ ] P1 Trace-driven optimization: use trace/error taxonomy to auto-open optimisation tasks for top failure classes.
-- [ ] P1 SLOs: e.g. “fast suite < 2 min, hard suite 100%, p95 task < 5 min, cost < $X per solved task”; show current vs. target.
+- [ ] P1 SLOs: e.g. "fast suite < 2 min, hard suite 100%, p95 task < 5 min, cost < $X per solved task"; show current vs. target.
+- [ ] P1 Variance tracking: run each task N times, measure output variance across runs to detect fragile strategies.
+- [ ] P1 Adversarial test generation: auto-generate hidden tests by asking a stronger model "what wrong fix passes visible tests?"
 - [ ] P2 Public session data (pi-style): opt-in publishing of anonymized OSS task trajectories to improve the agent.
 
 ## 5. Memory & learning (hermes-inspired)

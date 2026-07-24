@@ -19,6 +19,7 @@
  */
 
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { omegaWorkDir } from '@omega/core';
@@ -157,7 +158,7 @@ function resetToCommit(repoPath: string, commit: string): void {
 
 function tryGitApply(repoPath: string, patch: string): boolean {
   const tmp = path.join(repoPath, '.strategy-apply.patch');
-  require('node:fs').writeFileSync(tmp, patch.endsWith('\n') ? patch : `${patch}\n`);
+  fsSync.writeFileSync(tmp, patch.endsWith('\n') ? patch : `${patch}\n`);
   try {
     execFileSync('git', ['apply', '--whitespace=nowarn', tmp], { cwd: repoPath, stdio: 'ignore', env: process.env });
     return true;
@@ -170,7 +171,7 @@ function tryGitApply(repoPath: string, patch: string): boolean {
     }
   } finally {
     try {
-      require('node:fs').unlinkSync(tmp);
+      fsSync.unlinkSync(tmp);
     } catch {
       /* ignore */
     }

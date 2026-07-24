@@ -15,8 +15,10 @@ export function applyLatestPatch(): (ctx: EvaluationContext) => Promise<Benchmar
     if (!patch) {
       return { passed: false, message: 'No diff patch available to evaluate' };
     }
+    // Strip index lines — blob hashes won't match after reset.
+    const cleaned = patch.replace(/^index\s+[0-9a-f]+\.\.[0-9a-f]+\s+\d+\n/m, '');
     const tmp = path.join(ctx.projectPath, '.bench-apply.patch');
-    await fs.writeFile(tmp, patch.endsWith('\n') ? patch : `${patch}\n`, 'utf-8');
+    await fs.writeFile(tmp, cleaned.endsWith('\n') ? cleaned : `${cleaned}\n`, 'utf-8');
     try {
       // Try strict apply first (fast, catches real conflicts).
       await execFileAsync('git', ['apply', '--whitespace=nowarn', tmp], { cwd: ctx.projectPath, timeout: 10_000 });

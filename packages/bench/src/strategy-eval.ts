@@ -152,29 +152,35 @@ function ensureGitRepo(repoPath: string): void {
 }
 
 function resetToCommit(repoPath: string, commit: string): void {
-  execFileSync('git', ['checkout', '-f', commit], { cwd: repoPath, stdio: 'ignore', env: process.env });
-  execFileSync('git', ['clean', '-fd'], { cwd: repoPath, stdio: 'ignore', env: process.env });
+  execFileSync('git', ['reset', '--hard', commit], { cwd: repoPath, stdio: ['ignore', 'pipe', 'ignore'], env: process.env });
+  execFileSync('git', ['clean', '-fd'], { cwd: repoPath, stdio: ['ignore', 'pipe', 'ignore'], env: process.env });
 }
 
 function tryGitApply(repoPath: string, patch: string): boolean {
   const tmp = path.join(repoPath, '.strategy-apply.patch');
-  fsSync.writeFileSync(tmp, patch.endsWith('\n') ? patch : `${patch}\n`);
+  // Strip index lines — the blob hashes won't match after reset and git
+  // apply chokes on them even when context lines are correct.
+  const cleaned = patch.replace(/^index\s+[0-9a-f]+\.\.[0-9a-f]+\s+\d+\n/m, '');
+  fsSync.writeFileSync(tmp, cleaned.endsWith('\n') ? cleaned : `${cleaned}\n`);
   try {
-    execFileSync('git', ['apply', '--whitespace=nowarn', tmp], { cwd: repoPath, stdio: 'ignore', env: process.env });
+    execFileSync('git', ['apply', '--whitespace=nowarn', tmp], { cwd: repoPath, stdio: ['ignore', 'pipe', 'ignore'], env: process.env });
     return true;
   } catch {
+    // Try 3-way merge as fallback (uses patch hunks, not index hashes).
     try {
-      execFileSync('git', ['apply', '--3way', '--whitespace=nowarn', tmp], { cwd: repoPath, stdio: 'ignore', env: process.env });
+      execFileSync('git', ['apply', '--3way', '--whitespace=nowarn', tmp], { cwd: repoPath, stdio: ['ignore', 'pipe', 'ignore'], env: process.env });
       return true;
     } catch {
-      return false;
+      // Last resort: use the `patch` command which is more tolerant.
+      try {
+        const patchOutput = execFileSync('patch', ['-p1', '--no-backup-if-mismatch', '-f'], { cwd: repoPath, input: cleaned, stdio: ['ignore', 'pipe', 'ignore'], env: process.env });
+        return true;
+      } catch {
+        return false;
+      }
     }
   } finally {
-    try {
-      fsSync.unlinkSync(tmp);
-    } catch {
-      /* ignore */
-    }
+    try { fsSync.unlinkSync(tmp); } catch { /* ignore */ }
   }
 }
 
@@ -289,7 +295,7 @@ export async function runStrategyEval(
         totalTokens = agentRun?.totalTokens ?? null;
         costUsd = agentRun?.costUsd ?? null;
 
-        // Reset and try the patch.
+        // Reset and let the evaluator apply the patch via applyLatestPatch().
         resetToCommit(projectPath, baseCommit);
         const patch = diffs
           .slice()
@@ -298,12 +304,8 @@ export async function runStrategyEval(
         if (!patch) {
           passed = false;
           evalMessage = 'no patch produced';
-        } else if (!tryGitApply(projectPath, patch)) {
-          passed = false;
-          evalMessage = 'patch failed to apply';
-          if (process.env.STRATEGY_DEBUG) console.error('[strategy] patch failed to apply for', strategy, 'on', task.id);
         } else {
-          // Build eval context.
+          // Build eval context — evaluator handles patch application.
           const context: import('./types.js').EvaluationContext = {
             apiUrl,
             taskId: harnessTask.id,

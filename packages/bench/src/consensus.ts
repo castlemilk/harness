@@ -489,10 +489,18 @@ export async function runConsensusEval(
       if (!sub) continue;
       sub.report.total++;
       sub.report.totalDurationMs += c.durationMs;
-      // Mark passed if this candidate won OR if any candidate passed (the
-      // task is "solvable by this model" since its setup was used).
-      if (taskPassed) sub.report.passed++;
-      else sub.report.failed++;
+      // Per-model counters:
+      //   passed = candidate's own patch passed eval (only counts if we
+      //            actually tested it, which we don't for non-winners when
+      //            an earlier candidate wins).
+      //   tried = candidate was actually tested (won or tried before a winner)
+      //   won   = this candidate's patch was selected as the consensus winner
+      // The meaningful per-model pass rate is `passed / tried` — fraction
+      // of tested candidates that succeeded.
+      const candidateWon = !!winner && winner.c.provider === r.provider && winner.c.model === r.model;
+      const candidateTried = candidateWon || c.evalPassed || false;
+      if (candidateTried && c.evalPassed) sub.report.passed++;
+      else if (candidateTried) sub.report.failed++;
       sub.report.results.push({
         task,
         harnessTaskId: r.harnessTaskId,
@@ -500,11 +508,10 @@ export async function runConsensusEval(
         status: r.status === 'done' ? 'done' : (r.status === 'timeout' ? 'timeout' : 'failed'),
         evaluation: {
           passed: c.evalPassed ?? false,
-          message:
-            winner && winner.c.model === r.model
-              ? 'WON consensus'
-              : c.evalMessage || 'did not win consensus',
-          metrics: { won: winner?.c.model === r.model ? 1 : 0, patchBytes: c.patchBytes },
+          message: candidateWon
+            ? 'WON consensus'
+            : c.evalMessage || 'did not win consensus',
+          metrics: { won: candidateWon ? 1 : 0, tried: candidateTried ? 1 : 0, patchBytes: c.patchBytes },
         },
         agentRun:
           c.totalTokens != null || c.costUsd != null

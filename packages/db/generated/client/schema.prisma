@@ -97,6 +97,9 @@ model AgentRun {
   promptTokens      Int?
   completionTokens  Int?
   totalTokens       Int?
+  costUsd           Float?
+  turnCount         Int?
+  toolCalls         String? // JSON: { toolName: count, ... }
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 

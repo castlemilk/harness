@@ -137,6 +137,43 @@ export async function seedDefaults(): Promise<void> {
     console.log(`Seeded DeepSeek provider (${baseUrl}).`);
   }
 
+  // Qwen (Alibaba Cloud Model Studio token-plan, ap-southeast-1).
+  // OpenAI-compatible endpoint at .../compatible-mode/v1. Exposes the
+  // latest Qwen3.x family plus glm-5.2 and deepseek-v4-pro as alternates.
+  if (process.env.QWEN_API_KEY) {
+    const baseUrl =
+      process.env.QWEN_BASE_URL ?? 'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1';
+    await prisma.providerConfig.upsert({
+      where: { name: 'qwen' },
+      update: {
+        apiKey: process.env.QWEN_API_KEY,
+        baseUrl,
+        defaultModel: 'qwen3.8-max-preview',
+        capabilities: JSON.stringify([
+          { name: 'qwen3.8-max-preview', level: 'advanced', supportsTools: true },
+          { name: 'qwen3.7-max', level: 'advanced', supportsTools: true },
+          { name: 'qwen3.7-plus', level: 'advanced', supportsTools: true },
+          { name: 'qwen3.6-flash', level: 'advanced', supportsTools: true },
+        ]),
+      },
+      create: {
+        name: 'qwen',
+        kind: 'generic',
+        baseUrl,
+        apiKey: process.env.QWEN_API_KEY,
+        defaultModel: 'qwen3.8-max-preview',
+        enabled: true,
+        capabilities: JSON.stringify([
+          { name: 'qwen3.8-max-preview', level: 'advanced', supportsTools: true },
+          { name: 'qwen3.7-max', level: 'advanced', supportsTools: true },
+          { name: 'qwen3.7-plus', level: 'advanced', supportsTools: true },
+          { name: 'qwen3.6-flash', level: 'advanced', supportsTools: true },
+        ]),
+      },
+    });
+    console.log(`Seeded Qwen provider (${baseUrl}).`);
+  }
+
   console.log('Seeded default providers.');
 }
 

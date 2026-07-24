@@ -192,6 +192,9 @@ exports.Prisma.AgentRunScalarFieldEnum = {
   promptTokens: 'promptTokens',
   completionTokens: 'completionTokens',
   totalTokens: 'totalTokens',
+  costUsd: 'costUsd',
+  turnCount: 'turnCount',
+  toolCalls: 'toolCalls',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

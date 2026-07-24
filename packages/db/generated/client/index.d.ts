@@ -6817,12 +6817,16 @@ export namespace Prisma {
     promptTokens: number | null
     completionTokens: number | null
     totalTokens: number | null
+    costUsd: number | null
+    turnCount: number | null
   }
 
   export type AgentRunSumAggregateOutputType = {
     promptTokens: number | null
     completionTokens: number | null
     totalTokens: number | null
+    costUsd: number | null
+    turnCount: number | null
   }
 
   export type AgentRunMinAggregateOutputType = {
@@ -6837,6 +6841,9 @@ export namespace Prisma {
     promptTokens: number | null
     completionTokens: number | null
     totalTokens: number | null
+    costUsd: number | null
+    turnCount: number | null
+    toolCalls: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -6853,6 +6860,9 @@ export namespace Prisma {
     promptTokens: number | null
     completionTokens: number | null
     totalTokens: number | null
+    costUsd: number | null
+    turnCount: number | null
+    toolCalls: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -6869,6 +6879,9 @@ export namespace Prisma {
     promptTokens: number
     completionTokens: number
     totalTokens: number
+    costUsd: number
+    turnCount: number
+    toolCalls: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -6879,12 +6892,16 @@ export namespace Prisma {
     promptTokens?: true
     completionTokens?: true
     totalTokens?: true
+    costUsd?: true
+    turnCount?: true
   }
 
   export type AgentRunSumAggregateInputType = {
     promptTokens?: true
     completionTokens?: true
     totalTokens?: true
+    costUsd?: true
+    turnCount?: true
   }
 
   export type AgentRunMinAggregateInputType = {
@@ -6899,6 +6916,9 @@ export namespace Prisma {
     promptTokens?: true
     completionTokens?: true
     totalTokens?: true
+    costUsd?: true
+    turnCount?: true
+    toolCalls?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -6915,6 +6935,9 @@ export namespace Prisma {
     promptTokens?: true
     completionTokens?: true
     totalTokens?: true
+    costUsd?: true
+    turnCount?: true
+    toolCalls?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -6931,6 +6954,9 @@ export namespace Prisma {
     promptTokens?: true
     completionTokens?: true
     totalTokens?: true
+    costUsd?: true
+    turnCount?: true
+    toolCalls?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -7034,6 +7060,9 @@ export namespace Prisma {
     promptTokens: number | null
     completionTokens: number | null
     totalTokens: number | null
+    costUsd: number | null
+    turnCount: number | null
+    toolCalls: string | null
     createdAt: Date
     updatedAt: Date
     _count: AgentRunCountAggregateOutputType | null
@@ -7069,6 +7098,9 @@ export namespace Prisma {
     promptTokens?: boolean
     completionTokens?: boolean
     totalTokens?: boolean
+    costUsd?: boolean
+    turnCount?: boolean
+    toolCalls?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -7087,6 +7119,9 @@ export namespace Prisma {
     promptTokens?: boolean
     completionTokens?: boolean
     totalTokens?: boolean
+    costUsd?: boolean
+    turnCount?: boolean
+    toolCalls?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -7105,6 +7140,9 @@ export namespace Prisma {
     promptTokens?: boolean
     completionTokens?: boolean
     totalTokens?: boolean
+    costUsd?: boolean
+    turnCount?: boolean
+    toolCalls?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -7136,6 +7174,9 @@ export namespace Prisma {
       promptTokens: number | null
       completionTokens: number | null
       totalTokens: number | null
+      costUsd: number | null
+      turnCount: number | null
+      toolCalls: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["agentRun"]>
@@ -7544,6 +7585,9 @@ export namespace Prisma {
     readonly promptTokens: FieldRef<"AgentRun", 'Int'>
     readonly completionTokens: FieldRef<"AgentRun", 'Int'>
     readonly totalTokens: FieldRef<"AgentRun", 'Int'>
+    readonly costUsd: FieldRef<"AgentRun", 'Float'>
+    readonly turnCount: FieldRef<"AgentRun", 'Int'>
+    readonly toolCalls: FieldRef<"AgentRun", 'String'>
     readonly createdAt: FieldRef<"AgentRun", 'DateTime'>
     readonly updatedAt: FieldRef<"AgentRun", 'DateTime'>
   }
@@ -11906,6 +11950,9 @@ export namespace Prisma {
     promptTokens: 'promptTokens',
     completionTokens: 'completionTokens',
     totalTokens: 'totalTokens',
+    costUsd: 'costUsd',
+    turnCount: 'turnCount',
+    toolCalls: 'toolCalls',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -12048,13 +12095,6 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'Boolean'
-   */
-  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
-    
-
-
-  /**
    * Reference to a field of type 'Float'
    */
   export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -12065,6 +12105,13 @@ export namespace Prisma {
    * Reference to a field of type 'Float[]'
    */
   export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'Boolean'
+   */
+  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
   /**
    * Deep Input Types
@@ -12468,6 +12515,9 @@ export namespace Prisma {
     promptTokens?: IntNullableFilter<"AgentRun"> | number | null
     completionTokens?: IntNullableFilter<"AgentRun"> | number | null
     totalTokens?: IntNullableFilter<"AgentRun"> | number | null
+    costUsd?: FloatNullableFilter<"AgentRun"> | number | null
+    turnCount?: IntNullableFilter<"AgentRun"> | number | null
+    toolCalls?: StringNullableFilter<"AgentRun"> | string | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -12486,6 +12536,9 @@ export namespace Prisma {
     promptTokens?: SortOrderInput | SortOrder
     completionTokens?: SortOrderInput | SortOrder
     totalTokens?: SortOrderInput | SortOrder
+    costUsd?: SortOrderInput | SortOrder
+    turnCount?: SortOrderInput | SortOrder
+    toolCalls?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     task?: TaskOrderByWithRelationInput
@@ -12507,6 +12560,9 @@ export namespace Prisma {
     promptTokens?: IntNullableFilter<"AgentRun"> | number | null
     completionTokens?: IntNullableFilter<"AgentRun"> | number | null
     totalTokens?: IntNullableFilter<"AgentRun"> | number | null
+    costUsd?: FloatNullableFilter<"AgentRun"> | number | null
+    turnCount?: IntNullableFilter<"AgentRun"> | number | null
+    toolCalls?: StringNullableFilter<"AgentRun"> | string | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -12525,6 +12581,9 @@ export namespace Prisma {
     promptTokens?: SortOrderInput | SortOrder
     completionTokens?: SortOrderInput | SortOrder
     totalTokens?: SortOrderInput | SortOrder
+    costUsd?: SortOrderInput | SortOrder
+    turnCount?: SortOrderInput | SortOrder
+    toolCalls?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: AgentRunCountOrderByAggregateInput
@@ -12549,6 +12608,9 @@ export namespace Prisma {
     promptTokens?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
     completionTokens?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
     totalTokens?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    costUsd?: FloatNullableWithAggregatesFilter<"AgentRun"> | number | null
+    turnCount?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    toolCalls?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
   }
@@ -13300,6 +13362,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -13318,6 +13383,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -13332,6 +13400,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -13350,6 +13421,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -13366,6 +13440,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -13380,6 +13457,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -13396,6 +13476,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -14146,6 +14229,17 @@ export namespace Prisma {
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
+  export type FloatNullableFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+  }
+
   export type PromptVersionNullableRelationFilter = {
     is?: PromptVersionWhereInput | null
     isNot?: PromptVersionWhereInput | null
@@ -14163,6 +14257,9 @@ export namespace Prisma {
     promptTokens?: SortOrder
     completionTokens?: SortOrder
     totalTokens?: SortOrder
+    costUsd?: SortOrder
+    turnCount?: SortOrder
+    toolCalls?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -14171,6 +14268,8 @@ export namespace Prisma {
     promptTokens?: SortOrder
     completionTokens?: SortOrder
     totalTokens?: SortOrder
+    costUsd?: SortOrder
+    turnCount?: SortOrder
   }
 
   export type AgentRunMaxOrderByAggregateInput = {
@@ -14185,6 +14284,9 @@ export namespace Prisma {
     promptTokens?: SortOrder
     completionTokens?: SortOrder
     totalTokens?: SortOrder
+    costUsd?: SortOrder
+    turnCount?: SortOrder
+    toolCalls?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -14201,6 +14303,9 @@ export namespace Prisma {
     promptTokens?: SortOrder
     completionTokens?: SortOrder
     totalTokens?: SortOrder
+    costUsd?: SortOrder
+    turnCount?: SortOrder
+    toolCalls?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -14209,6 +14314,8 @@ export namespace Prisma {
     promptTokens?: SortOrder
     completionTokens?: SortOrder
     totalTokens?: SortOrder
+    costUsd?: SortOrder
+    turnCount?: SortOrder
   }
 
   export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -14225,6 +14332,22 @@ export namespace Prisma {
     _sum?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedIntNullableFilter<$PrismaModel>
     _max?: NestedIntNullableFilter<$PrismaModel>
+  }
+
+  export type FloatNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedFloatNullableFilter<$PrismaModel>
+    _min?: NestedFloatNullableFilter<$PrismaModel>
+    _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
   export type DateTimeNullableFilter<$PrismaModel = never> = {
@@ -14381,17 +14504,6 @@ export namespace Prisma {
     registeredAt?: SortOrder
   }
 
-  export type FloatNullableFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
-  }
-
   export type PromptVersionCountOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
@@ -14440,22 +14552,6 @@ export namespace Prisma {
 
   export type PromptVersionSumOrderByAggregateInput = {
     benchmarkScore?: SortOrder
-  }
-
-  export type FloatNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatNullableWithAggregatesFilter<$PrismaModel> | number | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _avg?: NestedFloatNullableFilter<$PrismaModel>
-    _sum?: NestedFloatNullableFilter<$PrismaModel>
-    _min?: NestedFloatNullableFilter<$PrismaModel>
-    _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
   export type TaskCreateNestedManyWithoutProjectInput = {
@@ -14806,6 +14902,14 @@ export namespace Prisma {
     divide?: number
   }
 
+  export type NullableFloatFieldUpdateOperationsInput = {
+    set?: number | null
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
   export type TaskUpdateOneRequiredWithoutAgentRunsNestedInput = {
     create?: XOR<TaskCreateWithoutAgentRunsInput, TaskUncheckedCreateWithoutAgentRunsInput>
     connectOrCreate?: TaskCreateOrConnectWithoutAgentRunsInput
@@ -14860,14 +14964,6 @@ export namespace Prisma {
     connectOrCreate?: AgentRunCreateOrConnectWithoutPromptVersionInput | AgentRunCreateOrConnectWithoutPromptVersionInput[]
     createMany?: AgentRunCreateManyPromptVersionInputEnvelope
     connect?: AgentRunWhereUniqueInput | AgentRunWhereUniqueInput[]
-  }
-
-  export type NullableFloatFieldUpdateOperationsInput = {
-    set?: number | null
-    increment?: number
-    decrement?: number
-    multiply?: number
-    divide?: number
   }
 
   export type AgentRunUpdateManyWithoutPromptVersionNestedInput = {
@@ -15034,6 +15130,17 @@ export namespace Prisma {
     not?: NestedFloatFilter<$PrismaModel> | number
   }
 
+  export type NestedFloatNullableFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+  }
+
   export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel> | null
     in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
@@ -15050,7 +15157,7 @@ export namespace Prisma {
     _max?: NestedIntNullableFilter<$PrismaModel>
   }
 
-  export type NestedFloatNullableFilter<$PrismaModel = never> = {
+  export type NestedFloatNullableWithAggregatesFilter<$PrismaModel = never> = {
     equals?: number | FloatFieldRefInput<$PrismaModel> | null
     in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
     notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
@@ -15058,7 +15165,12 @@ export namespace Prisma {
     lte?: number | FloatFieldRefInput<$PrismaModel>
     gt?: number | FloatFieldRefInput<$PrismaModel>
     gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+    not?: NestedFloatNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedFloatNullableFilter<$PrismaModel>
+    _min?: NestedFloatNullableFilter<$PrismaModel>
+    _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
   export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
@@ -15097,22 +15209,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedBoolFilter<$PrismaModel>
     _max?: NestedBoolFilter<$PrismaModel>
-  }
-
-  export type NestedFloatNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatNullableWithAggregatesFilter<$PrismaModel> | number | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _avg?: NestedFloatNullableFilter<$PrismaModel>
-    _sum?: NestedFloatNullableFilter<$PrismaModel>
-    _min?: NestedFloatNullableFilter<$PrismaModel>
-    _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
   export type TaskCreateWithoutProjectInput = {
@@ -15323,6 +15419,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     promptVersion?: PromptVersionCreateNestedOneWithoutAgentRunsInput
@@ -15339,6 +15438,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -15540,6 +15642,9 @@ export namespace Prisma {
     promptTokens?: IntNullableFilter<"AgentRun"> | number | null
     completionTokens?: IntNullableFilter<"AgentRun"> | number | null
     totalTokens?: IntNullableFilter<"AgentRun"> | number | null
+    costUsd?: FloatNullableFilter<"AgentRun"> | number | null
+    turnCount?: IntNullableFilter<"AgentRun"> | number | null
+    toolCalls?: StringNullableFilter<"AgentRun"> | string | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
   }
@@ -16139,6 +16244,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -16155,6 +16263,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -16295,6 +16406,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -16409,6 +16523,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     promptVersion?: PromptVersionUpdateOneWithoutAgentRunsNestedInput
@@ -16425,6 +16542,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -16440,6 +16560,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -16494,6 +16617,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -16508,6 +16634,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -16524,6 +16653,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -16539,6 +16671,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

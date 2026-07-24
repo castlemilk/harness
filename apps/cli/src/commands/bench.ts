@@ -11,6 +11,7 @@ import {
   fastSuite,
   deepSuite,
   hardSuite,
+  hardTargetedSuite,
   harderSuite,
   loadDeepSWESuite,
   runPierBenchmark,
@@ -19,6 +20,7 @@ import {
   compareReports,
   generateTrend,
   runConsensusEval,
+  runStrategyEval,
   loadOptimisationContext,
   buildOptimisePrompt,
   submitOptimiseTask,
@@ -52,7 +54,7 @@ function currentProject(apiUrl: string): Promise<{ id: string }> {
 
 const runCmd = new Command('run')
   .description('Run a benchmark suite')
-  .option('--suite <name>', 'suite name: synthetic | fast | hard | harder | deep-swe | pier', 'synthetic')
+  .option('--suite <name>', 'suite name: synthetic | fast | hard | harder | hard-targeting | deep-swe | pier', 'synthetic')
   .option('--path <dir>', 'path to DeepSWE tasks directory (for deep-swe/pier suites)')
   .option('--n-tasks <n>', 'limit number of tasks (for deep-swe/pier)', parseInt)
   .option('--sample-seed <n>', 'seed for deterministic sampling (for deep-swe/pier)', parseInt)
@@ -169,6 +171,12 @@ const runCmd = new Command('run')
         tasks = tasks.filter((t) => opts.taskId.includes(t.id));
       }
       suiteName = 'harder';
+    } else if (opts.suite === 'hard-targeting') {
+      tasks = hardTargetedSuite();
+      if (opts.taskId.length > 0) {
+        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
+      }
+      suiteName = 'hard-targeting';
     } else {
       throw new Error(`Unknown suite: ${opts.suite}`);
     }
@@ -266,7 +274,7 @@ const compareCmd = new Command('compare')
 
 const evalCmd = new Command('eval')
   .description('Run a benchmark suite across multiple models and compare results')
-  .option('--suite <name>', 'suite name: synthetic | fast | deep | hard | harder | deep-swe', 'deep')
+  .option('--suite <name>', 'suite name: synthetic | fast | deep | hard | harder | hard-targeting | deep-swe', 'deep')
   .option('--models <list>', 'comma-separated models as provider/model or model (default provider kimi)', 'kimi/moonshot-v1-128k')
   .option('--harnesses <list>', 'comma-separated external agent harnesses (codex, claude-code, agy, opencode, cursor-cli, aider) to evaluate instead of internal models')
   .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
@@ -299,6 +307,8 @@ const evalCmd = new Command('eval')
       tasks = await hardSuite(opts.path);
     } else if (opts.suite === 'harder') {
       tasks = harderSuite();
+    } else if (opts.suite === 'hard-targeting') {
+      tasks = hardTargetedSuite();
     } else if (opts.suite === 'deep-swe') {
       if (!opts.path) throw new Error('--path is required for the deep-swe suite');
       tasks = await loadDeepSWESuite({ tasksDir: opts.path });
@@ -369,7 +379,7 @@ const consensusCmd = new Command('consensus')
       'Pass rate = fraction of tasks where ANY agent succeeded. ' +
       'Cost = sum across all agents.',
   )
-  .option('--suite <name>', 'suite name: fast | deep | harder | hard', 'harder')
+  .option('--suite <name>', 'suite name: fast | deep | harder | hard-targeting | hard', 'harder')
   .option(
     '--models <list>',
     'comma-separated models as provider/model (e.g. "external:agy,minimax/MiniMax-M3,deepseek/deepseek-v4-pro")',
@@ -402,6 +412,8 @@ const consensusCmd = new Command('consensus')
         tasks = deepSuite();
       } else if (opts.suite === 'harder') {
         tasks = harderSuite();
+      } else if (opts.suite === 'hard-targeting') {
+        tasks = hardTargetedSuite();
       } else if (opts.suite === 'hard') {
         if (!opts.path) throw new Error('--path is required for the hard suite');
         tasks = await hardSuite(opts.path);
@@ -464,6 +476,123 @@ const consensusCmd = new Command('consensus')
     },
   );
 
+const strategyCmd = new Command('strategy')
+  .description(
+    'Run each task with N harness strategies (prompt variants) to find which ' +
+      'strategies help which task types. First-passing strategy wins the task. ' +
+      'Output: per-(task, strategy) pass/fail plus a per-strategy summary showing ' +
+      'which strategies are most useful for which capability categories.',
+  )
+  .option('--suite <name>', 'suite name: fast | deep | harder | hard-targeting', 'hard-targeting')
+  .option(
+    '--strategies <list>',
+    'comma-separated strategies: default,verify-before-finish,research-first,concise,plan-then-execute',
+    'default,verify-before-finish,research-first'
+  )
+  .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
+  .option('--timeout <ms>', 'per-strategy per-task timeout in ms', '300000')
+  .option('--token-budget <n>', 'per-strategy token cap', parseInt)
+  .option('--project-prefix <prefix>', 'project name prefix', 'strategy')
+  .option('--provider <name>', 'override provider (e.g. minimax)')
+  .option('--model <model>', 'override model (e.g. MiniMax-M3)')
+  .action(
+    async (opts: {
+      suite: string;
+      strategies: string;
+      taskId: string[];
+      timeout: string;
+      tokenBudget?: number;
+      projectPrefix: string;
+      provider?: string;
+      model?: string;
+    }) => {
+      const apiUrl = getApiUrl();
+      await waitForApi(apiUrl);
+
+      let tasks;
+      if (opts.suite === 'fast') {
+        tasks = fastSuite();
+      } else if (opts.suite === 'deep') {
+        tasks = deepSuite();
+      } else if (opts.suite === 'harder') {
+        tasks = harderSuite();
+      } else if (opts.suite === 'hard-targeting') {
+        tasks = hardTargetedSuite();
+      } else {
+        throw new Error(`Unknown suite: ${opts.suite}`);
+      }
+      if (opts.taskId.length > 0) {
+        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
+      }
+
+      const strategies = opts.strategies.split(',').map((s) => s.trim()).filter(Boolean) as Array<
+        'default' | 'verify-before-finish' | 'research-first' | 'concise' | 'plan-then-execute'
+      >;
+      const timeoutMs = Number(opts.timeout);
+
+      console.log(
+        `Running ${String(tasks.length)} tasks across ${String(strategies.length)} strategies: ${strategies.join(', ')}`,
+      );
+
+      const result = await runStrategyEval(tasks, {
+        apiUrl,
+        strategies,
+        timeoutMs,
+        tokenBudget: opts.tokenBudget,
+        projectPrefix: opts.projectPrefix,
+        provider: opts.provider,
+        model: opts.model,
+        suiteName: opts.suite,
+        onProgress: (taskId, report) => {
+          const w = report.winner ?? 'none';
+          console.log(
+            `  ${report.passed ? '✓' : '✗'} ${taskId} (${String(report.candidates.length)} strategies, winner: ${w})`,
+          );
+        },
+      });
+
+      console.log(
+        `\nUnion pass rate: ${result.summary.unionPassRate.toFixed(0)}% (${result.tasks.filter((r) => r.passed).length}/${result.tasks.length})`,
+      );
+      console.log(`\nPer-strategy pass rate:`);
+      for (const [name, s] of Object.entries(result.summary.perStrategy)) {
+        console.log(
+          `  ${name.padEnd(24)} ${s.passes}/${s.runs} (${(s.passRate * 100).toFixed(0)}%)  avg ${Math.round(s.avgDurationMs / 1000)}s`,
+        );
+      }
+      console.log(`\nWins by strategy:`, result.summary.winsByStrategy);
+
+      // Persist a JSON report for later analysis.
+      const reportPath = `${omegaReportsDir()}/strategy-${opts.suite}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      const fs = await import('node:fs/promises');
+      await fs.mkdir(omegaReportsDir(), { recursive: true });
+      await fs.writeFile(
+        reportPath,
+        JSON.stringify(
+          {
+            timestamp: new Date().toISOString(),
+            suite: opts.suite,
+            strategies,
+            summary: result.summary,
+            tasks: result.tasks.map((t) => ({
+              taskId: t.task.id,
+              passed: t.passed,
+              winner: t.winner,
+              durationMs: t.durationMs,
+              totalTokens: t.totalTokens,
+              totalCostUsd: t.totalCostUsd,
+              candidates: t.candidates,
+            })),
+          },
+          null,
+          2,
+        ),
+        'utf-8',
+      );
+      console.log(`\nReport written to ${reportPath}`);
+    },
+  );
+
 export const benchCmd = new Command('bench')
   .description('Run benchmarks and optimise prompts')
   .addCommand(runCmd)
@@ -471,4 +600,5 @@ export const benchCmd = new Command('bench')
   .addCommand(optimiseCmd)
   .addCommand(compareCmd)
   .addCommand(trendCmd)
-  .addCommand(consensusCmd);
+  .addCommand(consensusCmd)
+  .addCommand(strategyCmd);

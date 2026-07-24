@@ -9,8 +9,10 @@ export { fastSuite } from './suites/fast.js';
 export { deepSuite } from './suites/deep.js';
 export { hardSuite, HARD_DEEPSWE_TASK_IDS } from './suites/hard.js';
 export { harderSuite } from './suites/harder.js';
+export { hardTargetedSuite } from './suites/hard-targeting.js';
 export { runModelEval, runHarnessEval, writeModelEvalReport, summarizeModelEval, parseModelList, type ModelEvalModel, type ModelEvalResult, type ModelEvalSummary, type HarnessEvalOptions } from './model-eval.js';
 export { runConsensusEval, type ConsensusModel, type ConsensusOptions, type ConsensusResult, type ConsensusTaskReport, type ConsensusSummary } from './consensus.js';
+export { runStrategyEval, STRATEGY_PROMPTS, type StrategyName, type StrategyOptions, type StrategyResult, type StrategyTaskReport, type StrategyCandidate, type StrategySummary } from './strategy-eval.js';
 export { loadDeepSWESuite, type DeepSWEOptions } from './adapters/deepswe.js';
 export { loadPierSuite, runPierBenchmark, type PierOptions } from './adapters/pier.js';
 export {

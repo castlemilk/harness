@@ -1,5 +1,5 @@
 import { createProvider } from '@omega/providers';
-import { selectProvider, selectProviderWithHistory, getHistoricalScores } from '@omega/router';
+import { selectProvider } from '@omega/router';
 import { runAgentTask, runOrchestratedTask, runExternalAgentTask, type ExternalCli } from '@omega/agent';
 import type { PrismaClient } from '@omega/db';
 import type { ProviderConfig as CoreProviderConfig, Task } from '@omega/core';
@@ -7,7 +7,6 @@ import { queue } from './task-queue.js';
 import { notifyFailure } from './webhook-alerts.js';
 import { getNextStrategy, executeRetry, type RetryContext, type RetryRecord } from './retry-strategies.js';
 import { getRouter, recordTaskOutcome } from './intelligent-router.js';
-import type { IntelligentRouter, RouteDecision } from '@omega/router';
 
 async function tryAutoRetry(
   prisma: PrismaClient,
@@ -135,6 +134,39 @@ export async function runTask(
     const tokenBudget = options.tokenBudget ?? (process.env.OMEGA_TOKEN_BUDGET
       ? Number(process.env.OMEGA_TOKEN_BUDGET)
       : undefined);
+
+    // Use intelligent router to pick the model, then pin it on the task row
+    // so the executor's selectProvider honors the assignment.
+    if (!task.provider || !task.model) {
+      try {
+        const configs = await prisma.providerConfig.findMany();
+        const coreConfigs = configs.map(toCoreConfig);
+        const router = await getRouter(prisma);
+        const taskForRouter: Task = {
+          id: task.id,
+          projectId: task.projectId,
+          title: task.title,
+          description: task.description ?? undefined,
+          status: task.status as Task['status'],
+          complexity: task.complexity as Task['complexity'],
+          tags: task.tags ? (JSON.parse(task.tags) as Task['tags']) : [],
+          createdAt: task.createdAt,
+          updatedAt: task.updatedAt,
+        };
+        const decision = router.route(coreConfigs, taskForRouter, {
+          strategy: 'balanced',
+          maxCandidates: 1,
+        });
+        if (decision) {
+          await prisma.task.update({
+            where: { id: taskId },
+            data: { provider: decision.primary.provider.name, model: decision.primary.model },
+          });
+        }
+      } catch {
+        // Fallback: let executor use its own routing
+      }
+    }
 
     // Tasks tagged 'orchestrate' go through the multi-agent orchestrator
     // (high-tier planner/reviewer + smaller sub-agent models); the

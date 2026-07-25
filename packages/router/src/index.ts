@@ -3,7 +3,10 @@ export * from './tiers.js';
 export { selectProviderWithHistory, getHistoricalScores, type HistoricalScore, type DifficultyAwareOptions } from './difficulty-aware.js';
 export {
   IntelligentRouter,
+  StrategyLearner,
   classifyTask,
+  saveRouterState,
+  loadRouterState,
   type RoutingStrategy,
   type RouteDecision,
   type RouteCandidate,

@@ -332,6 +332,7 @@ function scoreCapability(cap: Capability, classification: TaskClassification): n
 export class IntelligentRouter {
   readonly health = new ProviderHealthRegistry();
   readonly performance = new PerformanceCache();
+  readonly strategyLearner = new StrategyLearner();
   private useCount = new Map<string, number>(); // for recency scoring
 
   /**
@@ -343,12 +344,19 @@ export class IntelligentRouter {
     options: IntelligentRouterOptions = {},
   ): RouteDecision | undefined {
     const {
-      strategy = 'balanced',
       budgetUsd,
       maxCandidates = 3,
       minHistoricalRuns = 3,
       explorationRate = 0,
     } = options;
+
+    // Let strategy learner recommend based on historical outcomes
+    let strategy = options.strategy ?? 'balanced';
+    const classification = classifyTask(task);
+    const recommended = this.strategyLearner.recommend(classification.domain, classification.complexity);
+    if (recommended && !options.strategy) {
+      strategy = recommended;
+    }
 
     const enabled = configs.filter((c) => c.enabled);
     if (enabled.length === 0) return undefined;
@@ -374,7 +382,6 @@ export class IntelligentRouter {
       }
     }
 
-    const classification = classifyTask(task);
     const weights = STRATEGY_WEIGHTS[strategy];
 
     // Score every provider/model combination
@@ -543,4 +550,121 @@ export class IntelligentRouter {
 function strategy(s?: string): RoutingStrategy {
   if (s === 'cost-optimized' || s === 'performance-optimized' || s === 'consensus' || s === 'exploratory') return s;
   return 'balanced';
+}
+
+// ─── Persistence ────────────────────────────────────────────────────────────
+
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+
+interface PersistedRouterState {
+  version: 1;
+  savedAt: string;
+  health: Record<string, Array<Omit<HealthSample, 'timestamp'> & { timestamp: number }>>;
+  performance: Record<string, PerfEntry>;
+  strategyScores: Record<string, { wins: number; total: number; avgScore: number }>;
+}
+
+const DEFAULT_PERSIST_PATH = join(process.env.HOME ?? '~', '.omega', 'router-state.json');
+
+export async function saveRouterState(router: IntelligentRouter, path?: string): Promise<void> {
+  const filePath = path ?? DEFAULT_PERSIST_PATH;
+  const state: PersistedRouterState = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    health: Object.fromEntries([...router.health['samples'].entries()]),
+    performance: Object.fromEntries([...router.performance['cache'].entries()].map(([k, v]) => [k, v])),
+    strategyScores: Object.fromEntries([...router.strategyLearner.scores.entries()]),
+  };
+  await mkdir(dirname(filePath), { recursive: true });
+  await writeFile(filePath, JSON.stringify(state, null, 2));
+}
+
+export async function loadRouterState(router: IntelligentRouter, path?: string): Promise<boolean> {
+  const filePath = path ?? DEFAULT_PERSIST_PATH;
+  try {
+    const raw = await readFile(filePath, 'utf-8');
+    const state = JSON.parse(raw) as PersistedRouterState;
+    if (state.version !== 1) return false;
+
+    // Restore health samples
+    for (const [key, samples] of Object.entries(state.health)) {
+      for (const sample of samples) {
+        router.health.record(key, sample);
+      }
+    }
+
+    // Restore performance cache
+    for (const [key, entry] of Object.entries(state.performance)) {
+      router.performance['cache'].set(key, entry);
+    }
+
+    // Restore strategy scores
+    for (const [key, score] of Object.entries(state.strategyScores)) {
+      router.strategyLearner.scores.set(key, score);
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ─── Strategy Learning ──────────────────────────────────────────────────────
+
+interface StrategyScore {
+  wins: number;
+  total: number;
+  avgScore: number;
+}
+
+/**
+ * Tracks which routing strategy performs best for each task domain/complexity
+ * combination. After enough data, automatically adjusts the strategy weights
+ * to favor what works.
+ */
+export class StrategyLearner {
+  /** key = "${domain}:${complexity}" */
+  scores = new Map<string, StrategyScore>();
+
+  /**
+   * Record the outcome of a routing decision.
+   */
+  recordOutcome(
+    domain: TaskDomain,
+    complexity: Complexity,
+    strategy: RoutingStrategy,
+    passed: boolean,
+    costUsd: number,
+  ): void {
+    const key = `${domain}:${complexity}`;
+    const existing = this.scores.get(key) ?? { wins: 0, total: 0, avgScore: 0 };
+    existing.total++;
+    if (passed) existing.wins++;
+    // Exponential moving average of "goodness" (pass - normalized cost)
+    const goodness = (passed ? 1 : 0) - Math.min(1, costUsd * 10);
+    existing.avgScore = existing.avgScore * 0.9 + goodness * 0.1;
+    this.scores.set(key, existing);
+  }
+
+  /**
+   * Recommend a strategy for a given task based on historical outcomes.
+   */
+  recommend(domain: TaskDomain, complexity: Complexity): RoutingStrategy | undefined {
+    // Need at least 5 data points before recommending
+    const key = `${domain}:${complexity}`;
+    const score = this.scores.get(key);
+    if (!score || score.total < 5) return undefined;
+
+    // If performance-optimized tasks have higher avgScore, recommend it
+    // This is a simple heuristic; more sophisticated approaches could
+    // track per-strategy scores separately
+    if (score.avgScore > 0.3 && score.wins / score.total > 0.7) {
+      return 'performance-optimized';
+    }
+    if (score.avgScore < -0.1) {
+      return 'cost-optimized';
+    }
+    return undefined;
+  }
 }

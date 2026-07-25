@@ -1,0 +1,59 @@
+/**
+ * Singleton IntelligentRouter instance for the server.
+ * Initialized once with historical data, updated after each task.
+ */
+
+import { IntelligentRouter } from '@omega/router';
+import type { PrismaClient } from '@omega/db';
+
+let router: IntelligentRouter | null = null;
+
+export async function getRouter(prisma: PrismaClient): Promise<IntelligentRouter> {
+  if (router) return router;
+
+  router = new IntelligentRouter();
+
+  // Load historical performance data (last 1000 agent runs)
+  try {
+    const rows = await prisma.agentRun.findMany({
+      take: 1000,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        resultStatus: true,
+        costUsd: true,
+        createdAt: true,
+        updatedAt: true,
+        task: { select: { provider: true, model: true } },
+      },
+    });
+    router.performance.loadFromRows(rows.map((r) => ({
+      provider: r.task.provider,
+      model: r.task.model,
+      resultStatus: r.resultStatus,
+      costUsd: r.costUsd,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    })));
+  } catch {
+    // Historical data not available yet — router will use capability-only scoring
+  }
+
+  return router;
+}
+
+/**
+ * Record a task outcome for future routing decisions.
+ */
+export function recordTaskOutcome(
+  router: IntelligentRouter,
+  providerKey: string,
+  passed: boolean,
+  costUsd: number,
+  durationMs: number,
+  latencyMs: number,
+  success: boolean,
+  rateLimited: boolean,
+): void {
+  router.performance.update(providerKey, passed, costUsd, durationMs);
+  router.health.record(providerKey, { latencyMs, success, rateLimited, costUsd });
+}

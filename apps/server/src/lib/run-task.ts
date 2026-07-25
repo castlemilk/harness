@@ -6,6 +6,8 @@ import type { ProviderConfig as CoreProviderConfig, Task } from '@omega/core';
 import { queue } from './task-queue.js';
 import { notifyFailure } from './webhook-alerts.js';
 import { getNextStrategy, executeRetry, type RetryContext, type RetryRecord } from './retry-strategies.js';
+import { getRouter, recordTaskOutcome } from './intelligent-router.js';
+import type { IntelligentRouter, RouteDecision } from '@omega/router';
 
 async function tryAutoRetry(
   prisma: PrismaClient,
@@ -198,33 +200,14 @@ export async function runTask(
     updatedAt: task.updatedAt,
   };
 
-  // Use difficulty-aware routing if historical data is available; fall back to
-  // the standard capability-based router otherwise.
-  const historicalScores = await getHistoricalScores(() =>
-    prisma.agentRun.findMany({
-      select: {
-        resultStatus: true,
-        costUsd: true,
-        createdAt: true,
-        updatedAt: true,
-        task: { select: { provider: true, model: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 500,
-    }).then((runs) => runs.map((r) => ({
-      resultStatus: r.resultStatus,
-      costUsd: r.costUsd,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
-      provider: r.task.provider,
-      model: r.task.model,
-    }))),
-  );
+  // Use the intelligent router with fallback cascade
+  const router = await getRouter(prisma);
+  const decision = router.route(coreConfigs, taskForRouter, {
+    strategy: 'balanced',
+    maxCandidates: 3,
+  });
 
-  const selection = historicalScores.size > 0
-    ? selectProviderWithHistory(coreConfigs, [], taskForRouter, historicalScores)
-    : selectProvider(coreConfigs, [], taskForRouter);
-  if (!selection) {
+  if (!decision) {
     await prisma.task.update({
       where: { id: taskId },
       data: { status: 'failed', error: 'No provider available for this task' },
@@ -232,41 +215,74 @@ export async function runTask(
     return { status: 'failed', error: 'No provider available' };
   }
 
-  const config = selection.provider;
-  const providerName = config.name;
-  const modelName = selection.model;
-  const provider = createProvider(config);
-  const prompt = [task.title, task.description].filter(Boolean).join('\n\n');
+  // Try primary, then fallbacks in order
+  const candidates = [decision.primary, ...decision.fallbacks];
+  let lastError = '';
 
-  try {
-    const result = await provider.send(prompt, { model: modelName });
-    const updated = await prisma.task.update({
-      where: { id: taskId },
-      data: {
-        status: 'done',
-        result,
-        provider: providerName,
-        model: modelName,
-        error: null,
-      },
-    });
-    return updated;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    void notifyFailure(prisma, {
-      taskId, title: task.title, provider: providerName, model: modelName,
-      error: message, tags, timestamp: new Date().toISOString(),
-    });
-    const updated = await prisma.task.update({
-      where: { id: taskId },
-      data: {
-        status: 'failed',
-        error: message,
-        provider: providerName,
-        model: modelName,
-      },
-    });
-    void tryAutoRetry(prisma, taskId);
-    return updated;
+  for (const candidate of candidates) {
+    const config = candidate.provider;
+    const providerName = config.name;
+    const modelName = candidate.model;
+    const provider = createProvider(config);
+    const prompt = [task.title, task.description].filter(Boolean).join('\n\n');
+    const startMs = Date.now();
+
+    try {
+      const result = await provider.send(prompt, { model: modelName });
+      const durationMs = Date.now() - startMs;
+
+      // Record success
+      recordTaskOutcome(router, `${providerName}/${modelName}`, true, 0, durationMs, durationMs, true, false);
+
+      const updated = await prisma.task.update({
+        where: { id: taskId },
+        data: {
+          status: 'done',
+          result,
+          provider: providerName,
+          model: modelName,
+          error: null,
+        },
+      });
+      return updated;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const durationMs = Date.now() - startMs;
+      const isRateLimited = message.includes('429') || message.includes('rate') || message.includes('Too Many');
+      const isTimeout = message.includes('timeout') || message.includes('TIMEOUT');
+
+      // Record failure
+      recordTaskOutcome(router, `${providerName}/${modelName}`, false, 0, durationMs, durationMs, false, isRateLimited);
+
+      lastError = message;
+
+      // If rate-limited or timed out, try next candidate
+      if (isRateLimited || isTimeout) {
+        continue;
+      }
+
+      // For other errors, also try next candidate but log the failure
+      if (candidates.length > 1) {
+        continue;
+      }
+    }
   }
+
+  // All candidates failed
+  void notifyFailure(prisma, {
+    taskId, title: task.title, provider: candidates[0]!.provider.name,
+    model: candidates[0]!.model, error: lastError, tags,
+    timestamp: new Date().toISOString(),
+  });
+  const updated = await prisma.task.update({
+    where: { id: taskId },
+    data: {
+      status: 'failed',
+      error: lastError,
+      provider: candidates[0]!.provider.name,
+      model: candidates[0]!.model,
+    },
+  });
+  void tryAutoRetry(prisma, taskId);
+  return updated;
 }

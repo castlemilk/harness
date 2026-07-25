@@ -86,6 +86,29 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  selectProviderIntelligent: (body: {
+    title: string;
+    description?: string;
+    complexity: string;
+    tags: string[];
+    strategy?: string;
+    budgetUsd?: number;
+  }) =>
+    request<{
+      decision: {
+        primary: { provider: string; model: string; score: number; breakdown: Record<string, number> };
+        fallbacks: Array<{ provider: string; model: string; score: number; breakdown: Record<string, number> }>;
+        classification: { complexity: string; domain: string; requiredCapabilities: string[]; estimatedTokens: number };
+        strategy: string;
+        reasoning: string;
+      };
+      ranking: Array<{ provider: string; model: string; score: number; breakdown: Record<string, number> }>;
+      health: Record<string, { latencyP50: number; latencyP95: number; errorRate: number; rateLimitRate: number; score: number }>;
+    }>('/router/intelligent', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
   getMetrics: () => request('/metrics'),
   getTaskSteps: (id: string) => request(`/tasks/${id}/steps`),
   getTaskTraces: (id: string) => request(`/tasks/${id}/traces`),

@@ -9,12 +9,14 @@ export { fastSuite } from './suites/fast.js';
 export { deepSuite } from './suites/deep.js';
 export { hardSuite, HARD_DEEPSWE_TASK_IDS } from './suites/hard.js';
 export { harderSuite } from './suites/harder.js';
+export { harderV2Suite } from './suites/harder-v2.js';
 export { hardTargetedSuite } from './suites/hard-targeting.js';
 export { runModelEval, runHarnessEval, writeModelEvalReport, summarizeModelEval, parseModelList, type ModelEvalModel, type ModelEvalResult, type ModelEvalSummary, type HarnessEvalOptions } from './model-eval.js';
 export { runConsensusEval, type ConsensusModel, type ConsensusOptions, type ConsensusResult, type ConsensusTaskReport, type ConsensusSummary } from './consensus.js';
 export { runStrategyEval, analyseFailures, classifyTask, STRATEGY_PROMPTS, type StrategyName, type StrategyOptions, type StrategyResult, type StrategyTaskReport, type StrategyCandidate, type StrategySummary, type FailureInsight } from './strategy-eval.js';
 export { generateAdversarialTests, saveAdversarialTasks, loadAdversarialTasks, type AdversarialGenOptions, type AdversarialTask } from './adversarial.js';
 export { loadDeepSWESuite, type DeepSWEOptions } from './adapters/deepswe.js';
+export { loadSWebenchLiteSuite, type SWebenchOptions } from './adapters/swebench.js';
 export { loadPierSuite, runPierBenchmark, type PierOptions } from './adapters/pier.js';
 export {
   buildOptimisePrompt,

@@ -14,6 +14,8 @@ import {
   hardTargetedSuite,
   harderSuite,
   loadDeepSWESuite,
+  loadSWebenchLiteSuite,
+  harderV2Suite,
   runPierBenchmark,
   writeReport,
   printSummary,
@@ -55,11 +57,12 @@ function currentProject(apiUrl: string): Promise<{ id: string }> {
 
 const runCmd = new Command('run')
   .description('Run a benchmark suite')
-  .option('--suite <name>', 'suite name: synthetic | fast | hard | harder | hard-targeting | deep-swe | pier', 'synthetic')
-  .option('--path <dir>', 'path to DeepSWE tasks directory (for deep-swe/pier suites)')
-  .option('--n-tasks <n>', 'limit number of tasks (for deep-swe/pier)', parseInt)
-  .option('--sample-seed <n>', 'seed for deterministic sampling (for deep-swe/pier)', parseInt)
-  .option('--task-id <id>', 'run only specific DeepSWE task(s) by id (repeatable)', collectTaskIds, [])
+  .option('--suite <name>', 'suite name: synthetic | fast | hard | harder | harder-v2 | hard-targeting | deep-swe | swebench-lite | pier', 'synthetic')
+  .option('--path <dir>', 'path to DeepSWE tasks directory (for deep-swe/pier) or SWE-bench JSON file (for swebench-lite)')
+  .option('--n-tasks <n>', 'limit number of tasks (for deep-swe/pier/swebench-lite)', parseInt)
+  .option('--sample-seed <n>', 'seed for deterministic sampling (for deep-swe/pier/swebench-lite)', parseInt)
+  .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
+  .option('--repo <repo>', 'filter to specific repo (for swebench-lite, repeatable)', collectTaskIds, [])
   .option('--timeout <ms>', 'per-task timeout in ms', '1800000')
   .option('--output-dir <dir>', 'report output directory')
   .option('--project-prefix <prefix>', 'project name prefix for created harness projects', 'bench')
@@ -80,6 +83,7 @@ const runCmd = new Command('run')
     nTasks?: number;
     sampleSeed?: number;
     taskId: string[];
+    repo: string[];
     timeout: string;
     outputDir?: string;
     projectPrefix: string;
@@ -172,12 +176,30 @@ const runCmd = new Command('run')
         tasks = tasks.filter((t) => opts.taskId.includes(t.id));
       }
       suiteName = 'harder';
+    } else if (opts.suite === 'harder-v2') {
+      tasks = harderV2Suite();
+      if (opts.taskId.length > 0) {
+        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
+      }
+      suiteName = 'harder-v2';
     } else if (opts.suite === 'hard-targeting') {
       tasks = hardTargetedSuite();
       if (opts.taskId.length > 0) {
         tasks = tasks.filter((t) => opts.taskId.includes(t.id));
       }
       suiteName = 'hard-targeting';
+    } else if (opts.suite === 'swebench-lite') {
+      if (!opts.path) {
+        throw new Error('--path is required for the swebench-lite suite (path to JSON file)');
+      }
+      tasks = await loadSWebenchLiteSuite({
+        datasetPath: path.resolve(opts.path),
+        nTasks: opts.nTasks,
+        sampleSeed: opts.sampleSeed,
+        taskIds: opts.taskId.length > 0 ? opts.taskId : undefined,
+        repos: opts.repo.length > 0 ? opts.repo : undefined,
+      });
+      suiteName = 'swebench-lite';
     } else {
       throw new Error(`Unknown suite: ${opts.suite}`);
     }
@@ -275,11 +297,12 @@ const compareCmd = new Command('compare')
 
 const evalCmd = new Command('eval')
   .description('Run a benchmark suite across multiple models and compare results')
-  .option('--suite <name>', 'suite name: synthetic | fast | deep | hard | harder | hard-targeting | deep-swe', 'deep')
+  .option('--suite <name>', 'suite name: synthetic | fast | deep | hard | harder | hard-targeting | deep-swe | swebench-lite', 'deep')
   .option('--models <list>', 'comma-separated models as provider/model or model (default provider kimi)', 'kimi/moonshot-v1-128k')
   .option('--harnesses <list>', 'comma-separated external agent harnesses (codex, claude-code, agy, opencode, cursor-cli, aider) to evaluate instead of internal models')
   .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
-  .option('--path <dir>', 'path to DeepSWE tasks directory (for hard/deep-swe suites)')
+  .option('--repo <repo>', 'filter to specific repo (for swebench-lite, repeatable)', collectTaskIds, [])
+  .option('--path <dir>', 'path to DeepSWE tasks directory (for hard/deep-swe) or SWE-bench JSON file (for swebench-lite)')
   .option('--timeout <ms>', 'per-task timeout in ms', '600000')
   .option('--token-budget <n>', 'per-task token cap', parseInt)
   .option('--project-prefix <prefix>', 'project name prefix for created harness projects', 'eval')
@@ -288,6 +311,7 @@ const evalCmd = new Command('eval')
     models: string;
     harnesses?: string;
     taskId: string[];
+    repo: string[];
     path?: string;
     timeout: string;
     tokenBudget?: number;
@@ -313,6 +337,13 @@ const evalCmd = new Command('eval')
     } else if (opts.suite === 'deep-swe') {
       if (!opts.path) throw new Error('--path is required for the deep-swe suite');
       tasks = await loadDeepSWESuite({ tasksDir: opts.path });
+    } else if (opts.suite === 'swebench-lite') {
+      if (!opts.path) throw new Error('--path is required for the swebench-lite suite (path to JSON file)');
+      tasks = await loadSWebenchLiteSuite({
+        datasetPath: path.resolve(opts.path),
+        taskIds: opts.taskId.length > 0 ? opts.taskId : undefined,
+        repos: opts.repo.length > 0 ? opts.repo : undefined,
+      });
     } else {
       throw new Error(`Unknown suite: ${opts.suite}`);
     }

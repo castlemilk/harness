@@ -20,6 +20,10 @@ export interface BenchRunConfig {
   taskIds?: string[];
   /** For variance mode: number of runs per task. */
   varianceRuns?: number;
+  /** SWE-bench adapter options (when suite is 'swebench-lite'). */
+  swebench?: { datasetPath?: string; repos?: string[]; sampleSeed?: number };
+  /** DeepSWE adapter options (when suite is 'deepswe'). */
+  deepswe?: { tasksDir: string; taskIds?: string[]; useDocker?: boolean };
 }
 
 export interface BenchRunEvent {
@@ -109,32 +113,54 @@ function tryGitApply(repoPath: string, patch: string): boolean {
 
 async function loadSuite(
   suite: string,
-  options: { nTasks?: number; taskIds?: string[] } = {},
+  options: { nTasks?: number; taskIds?: string[]; swebench?: BenchRunConfig['swebench']; deepswe?: BenchRunConfig['deepswe'] } = {},
 ): Promise<BenchmarkTask[]> {
-  const {
-    syntheticSuite,
-    fastSuite,
-    harderSuite,
-    harderV2Suite,
-    hardTargetedSuite,
-  } = await import('@omega/bench');
-
   let tasks: BenchmarkTask[];
-  switch (suite) {
-    case 'synthetic': tasks = syntheticSuite(); break;
-    case 'fast': tasks = fastSuite(); break;
-    case 'harder': tasks = harderSuite(); break;
-    case 'harder-v2': tasks = harderV2Suite(); break;
-    case 'hard-targeting': tasks = hardTargetedSuite(); break;
-    default: throw new Error(`Unknown suite: ${suite}`);
+
+  if (suite === 'swebench-lite') {
+    const { loadSWebenchLiteSuite } = await import('@omega/bench');
+    tasks = await loadSWebenchLiteSuite({
+      datasetPath: options.swebench?.datasetPath ?? '/tmp/swe-bench-lite-test.json',
+      repos: options.swebench?.repos,
+      sampleSeed: options.swebench?.sampleSeed,
+      nTasks: options.nTasks,
+      taskIds: options.taskIds,
+    });
+  } else if (suite === 'deepswe') {
+    const { loadDeepSWESuite } = await import('@omega/bench');
+    if (!options.deepswe?.tasksDir) throw new Error('deepswe.tasksDir is required');
+    tasks = await loadDeepSWESuite({
+      tasksDir: options.deepswe.tasksDir,
+      nTasks: options.nTasks,
+      taskIds: options.taskIds,
+      useDocker: options.deepswe.useDocker,
+    });
+  } else {
+    const {
+      syntheticSuite,
+      fastSuite,
+      harderSuite,
+      harderV2Suite,
+      hardTargetedSuite,
+    } = await import('@omega/bench');
+
+    switch (suite) {
+      case 'synthetic': tasks = syntheticSuite(); break;
+      case 'fast': tasks = fastSuite(); break;
+      case 'harder': tasks = harderSuite(); break;
+      case 'harder-v2': tasks = harderV2Suite(); break;
+      case 'hard-targeting': tasks = hardTargetedSuite(); break;
+      default: throw new Error(`Unknown suite: ${suite}`);
+    }
+
+    if (options.taskIds && options.taskIds.length > 0) {
+      tasks = tasks.filter((t) => options.taskIds!.includes(t.id));
+    }
+    if (options.nTasks && options.nTasks > 0) {
+      tasks = tasks.slice(0, options.nTasks);
+    }
   }
 
-  if (options.taskIds && options.taskIds.length > 0) {
-    tasks = tasks.filter((t) => options.taskIds!.includes(t.id));
-  }
-  if (options.nTasks && options.nTasks > 0) {
-    tasks = tasks.slice(0, options.nTasks);
-  }
   return tasks;
 }
 
@@ -425,7 +451,7 @@ export async function startBenchRun(
 
     emitter.emit('run', { type: 'started', runId, suite: config.suite } satisfies BenchRunEvent);
 
-    const tasks = await loadSuite(config.suite, { nTasks: config.nTasks, taskIds: config.taskIds });
+    const tasks = await loadSuite(config.suite, { nTasks: config.nTasks, taskIds: config.taskIds, swebench: config.swebench, deepswe: config.deepswe });
 
     if (tasks.length === 0) {
       await prisma.benchmarkRun.update({ where: { id: runId }, data: { status: 'done', completedAt: new Date(), totalTasks: 0 } });
@@ -462,81 +488,106 @@ export async function startBenchRun(
       error?: string;
     }> = [];
 
-    for (const task of tasks) {
-      if (abortController.signal.aborted) break;
+    // Concurrency pool — run up to `concurrency` tasks in parallel
+    const concurrency = config.concurrency ?? 1;
+    let running = 0;
+    let taskIdx = 0;
+    let resolveAll: () => void;
+    const allDone = new Promise<void>((r) => { resolveAll = r; });
 
-      const projectPath = path.join(baseDir, task.id);
-      await fs.mkdir(projectPath, { recursive: true });
-      if (task.setup) await task.setup(projectPath);
-      ensureGitRepo(projectPath);
+    const launchNext = () => {
+      if (abortController.signal.aborted || taskIdx >= tasks.length) {
+        if (running === 0) resolveAll!();
+        return;
+      }
+      const idx = taskIdx++;
+      const task = tasks[idx];
+      running++;
 
-      emitter.emit('run', {
-        type: 'task-started',
-        runId,
-        taskName: task.name,
-        model: strategy === 'consensus' ? models.map((m) => m.model).join('+') : models[0] ? `${models[0].provider}/${models[0].model}` : undefined,
-      } satisfies BenchRunEvent);
+      void (async () => {
+        const projectPath = path.join(baseDir, task.id);
+        await fs.mkdir(projectPath, { recursive: true });
+        if (task.setup) await task.setup(projectPath);
+        ensureGitRepo(projectPath);
 
-      let result: Awaited<ReturnType<typeof runSingleTask>> & { winnerModel?: string; variancePassRate?: number };
+        emitter.emit('run', {
+          type: 'task-started',
+          runId,
+          taskName: task.name,
+          model: strategy === 'consensus' ? models.map((m) => m.model).join('+') : models[0] ? `${models[0].provider}/${models[0].model}` : undefined,
+        } satisfies BenchRunEvent);
 
-      try {
-        if (strategy === 'consensus' && models.length > 1) {
-          result = await runConsensusTask(prisma, task, projectPath, projectPrefix, models, timeoutMs, config.tokenBudget, abortController.signal);
-        } else if (strategy === 'variance') {
-          result = await runVarianceTask(prisma, task, projectPath, projectPrefix, models[0], varianceRuns, timeoutMs, config.tokenBudget, abortController.signal);
-        } else {
-          result = await runSingleTask(prisma, task, projectPath, projectPrefix, models[0], timeoutMs, config.tokenBudget, abortController.signal);
+        let result: Awaited<ReturnType<typeof runSingleTask>> & { winnerModel?: string; variancePassRate?: number };
+
+        try {
+          if (strategy === 'consensus' && models.length > 1) {
+            result = await runConsensusTask(prisma, task, projectPath, projectPrefix, models, timeoutMs, config.tokenBudget, abortController.signal);
+          } else if (strategy === 'variance') {
+            result = await runVarianceTask(prisma, task, projectPath, projectPrefix, models[0], varianceRuns, timeoutMs, config.tokenBudget, abortController.signal);
+          } else {
+            result = await runSingleTask(prisma, task, projectPath, projectPrefix, models[0], timeoutMs, config.tokenBudget, abortController.signal);
+          }
+        } catch (err) {
+          result = {
+            harnessTaskId: '',
+            evaluation: { passed: false, message: err instanceof Error ? err.message : String(err) },
+            durationMs: 0,
+            costUsd: 0,
+            totalTokens: 0,
+          };
         }
-      } catch (err) {
-        result = {
-          harnessTaskId: '',
-          evaluation: { passed: false, message: err instanceof Error ? err.message : String(err) },
-          durationMs: 0,
-          costUsd: 0,
-          totalTokens: 0,
-        };
-      }
 
-      if (result.evaluation.passed) passed++;
-      else if (result.durationMs >= timeoutMs - 5000) timeouts++;
-      else failed++;
+        if (result.evaluation.passed) passed++;
+        else if (result.durationMs >= timeoutMs - 5000) timeouts++;
+        else failed++;
 
-      totalDurationMs += result.durationMs;
-      totalCostUsd += result.costUsd;
-      totalTokens += result.totalTokens;
+        totalDurationMs += result.durationMs;
+        totalCostUsd += result.costUsd;
+        totalTokens += result.totalTokens;
 
-      if (result.winnerModel) {
-        winsByModel[result.winnerModel] = (winsByModel[result.winnerModel] ?? 0) + 1;
-      }
+        if (result.winnerModel) {
+          winsByModel[result.winnerModel] = (winsByModel[result.winnerModel] ?? 0) + 1;
+        }
 
-      results.push({
-        taskName: task.name,
-        harnessTaskId: result.harnessTaskId,
-        passed: result.evaluation.passed,
-        durationMs: result.durationMs,
-        model: result.model,
-        winnerModel: result.winnerModel,
-        variancePassRate: result.variancePassRate,
-        error: result.evaluation.passed ? undefined : result.evaluation.message,
-      });
+        results.push({
+          taskName: task.name,
+          harnessTaskId: result.harnessTaskId,
+          passed: result.evaluation.passed,
+          durationMs: result.durationMs,
+          model: result.model,
+          winnerModel: result.winnerModel,
+          variancePassRate: result.variancePassRate,
+          error: result.evaluation.passed ? undefined : result.evaluation.message,
+        });
 
-      emitter.emit('run', {
-        type: 'task-completed',
-        runId,
-        taskId: result.harnessTaskId,
-        taskName: task.name,
-        model: result.model,
-        passed: result.evaluation.passed,
-        durationMs: result.durationMs,
-        winnerModel: result.winnerModel,
-        variancePassRate: result.variancePassRate,
-      } satisfies BenchRunEvent);
+        emitter.emit('run', {
+          type: 'task-completed',
+          runId,
+          taskId: result.harnessTaskId,
+          taskName: task.name,
+          model: result.model,
+          passed: result.evaluation.passed,
+          durationMs: result.durationMs,
+          winnerModel: result.winnerModel,
+          variancePassRate: result.variancePassRate,
+        } satisfies BenchRunEvent);
 
-      await prisma.benchmarkRun.update({
-        where: { id: runId },
-        data: { passed, failed, timeouts, totalDurationMs, totalCostUsd, totalTokens },
-      });
+        await prisma.benchmarkRun.update({
+          where: { id: runId },
+          data: { passed, failed, timeouts, totalDurationMs, totalCostUsd, totalTokens },
+        });
+
+        running--;
+        launchNext();
+      })();
+    };
+
+    // Fill initial slots
+    for (let i = 0; i < Math.min(concurrency, tasks.length); i++) {
+      launchNext();
     }
+
+    await allDone;
 
     // Save to history
     const report: BenchmarkReport = {

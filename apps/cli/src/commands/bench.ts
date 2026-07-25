@@ -931,7 +931,7 @@ const historyCmd = new Command('history')
 
 const serverRunCmd = new Command('server-run')
   .description('Run a benchmark suite server-side (full routing, retries, and escalation handled by the server)')
-  .requiredOption('--suite <name>', 'suite name: synthetic | fast | harder | harder-v2 | hard-targeting')
+  .requiredOption('--suite <name>', 'suite name: synthetic | fast | harder | harder-v2 | hard-targeting | swebench-lite | deepswe')
   .option('--models <list>', 'comma-separated models as provider/model (e.g. "deepseek/deepseek-v4-pro,kimi/kimi-k3")')
   .option('--strategy <name>', 'strategy: single | consensus | variance', 'single')
   .option('--variance-runs <n>', 'number of runs per task (for variance strategy)', '5')
@@ -941,6 +941,10 @@ const serverRunCmd = new Command('server-run')
   .option('--n-tasks <n>', 'limit number of tasks', parseInt)
   .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
   .option('--api-url <url>', 'harness API URL')
+  .option('--swebench-dataset <path>', 'path to SWE-bench dataset JSON (for swebench-lite suite)')
+  .option('--swebench-repos <list>', 'comma-separated repos to filter (e.g. "flask,requests")')
+  .option('--deepswe-tasks-dir <path>', 'path to DeepSWE tasks directory (for deepswe suite)')
+  .option('--deepswe-docker', 'use Docker for DeepSWE verification')
   .action(async (opts: {
     suite: string;
     models?: string;
@@ -952,6 +956,10 @@ const serverRunCmd = new Command('server-run')
     nTasks?: number;
     taskId: string[];
     apiUrl?: string;
+    swebenchDataset?: string;
+    swebenchRepos?: string;
+    deepsweTasksDir?: string;
+    deepsweDocker?: boolean;
   }) => {
     const apiUrl = opts.apiUrl ?? getApiUrl();
     await waitForApi(apiUrl);
@@ -980,6 +988,14 @@ const serverRunCmd = new Command('server-run')
         tokenBudget: opts.tokenBudget,
         nTasks: opts.nTasks,
         taskIds: opts.taskId.length > 0 ? opts.taskId : undefined,
+        swebench: opts.suite === 'swebench-lite' ? {
+          datasetPath: opts.swebenchDataset,
+          repos: opts.swebenchRepos?.split(',').map((r) => r.trim()).filter(Boolean),
+        } : undefined,
+        deepswe: opts.suite === 'deepswe' ? {
+          tasksDir: opts.deepsweTasksDir ?? '',
+          useDocker: opts.deepsweDocker,
+        } : undefined,
       }),
     });
 

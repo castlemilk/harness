@@ -6,7 +6,7 @@ import { startBenchRun, cancelRun, type BenchRunConfig } from '../lib/benchmark-
 import { asyncHandler } from '../lib/async-handler.js';
 
 const runSchema = z.object({
-  suite: z.enum(['synthetic', 'fast', 'harder', 'harder-v2', 'hard-targeting']),
+  suite: z.enum(['synthetic', 'fast', 'harder', 'harder-v2', 'hard-targeting', 'swebench-lite', 'deepswe']),
   models: z.array(z.object({
     provider: z.string(),
     model: z.string(),
@@ -18,6 +18,16 @@ const runSchema = z.object({
   projectPrefix: z.string().default('bench'),
   nTasks: z.number().int().positive().optional(),
   taskIds: z.array(z.string()).optional(),
+  swebench: z.object({
+    datasetPath: z.string().optional(),
+    repos: z.array(z.string()).optional(),
+    sampleSeed: z.number().optional(),
+  }).optional(),
+  deepswe: z.object({
+    tasksDir: z.string(),
+    taskIds: z.array(z.string()).optional(),
+    useDocker: z.boolean().optional(),
+  }).optional(),
 });
 
 // Shared event emitter for all benchmark runs

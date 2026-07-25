@@ -621,6 +621,73 @@ const strategyCmd = new Command('strategy')
     },
   );
 
+const adversarialCmd = new Command('adversarial')
+  .description('Generate adversarial test cases for a benchmark task')
+  .option('--suite <name>', 'suite to pull base task from: fast | harder | hard-targeting', 'hard-targeting')
+  .option('--task-id <id>', 'base task id to generate adversarial variants for (required)')
+  .option('--count <n>', 'number of adversarial variants to generate', '3')
+  .option('--provider <name>', 'provider for generating tests', 'deepseek')
+  .option('--model <model>', 'model for generating tests', 'deepseek-v4-pro')
+  .option('--output <path>', 'output JSON path')
+  .action(
+    async (opts: {
+      suite: string;
+      taskId: string;
+      count: string;
+      provider: string;
+      model: string;
+      output?: string;
+    }) => {
+      if (!opts.taskId) {
+        throw new Error('--task-id is required');
+      }
+
+      let tasks;
+      if (opts.suite === 'fast') {
+        tasks = fastSuite();
+      } else if (opts.suite === 'harder') {
+        tasks = harderSuite();
+      } else if (opts.suite === 'hard-targeting') {
+        tasks = hardTargetedSuite();
+      } else {
+        throw new Error(`Unknown suite: ${opts.suite}`);
+      }
+
+      const baseTask = tasks.find((t) => t.id === opts.taskId);
+      if (!baseTask) {
+        throw new Error(`Task ${opts.taskId} not found in suite ${opts.suite}`);
+      }
+
+      const { generateAdversarialTests, saveAdversarialTasks } = await import('@omega/bench');
+      const apiUrl = getApiUrl();
+      await waitForApi(apiUrl);
+
+      console.log(`Generating ${opts.count} adversarial variants for: ${baseTask.title}`);
+      const adversarialTasks = await generateAdversarialTests({
+        apiUrl,
+        provider: opts.provider,
+        model: opts.model,
+        baseTask,
+        count: parseInt(opts.count),
+      });
+
+      if (adversarialTasks.length === 0) {
+        console.log('No adversarial tasks generated.');
+        return;
+      }
+
+      const outputPath = opts.output ?? `${omegaReportsDir()}/adversarial-${opts.taskId}-${Date.now()}.json`;
+      await saveAdversarialTasks(adversarialTasks, outputPath);
+
+      console.log(`\nGenerated ${adversarialTasks.length} adversarial tasks:`);
+      for (const task of adversarialTasks) {
+        console.log(`  ${task.id}: ${task.title}`);
+        console.log(`    Wrong fix: ${task.wrongFixHint}`);
+      }
+      console.log(`\nSaved to ${outputPath}`);
+    },
+  );
+
 export const benchCmd = new Command('bench')
   .description('Run benchmarks and optimise prompts')
   .addCommand(runCmd)
@@ -629,4 +696,5 @@ export const benchCmd = new Command('bench')
   .addCommand(compareCmd)
   .addCommand(trendCmd)
   .addCommand(consensusCmd)
-  .addCommand(strategyCmd);
+  .addCommand(strategyCmd)
+  .addCommand(adversarialCmd);

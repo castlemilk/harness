@@ -64,12 +64,16 @@ Priorities: **P0** = do next, **P1** = high value, **P2** = later/background.
 - [x] P0 Strategy eval: `omega bench strategy --suite hard-targeting --strategies "default,verify-before-finish,research-first"` — multi-strategy evaluation to measure which prompt strategies help which task types.
 - [x] P0 Hard-targeting suite: 10 adversarial tasks with hidden spec tests that catch naive fixes (event listener leaks, refactor breaking consumers, async races, config drift, spec ambiguity, adversarial fixes).
 - [x] P0 Internal model providers: MiniMax-M3, DeepSeek V4 Pro, Qwen 3.8 Max, GLM-5.2 configured as generic providers.
+- [x] P0 Kimi K3 provider: configured as `kind: kimi` on `api.kimi.com/coding/v1`, supports tools, reasoning model. All 10/10 on hard-targeting suite.
+- [x] P0 Strategy eval bug fixes: four bugs fixed (applyLatestPatch index stripping, taskType missing, metrics on wrong output, taskType dedup) — previously masked 0% performance on two tasks.
+- [x] P0 Hard-targeting 100% baseline: DeepSeek V4 Pro, Qwen 3.8 Max, Kimi K3 all score 10/10 (100%) on hard-targeting suite.
+- [x] P0 Consensus across 3 models: DeepSeek + Qwen + Kimi = 10/10 (100%) on hard-targeting (individually also 100%).
+- [x] P1 Adversarial test generation: `omega bench adversarial --suite hard-targeting --task-id <id> --count 3` generates hidden tests by asking a model "what wrong fix passes visible tests?"
 - [ ] P0 Benchmark CI: scheduled `omega bench run --suite fast|hard` with a posted report and failure on regression.
 - [ ] P1 A/B testing: run the same suite against prompt/model/orchestration variants and auto-compare; surface in UI.
 - [ ] P1 Trace-driven optimization: use trace/error taxonomy to auto-open optimisation tasks for top failure classes.
 - [ ] P1 SLOs: e.g. "fast suite < 2 min, hard suite 100%, p95 task < 5 min, cost < $X per solved task"; show current vs. target.
 - [ ] P1 Variance tracking: run each task N times, measure output variance across runs to detect fragile strategies.
-- [ ] P1 Adversarial test generation: auto-generate hidden tests by asking a stronger model "what wrong fix passes visible tests?"
 - [ ] P2 Public session data (pi-style): opt-in publishing of anonymized OSS task trajectories to improve the agent.
 
 ## 5. Memory & learning (hermes-inspired)
@@ -113,3 +117,11 @@ Priorities: **P0** = do next, **P1** = high value, **P2** = later/background.
 - Hard-suite skills + environment fixes (corepack, Deno, PnP, pnpm, Python editable installs).
 - Live SSE task streams, error taxonomy, diff viewer, benchmark baseline/compare API.
 - Fast benchmark suite (10/10) and DeepSWE seed-0 30/30 baseline.
+- Strategy eval framework (`bench strategy`): 5 strategies, per-task winner, trace summaries, failure analysis.
+- Cost dashboard (`/lab/cost-dashboard/`): per-model cost, tokens, duration, consensus budget.
+- Hard-targeting suite: 10 adversarial tasks with hidden spec tests; all 3 internal models 10/10.
+- Consensus runner: best-of-N patch selection; DeepSeek+Qwen+Kimi = 10/10.
+- Kimi K3 provider: `kind: kimi`, `api.kimi.com/coding/v1`, tools supported, reasoning model.
+- Strategy eval bug fixes: applyLatestPatch index stripping, taskType missing, metrics on wrong output, taskType dedup.
+- Adversarial test generation: `bench adversarial` generates hidden tests from model self-critique.
+- **Key finding**: strategy eval bugs masked 0% performance on 2 tasks; after fixes, all models pass 10/10.

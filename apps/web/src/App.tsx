@@ -6,6 +6,7 @@ import { ProviderSettings, type Provider } from './components/ProviderSettings.j
 import { RouterPanel } from './components/RouterPanel.js';
 import { MetricsPanel } from './components/MetricsPanel.js';
 import { BenchmarkPanel } from './components/BenchmarkPanel.js';
+import { CostDashboard } from './components/CostDashboard.js';
 
 function App() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -54,6 +55,10 @@ function App() {
       {view === 'benchmarks' ? (
         <main className="flex-1 h-screen overflow-y-auto bg-gray-50">
           <BenchmarkPanel />
+        </main>
+      ) : view === 'costs' ? (
+        <main className="flex-1 h-screen overflow-y-auto bg-gray-50">
+          <CostDashboard />
         </main>
       ) : (
         <TaskBoard projectId={selectedProjectId} />

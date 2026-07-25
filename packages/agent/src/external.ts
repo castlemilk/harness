@@ -104,8 +104,17 @@ function buildAgentRunMetricsUpdate(
 export interface ExternalAgentOptions extends AgentOptions {
   /** Which external agent CLI to drive. */
   cli: ExternalCli;
-  /** Timeout for the external agent run. Default 15 minutes. */
+  /** Timeout for the external agent run. Default: adaptive by complexity. */
   timeoutMs?: number;
+}
+
+function timeoutForComplexity(complexity: string | undefined): number {
+  switch (complexity) {
+    case 'simple': return 5 * 60_000;
+    case 'medium': return 15 * 60_000;
+    case 'complex': return 30 * 60_000;
+    default: return 10 * 60_000;
+  }
 }
 
 export type ExternalCli =
@@ -278,7 +287,7 @@ export async function runExternalAgentTask(
 
       if (spec.pty) {
         // PTY path — required for CLIs that gate stdout on isatty()
-        const timeoutMs = options.timeoutMs ?? 15 * 60 * 1000;
+        const timeoutMs = options.timeoutMs ?? timeoutForComplexity(options.complexity);
         const result = await spawnWithPty(spec.command, spec.args(prompt, options.projectPath), {
           cwd: options.projectPath,
           env: spec.env,
@@ -293,7 +302,7 @@ export async function runExternalAgentTask(
           {
             cwd: options.projectPath,
             env: spec.env,
-            timeoutMs: options.timeoutMs ?? 15 * 60 * 1000,
+            timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
           },
         );
         stdout = result.stdout;

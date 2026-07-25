@@ -9,6 +9,8 @@ import { metricsRoutes } from './routes/metrics.js';
 import { benchmarkRoutes } from './routes/benchmarks.js';
 import { reportRoutes } from './routes/reports.js';
 import { promptVersionRoutes } from './routes/prompt-versions.js';
+import { costRoutes } from './routes/costs.js';
+import { timeseriesRoutes } from './routes/timeseries.js';
 
 export const app: express.Express = express();
 
@@ -40,6 +42,8 @@ app.use('/metrics', metricsRoutes(prisma));
 app.use('/benchmarks', benchmarkRoutes(prisma));
 app.use('/reports', reportRoutes());
 app.use('/prompt-versions', promptVersionRoutes(prisma));
+app.use('/costs', costRoutes(prisma));
+app.use('/timeseries', timeseriesRoutes(prisma));
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

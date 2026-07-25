@@ -9,7 +9,7 @@ export interface Project {
   _count?: { tasks: number };
 }
 
-export type View = 'tasks' | 'benchmarks';
+export type View = 'tasks' | 'benchmarks' | 'costs';
 
 interface Props {
   projects: Project[];
@@ -41,7 +41,7 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onChange, view 
 
       {onViewChange && (
         <div className="flex gap-1 p-2 border-b border-gray-200">
-          {(['tasks', 'benchmarks'] as View[]).map((v) => (
+          {(['tasks', 'benchmarks', 'costs'] as View[]).map((v) => (
             <button
               key={v}
               onClick={() => { onViewChange(v); }}

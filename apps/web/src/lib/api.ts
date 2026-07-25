@@ -125,4 +125,42 @@ export const api = {
         createdAt: string;
       }[]
     >('/prompt-versions'),
+
+  getCostSummary: () =>
+    request<{
+      totalCostUsd: number;
+      costByProvider: Record<string, number>;
+      costByModel: Record<string, number>;
+      costByDay: Record<string, number>;
+      totalTokens: number;
+      avgCostPerRun: number;
+      avgTokensPerRun: number;
+      runsWithCost: number;
+    }>('/costs/summary'),
+
+  getCostTimeseries: (bucket: 'hour' | 'day' | 'week' = 'day', days = 30) =>
+    request<Array<{
+      bucket: string;
+      costUsd: number;
+      tokens: number;
+      runs: number;
+      avgDurationMs: number;
+    }>>(`/costs/timeseries?bucket=${bucket}&days=${days}`),
+
+  getTaskTimeseries: (bucket: 'hour' | 'day' | 'week' = 'day', days = 30) =>
+    request<{
+      created: Array<{ bucket: string; count: number }>;
+      completed: Array<{ bucket: string; count: number }>;
+      failed: Array<{ bucket: string; count: number }>;
+      passRate: Array<{ bucket: string; rate: number }>;
+    }>(`/timeseries/tasks?bucket=${bucket}&days=${days}`),
+
+  getProviderTimeseries: (bucket: 'hour' | 'day' | 'week' = 'day', days = 30) =>
+    request<Array<{
+      bucket: string;
+      provider: string;
+      runs: number;
+      avgDurationMs: number;
+      totalTokens: number;
+    }>>(`/timeseries/providers?bucket=${bucket}&days=${days}`),
 };

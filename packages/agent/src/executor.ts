@@ -307,6 +307,15 @@ async function installWorktreeDependencies(projectPath: string): Promise<void> {
   }
 }
 
+function deadlineMsForComplexity(complexity: string | undefined): number {
+  switch (complexity) {
+    case 'simple': return 5 * 60_000;
+    case 'medium': return 15 * 60_000;
+    case 'complex': return 30 * 60_000;
+    default: return 10 * 60_000;
+  }
+}
+
 function explorationBudgetForComplexity(complexity: string | undefined): { beforeFirstEdit: number; betweenEdits: number } {
   switch (complexity) {
     case 'simple':
@@ -411,6 +420,7 @@ interface AgentContext {
   tokenBudget?: number; // optional cap on total tokens for this run
   repoOverview?: string;
   stuckSolveAttempted?: boolean;
+  deadlineMs: number; // wall-clock deadline for the agent loop
 }
 
 function toCoreTask(row: {
@@ -806,6 +816,7 @@ export async function runAgentTask(
     usage: {},
     apiSurfaceVerified: false,
     repoOverview: repoOverviewText,
+    deadlineMs: Date.now() + deadlineMsForComplexity(task.complexity),
   };
 
   logger.info('Agent task started', {
@@ -1063,6 +1074,20 @@ async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Pro
   }
 
   while (stepIndex < ctx.maxSteps && !finished) {
+    // Wall-clock deadline check
+    if (Date.now() >= ctx.deadlineMs) {
+      logger.warn('Agent wall-clock deadline exceeded', {
+        taskId: ctx.task.id,
+        agentRunId: ctx.agentRunId,
+        stepIndex,
+        deadlineMs: ctx.deadlineMs,
+      });
+      ctx.rootSpan.addEvent('deadline.exceeded', { stepIndex });
+      summary = `Wall-clock deadline exceeded after ${String(stepIndex)} steps`;
+      finished = true;
+      break;
+    }
+
     if (
       ctx.tokenBudget !== undefined &&
       (ctx.usage.totalTokens ?? 0) > ctx.tokenBudget

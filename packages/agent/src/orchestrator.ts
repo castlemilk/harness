@@ -26,6 +26,7 @@ export interface OrchestratedSubtask {
   complexity: 'simple' | 'medium' | 'complex';
   tier: 'medium' | 'low';
   dependsOn?: number[];
+  affectedFiles?: string[];
 }
 
 interface SubtaskState extends OrchestratedSubtask {
@@ -102,7 +103,10 @@ function normalizeSubtask(raw: unknown, fallbackTitle: string): OrchestratedSubt
   const dependsOn = Array.isArray(obj.dependsOn)
     ? obj.dependsOn.filter((d): d is number => typeof d === 'number' && Number.isInteger(d) && d >= 0)
     : undefined;
-  return { title, description, complexity, tier, dependsOn };
+  const affectedFiles = Array.isArray(obj.affectedFiles)
+    ? obj.affectedFiles.filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+    : undefined;
+  return { title, description, complexity, tier, dependsOn, affectedFiles };
 }
 
 async function loadProviderByName(
@@ -126,6 +130,25 @@ async function loadProviderByName(
   return createProvider(config);
 }
 
+function detectFileConflicts(subtasks: SubtaskState[]): string[][] {
+  const fileOwners = new Map<string, number[]>();
+  for (const st of subtasks) {
+    if (!st.affectedFiles) continue;
+    for (const file of st.affectedFiles) {
+      const owners = fileOwners.get(file) ?? [];
+      owners.push(st.index);
+      fileOwners.set(file, owners);
+    }
+  }
+  const conflicts: string[][] = [];
+  for (const [file, owners] of fileOwners) {
+    if (owners.length > 1) {
+      conflicts.push([file, ...owners.map(String)]);
+    }
+  }
+  return conflicts;
+}
+
 function buildPlanPrompt(title: string, description: string, maxSubtasks: number, memory = ''): string {
   const memorySection = memory
     ? `\nRelevant patterns from past successful tasks:\n${memory}\n\nReuse these patterns where they fit; do not repeat past mistakes.\n`
@@ -144,15 +167,18 @@ Respond with ONLY a JSON array (no markdown fences, no commentary) of subtasks:
     "description": "precise instructions for the implementing sub-agent, including file paths where known",
     "complexity": "simple" | "medium" | "complex",
     "tier": "medium" | "low",
-    "dependsOn": [0]
+    "dependsOn": [0],
+    "affectedFiles": ["src/foo.ts", "src/bar.ts"]
   }
 ]
 
 Rules:
 - "tier" is the intelligence tier of the implementing sub-agent: "medium" for most implementation work, "low" for mechanical/trivial edits.
 - "dependsOn" lists zero-based indexes of subtasks that must finish first; omit it when there are no dependencies.
+- "affectedFiles" lists the exact file paths this subtask will modify or create. The orchestrator uses this to detect conflicts when subtasks run concurrently. Omit if truly none.
 - Order subtasks so dependencies come before dependents.
-- Keep subtasks small enough that a smaller model can complete each one.`;
+- Keep subtasks small enough that a smaller model can complete each one.
+- Avoid assigning the same file to multiple concurrent subtasks (subtasks without a dependsOn link between them).`;
 }
 
 function buildReviewPrompt(
@@ -497,9 +523,20 @@ export async function runOrchestratedTask(
         break;
       }
 
+      // Detect file-level conflicts among ready subtasks.
+      const conflicts = detectFileConflicts(ready);
+      let effectiveConcurrency = concurrency;
+      if (conflicts.length > 0 && concurrency > 1) {
+        logger.warn('File-level conflicts detected among ready subtasks; falling back to sequential execution', {
+          taskId,
+          conflicts: conflicts.map((c) => c.join(', ')),
+        });
+        effectiveConcurrency = 1;
+      }
+
       // Run the ready subtasks with bounded concurrency (1 = sequential),
       // escalating to a higher model tier on failure.
-      await runPool(ready, concurrency, runSubtask);
+      await runPool(ready, effectiveConcurrency, runSubtask);
 
       // Review after each round; the high-tier model can finish early or add
       // follow-up subtasks (feedback loop).

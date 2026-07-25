@@ -3,6 +3,8 @@ import { selectProvider } from '@omega/router';
 import { runAgentTask, runOrchestratedTask, runExternalAgentTask, type ExternalCli } from '@omega/agent';
 import type { PrismaClient } from '@omega/db';
 import type { ProviderConfig as CoreProviderConfig, Task } from '@omega/core';
+import { queue } from './task-queue.js';
+import { notifyFailure } from './webhook-alerts.js';
 
 function toCoreConfig(row: {
   id: string;
@@ -62,17 +64,22 @@ export async function runTask(
         projectName: task.project.name,
         autoPublish: tags.includes('publish'),
         cli,
+        complexity: task.complexity,
       });
     if (options.detached) {
-      void (async () => {
+      const result = queue.enqueue(taskId, cli, async () => {
         try {
           await run();
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           console.error(`Detached external agent task ${taskId} failed:`, message);
+          void notifyFailure(prisma, {
+            taskId, title: task.title, provider: cli, error: message, tags,
+            timestamp: new Date().toISOString(),
+          });
         }
-      })();
-      return { status: 'in_progress', taskId };
+      });
+      return { status: 'in_progress', taskId, ...result };
     }
     return run();
   }
@@ -96,6 +103,7 @@ export async function runTask(
             maxSubtasks: options.maxSubtasks,
             maxIterations: options.maxIterations,
             concurrency: options.concurrency,
+            complexity: task.complexity,
           })
         : runAgentTask(prisma, taskId, {
             projectPath: task.project.path,
@@ -103,18 +111,23 @@ export async function runTask(
             autoPublish: tags.includes('publish'),
             isolated: true,
             tokenBudget,
+            complexity: task.complexity,
           });
 
     if (options.detached) {
-      void (async () => {
+      const result = queue.enqueue(taskId, undefined, async () => {
         try {
           await run();
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           console.error(`Detached agent task ${taskId} failed:`, message);
+          void notifyFailure(prisma, {
+            taskId, title: task.title, error: message, tags,
+            timestamp: new Date().toISOString(),
+          });
         }
-      })();
-      return { status: 'in_progress', taskId };
+      });
+      return { status: 'in_progress', taskId, ...result };
     }
     const agentResult = await run();
     return 'task' in agentResult ? agentResult.task : prisma.task.findUnique({ where: { id: taskId } });
@@ -169,6 +182,10 @@ export async function runTask(
     return updated;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    void notifyFailure(prisma, {
+      taskId, title: task.title, provider: providerName, model: modelName,
+      error: message, tags, timestamp: new Date().toISOString(),
+    });
     const updated = await prisma.task.update({
       where: { id: taskId },
       data: {

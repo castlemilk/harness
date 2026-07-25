@@ -6,6 +6,7 @@ import { app } from './app.js';
 import { prisma, applyMigrations, seedDefaults } from '@omega/db';
 import { seedSkills } from './seed-skills.js';
 import { startGrpcServer } from './grpc.js';
+import { queue } from './lib/task-queue.js';
 
 // Load .env before any provider/database config is read.
 dotenvConfig();
@@ -30,21 +31,38 @@ async function bootstrap(): Promise<void> {
   await seedDefaults();
   await seedSkills();
 
+  console.log(`Task queue concurrency: ${queue.status().maxConcurrency}`);
+
   app.use(express.static(WEB_DIST_DIR));
   app.get('*', (_req, res) => {
     res.sendFile(path.join(WEB_DIST_DIR, 'index.html'));
   });
 
-  app.listen(PORT, HOST, () => {
+  const server = app.listen(PORT, HOST, () => {
     console.log(`Omega harness server on http://${HOST}:${PORT.toString()}`);
     console.log(`Serving web UI from ${WEB_DIST_DIR}`);
   });
 
   startGrpcServer(prisma, GRPC_PORT, HOST);
+
+  const shutdown = async (signal: string): Promise<void> => {
+    console.log(`${signal} received, shutting down…`);
+    const status = queue.status();
+    console.log(`Queue: ${status.active} active, ${status.queued} queued`);
+
+    server.close();
+    await queue.drain();
+
+    console.log('Queue drained, closing database');
+    await prisma.$disconnect();
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 
 bootstrap().catch((err: unknown) => {
   console.error(err);
   process.exit(1);
 });
-

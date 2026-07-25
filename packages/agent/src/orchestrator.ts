@@ -2,6 +2,7 @@ import type { PrismaClient } from '@omega/db';
 import type { AgentOptions, Provider, ProviderConfig, UsageInfo } from '@omega/core';
 import { createProvider } from '@omega/providers';
 import { pickModelForTier } from '@omega/router';
+import type { IntelligentRouter } from '@omega/router';
 import { runAgentTask } from './executor.js';
 import { validateProject } from './validator.js';
 import { generateSkillFromTask, recallRelevantSkills } from './skill-generator.js';
@@ -14,10 +15,12 @@ export interface OrchestratorOptions extends AgentOptions {
   maxSubtasks?: number;
   /** Maximum plan/review feedback-loop rounds. Default 3. */
   maxIterations?: number;
-  /** How many sub-agents may run concurrently. Default 1 (sequential MVP). */
+  /** Concurrency for parallel subtask execution. Default 3. */
   concurrency?: number;
-  /** How many times a failed subtask may be retried on a higher model tier. Default 1. */
+  /** Maximum tier escalations per subtask. Default 1. */
   maxEscalations?: number;
+  /** Intelligent router for multi-signal model selection. */
+  intelligentRouter?: IntelligentRouter;
 }
 
 export interface OrchestratedSubtask {
@@ -230,6 +233,50 @@ async function runPool<T>(items: T[], concurrency: number, worker: (item: T) => 
 }
 
 /**
+ * Pick a provider/model for a tier using the intelligent router when available,
+ * falling back to the static tier-based picker otherwise.
+ */
+async function pickModel(
+  prisma: PrismaClient,
+  tier: 'high' | 'medium' | 'low',
+  intelligentRouter?: IntelligentRouter,
+  taskTitle?: string,
+  taskComplexity?: string,
+): Promise<{ provider: string; model: string } | undefined> {
+  if (intelligentRouter && taskTitle) {
+    const configs = await prisma.providerConfig.findMany();
+    const coreConfigs: ProviderConfig[] = configs.map((cfg) => ({
+      id: cfg.id,
+      name: cfg.name,
+      kind: cfg.kind as ProviderConfig['kind'],
+      baseUrl: cfg.baseUrl ?? undefined,
+      apiKey: cfg.apiKey ?? undefined,
+      defaultModel: cfg.defaultModel,
+      capabilities: JSON.parse(cfg.capabilities) as ProviderConfig['capabilities'],
+      enabled: cfg.enabled,
+    }));
+    const task = {
+      id: 'orchestrator',
+      projectId: 'orchestrator',
+      title: taskTitle,
+      status: 'todo' as const,
+      complexity: (taskComplexity ?? 'medium') as 'simple' | 'medium' | 'complex',
+      tags: ['orchestrate', `tier:${tier}`],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const decision = intelligentRouter.route(coreConfigs, task, {
+      strategy: tier === 'high' ? 'performance-optimized' : 'balanced',
+      maxCandidates: 1,
+    });
+    if (decision) {
+      return { provider: decision.primary.provider.name, model: decision.primary.model };
+    }
+  }
+  return pickModelForTier(prisma, tier);
+}
+
+/**
  * Multi-agent orchestration: a high-tier model plans the task and reviews
  * progress; implementation is delegated to sub-agents on smaller models that
  * run non-isolated (directly in options.projectPath) so their commits
@@ -293,7 +340,7 @@ export async function runOrchestratedTask(
 
   try {
     // --- Planning (high tier) ---
-    const plannerPick = await pickModelForTier(prisma, 'high');
+    const plannerPick = await pickModel(prisma, 'high', options.intelligentRouter, task.title, task.complexity);
     if (!plannerPick) throw new Error('No provider available for orchestration planning');
     const planner = await loadProviderByName(prisma, plannerPick.provider);
     if (!planner) throw new Error(`Planner provider '${plannerPick.provider}' is not available`);
@@ -430,7 +477,7 @@ export async function runOrchestratedTask(
       let tierIndex = Math.max(0, tierOrder.indexOf(subtask.tier));
       for (let attempt = 0; attempt <= maxEscalations; attempt++) {
         const tier = tierOrder[Math.min(tierIndex, tierOrder.length - 1)];
-        const pick = await pickModelForTier(prisma, tier);
+        const pick = await pickModel(prisma, tier, options.intelligentRouter, subtask.title, subtask.complexity);
         const subtaskRow = await prisma.task.create({
           data: {
             projectId: task.projectId,

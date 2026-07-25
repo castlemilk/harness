@@ -172,6 +172,7 @@ export async function runTask(
     // (high-tier planner/reviewer + smaller sub-agent models); the
     // orchestrator runs its sub-agents non-isolated in the project path.
     const orchestrate = tags.includes('orchestrate');
+    const router = await getRouter(prisma);
     const run = () =>
       orchestrate
         ? runOrchestratedTask(prisma, taskId, {
@@ -183,6 +184,7 @@ export async function runTask(
             maxIterations: options.maxIterations,
             concurrency: options.concurrency,
             complexity: task.complexity,
+            intelligentRouter: router,
           })
         : runAgentTask(prisma, taskId, {
             projectPath: task.project.path,

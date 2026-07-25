@@ -193,11 +193,14 @@ export async function executeRetry(
       });
     } else if (attempt.strategy === 'orchestrated-fallback') {
       const { runOrchestratedTask } = await import('@omega/agent');
+      const { getRouter } = await import('./intelligent-router.js');
+      const intelligentRouter = await getRouter(prisma);
       await runOrchestratedTask(prisma, taskId, {
         projectPath: options.projectPath,
         projectName: options.projectName,
         autoPublish: options.autoPublish,
         isolated: true,
+        intelligentRouter,
       });
     } else {
       await runAgentTask(prisma, taskId, {

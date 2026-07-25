@@ -5,6 +5,50 @@ import type { PrismaClient } from '@omega/db';
 import type { ProviderConfig as CoreProviderConfig, Task } from '@omega/core';
 import { queue } from './task-queue.js';
 import { notifyFailure } from './webhook-alerts.js';
+import { getNextStrategy, executeRetry, type RetryContext, type RetryRecord } from './retry-strategies.js';
+
+async function tryAutoRetry(
+  prisma: PrismaClient,
+  taskId: string,
+): Promise<void> {
+  if (process.env.OMEGA_AUTO_RETRY !== 'true') return;
+  const task = await prisma.task.findUnique({ where: { id: taskId }, include: { project: true } });
+  if (!task || task.status !== 'failed') return;
+
+  const tags: string[] = task.tags ? (JSON.parse(task.tags) as string[]) : [];
+  const retryHistory = task.retryHistory ? (JSON.parse(task.retryHistory) as RetryRecord[]) : [];
+  const ctx: RetryContext = {
+    task: {
+      id: task.id,
+      projectId: task.projectId,
+      title: task.title,
+      description: task.description,
+      complexity: task.complexity,
+      tags,
+      provider: task.provider,
+      model: task.model,
+      retryCount: task.retryCount,
+      retryHistory,
+    },
+    projectPath: task.project.path,
+    projectName: task.project.name,
+    error: task.error ?? '',
+  };
+
+  const attempt = getNextStrategy(ctx);
+  if (!attempt) return;
+
+  await prisma.task.update({
+    where: { id: taskId },
+    data: { status: 'in_progress', error: null },
+  });
+
+  void executeRetry(prisma, taskId, attempt, {
+    projectPath: task.project.path,
+    projectName: task.project.name,
+    autoPublish: tags.includes('publish'),
+  });
+}
 
 function toCoreConfig(row: {
   id: string;
@@ -77,6 +121,7 @@ export async function runTask(
             taskId, title: task.title, provider: cli, error: message, tags,
             timestamp: new Date().toISOString(),
           });
+          void tryAutoRetry(prisma, taskId);
         }
       });
       return { status: 'in_progress', taskId, ...result };
@@ -125,6 +170,7 @@ export async function runTask(
             taskId, title: task.title, error: message, tags,
             timestamp: new Date().toISOString(),
           });
+          void tryAutoRetry(prisma, taskId);
         }
       });
       return { status: 'in_progress', taskId, ...result };
@@ -195,6 +241,7 @@ export async function runTask(
         model: modelName,
       },
     });
+    void tryAutoRetry(prisma, taskId);
     return updated;
   }
 }

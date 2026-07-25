@@ -32,6 +32,11 @@ import {
   runHarnessEval,
   writeModelEvalReport,
   parseModelList,
+  runVarianceEval,
+  printVarianceSummary,
+  saveBenchmarkHistory,
+  getCostPerPassRate,
+  getPassRateTrend,
 } from '@omega/bench';
 import { getApiUrl } from '../api.js';
 
@@ -719,6 +724,150 @@ const adversarialCmd = new Command('adversarial')
     },
   );
 
+const varianceCmd = new Command('variance')
+  .description(
+    'Run each task N times to measure pass-rate variance and confidence intervals. ' +
+      'Identifies stable vs volatile tasks.',
+  )
+  .option('--suite <name>', 'suite name: fast | deep | harder | hard-targeting', 'hard-targeting')
+  .option('--n-runs <n>', 'number of runs per task', '5')
+  .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
+  .option('--timeout <ms>', 'per-task timeout in ms', '300000')
+  .option('--token-budget <n>', 'per-task token cap', parseInt)
+  .option('--project-prefix <prefix>', 'project name prefix', 'variance')
+  .option('--provider <name>', 'provider to use')
+  .option('--model <model>', 'model to use')
+  .option('--output <path>', 'output JSON path')
+  .action(
+    async (opts: {
+      suite: string;
+      nRuns: string;
+      taskId: string[];
+      timeout: string;
+      tokenBudget?: number;
+      projectPrefix: string;
+      provider?: string;
+      model?: string;
+      output?: string;
+    }) => {
+      const apiUrl = getApiUrl();
+      await waitForApi(apiUrl);
+
+      let tasks;
+      if (opts.suite === 'fast') {
+        tasks = fastSuite();
+      } else if (opts.suite === 'deep') {
+        tasks = deepSuite();
+      } else if (opts.suite === 'harder') {
+        tasks = harderSuite();
+      } else if (opts.suite === 'hard-targeting') {
+        tasks = hardTargetedSuite();
+      } else {
+        throw new Error(`Unknown suite: ${opts.suite}`);
+      }
+      if (opts.taskId.length > 0) {
+        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
+      }
+
+      const nRuns = parseInt(opts.nRuns, 10);
+      const timeoutMs = Number(opts.timeout);
+
+      console.log(
+        `Running ${String(tasks.length)} tasks × ${String(nRuns)} runs each`,
+      );
+
+      const report = await runVarianceEval(tasks, {
+        apiUrl,
+        timeoutMs,
+        projectPrefix: opts.projectPrefix,
+        provider: opts.provider,
+        model: opts.model,
+        tokenBudget: opts.tokenBudget,
+        nRuns,
+        onProgress: (taskId, run, result) => {
+          const symbol = result.evaluation.passed ? '✓' : '✗';
+          console.log(`  ${symbol} ${taskId} run ${String(run + 1)}/${String(nRuns)}`);
+        },
+      });
+
+      printVarianceSummary(report);
+
+      const reportPath = opts.output ?? `${omegaReportsDir()}/variance-${opts.suite}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      const fs = await import('node:fs/promises');
+      await fs.mkdir(omegaReportsDir(), { recursive: true });
+      await fs.writeFile(reportPath, JSON.stringify(report, null, 2), 'utf-8');
+      console.log(`\nReport written to ${reportPath}`);
+    },
+  );
+
+const costCmd = new Command('cost')
+  .description('Show cost-per-pass-rate analysis across providers/models')
+  .option('--suite <name>', 'filter to a specific suite')
+  .option('--api-url <url>', 'harness API URL')
+  .action(async (opts: { suite?: string; apiUrl?: string }) => {
+    const { PrismaClient } = await import('@omega/db');
+    const prisma = new PrismaClient();
+    try {
+      const results = await getCostPerPassRate(prisma, opts.suite);
+      if (results.length === 0) {
+        console.log('No benchmark history found. Run `omega bench run` first.');
+        return;
+      }
+      console.log('\n=== Cost per Pass Rate ===');
+      console.log(`${'Provider/Model'.padEnd(35)} ${'Runs'.padStart(5)} ${'Pass%'.padStart(6)} ${'Cost'.padStart(10)} ${'$/pass%'.padStart(10)} ${'Avg dur'.padStart(8)}`);
+      console.log('-'.repeat(80));
+      for (const r of results) {
+        const costStr = r.totalCostUsd < 0.01 ? `$${r.totalCostUsd.toFixed(4)}` : `$${r.totalCostUsd.toFixed(2)}`;
+        const cppStr = r.costPerPassPercent === Infinity ? '∞' : `$${r.costPerPassPercent.toFixed(4)}`;
+        console.log(
+          `${r.provider}/${r.model}`.padEnd(35) +
+          String(r.totalRuns).padStart(5) +
+          `${(r.passRate * 100).toFixed(0)}%`.padStart(6) +
+          costStr.padStart(10) +
+          cppStr.padStart(10) +
+          `${(r.avgDurationMs / 1000).toFixed(1)}s`.padStart(8),
+        );
+      }
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
+
+const historyCmd = new Command('history')
+  .description('Show benchmark pass-rate trend over time')
+  .option('--suite <name>', 'filter to a specific suite')
+  .option('--provider <name>', 'filter to a specific provider')
+  .option('--model <model>', 'filter to a specific model')
+  .option('--last <n>', 'show only the last N entries', '10')
+  .action(async (opts: { suite?: string; provider?: string; model?: string; last?: string }) => {
+    const { PrismaClient } = await import('@omega/db');
+    const prisma = new PrismaClient();
+    try {
+      const limit = parseInt(opts.last ?? '10', 10);
+      const trend = await getPassRateTrend(prisma, opts.suite ?? '', opts.provider, opts.model, limit);
+      if (trend.length === 0) {
+        console.log('No benchmark history found. Run `omega bench run` first.');
+        return;
+      }
+      console.log('\n=== Pass Rate Trend ===');
+      console.log(`${'Date'.padEnd(12)} ${'Pass%'.padStart(6)} ${'Tasks'.padStart(6)} ${'Passed'.padStart(7)} ${'Cost'.padStart(10)}`);
+      console.log('-'.repeat(50));
+      for (const entry of trend) {
+        const date = entry.timestamp.slice(0, 10);
+        const costStr = entry.totalCostUsd != null ? `$${entry.totalCostUsd.toFixed(2)}` : '-';
+        console.log(
+          date.padEnd(12) +
+          `${(entry.passRate * 100).toFixed(0)}%`.padStart(6) +
+          String(entry.totalTasks).padStart(6) +
+          String(entry.passed).padStart(7) +
+          costStr.padStart(10),
+        );
+      }
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
+
 export const benchCmd = new Command('bench')
   .description('Run benchmarks and optimise prompts')
   .addCommand(runCmd)
@@ -728,4 +877,7 @@ export const benchCmd = new Command('bench')
   .addCommand(trendCmd)
   .addCommand(consensusCmd)
   .addCommand(strategyCmd)
-  .addCommand(adversarialCmd);
+  .addCommand(adversarialCmd)
+  .addCommand(varianceCmd)
+  .addCommand(costCmd)
+  .addCommand(historyCmd);

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import { z } from 'zod';
 import { runTask } from '../lib/run-task.js';
+import { getNextStrategy, executeRetry, type RetryContext, type RetryRecord } from '../lib/retry-strategies.js';
 import { asyncHandler } from '../lib/async-handler.js';
 
 const createSchema = z.object({
@@ -306,6 +307,58 @@ export function taskRoutes(prisma: PrismaClient): Router {
       const message = err instanceof Error ? err.message : String(err);
       res.status(500).json({ error: message });
     }
+  }));
+
+  r.post('/:id/retry', asyncHandler(async (req, res) => {
+    const task = await prisma.task.findUnique({
+      where: { id: req.params.id },
+      include: { project: true },
+    });
+    if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
+    if (task.status !== 'failed') { res.status(400).json({ error: 'Only failed tasks can be retried' }); return; }
+
+    const tags: string[] = task.tags ? (JSON.parse(task.tags) as string[]) : [];
+    const retryHistory = task.retryHistory ? (JSON.parse(task.retryHistory) as RetryRecord[]) : [];
+    const ctx: RetryContext = {
+      task: {
+        id: task.id,
+        projectId: task.projectId,
+        title: task.title,
+        description: task.description,
+        complexity: task.complexity,
+        tags,
+        provider: task.provider,
+        model: task.model,
+        retryCount: task.retryCount,
+        retryHistory,
+      },
+      projectPath: task.project.path,
+      projectName: task.project.name,
+      error: task.error ?? '',
+    };
+
+    const attempt = getNextStrategy(ctx);
+    if (!attempt) {
+      res.status(400).json({ error: 'No more retry strategies available', retryCount: task.retryCount });
+      return;
+    }
+
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { status: 'in_progress', error: null },
+    });
+
+    void executeRetry(prisma, task.id, attempt, {
+      projectPath: task.project.path,
+      projectName: task.project.name,
+      autoPublish: tags.includes('publish'),
+    });
+
+    res.status(202).json({
+      status: 'in_progress',
+      strategy: attempt.strategy,
+      retryCount: task.retryCount + 1,
+    });
   }));
 
   r.delete('/:id', asyncHandler(async (req, res) => {

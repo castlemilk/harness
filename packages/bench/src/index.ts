@@ -25,3 +25,5 @@ export {
   type OptimiseOptions,
 } from './optimise.js';
 export { classifyFailure, pickFocusResult, summariseFailures, scoreByPromptVersion, type PromptVersionScore } from './analyse.js';
+export { runVarianceEval, printVarianceSummary, type VarianceTaskResult, type VarianceReport, type RunVarianceOptions } from './variance.js';
+export { saveBenchmarkHistory, getHistoryBySuite, getCostPerPassRate, getPassRateTrend, type BenchmarkHistoryEntry, type CostPerPassRate } from './history.js';

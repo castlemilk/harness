@@ -933,6 +933,8 @@ const serverRunCmd = new Command('server-run')
   .description('Run a benchmark suite server-side (full routing, retries, and escalation handled by the server)')
   .requiredOption('--suite <name>', 'suite name: synthetic | fast | harder | harder-v2 | hard-targeting')
   .option('--models <list>', 'comma-separated models as provider/model (e.g. "deepseek/deepseek-v4-pro,kimi/kimi-k3")')
+  .option('--strategy <name>', 'strategy: single | consensus | variance', 'single')
+  .option('--variance-runs <n>', 'number of runs per task (for variance strategy)', '5')
   .option('--concurrency <n>', 'max concurrent tasks', '3')
   .option('--timeout <ms>', 'per-task timeout in ms', '600000')
   .option('--token-budget <n>', 'per-task token cap', parseInt)
@@ -942,6 +944,8 @@ const serverRunCmd = new Command('server-run')
   .action(async (opts: {
     suite: string;
     models?: string;
+    strategy: string;
+    varianceRuns: string;
     concurrency: string;
     timeout: string;
     tokenBudget?: number;
@@ -969,6 +973,8 @@ const serverRunCmd = new Command('server-run')
       body: JSON.stringify({
         suite: opts.suite,
         models,
+        strategy: opts.strategy,
+        varianceRuns: parseInt(opts.varianceRuns, 10),
         concurrency: parseInt(opts.concurrency, 10),
         timeoutMs: parseInt(opts.timeout, 10),
         tokenBudget: opts.tokenBudget,
@@ -1033,6 +1039,7 @@ const serverRunCmd = new Command('server-run')
         totalDurationMs: number;
         totalCostUsd: number | null;
         status: string;
+        config: string;
       };
       console.log(`\n=== Benchmark Complete ===`);
       console.log(`Status: ${final.status}`);
@@ -1055,13 +1062,18 @@ function handleServerRunEvent(type: string, data: Record<string, unknown>): void
     case 'task-completed': {
       const symbol = data.passed ? '✓' : '✗';
       const dur = typeof data.durationMs === 'number' ? `${(data.durationMs / 1000).toFixed(1)}s` : '';
-      console.log(`  ${symbol} ${data.taskName as string ?? data.taskId as string} (${dur})`);
+      const winner = typeof data.winnerModel === 'string' ? ` (winner: ${data.winnerModel})` : '';
+      const variance = typeof data.variancePassRate === 'number' ? ` (${(data.variancePassRate * 100).toFixed(0)}% pass rate)` : '';
+      console.log(`  ${symbol} ${data.taskName as string ?? data.taskId as string} (${dur})${winner}${variance}`);
       break;
     }
     case 'completed': {
-      const s = data.summary as { total: number; passed: number; failed: number; timeouts: number; totalDurationMs: number } | undefined;
+      const s = data.summary as { total: number; passed: number; failed: number; timeouts: number; totalDurationMs: number; winsByModel?: Record<string, number> } | undefined;
       if (s) {
         console.log(`\n  Total: ${s.passed}/${s.total} passed (${(s.totalDurationMs / 1000).toFixed(1)}s)`);
+        if (s.winsByModel && Object.keys(s.winsByModel).length > 0) {
+          console.log(`  Wins by model:`, s.winsByModel);
+        }
       }
       break;
     }

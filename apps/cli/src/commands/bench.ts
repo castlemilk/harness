@@ -929,9 +929,152 @@ const historyCmd = new Command('history')
     }
   });
 
+const serverRunCmd = new Command('server-run')
+  .description('Run a benchmark suite server-side (full routing, retries, and escalation handled by the server)')
+  .requiredOption('--suite <name>', 'suite name: synthetic | fast | harder | harder-v2 | hard-targeting')
+  .option('--models <list>', 'comma-separated models as provider/model (e.g. "deepseek/deepseek-v4-pro,kimi/kimi-k3")')
+  .option('--concurrency <n>', 'max concurrent tasks', '3')
+  .option('--timeout <ms>', 'per-task timeout in ms', '600000')
+  .option('--token-budget <n>', 'per-task token cap', parseInt)
+  .option('--n-tasks <n>', 'limit number of tasks', parseInt)
+  .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
+  .option('--api-url <url>', 'harness API URL')
+  .action(async (opts: {
+    suite: string;
+    models?: string;
+    concurrency: string;
+    timeout: string;
+    tokenBudget?: number;
+    nTasks?: number;
+    taskId: string[];
+    apiUrl?: string;
+  }) => {
+    const apiUrl = opts.apiUrl ?? getApiUrl();
+    await waitForApi(apiUrl);
+
+    const models = opts.models
+      ? opts.models.split(',').map((m) => m.trim()).filter(Boolean).map((m) => {
+          if (m.includes('/')) {
+            const [provider, ...rest] = m.split('/');
+            return { provider: provider!, model: rest.join('/') };
+          }
+          return { provider: 'external', model: m };
+        })
+      : undefined;
+
+    // Start the run
+    const res = await fetch(`${apiUrl}/bench/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        suite: opts.suite,
+        models,
+        concurrency: parseInt(opts.concurrency, 10),
+        timeoutMs: parseInt(opts.timeout, 10),
+        tokenBudget: opts.tokenBudget,
+        nTasks: opts.nTasks,
+        taskIds: opts.taskId.length > 0 ? opts.taskId : undefined,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json() as { error?: string };
+      console.error(`Failed to start benchmark run: ${body.error ?? res.statusText}`);
+      process.exit(1);
+    }
+
+    const { id: runId } = await res.json() as { id: string };
+    console.log(`Benchmark run started: ${runId}`);
+    console.log(`Suite: ${opts.suite} | Models: ${opts.models ?? 'default'} | Concurrency: ${opts.concurrency}`);
+    console.log('Streaming progress...\n');
+
+    // Subscribe to SSE stream
+    const sseRes = await fetch(`${apiUrl}/bench/run/${runId}/stream`);
+    if (!sseRes.ok || !sseRes.body) {
+      console.error('Failed to subscribe to benchmark stream');
+      process.exit(1);
+    }
+
+    const reader = sseRes.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      let eventType = '';
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith('data: ') && eventType) {
+          try {
+            const data = JSON.parse(line.slice(6)) as Record<string, unknown>;
+            handleServerRunEvent(eventType, data);
+          } catch {
+            // ignore parse errors
+          }
+          eventType = '';
+        }
+      }
+    }
+
+    // Fetch final state
+    const finalRes = await fetch(`${apiUrl}/bench/run/${runId}`);
+    if (finalRes.ok) {
+      const final = await finalRes.json() as {
+        passed: number;
+        failed: number;
+        timeouts: number;
+        totalDurationMs: number;
+        totalCostUsd: number | null;
+        status: string;
+      };
+      console.log(`\n=== Benchmark Complete ===`);
+      console.log(`Status: ${final.status}`);
+      console.log(`Passed: ${final.passed}/${final.passed + final.failed + final.timeouts}`);
+      console.log(`Duration: ${(final.totalDurationMs / 1000).toFixed(1)}s`);
+      if (final.totalCostUsd != null) {
+        console.log(`Cost: $${final.totalCostUsd.toFixed(2)}`);
+      }
+    }
+  });
+
+function handleServerRunEvent(type: string, data: Record<string, unknown>): void {
+  switch (type) {
+    case 'started':
+      console.log(`Run started for suite: ${data.suite as string ?? 'unknown'}`);
+      break;
+    case 'task-started':
+      console.log(`  → ${data.taskName as string ?? data.taskId as string} [${data.model as string ?? 'default'}]`);
+      break;
+    case 'task-completed': {
+      const symbol = data.passed ? '✓' : '✗';
+      const dur = typeof data.durationMs === 'number' ? `${(data.durationMs / 1000).toFixed(1)}s` : '';
+      console.log(`  ${symbol} ${data.taskName as string ?? data.taskId as string} (${dur})`);
+      break;
+    }
+    case 'completed': {
+      const s = data.summary as { total: number; passed: number; failed: number; timeouts: number; totalDurationMs: number } | undefined;
+      if (s) {
+        console.log(`\n  Total: ${s.passed}/${s.total} passed (${(s.totalDurationMs / 1000).toFixed(1)}s)`);
+      }
+      break;
+    }
+    case 'failed':
+      console.error(`  ✗ Run failed: ${data.error as string ?? 'unknown error'}`);
+      break;
+  }
+}
+
 export const benchCmd = new Command('bench')
   .description('Run benchmarks and optimise prompts')
   .addCommand(runCmd)
+  .addCommand(serverRunCmd)
   .addCommand(evalCmd)
   .addCommand(optimiseCmd)
   .addCommand(compareCmd)

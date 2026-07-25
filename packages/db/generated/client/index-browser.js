@@ -144,6 +144,9 @@ exports.Prisma.TaskScalarFieldEnum = {
   model: 'model',
   result: 'result',
   error: 'error',
+  retryCount: 'retryCount',
+  lastRetryAt: 'lastRetryAt',
+  retryHistory: 'retryHistory',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -250,6 +253,44 @@ exports.Prisma.PromptVersionScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.BenchmarkHistoryScalarFieldEnum = {
+  id: 'id',
+  suite: 'suite',
+  provider: 'provider',
+  model: 'model',
+  totalTasks: 'totalTasks',
+  passed: 'passed',
+  failed: 'failed',
+  timeouts: 'timeouts',
+  passRate: 'passRate',
+  totalDurationMs: 'totalDurationMs',
+  totalCostUsd: 'totalCostUsd',
+  totalTokens: 'totalTokens',
+  metadata: 'metadata',
+  reportPath: 'reportPath',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.BenchmarkRunScalarFieldEnum = {
+  id: 'id',
+  suite: 'suite',
+  status: 'status',
+  config: 'config',
+  totalTasks: 'totalTasks',
+  passed: 'passed',
+  failed: 'failed',
+  timeouts: 'timeouts',
+  totalDurationMs: 'totalDurationMs',
+  totalCostUsd: 'totalCostUsd',
+  totalTokens: 'totalTokens',
+  results: 'results',
+  error: 'error',
+  startedAt: 'startedAt',
+  completedAt: 'completedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -276,7 +317,9 @@ exports.Prisma.ModelName = {
   TraceSpan: 'TraceSpan',
   ProviderConfig: 'ProviderConfig',
   SkillArtifact: 'SkillArtifact',
-  PromptVersion: 'PromptVersion'
+  PromptVersion: 'PromptVersion',
+  BenchmarkHistory: 'BenchmarkHistory',
+  BenchmarkRun: 'BenchmarkRun'
 };
 
 /**

@@ -16,6 +16,7 @@
     "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.1",
     "@omega/agent": "workspace:*",
+    "@omega/bench": "workspace:*",
     "@omega/core": "workspace:*",
     "@omega/db": "workspace:*",
     "@omega/providers": "workspace:*",

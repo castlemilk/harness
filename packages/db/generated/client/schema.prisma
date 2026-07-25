@@ -21,25 +21,28 @@ model Project {
 }
 
 model Task {
-  id          String      @id @default(uuid())
-  projectId   String
-  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  status      String      @default("todo")
-  complexity  String      @default("simple")
-  tags        String? // JSON array
-  provider    String?
-  model       String?
-  result      String?
-  error       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  steps       TaskStep[]
-  traces      TaskTrace[]
-  diffs       TaskDiff[]
-  agentRuns   AgentRun[]
-  traceSpans  TraceSpan[]
+  id           String      @id @default(uuid())
+  projectId    String
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  status       String      @default("todo")
+  complexity   String      @default("simple")
+  tags         String? // JSON array
+  provider     String?
+  model        String?
+  result       String?
+  error        String?
+  retryCount   Int         @default(0)
+  lastRetryAt  DateTime?
+  retryHistory String? // JSON: [{ strategy, provider, model, error, timestamp }]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  steps        TaskStep[]
+  traces       TaskTrace[]
+  diffs        TaskDiff[]
+  agentRuns    AgentRun[]
+  traceSpans   TraceSpan[]
 }
 
 model TaskStep {
@@ -161,4 +164,50 @@ model PromptVersion {
   benchmarkScore  Float?
   agentRuns       AgentRun[]
   createdAt       DateTime   @default(now())
+}
+
+model BenchmarkHistory {
+  id              String   @id @default(uuid())
+  suite           String
+  provider        String?
+  model           String?
+  totalTasks      Int
+  passed          Int
+  failed          Int
+  timeouts        Int
+  passRate        Float
+  totalDurationMs Int
+  totalCostUsd    Float?
+  totalTokens     Int?
+  metadata        String? // JSON: per-task results, variance data, etc.
+  reportPath      String?
+  createdAt       DateTime @default(now())
+
+  @@index([suite])
+  @@index([provider, model])
+  @@index([createdAt])
+}
+
+model BenchmarkRun {
+  id              String    @id @default(uuid())
+  suite           String
+  status          String    @default("pending") // pending | running | done | failed | cancelled
+  config          String // JSON: { models, strategy, concurrency, timeoutMs, tokenBudget, ... }
+  totalTasks      Int       @default(0)
+  passed          Int       @default(0)
+  failed          Int       @default(0)
+  timeouts        Int       @default(0)
+  totalDurationMs Int       @default(0)
+  totalCostUsd    Float?
+  totalTokens     Int?
+  results         String? // JSON: per-task results
+  error           String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([suite])
+  @@index([createdAt])
 }

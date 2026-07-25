@@ -11,6 +11,7 @@ import { reportRoutes } from './routes/reports.js';
 import { promptVersionRoutes } from './routes/prompt-versions.js';
 import { costRoutes } from './routes/costs.js';
 import { timeseriesRoutes } from './routes/timeseries.js';
+import { benchRunRoutes } from './routes/bench-runs.js';
 
 export const app: express.Express = express();
 
@@ -44,6 +45,7 @@ app.use('/reports', reportRoutes());
 app.use('/prompt-versions', promptVersionRoutes(prisma));
 app.use('/costs', costRoutes(prisma));
 app.use('/timeseries', timeseriesRoutes(prisma));
+app.use('/bench/run', benchRunRoutes(prisma));
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

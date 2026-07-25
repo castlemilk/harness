@@ -1,5 +1,5 @@
 import { createProvider } from '@omega/providers';
-import { selectProvider } from '@omega/router';
+import { selectProvider, selectProviderWithHistory, getHistoricalScores } from '@omega/router';
 import { runAgentTask, runOrchestratedTask, runExternalAgentTask, type ExternalCli } from '@omega/agent';
 import type { PrismaClient } from '@omega/db';
 import type { ProviderConfig as CoreProviderConfig, Task } from '@omega/core';
@@ -198,7 +198,32 @@ export async function runTask(
     updatedAt: task.updatedAt,
   };
 
-  const selection = selectProvider(coreConfigs, [], taskForRouter);
+  // Use difficulty-aware routing if historical data is available; fall back to
+  // the standard capability-based router otherwise.
+  const historicalScores = await getHistoricalScores(() =>
+    prisma.agentRun.findMany({
+      select: {
+        resultStatus: true,
+        costUsd: true,
+        createdAt: true,
+        updatedAt: true,
+        task: { select: { provider: true, model: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    }).then((runs) => runs.map((r) => ({
+      resultStatus: r.resultStatus,
+      costUsd: r.costUsd,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      provider: r.task.provider,
+      model: r.task.model,
+    }))),
+  );
+
+  const selection = historicalScores.size > 0
+    ? selectProviderWithHistory(coreConfigs, [], taskForRouter, historicalScores)
+    : selectProvider(coreConfigs, [], taskForRouter);
   if (!selection) {
     await prisma.task.update({
       where: { id: taskId },

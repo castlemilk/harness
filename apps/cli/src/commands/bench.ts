@@ -233,6 +233,20 @@ const runCmd = new Command('run')
     printSummary(report);
     console.log(`\nReport written to ${reportFile}`);
 
+    // Persist to benchmark history for cost-per-pass-rate tracking.
+    try {
+      const { PrismaClient } = await import('@omega/db');
+      const prisma = new PrismaClient();
+      await saveBenchmarkHistory(prisma, report, {
+        provider: opts.provider,
+        model: opts.model,
+        reportPath: reportFile,
+      });
+      await prisma.$disconnect();
+    } catch {
+      // history persistence is best-effort; don't fail the bench run
+    }
+
     // Baseline comparison
     if (opts.baseline) {
       const text = await compareReports({ baseline: opts.baseline, candidate: reportFile });
@@ -374,6 +388,22 @@ const evalCmd = new Command('eval')
       });
       const reportFile = await writeModelEvalReport(results, opts.suite);
       console.log(`\nHarness eval report written to ${reportFile}`);
+
+      // Persist per-harness results to benchmark history.
+      try {
+        const { PrismaClient } = await import('@omega/db');
+        const prisma = new PrismaClient();
+        for (const r of results) {
+          await saveBenchmarkHistory(prisma, r.report, {
+            provider: 'external',
+            model: r.model,
+            reportPath: reportFile,
+          });
+        }
+        await prisma.$disconnect();
+      } catch {
+        // history persistence is best-effort
+      }
       return;
     }
 
@@ -394,6 +424,22 @@ const evalCmd = new Command('eval')
 
     const reportFile = await writeModelEvalReport(results, opts.suite);
     console.log(`\nModel eval report written to ${reportFile}`);
+
+    // Persist per-model results to benchmark history.
+    try {
+      const { PrismaClient } = await import('@omega/db');
+      const prisma = new PrismaClient();
+      for (const r of results) {
+        await saveBenchmarkHistory(prisma, r.report, {
+          provider: r.provider,
+          model: r.model,
+          reportPath: reportFile,
+        });
+      }
+      await prisma.$disconnect();
+    } catch {
+      // history persistence is best-effort
+    }
   });
 
 const trendCmd = new Command('trend')
@@ -509,6 +555,21 @@ const consensusCmd = new Command('consensus')
         console.log(`  total cost: $${c.totalCostUsd.toFixed(2)}  total tokens: ${c.totalTokens.toLocaleString()}`);
         console.log(`  wins by model:`, c.winsByModel);
         console.log(`\nReport written to ${reportFile}`);
+      }
+
+      // Persist consensus results to benchmark history.
+      try {
+        const { PrismaClient } = await import('@omega/db');
+        const prisma = new PrismaClient();
+        await saveBenchmarkHistory(prisma, consensus.report, {
+          provider: 'consensus',
+          model: models.map((m) => m.model).join('+'),
+          reportPath: reportFile,
+          metadata: { winsByModel: consensus.report.consensus?.winsByModel },
+        });
+        await prisma.$disconnect();
+      } catch {
+        // history persistence is best-effort
       }
     },
   );

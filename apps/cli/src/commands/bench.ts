@@ -21,6 +21,7 @@ import {
   generateTrend,
   runConsensusEval,
   runStrategyEval,
+  analyseFailures,
   loadOptimisationContext,
   buildOptimisePrompt,
   submitOptimiseTask,
@@ -562,6 +563,26 @@ const strategyCmd = new Command('strategy')
       }
       console.log(`\nWins by strategy:`, result.summary.winsByStrategy);
 
+      // Analyze failures from traces.
+      const insights = analyseFailures(result.tasks);
+      if (insights.length > 0) {
+        console.log(`\n--- Failure Analysis (${insights.length} tasks failed across all strategies) ---`);
+        for (const insight of insights) {
+          console.log(`\n  ${insight.taskName}:`);
+          console.log(`    Reason: ${insight.reason}`);
+          if (insight.toolAnomalies.length > 0) {
+            console.log(`    Tool anomalies: ${insight.toolAnomalies.join('; ')}`);
+          }
+          if (insight.topErrors.length > 0) {
+            console.log(`    Top errors:`);
+            for (const err of insight.topErrors.slice(0, 3)) {
+              console.log(`      ${err}`);
+            }
+          }
+          console.log(`    Suggestion: ${insight.suggestion}`);
+        }
+      }
+
       // Persist a JSON report for later analysis.
       const reportPath = `${omegaReportsDir()}/strategy-${opts.suite}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
       const fs = await import('node:fs/promises');
@@ -574,6 +595,7 @@ const strategyCmd = new Command('strategy')
             suite: opts.suite,
             strategies,
             summary: result.summary,
+            failureInsights: insights,
             tasks: result.tasks.map((t) => ({
               taskId: t.task.id,
               passed: t.passed,

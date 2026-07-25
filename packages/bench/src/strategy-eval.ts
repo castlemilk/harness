@@ -23,7 +23,7 @@ import fsSync from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { omegaWorkDir } from '@omega/core';
-import type { BenchmarkTask, BenchmarkReport, BenchmarkEvaluation } from './types.js';
+import type { BenchmarkTask, BenchmarkReport, BenchmarkEvaluation, TraceSummary } from './types.js';
 import {
   ensureProject,
   createTask,
@@ -33,6 +33,7 @@ import {
   getDiffs,
   pollForDiffs,
   countSpans,
+  getTraceSummary,
 } from './api-client.js';
 
 /**
@@ -106,6 +107,8 @@ export interface StrategyCandidate {
   costUsd: number | null;
   evalMessage: string;
   patchBytes: number;
+  /** Trace summary captured after run — useful for debugging failures. */
+  traceSummary?: TraceSummary;
 }
 
 export interface StrategyTaskReport {
@@ -135,6 +138,20 @@ export interface StrategyResult {
   tasks: StrategyTaskReport[];
   /** Aggregate stats. */
   summary: StrategySummary;
+  /** Trace-based failure analysis for tasks where all strategies failed. */
+  failureInsights: FailureInsight[];
+}
+
+export interface FailureInsight {
+  taskName: string;
+  /** Why the agent failed based on trace analysis. */
+  reason: string;
+  /** Which tools were used (or not used) abnormally. */
+  toolAnomalies: string[];
+  /** Top errors from the trace. */
+  topErrors: string[];
+  /** Suggested improvement for the harness or prompt. */
+  suggestion: string;
 }
 
 function ensureGitRepo(repoPath: string): void {
@@ -277,6 +294,7 @@ export async function runStrategyEval(
       let patchBytes = 0;
       let totalTokens: number | null = null;
       let costUsd: number | null = null;
+      let traceSummary: TraceSummary | undefined;
 
       try {
         await runTask(apiUrl, harnessTask.id, tokenBudget);
@@ -294,6 +312,11 @@ export async function runStrategyEval(
         patchBytes = diffs.reduce((sum, d) => sum + (d.patch?.length ?? 0), 0);
         totalTokens = agentRun?.totalTokens ?? null;
         costUsd = agentRun?.costUsd ?? null;
+
+        // Capture trace summary for debugging (especially useful for failures).
+        try {
+          traceSummary = await getTraceSummary(apiUrl, harnessTask.id);
+        } catch { /* trace not available */ }
 
         // Reset and let the evaluator apply the patch via applyLatestPatch().
         resetToCommit(projectPath, baseCommit);
@@ -338,6 +361,7 @@ export async function runStrategyEval(
         costUsd,
         evalMessage,
         patchBytes,
+        traceSummary,
       };
       candidates.push(candidate);
       perStrategy[strategy].runs += 1;
@@ -382,5 +406,90 @@ export async function runStrategyEval(
     winsByStrategy,
   };
 
-  return { tasks: taskReports, summary };
+  return { tasks: taskReports, summary, failureInsights: [] };
+}
+
+/** Analyze traces from failed tasks to identify root causes. */
+export function analyseFailures(tasks: StrategyTaskReport[]): FailureInsight[] {
+  const insights: FailureInsight[] = [];
+
+  for (const task of tasks) {
+    if (task.passed) continue;
+    // Collect trace summaries from all failed candidates.
+    const traces = task.candidates
+      .filter((c) => !c.passed && c.traceSummary)
+      .map((c) => ({ strategy: c.strategy, trace: c.traceSummary! }));
+
+    if (traces.length === 0) {
+      insights.push({
+        taskName: task.task.name,
+        reason: 'no trace data available',
+        toolAnomalies: [],
+        topErrors: [],
+        suggestion: 'Increase timeout or check agent logs.',
+      });
+      continue;
+    }
+
+    // Use the first failed trace as representative.
+    const representative = traces[0].trace;
+    const toolAnomalies: string[] = [];
+    const topErrors: string[] = [];
+
+    // Check for common failure patterns.
+    const toolMap = new Map(representative.toolSummary.map((t) => [t.tool, t]));
+
+    // Never read files → likely guessing.
+    const readFile = toolMap.get('read_file');
+    if (!readFile || readFile.total === 0) {
+      toolAnomalies.push('never read any files — agent guessed without understanding');
+    }
+
+    // Tried to edit but failed repeatedly.
+    const editFile = toolMap.get('edit_file');
+    if (editFile && editFile.failure > 2) {
+      toolAnomalies.push(`edit_file failed ${editFile.failure}/${editFile.total} times`);
+    }
+
+    // Used bash to run tests but tests still failed.
+    const bash = toolMap.get('bash');
+    if (bash && bash.failure > 0 && editFile && editFile.total > 0) {
+      toolAnomalies.push('edited files and ran bash, but fix was incorrect');
+    }
+
+    // No code overview / search → may have missed relevant files.
+    const overview = toolMap.get('code_overview');
+    if (!overview || overview.total === 0) {
+      const search = toolMap.get('search');
+      if (!search || search.total === 0) {
+        toolAnomalies.push('no code overview or search — may have missed relevant files');
+      }
+    }
+
+    // Top errors.
+    for (const err of representative.topErrors.slice(0, 3)) {
+      topErrors.push(`[${err.tool}] ${err.message}`);
+    }
+
+    // Derive reason and suggestion from anomalies.
+    let reason: string;
+    let suggestion: string;
+    if (toolAnomalies.some((a) => a.includes('never read'))) {
+      reason = 'agent did not read source files before editing';
+      suggestion = 'Add "read before edit" enforcement to the prompt or use the research-first strategy.';
+    } else if (toolAnomalies.some((a) => a.includes('edit_file failed'))) {
+      reason = 'agent struggled to apply edits (edit_file failures)';
+      suggestion = 'Check if the file format or indentation is causing edit failures. Consider a patch-based approach.';
+    } else if (toolAnomalies.some((a) => a.includes('no code overview'))) {
+      reason = 'agent may have missed relevant files';
+      suggestion = 'Add a project-structure skill or require code_overview before editing.';
+    } else {
+      reason = 'unknown — review trace for details';
+      suggestion = 'Run `omega trace <taskId>` to inspect the full trace.';
+    }
+
+    insights.push({ taskName: task.task.name, reason, toolAnomalies, topErrors, suggestion });
+  }
+
+  return insights;
 }

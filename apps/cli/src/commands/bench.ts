@@ -496,6 +496,7 @@ const strategyCmd = new Command('strategy')
   .option('--project-prefix <prefix>', 'project name prefix', 'strategy')
   .option('--provider <name>', 'override provider (e.g. minimax)')
   .option('--model <model>', 'override model (e.g. MiniMax-M3)')
+  .option('--auto', 'auto-select strategies based on task classification (overrides --strategies)')
   .action(
     async (opts: {
       suite: string;
@@ -506,6 +507,7 @@ const strategyCmd = new Command('strategy')
       projectPrefix: string;
       provider?: string;
       model?: string;
+      auto?: boolean;
     }) => {
       const apiUrl = getApiUrl();
       await waitForApi(apiUrl);
@@ -530,9 +532,12 @@ const strategyCmd = new Command('strategy')
         'default' | 'verify-before-finish' | 'research-first' | 'concise' | 'plan-then-execute'
       >;
       const timeoutMs = Number(opts.timeout);
+      const autoStrategies = opts.auto ?? false;
 
       console.log(
-        `Running ${String(tasks.length)} tasks across ${String(strategies.length)} strategies: ${strategies.join(', ')}`,
+        autoStrategies
+          ? `Running ${String(tasks.length)} tasks with auto-selected strategies`
+          : `Running ${String(tasks.length)} tasks across ${String(strategies.length)} strategies: ${strategies.join(', ')}`,
       );
 
       const result = await runStrategyEval(tasks, {
@@ -544,6 +549,7 @@ const strategyCmd = new Command('strategy')
         provider: opts.provider,
         model: opts.model,
         suiteName: opts.suite,
+        autoStrategies,
         onProgress: (taskId, report) => {
           const w = report.winner ?? 'none';
           console.log(

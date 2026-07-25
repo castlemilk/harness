@@ -86,6 +86,41 @@ export const STRATEGY_PROMPTS: Record<StrategyName, string> = {
   ].join('\n'),
 };
 
+/**
+ * Classify a task description and recommend the best strategy.
+ * Returns a ranked list of strategies (first = best guess).
+ */
+export function classifyTask(task: BenchmarkTask): StrategyName[] {
+  const text = `${task.title} ${task.description ?? ''}`.toLowerCase();
+
+  // Debugging tasks — need to read everything first.
+  if (text.includes('debug') || text.includes('fix') || text.includes('leak') ||
+      text.includes('race condition') || text.includes('concurrent') || text.includes('leak')) {
+    return ['research-first', 'verify-before-finish', 'default'];
+  }
+
+  // Spec compliance — must verify against spec.
+  if (text.includes('spec') || text.includes('specification') || text.includes('hidden') ||
+      text.includes('correct behavior') || text.includes('should')) {
+    return ['verify-before-finish', 'research-first', 'default'];
+  }
+
+  // Refactoring — simple edits, concise works best.
+  if (text.includes('rename') || text.includes('refactor') || text.includes('extract') ||
+      text.includes('split') || text.includes('migrate') || text.includes('deprecated')) {
+    return ['concise', 'default', 'verify-before-finish'];
+  }
+
+  // Ambiguous tasks — need a plan.
+  if (text.includes('ambiguous') || text.includes('unclear') || text.includes('complex') ||
+      text.includes('multiple')) {
+    return ['plan-then-execute', 'research-first', 'default'];
+  }
+
+  // Default ranking.
+  return ['default', 'verify-before-finish', 'research-first'];
+}
+
 export interface StrategyOptions {
   apiUrl: string;
   strategies: StrategyName[];
@@ -96,6 +131,8 @@ export interface StrategyOptions {
   model?: string;
   tokenBudget?: number;
   suiteName?: string;
+  /** Auto-select strategies based on task classification. Overrides `strategies`. */
+  autoStrategies?: boolean;
   onProgress?: (taskId: string, report: StrategyTaskReport) => void;
 }
 
@@ -214,11 +251,12 @@ export async function runStrategyEval(
     model,
     tokenBudget,
     suiteName = 'strategy',
+    autoStrategies = false,
     onProgress,
   } = options;
 
-  if (strategies.length === 0) {
-    throw new Error('Strategy eval requires at least one strategy');
+  if (strategies.length === 0 && !autoStrategies) {
+    throw new Error('Strategy eval requires at least one strategy (or autoStrategies=true)');
   }
 
   const taskReports: StrategyTaskReport[] = [];
@@ -260,7 +298,10 @@ export async function runStrategyEval(
     // Run each strategy in order. Stop at the first passing patch.
     let winner: StrategyName | null = null;
 
-    for (const strategy of strategies) {
+    // Auto-select strategies based on task classification if enabled.
+    const taskStrategies = autoStrategies ? classifyTask(task) : strategies;
+
+    for (const strategy of taskStrategies) {
       // Reset the project for each strategy.
       resetToCommit(projectPath, baseCommit);
 

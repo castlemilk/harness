@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import { z } from 'zod';
 import { selectProvider } from '@omega/router';
+import { StrategyLearner } from '@omega/router';
 import type { ProviderConfig as CoreProviderConfig, Task } from '@omega/core';
 import { asyncHandler } from '../lib/async-handler.js';
 import { getRouter } from '../lib/intelligent-router.js';
@@ -132,6 +133,19 @@ export function routerRoutes(prisma: PrismaClient): Router {
         ]),
       ),
     });
+  }));
+
+  // Strategy learning summary
+  r.get('/learning', asyncHandler(async (_req, res) => {
+    const learner = new StrategyLearner();
+    res.json(learner.getStats());
+  }));
+
+  // Provider health overview
+  r.get('/health', asyncHandler(async (_req, res) => {
+    const router = await getRouter(prisma);
+    const entries = router.health.getEntries();
+    res.json(entries);
   }));
 
   return r;

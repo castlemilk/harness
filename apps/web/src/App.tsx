@@ -7,6 +7,8 @@ import { RouterPanel } from './components/RouterPanel.js';
 import { MetricsPanel } from './components/MetricsPanel.js';
 import { BenchmarkPanel } from './components/BenchmarkPanel.js';
 import { CostDashboard } from './components/CostDashboard.js';
+import StrategyLearningPanel from './components/StrategyLearningPanel.js';
+import ProviderHealthPanel from './components/ProviderHealthPanel.js';
 
 function App() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -59,6 +61,20 @@ function App() {
       ) : view === 'costs' ? (
         <main className="flex-1 h-screen overflow-y-auto bg-gray-50">
           <CostDashboard />
+        </main>
+      ) : view === 'router' ? (
+        <main className="flex-1 h-screen overflow-y-auto bg-gray-50">
+          <div className="max-w-5xl p-6 space-y-6">
+            <h2 className="text-lg font-semibold">Intelligent Router</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white border rounded">
+                <ProviderHealthPanel />
+              </div>
+              <div className="bg-white border rounded">
+                <StrategyLearningPanel />
+              </div>
+            </div>
+          </div>
         </main>
       ) : (
         <TaskBoard projectId={selectedProjectId} />

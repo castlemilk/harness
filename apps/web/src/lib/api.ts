@@ -253,4 +253,44 @@ export const api = {
     request<{ cancelled: boolean }>(`/bench/run/${id}/cancel`, { method: 'POST' }),
 
   benchRunStreamUrl: (id: string) => sseUrl(`/bench/run/${id}/stream`),
+
+  // ── Router ──────────────────────────────────────────────
+
+  getStrategyLearning: () =>
+    request<Array<{
+      domain: string;
+      complexity: string;
+      wins: number;
+      total: number;
+      passRate: number;
+      avgScore: number;
+    }>>('/router/learning'),
+
+  getProviderHealth: () =>
+    request<Array<{
+      provider: string;
+      latencyP50: number;
+      latencyP95: number;
+      errorRate: number;
+      rateLimitRate: number;
+      recentCalls: number;
+      score: number;
+    }>>('/router/health'),
+
+  // ── Costs per task ─────────────────────────────────────
+
+  getCostsPerTask: (limit = 50) =>
+    request<Array<{
+      taskId: string;
+      title: string;
+      status: string;
+      complexity: string | null;
+      provider: string;
+      model: string;
+      costUsd: number;
+      totalTokens: number;
+      promptTokens: number;
+      completionTokens: number;
+      createdAt: string;
+    }>>(`/costs/per-task?limit=${limit}`),
 };

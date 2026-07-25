@@ -100,6 +100,48 @@ export function costRoutes(prisma: PrismaClient): Router {
     res.json(series);
   }));
 
+  // Per-task cost breakdown
+  r.get('/per-task', asyncHandler(async (req, res) => {
+    const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 50;
+    const runs = await prisma.agentRun.findMany({
+      select: {
+        costUsd: true,
+        totalTokens: true,
+        promptTokens: true,
+        completionTokens: true,
+        createdAt: true,
+        resultStatus: true,
+        task: {
+          select: {
+            id: true,
+            title: true,
+            provider: true,
+            model: true,
+            status: true,
+            complexity: true,
+          },
+        },
+      },
+      where: { costUsd: { not: null } },
+      orderBy: { costUsd: 'desc' },
+      take: Math.min(limit, 200),
+    });
+
+    res.json(runs.map((r) => ({
+      taskId: r.task.id,
+      title: r.task.title,
+      status: r.task.status,
+      complexity: r.task.complexity,
+      provider: r.task.provider ?? 'unknown',
+      model: r.task.model ?? 'unknown',
+      costUsd: r.costUsd ?? 0,
+      totalTokens: r.totalTokens ?? 0,
+      promptTokens: r.promptTokens ?? 0,
+      completionTokens: r.completionTokens ?? 0,
+      createdAt: r.createdAt,
+    })));
+  }));
+
   return r;
 }
 

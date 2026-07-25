@@ -124,6 +124,32 @@ export class ProviderHealthRegistry {
     const health = this.getHealth(providerKey);
     return health.errorRate > 0.5 && health.recentCalls >= 5;
   }
+
+  /**
+   * Get all provider health summaries for the dashboard.
+   */
+  getEntries(): Array<ProviderHealth & { provider: string }> {
+    return Array.from(this.samples.entries()).map(([name, samples]) => {
+      const list = samples.slice(-200);
+      const errors = list.filter((s) => !s.success).length;
+      const rateLimits = list.filter((s) => s.rateLimited).length;
+      const errorRate = list.length > 0 ? errors / list.length : 0;
+      const rateLimitRate = list.length > 0 ? rateLimits / list.length : 0;
+      const latencies = list
+        .filter((s) => s.success && !s.rateLimited)
+        .map((s) => s.latencyMs)
+        .sort((a, b) => a - b);
+      return {
+        provider: name,
+        latencyP50: latencies[Math.floor(latencies.length * 0.5)] ?? 0,
+        latencyP95: latencies[Math.floor(latencies.length * 0.95)] ?? 0,
+        errorRate,
+        rateLimitRate,
+        recentCalls: list.length,
+        score: this.getHealth(name).score,
+      };
+    });
+  }
 }
 
 export interface ProviderHealth {
@@ -666,5 +692,22 @@ export class StrategyLearner {
       return 'cost-optimized';
     }
     return undefined;
+  }
+
+  /**
+   * Get all scores as an array for display.
+   */
+  getStats(): Array<{ domain: string; complexity: string; wins: number; total: number; passRate: number; avgScore: number }> {
+    return Array.from(this.scores.entries()).map(([key, s]) => {
+      const [domain, complexity] = key.split(':');
+      return {
+        domain,
+        complexity,
+        wins: s.wins,
+        total: s.total,
+        passRate: s.total > 0 ? s.wins / s.total : 0,
+        avgScore: s.avgScore,
+      };
+    });
   }
 }

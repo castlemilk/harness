@@ -1,6 +1,20 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 
+interface TaskCost {
+  taskId: string;
+  title: string;
+  status: string;
+  complexity: string | null;
+  provider: string;
+  model: string;
+  costUsd: number;
+  totalTokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  createdAt: string;
+}
+
 interface CostSummary {
   totalCostUsd: number;
   costByProvider: Record<string, number>;
@@ -99,22 +113,25 @@ export function CostDashboard() {
   const [costTs, setCostTs] = useState<CostBucket[]>([]);
   const [providerTs, setProviderTs] = useState<ProviderBucket[]>([]);
   const [taskTs, setTaskTs] = useState<TaskTimeseries | null>(null);
+  const [taskCosts, setTaskCosts] = useState<TaskCost[]>([]);
   const [bucket, setBucket] = useState<'hour' | 'day' | 'week'>('day');
   const [days, setDays] = useState(30);
   const [error, setError] = useState('');
 
   async function load() {
     try {
-      const [s, c, p, t] = await Promise.all([
+      const [s, c, p, t, tc] = await Promise.all([
         api.getCostSummary(),
         api.getCostTimeseries(bucket, days),
         api.getProviderTimeseries(bucket, days),
         api.getTaskTimeseries(bucket, days),
+        api.getCostsPerTask(30),
       ]);
       setSummary(s);
       setCostTs(c);
       setProviderTs(p);
       setTaskTs(t);
+      setTaskCosts(tc);
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -311,6 +328,43 @@ export function CostDashboard() {
           <div className="flex justify-between text-[9px] text-gray-400 mt-1">
             {taskTs.passRate.length > 0 && <span>{taskTs.passRate[0]!.bucket.slice(5, 10)}</span>}
             {taskTs.passRate.length > 1 && <span>{taskTs.passRate[taskTs.passRate.length - 1]!.bucket.slice(5, 10)}</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Per-task cost breakdown */}
+      {taskCosts.length > 0 && (
+        <div className="bg-white border rounded p-3">
+          <div className="text-[10px] text-gray-500 uppercase mb-2">Cost by Task (Top 30)</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-[10px] text-gray-500 uppercase border-b">
+                  <th className="text-left py-1.5 pr-2">Task</th>
+                  <th className="text-left py-1.5 pr-2">Provider</th>
+                  <th className="text-left py-1.5 pr-2">Model</th>
+                  <th className="text-right py-1.5 pr-2">Tokens</th>
+                  <th className="text-right py-1.5 pr-2">Cost</th>
+                  <th className="text-right py-1.5">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {taskCosts.map((tc) => (
+                  <tr key={tc.taskId} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-1.5 pr-2 max-w-[200px] truncate" title={tc.title}>{tc.title}</td>
+                    <td className="py-1.5 pr-2 text-gray-500">{tc.provider}</td>
+                    <td className="py-1.5 pr-2 text-gray-500 truncate max-w-[120px]" title={tc.model}>{tc.model}</td>
+                    <td className="py-1.5 pr-2 text-right text-gray-500">{tc.totalTokens.toLocaleString()}</td>
+                    <td className="py-1.5 pr-2 text-right font-medium">{formatCost(tc.costUsd)}</td>
+                    <td className="py-1.5 text-right">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${tc.status === 'done' ? 'bg-green-100 text-green-700' : tc.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {tc.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

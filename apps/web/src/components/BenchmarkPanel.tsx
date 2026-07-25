@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { api } from '../lib/api.js';
 import type { BenchmarkBaselineComparison } from '../lib/api.js';
 import { TraceFlow } from './TraceFlow.js';
@@ -731,6 +731,316 @@ function BaselineComparisonView({ comparison }: { comparison: BenchmarkBaselineC
   );
 }
 
+interface ServerBenchRun {
+  id: string;
+  suite: string;
+  status: string;
+  totalTasks: number;
+  passed: number;
+  failed: number;
+  timeouts: number;
+  totalDurationMs: number;
+  totalCostUsd: number | null;
+  error: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+interface ServerBenchRunDetail extends ServerBenchRun {
+  config: Record<string, unknown>;
+  totalTokens: number;
+  results: Array<{
+    taskName: string;
+    harnessTaskId: string;
+    passed: boolean;
+    durationMs: number;
+    model?: string;
+    winnerModel?: string;
+    variancePassRate?: number;
+    error?: string;
+  }> | null;
+}
+
+function statusBadge(status: string): { label: string; cls: string } {
+  switch (status) {
+    case 'running': return { label: 'running', cls: 'bg-blue-100 text-blue-700' };
+    case 'done': return { label: 'done', cls: 'bg-green-100 text-green-700' };
+    case 'failed': return { label: 'failed', cls: 'bg-red-100 text-red-700' };
+    case 'cancelled': return { label: 'cancelled', cls: 'bg-gray-100 text-gray-500' };
+    case 'pending': return { label: 'pending', cls: 'bg-yellow-100 text-yellow-700' };
+    default: return { label: status, cls: 'bg-gray-100 text-gray-500' };
+  }
+}
+
+function ServerBenchRuns({ onError }: { onError: (msg: string) => void }) {
+  const [runs, setRuns] = useState<ServerBenchRun[]>([]);
+  const [selectedRun, setSelectedRun] = useState<ServerBenchRunDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    suite: 'harder-v2',
+    models: 'deepseek/deepseek-v4-pro',
+    strategy: 'single' as 'single' | 'consensus' | 'variance',
+    concurrency: 3,
+    varianceRuns: 5,
+  });
+  const [starting, setStarting] = useState(false);
+  const evtRef = useRef<EventSource | null>(null);
+
+  const loadRuns = useCallback(async () => {
+    try {
+      const data = await api.listBenchRuns(20);
+      setRuns(data);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err));
+    }
+  }, [onError]);
+
+  const loadRun = useCallback(async (id: string) => {
+    try {
+      const data = await api.getBenchRun(id);
+      setSelectedRun(data);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err));
+    }
+  }, [onError]);
+
+  useEffect(() => {
+    void loadRuns();
+  }, [loadRuns]);
+
+  // Poll running runs
+  useEffect(() => {
+    const hasRunning = runs.some((r) => r.status === 'running' || r.status === 'pending');
+    if (!hasRunning) return;
+    const id = setInterval(() => { void loadRuns(); }, 3000);
+    return () => { clearInterval(id); };
+  }, [runs, loadRuns]);
+
+  async function handleStart() {
+    setStarting(true);
+    try {
+      const models = form.models
+        ? form.models.split(',').map((m) => m.trim()).filter(Boolean).map((m) => {
+            if (m.includes('/')) {
+              const [provider, ...rest] = m.split('/');
+              return { provider: provider!, model: rest.join('/') };
+            }
+            return { provider: 'external', model: m };
+          })
+        : undefined;
+
+      const res = await api.startBenchRun({
+        suite: form.suite,
+        models,
+        strategy: form.strategy,
+        concurrency: form.concurrency,
+        varianceRuns: form.varianceRuns,
+      });
+
+      // Subscribe to SSE for live progress
+      const es = new EventSource(api.benchRunStreamUrl(res.id));
+      evtRef.current = es;
+      es.addEventListener('task-completed', () => { void loadRuns(); void loadRun(res.id); });
+      es.addEventListener('completed', () => { es.close(); evtRef.current = null; void loadRuns(); void loadRun(res.id); });
+      es.addEventListener('failed', () => { es.close(); evtRef.current = null; void loadRuns(); });
+
+      await loadRuns();
+      await loadRun(res.id);
+      onError('');
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err));
+    }
+    setStarting(false);
+  }
+
+  async function handleCancel(id: string) {
+    try {
+      await api.cancelBenchRun(id);
+      void loadRuns();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  const hasRunning = runs.some((r) => r.status === 'running' || r.status === 'pending');
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-semibold text-sm">Server-side benchmark runs</h3>
+
+      <div className="bg-gray-50 p-3 rounded text-xs space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-gray-500 mb-0.5">Suite</label>
+            <select
+              value={form.suite}
+              onChange={(e) => { setForm((f) => ({ ...f, suite: e.target.value })); }}
+              className="w-full border border-gray-200 rounded px-2 py-1"
+            >
+              <option value="harder-v2">harder-v2</option>
+              <option value="hard-targeting">hard-targeting</option>
+              <option value="harder">harder</option>
+              <option value="fast">fast</option>
+              <option value="synthetic">synthetic</option>
+              <option value="swebench-lite">swebench-lite</option>
+              <option value="deepswe">deepswe</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-gray-500 mb-0.5">Strategy</label>
+            <select
+              value={form.strategy}
+              onChange={(e) => { setForm((f) => ({ ...f, strategy: e.target.value as typeof f.strategy })); }}
+              className="w-full border border-gray-200 rounded px-2 py-1"
+            >
+              <option value="single">single</option>
+              <option value="consensus">consensus</option>
+              <option value="variance">variance</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="block text-gray-500 mb-0.5">Models (comma-separated provider/model)</label>
+          <input
+            type="text"
+            value={form.models}
+            onChange={(e) => { setForm((f) => ({ ...f, models: e.target.value })); }}
+            className="w-full border border-gray-200 rounded px-2 py-1"
+            placeholder="deepseek/deepseek-v4-pro,kimi/kimi-k3"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-gray-500 mb-0.5">Concurrency</label>
+            <input
+              type="number"
+              value={form.concurrency}
+              onChange={(e) => { setForm((f) => ({ ...f, concurrency: Number(e.target.value) })); }}
+              className="w-full border border-gray-200 rounded px-2 py-1"
+              min={1}
+              max={10}
+            />
+          </div>
+          <div>
+            <label className="block text-gray-500 mb-0.5">Variance runs</label>
+            <input
+              type="number"
+              value={form.varianceRuns}
+              onChange={(e) => { setForm((f) => ({ ...f, varianceRuns: Number(e.target.value) })); }}
+              className="w-full border border-gray-200 rounded px-2 py-1"
+              min={1}
+              max={20}
+            />
+          </div>
+        </div>
+        <button
+          onClick={() => { void handleStart(); }}
+          disabled={starting || hasRunning}
+          className="w-full bg-blue-600 text-white rounded px-3 py-1.5 disabled:opacity-50"
+        >
+          {starting ? 'Starting…' : hasRunning ? 'Run in progress…' : 'Start server-side run'}
+        </button>
+      </div>
+
+      {/* Run list */}
+      <div className="space-y-1">
+        {runs.length === 0 && <div className="text-xs text-gray-400">No runs yet</div>}
+        {runs.map((run) => {
+          const badge = statusBadge(run.status);
+          return (
+            <div
+              key={run.id}
+              className={`flex items-center justify-between px-2 py-1.5 rounded text-xs cursor-pointer ${
+                selectedRun?.id === run.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+              }`}
+              onClick={() => { void loadRun(run.id); }}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${badge.cls}`}>
+                  {badge.label}
+                </span>
+                <span className="font-medium truncate">{run.suite}</span>
+                <span className="text-gray-400">
+                  {run.passed}/{run.totalTasks} passed
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-500">
+                <span>{formatDuration(run.totalDurationMs)}</span>
+                {(run.status === 'running' || run.status === 'pending') && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); void handleCancel(run.id); }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Selected run detail */}
+      {selectedRun && (
+        <div className="bg-white border border-gray-200 rounded p-3 text-xs space-y-3">
+          <div className="flex justify-between items-center">
+            <h4 className="font-medium">{selectedRun.suite} — {selectedRun.id.slice(0, 8)}</h4>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusBadge(selectedRun.status).cls}`}>
+              {selectedRun.status}
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            <div className="bg-gray-50 p-2 rounded">
+              <div className="text-gray-500">Passed</div>
+              <div className="font-medium text-green-600">{selectedRun.passed}</div>
+            </div>
+            <div className="bg-gray-50 p-2 rounded">
+              <div className="text-gray-500">Failed</div>
+              <div className="font-medium text-red-600">{selectedRun.failed}</div>
+            </div>
+            <div className="bg-gray-50 p-2 rounded">
+              <div className="text-gray-500">Timeouts</div>
+              <div className="font-medium text-yellow-600">{selectedRun.timeouts}</div>
+            </div>
+            <div className="bg-gray-50 p-2 rounded">
+              <div className="text-gray-500">Duration</div>
+              <div className="font-medium">{formatDuration(selectedRun.totalDurationMs)}</div>
+            </div>
+          </div>
+          {selectedRun.totalCostUsd != null && (
+            <div className="text-gray-500">
+              Cost: ${selectedRun.totalCostUsd.toFixed(4)} · Tokens: {selectedRun.totalTokens}
+            </div>
+          )}
+          {selectedRun.results && selectedRun.results.length > 0 && (
+            <div className="space-y-1 max-h-60 overflow-auto">
+              {selectedRun.results.map((r) => (
+                <div key={r.harnessTaskId} className="flex items-center justify-between px-2 py-1 rounded bg-gray-50">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={r.passed ? 'text-green-600' : 'text-red-600'}>
+                      {r.passed ? '✓' : '✗'}
+                    </span>
+                    <span className="truncate" title={r.taskName}>{r.taskName}</span>
+                    {r.winnerModel && <span className="text-[10px] text-blue-600">{r.winnerModel}</span>}
+                    {r.variancePassRate != null && (
+                      <span className="text-[10px] text-gray-400">{Math.round(r.variancePassRate * 100)}%</span>
+                    )}
+                  </div>
+                  <span className="text-gray-400">{formatDuration(r.durationMs)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {selectedRun.error && (
+            <div className="bg-red-50 p-2 rounded text-red-700 text-[11px]">{selectedRun.error}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function BenchmarkPanel() {
   const [benchmarkFiles, setBenchmarkFiles] = useState<string[]>([]);
   const [abFiles, setAbFiles] = useState<string[]>([]);
@@ -881,8 +1191,12 @@ export function BenchmarkPanel() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6 text-sm">
+      <ServerBenchRuns onError={(msg) => { setError(msg); }} />
+
+      {error && <div className="text-xs text-red-600 bg-red-50 p-2 rounded">{error}</div>}
+
       <div>
-        <h3 className="font-semibold mb-2">Run benchmark</h3>
+        <h3 className="font-semibold mb-2">Run benchmark (CLI)</h3>
         <form onSubmit={(e) => { void startRun(e); }} className="space-y-2 text-xs">
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -959,8 +1273,6 @@ export function BenchmarkPanel() {
           </details>
         )}
       </div>
-
-      {error && <div className="text-xs text-red-600 bg-red-50 p-2 rounded">{error}</div>}
 
       <ReportList
         title="Benchmark reports"

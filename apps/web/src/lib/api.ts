@@ -163,4 +163,71 @@ export const api = {
       avgDurationMs: number;
       totalTokens: number;
     }>>(`/timeseries/providers?bucket=${bucket}&days=${days}`),
+
+  // Server-side benchmark runs
+  startBenchRun: (body: {
+    suite: string;
+    models?: Array<{ provider: string; model: string }>;
+    strategy?: 'single' | 'consensus' | 'variance';
+    concurrency?: number;
+    timeoutMs?: number;
+    tokenBudget?: number;
+    nTasks?: number;
+    taskIds?: string[];
+    varianceRuns?: number;
+  }) => request<{ id: string; status: string; suite: string }>('/bench/run', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }),
+
+  listBenchRuns: (limit = 20) =>
+    request<Array<{
+      id: string;
+      suite: string;
+      status: string;
+      totalTasks: number;
+      passed: number;
+      failed: number;
+      timeouts: number;
+      totalDurationMs: number;
+      totalCostUsd: number | null;
+      error: string | null;
+      startedAt: string | null;
+      completedAt: string | null;
+      createdAt: string;
+    }>>(`/bench/run?limit=${limit}`),
+
+  getBenchRun: (id: string) =>
+    request<{
+      id: string;
+      suite: string;
+      status: string;
+      config: Record<string, unknown>;
+      totalTasks: number;
+      passed: number;
+      failed: number;
+      timeouts: number;
+      totalDurationMs: number;
+      totalCostUsd: number | null;
+      totalTokens: number;
+      results: Array<{
+        taskName: string;
+        harnessTaskId: string;
+        passed: boolean;
+        durationMs: number;
+        model?: string;
+        winnerModel?: string;
+        variancePassRate?: number;
+        error?: string;
+      }> | null;
+      error: string | null;
+      startedAt: string | null;
+      completedAt: string | null;
+      createdAt: string;
+    }>(`/bench/run/${id}`),
+
+  cancelBenchRun: (id: string) =>
+    request<{ cancelled: boolean }>(`/bench/run/${id}/cancel`, { method: 'POST' }),
+
+  benchRunStreamUrl: (id: string) => sseUrl(`/bench/run/${id}/stream`),
 };

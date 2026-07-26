@@ -73,6 +73,15 @@ function toCoreConfig(row: {
   };
 }
 
+function inferDomain(task: { title: string; tags?: string | null }): 'code' | 'data' | 'reasoning' | 'creative' | 'general' {
+  const text = `${task.title} ${task.tags ?? ''}`.toLowerCase();
+  if (text.includes('test') || text.includes('fix') || text.includes('bug') || text.includes('refactor') || text.includes('implement') || text.includes('code') || text.includes('feature')) return 'code';
+  if (text.includes('data') || text.includes('csv') || text.includes('json') || text.includes('sql')) return 'data';
+  if (text.includes('reason') || text.includes('logic') || text.includes('proof') || text.includes('math')) return 'reasoning';
+  if (text.includes('write') || text.includes('story') || text.includes('creative') || text.includes('design')) return 'creative';
+  return 'general';
+}
+
 export async function runTask(
   prisma: PrismaClient,
   taskId: string,
@@ -222,7 +231,7 @@ export async function runTask(
         const passed = finalTask.status === 'done';
         const costUsd = (finalTask as Record<string, unknown>).costUsd as number | undefined;
         const durationMs = finalTask.updatedAt.getTime() - finalTask.createdAt.getTime();
-        recordTaskOutcome(router, `${provider}/${model}`, passed, costUsd ?? 0, durationMs, durationMs, true, false);
+        recordTaskOutcome(router, `${provider}/${model}`, passed, costUsd ?? 0, durationMs, durationMs, true, false, inferDomain(task), task.complexity);
       }
     }
     return finalTask;
@@ -298,7 +307,7 @@ export async function runTask(
       const durationMs = Date.now() - startMs;
 
       // Record success
-      recordTaskOutcome(router, `${providerName}/${modelName}`, true, 0, durationMs, durationMs, true, false);
+      recordTaskOutcome(router, `${providerName}/${modelName}`, true, 0, durationMs, durationMs, true, false, inferDomain(task), task.complexity);
 
       const updated = await prisma.task.update({
         where: { id: taskId },
@@ -318,7 +327,7 @@ export async function runTask(
       const isTimeout = message.includes('timeout') || message.includes('TIMEOUT');
 
       // Record failure
-      recordTaskOutcome(router, `${providerName}/${modelName}`, false, 0, durationMs, durationMs, false, isRateLimited);
+      recordTaskOutcome(router, `${providerName}/${modelName}`, false, 0, durationMs, durationMs, false, isRateLimited, inferDomain(task), task.complexity);
 
       lastError = message;
 

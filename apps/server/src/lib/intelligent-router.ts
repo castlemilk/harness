@@ -68,7 +68,18 @@ export function recordTaskOutcome(
   latencyMs: number,
   success: boolean,
   rateLimited: boolean,
+  domain?: string,
+  complexity?: string,
 ): void {
   router.performance.update(providerKey, passed, costUsd, durationMs);
   router.health.record(providerKey, { latencyMs, success, rateLimited, costUsd });
+  if (domain && complexity) {
+    router.strategyLearner.recordOutcome(
+      domain as 'code' | 'data' | 'reasoning' | 'creative' | 'general',
+      complexity as 'simple' | 'medium' | 'complex',
+      'balanced',
+      passed,
+      costUsd,
+    );
+  }
 }

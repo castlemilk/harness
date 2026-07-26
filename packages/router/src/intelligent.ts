@@ -75,8 +75,11 @@ const HEALTH_DECAY = 0.95;                // exponential decay per sample
 export class ProviderHealthRegistry {
   private samples = new Map<string, HealthSample[]>();
   private circuits = new Map<string, { state: 'closed' | 'open' | 'half-open'; openedAt: number; cooldownUntil: number; trialInFlight: boolean }>();
+  private buckets = new Map<string, { tokens: number; lastRefill: number }>();
 
   private static readonly COOLDOWN_MS = 5 * 60 * 1000; // 5 min before half-open probe
+  private static readonly DEFAULT_RATE_LIMIT = 60; // 60 requests per minute per provider
+  private static readonly RATE_WINDOW_MS = 60_000; // 1-minute sliding window
 
   record(providerKey: string, sample: Omit<HealthSample, 'timestamp'>): void {
     const list = this.samples.get(providerKey) ?? [];
@@ -176,6 +179,42 @@ export class ProviderHealthRegistry {
   /** Get circuit state for diagnostics */
   getCircuitState(providerKey: string): 'closed' | 'open' | 'half-open' {
     return this.circuits.get(providerKey)?.state ?? 'closed';
+  }
+
+  /**
+   * Simple token-bucket rate limiter. Refills tokens proportionally to
+   * elapsed time. Returns true if the request can proceed immediately.
+   */
+  checkRateLimit(providerKey: string, maxRpm = ProviderHealthRegistry.DEFAULT_RATE_LIMIT): boolean {
+    const now = Date.now();
+    let bucket = this.buckets.get(providerKey);
+    if (!bucket) {
+      bucket = { tokens: maxRpm, lastRefill: now };
+      this.buckets.set(providerKey, bucket);
+    }
+    // Refill tokens based on elapsed time
+    const elapsed = now - bucket.lastRefill;
+    const refill = (elapsed / ProviderHealthRegistry.RATE_WINDOW_MS) * maxRpm;
+    bucket.tokens = Math.min(maxRpm, bucket.tokens + refill);
+    bucket.lastRefill = now;
+    // Consume one token
+    if (bucket.tokens >= 1) {
+      bucket.tokens -= 1;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Returns the estimated wait time in ms before a token is available.
+   * Used for backpressure — callers can delay scheduling instead of burning retries.
+   */
+  rateLimitWaitMs(providerKey: string, maxRpm = ProviderHealthRegistry.DEFAULT_RATE_LIMIT): number {
+    let bucket = this.buckets.get(providerKey);
+    if (!bucket) return 0;
+    if (bucket.tokens >= 1) return 0;
+    const tokenIntervalMs = ProviderHealthRegistry.RATE_WINDOW_MS / maxRpm;
+    return Math.ceil((1 - bucket.tokens) * tokenIntervalMs);
   }
 
   /**

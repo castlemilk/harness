@@ -423,6 +423,7 @@ interface AgentContext {
   stuckSolveAttempted?: boolean;
   deadlineMs: number; // wall-clock deadline for the agent loop
   signal?: AbortSignal; // external abort signal (e.g. orchestrator subtask timeout)
+  router?: IntelligentRouter; // rate limiter health check
 }
 
 function toCoreTask(row: {
@@ -844,6 +845,7 @@ export async function runAgentTask(
     repoOverview: repoOverviewText,
     deadlineMs: Date.now() + deadlineMsForComplexity(task.complexity),
     signal: options.signal,
+    router,
   };
 
   logger.info('Agent task started', {
@@ -1881,6 +1883,16 @@ async function sendToProvider(
   // Honour external abort signal (e.g. orchestrator subtask timeout)
   if (ctx.signal?.aborted) {
     throw new DOMException('AbortError', 'AbortError');
+  }
+
+  // Rate limit awareness: delay if provider is being hammered
+  if (ctx.router?.health) {
+    const waitMs = ctx.router.health.rateLimitWaitMs(ctx.provider.config.name);
+    if (waitMs > 0) {
+      await new Promise((r) => setTimeout(r, Math.min(waitMs, 5000)));
+    }
+    // Consume a token (if rate-limited, checkRateLimit returns false but we proceed anyway — the 429 retry handles it)
+    ctx.router.health.checkRateLimit(ctx.provider.config.name);
   }
 
   const provider = ctx.provider as Provider & { sendWithTools?: (prompt: string, tools: ToolDefinition[], opts?: SendOptions) => Promise<string> };

@@ -58,4 +58,5 @@ export interface AgentOptions {
   tokenBudget?: number; // abort the agent loop if total tokens exceed this cap
   retainWorktree?: boolean; // keep isolated worktree after the run for debugging
   complexity?: string; // used for adaptive timeouts and resource limits
+  signal?: AbortSignal; // external abort signal for deadline enforcement
 }

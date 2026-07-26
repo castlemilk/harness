@@ -501,13 +501,27 @@ export async function runOrchestratedTask(
           attempt: attempt + 1,
         });
         try {
+          // Per-subtask timeout via AbortController to prevent hung subtasks
+          // from blocking the entire orchestration pipeline
+          const subtaskTimeoutMs = subtask.complexity === 'complex'
+            ? 10 * 60 * 1000
+            : subtask.complexity === 'medium'
+              ? 5 * 60 * 1000
+              : 3 * 60 * 1000;
+          const abort = new AbortController();
+          const timeoutId = setTimeout(() => {
+            abort.abort();
+          }, subtaskTimeoutMs);
+
           const result = await runAgentTask(prisma, subtaskRow.id, {
             ...options,
             projectPath: options.projectPath,
             projectName: options.projectName,
             isolated: false,
             tokenBudget: options.tokenBudget,
+            signal: abort.signal,
           }, options.intelligentRouter);
+          clearTimeout(timeoutId);
           if (result.task.status === 'done') {
             subtask.status = 'done';
             subtask.notes = result.task.result ?? undefined;

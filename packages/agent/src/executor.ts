@@ -422,6 +422,7 @@ interface AgentContext {
   repoOverview?: string;
   stuckSolveAttempted?: boolean;
   deadlineMs: number; // wall-clock deadline for the agent loop
+  signal?: AbortSignal; // external abort signal (e.g. orchestrator subtask timeout)
 }
 
 function toCoreTask(row: {
@@ -842,6 +843,7 @@ export async function runAgentTask(
     apiSurfaceVerified: false,
     repoOverview: repoOverviewText,
     deadlineMs: Date.now() + deadlineMsForComplexity(task.complexity),
+    signal: options.signal,
   };
 
   logger.info('Agent task started', {
@@ -1109,6 +1111,19 @@ async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Pro
       });
       ctx.rootSpan.addEvent('deadline.exceeded', { stepIndex });
       summary = `Wall-clock deadline exceeded after ${String(stepIndex)} steps`;
+      finished = true;
+      break;
+    }
+
+    // External abort signal (e.g. orchestrator subtask timeout)
+    if (ctx.signal?.aborted) {
+      logger.warn('Agent task externally aborted', {
+        taskId: ctx.task.id,
+        agentRunId: ctx.agentRunId,
+        stepIndex,
+      });
+      ctx.rootSpan.addEvent('abort.external', { stepIndex });
+      summary = 'Task externally aborted (timeout or cancellation)';
       finished = true;
       break;
     }
@@ -1862,6 +1877,12 @@ async function sendToProvider(
 ): Promise<{ content?: string; toolCalls?: string }> {
   const span = ctx.tracer.startSpan('provider.send', ctx.rootSpan.toContext());
   span.setAttributes({ provider: ctx.provider.config.name, model: ctx.model });
+
+  // Honour external abort signal (e.g. orchestrator subtask timeout)
+  if (ctx.signal?.aborted) {
+    throw new DOMException('AbortError', 'AbortError');
+  }
+
   const provider = ctx.provider as Provider & { sendWithTools?: (prompt: string, tools: ToolDefinition[], opts?: SendOptions) => Promise<string> };
 
   const onUsage = (usage: UsageInfo): void => {

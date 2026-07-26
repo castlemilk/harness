@@ -74,6 +74,9 @@ const HEALTH_DECAY = 0.95;                // exponential decay per sample
 
 export class ProviderHealthRegistry {
   private samples = new Map<string, HealthSample[]>();
+  private circuits = new Map<string, { state: 'closed' | 'open' | 'half-open'; openedAt: number; cooldownUntil: number; trialInFlight: boolean }>();
+
+  private static readonly COOLDOWN_MS = 5 * 60 * 1000; // 5 min before half-open probe
 
   record(providerKey: string, sample: Omit<HealthSample, 'timestamp'>): void {
     const list = this.samples.get(providerKey) ?? [];
@@ -82,6 +85,30 @@ export class ProviderHealthRegistry {
     const cutoff = Date.now() - HEALTH_WINDOW_MS;
     while (list.length > 0 && list[0]!.timestamp < cutoff) list.shift();
     this.samples.set(providerKey, list);
+
+    // Update circuit breaker state on failures
+    if (!sample.success && !sample.rateLimited) {
+      const health = this.getHealth(providerKey);
+      if (health.errorRate > 0.5 && health.recentCalls >= 5) {
+        const circuit = this.circuits.get(providerKey);
+        if (!circuit || circuit.state !== 'open') {
+          this.circuits.set(providerKey, {
+            state: 'open',
+            openedAt: Date.now(),
+            cooldownUntil: Date.now() + ProviderHealthRegistry.COOLDOWN_MS,
+            trialInFlight: false,
+          });
+        }
+      }
+    } else if (sample.success) {
+      // Recovery: close the circuit on success
+      this.circuits.set(providerKey, {
+        state: 'closed',
+        openedAt: 0,
+        cooldownUntil: 0,
+        trialInFlight: false,
+      });
+    }
   }
 
   getHealth(providerKey: string): ProviderHealth {
@@ -121,14 +148,40 @@ export class ProviderHealthRegistry {
 
   /** Check if a provider is currently circuit-broken (high recent error rate). */
   isCircuitBroken(providerKey: string): boolean {
-    const health = this.getHealth(providerKey);
-    return health.errorRate > 0.5 && health.recentCalls >= 5;
+    const circuit = this.circuits.get(providerKey);
+    if (!circuit || circuit.state === 'closed') {
+      return false;
+    }
+    // Open: fully blocked
+    if (circuit.state === 'open') {
+      // Check if cooldown has elapsed — transition to half-open
+      if (Date.now() >= circuit.cooldownUntil) {
+        circuit.state = 'half-open';
+        circuit.trialInFlight = false;
+        return false; // allow a trial request
+      }
+      return true;
+    }
+    // Half-open: allow exactly one trial request
+    if (circuit.state === 'half-open') {
+      if (circuit.trialInFlight) {
+        return true; // trial already in progress, block
+      }
+      circuit.trialInFlight = true;
+      return false; // allow this one
+    }
+    return false;
+  }
+
+  /** Get circuit state for diagnostics */
+  getCircuitState(providerKey: string): 'closed' | 'open' | 'half-open' {
+    return this.circuits.get(providerKey)?.state ?? 'closed';
   }
 
   /**
    * Get all provider health summaries for the dashboard.
    */
-  getEntries(): Array<ProviderHealth & { provider: string }> {
+  getEntries(): Array<ProviderHealth & { provider: string; circuitState: string }> {
     return Array.from(this.samples.entries()).map(([name, samples]) => {
       const list = samples.slice(-200);
       const errors = list.filter((s) => !s.success).length;
@@ -147,6 +200,7 @@ export class ProviderHealthRegistry {
         rateLimitRate,
         recentCalls: list.length,
         score: this.getHealth(name).score,
+        circuitState: this.getCircuitState(name),
       };
     });
   }
@@ -584,11 +638,12 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 
 interface PersistedRouterState {
-  version: 1;
+  version: 2;
   savedAt: string;
   health: Record<string, Array<Omit<HealthSample, 'timestamp'> & { timestamp: number }>>;
   performance: Record<string, PerfEntry>;
   strategyScores: Record<string, { wins: number; total: number; avgScore: number }>;
+  circuits: Record<string, { state: string; openedAt: number; cooldownUntil: number; trialInFlight: boolean }>;
 }
 
 const DEFAULT_PERSIST_PATH = join(process.env.HOME ?? '~', '.omega', 'router-state.json');
@@ -596,11 +651,12 @@ const DEFAULT_PERSIST_PATH = join(process.env.HOME ?? '~', '.omega', 'router-sta
 export async function saveRouterState(router: IntelligentRouter, path?: string): Promise<void> {
   const filePath = path ?? DEFAULT_PERSIST_PATH;
   const state: PersistedRouterState = {
-    version: 1,
+    version: 2,
     savedAt: new Date().toISOString(),
     health: Object.fromEntries([...router.health['samples'].entries()]),
     performance: Object.fromEntries([...router.performance['cache'].entries()].map(([k, v]) => [k, v])),
     strategyScores: Object.fromEntries([...router.strategyLearner.scores.entries()]),
+    circuits: Object.fromEntries([...router.health['circuits'].entries()]),
   };
   await mkdir(dirname(filePath), { recursive: true });
   await writeFile(filePath, JSON.stringify(state, null, 2));
@@ -611,7 +667,7 @@ export async function loadRouterState(router: IntelligentRouter, path?: string):
   try {
     const raw = await readFile(filePath, 'utf-8');
     const state = JSON.parse(raw) as PersistedRouterState;
-    if (state.version !== 1) return false;
+    if (state.version < 1 || state.version > 2) return false;
 
     // Restore health samples
     for (const [key, samples] of Object.entries(state.health)) {
@@ -628,6 +684,13 @@ export async function loadRouterState(router: IntelligentRouter, path?: string):
     // Restore strategy scores
     for (const [key, score] of Object.entries(state.strategyScores)) {
       router.strategyLearner.scores.set(key, score);
+    }
+
+    // Restore circuit breaker states (v2+)
+    if (state.version >= 2 && state.circuits) {
+      for (const [key, circuit] of Object.entries(state.circuits)) {
+        router.health['circuits'].set(key, circuit as { state: 'closed' | 'open' | 'half-open'; openedAt: number; cooldownUntil: number; trialInFlight: boolean });
+      }
     }
 
     return true;

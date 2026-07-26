@@ -211,3 +211,16 @@ model BenchmarkRun {
   @@index([suite])
   @@index([createdAt])
 }
+
+model ProviderCircuitState {
+  providerName   String    @id
+  state          String    @default("closed") // closed, open, half-open
+  errorRate      Float     @default(0)
+  lastFailureAt  DateTime?
+  lastSuccessAt  DateTime?
+  cooldownUntil  DateTime?
+  trialStartedAt DateTime?
+  trialRequestId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}

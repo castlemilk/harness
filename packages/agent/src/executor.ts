@@ -7,6 +7,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createProvider } from '@omega/providers';
 import { selectProvider } from '@omega/router';
+import type { IntelligentRouter } from '@omega/router';
 import { createPlan } from './planner.js';
 import { executeTool, validatePatch, codeOverview, type ToolResult } from './tools.js';
 import { validateProject, type ValidationSummary } from './validator.js';
@@ -583,7 +584,8 @@ async function tryStuckSolve(ctx: AgentContext): Promise<boolean> {
 export async function runAgentTask(
   prisma: PrismaClient,
   taskId: string,
-  options: AgentOptions
+  options: AgentOptions,
+  router?: IntelligentRouter,
 ): Promise<AgentResult> {
   const task = await prisma.task.findUnique({ where: { id: taskId } });
   if (!task) throw new Error('Task not found');
@@ -606,7 +608,30 @@ export async function runAgentTask(
     capabilities: JSON.parse(cfg.capabilities) as ProviderConfig['capabilities'],
     enabled: cfg.enabled,
   }));
-  const selection = selectProvider(coreConfigs, [], toCoreTask(task));
+  // Use intelligent router when available, fallback to blind rules-based selection
+  let selection: Awaited<ReturnType<typeof selectProvider>>;
+  if (router) {
+    const taskForRouter: Task = {
+      id: task.id,
+      projectId: task.projectId,
+      title: task.title,
+      description: task.description ?? undefined,
+      status: task.status as Task['status'],
+      complexity: task.complexity as Task['complexity'],
+      tags: task.tags ? (JSON.parse(task.tags) as Task['tags']) : [],
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+    };
+    const decision = router.route(coreConfigs, taskForRouter, {
+      strategy: 'balanced',
+      maxCandidates: 1,
+    });
+    selection = decision
+      ? { provider: decision.primary.provider, model: decision.primary.model }
+      : selectProvider(coreConfigs, [], toCoreTask(task));
+  } else {
+    selection = selectProvider(coreConfigs, [], toCoreTask(task));
+  }
   if (!selection) {
     await failTask(prisma, taskId, 'No provider available for this task');
     throw new Error('No provider available for this task');

@@ -202,7 +202,7 @@ export async function runTask(
             isolated: true,
             tokenBudget,
             complexity: task.complexity,
-          });
+          }, router);
 
     if (options.detached) {
       const result = queue.enqueue(taskId, undefined, async () => {

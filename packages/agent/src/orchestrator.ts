@@ -507,7 +507,7 @@ export async function runOrchestratedTask(
             projectName: options.projectName,
             isolated: false,
             tokenBudget: options.tokenBudget,
-          });
+          }, options.intelligentRouter);
           if (result.task.status === 'done') {
             subtask.status = 'done';
             subtask.notes = result.task.result ?? undefined;

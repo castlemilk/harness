@@ -184,6 +184,10 @@ export async function executeRetry(
     }
     tags.push('agent', 'retry');
 
+    // Get the intelligent router for health-aware provider selection
+    const { getRouter } = await import('./intelligent-router.js');
+    const router = await getRouter(prisma);
+
     if (attempt.cli) {
       await runExternalAgentTask(prisma, taskId, {
         projectPath: options.projectPath,
@@ -193,14 +197,12 @@ export async function executeRetry(
       });
     } else if (attempt.strategy === 'orchestrated-fallback') {
       const { runOrchestratedTask } = await import('@omega/agent');
-      const { getRouter } = await import('./intelligent-router.js');
-      const intelligentRouter = await getRouter(prisma);
       await runOrchestratedTask(prisma, taskId, {
         projectPath: options.projectPath,
         projectName: options.projectName,
         autoPublish: options.autoPublish,
         isolated: true,
-        intelligentRouter,
+        intelligentRouter: router,
       });
     } else {
       await runAgentTask(prisma, taskId, {
@@ -208,7 +210,7 @@ export async function executeRetry(
         projectName: options.projectName,
         autoPublish: options.autoPublish,
         isolated: true,
-      });
+      }, router);
     }
   } catch (err) {
     record.error = err instanceof Error ? err.message : String(err);

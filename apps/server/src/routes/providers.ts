@@ -2,6 +2,8 @@ import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import { z } from 'zod';
 import { asyncHandler } from '../lib/async-handler.js';
+import { warmupProvider } from '@omega/providers';
+import type { ProviderConfig as CoreProviderConfig } from '@omega/core';
 
 const providerKinds = z.enum(['openai', 'anthropic', 'ollama', 'gemini', 'kimi', 'generic']);
 
@@ -80,6 +82,21 @@ export function providerRoutes(prisma: PrismaClient): Router {
         enabled: body.enabled ?? true,
       },
     });
+    // Background warmup: probe connectivity but don't block the response
+    void (async () => {
+      const config: CoreProviderConfig = {
+        id: provider.id, name: provider.name, kind: provider.kind as CoreProviderConfig['kind'],
+        baseUrl: provider.baseUrl ?? undefined, apiKey: provider.apiKey ?? undefined,
+        defaultModel: provider.defaultModel, capabilities: JSON.parse(provider.capabilities) as CoreProviderConfig['capabilities'],
+        enabled: provider.enabled,
+      };
+      const result = await warmupProvider(config);
+      if (!result.ok) {
+        console.warn(`Provider ${provider.name} warmup failed: ${result.error}`);
+      } else {
+        console.log(`Provider ${provider.name} warmup OK (${result.modelCount} models, ${result.latencyMs}ms)`);
+      }
+    })();
     res.status(201).json(sanitizeProvider(provider));
   }));
 
@@ -118,6 +135,41 @@ export function providerRoutes(prisma: PrismaClient): Router {
       data,
     });
     res.json(sanitizeProvider(provider));
+  }));
+
+  // Warmup / connectivity probe
+  r.post('/:id/validate', asyncHandler(async (req, res) => {
+    const row = await prisma.providerConfig.findUnique({ where: { id: req.params.id } });
+    if (!row) {
+      res.status(404).json({ ok: false, error: 'Provider not found' });
+      return;
+    }
+    const config: CoreProviderConfig = {
+      id: row.id,
+      name: row.name,
+      kind: row.kind as CoreProviderConfig['kind'],
+      baseUrl: row.baseUrl ?? undefined,
+      apiKey: row.apiKey ?? undefined,
+      defaultModel: row.defaultModel,
+      capabilities: JSON.parse(row.capabilities) as CoreProviderConfig['capabilities'],
+      enabled: row.enabled,
+    };
+    const result = await warmupProvider(config);
+    // Update health registry with the probe result
+    const { getRouter } = await import('../lib/intelligent-router.js');
+    const router = await getRouter(prisma);
+    router.health.record(result.ok ? config.name : `${config.name}-probe`, {
+      latencyMs: result.latencyMs,
+      success: result.ok,
+      rateLimited: false,
+      costUsd: 0,
+    });
+    if (!result.ok) {
+      // Skip circuit breaker for transient probe failures — just report
+      res.json(result);
+    } else {
+      res.json(result);
+    }
   }));
 
   r.delete('/:id', asyncHandler(async (req, res) => {

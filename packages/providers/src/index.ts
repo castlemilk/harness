@@ -4,6 +4,8 @@ export { OllamaProvider } from './ollama.js';
 export { GeminiProvider } from './gemini.js';
 export { KimiProvider } from './kimi.js';
 export { GenericProvider } from './generic.js';
+export { warmupProvider } from './warmup.js';
+export type { WarmupResult } from './warmup.js';
 
 import type { Provider, ProviderConfig } from '@omega/core';
 import { OpenAIProvider } from './openai.js';

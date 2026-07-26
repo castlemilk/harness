@@ -1,5 +1,9 @@
 import type { PrismaClient } from '@omega/db';
 
+// ─── Alert Types ────────────────────────────────────────────────────────────
+
+export type AlertSeverity = 'info' | 'warning' | 'critical';
+
 export interface FailureAlert {
   taskId: string;
   title: string;
@@ -8,7 +12,101 @@ export interface FailureAlert {
   error: string;
   tags: string[];
   timestamp: string;
+  severity?: AlertSeverity;
 }
+
+export interface ProviderHealthAlert {
+  provider: string;
+  event: 'error_rate_threshold' | 'latency_degradation' | 'credential_failure' | 'rate_limit_surge' | 'circuit_open';
+  severity: AlertSeverity;
+  message: string;
+  metrics: Record<string, unknown>;
+  timestamp: string;
+}
+
+// ─── Severity Rules ─────────────────────────────────────────────────────────
+
+function classifySeverity(error: string): AlertSeverity {
+  const lower = error.toLowerCase();
+  if (lower.includes('authentication') || lower.includes('unauthorized') || lower.includes('401') || lower.includes('invalid api key')) {
+    return 'critical'; // key is invalid — immediate action needed
+  }
+  if (lower.includes('rate') || lower.includes('429') || lower.includes('too many')) {
+    return 'warning'; // transient, will recover
+  }
+  if (lower.includes('timeout') || lower.includes('abort') || lower.includes('cascade timeout')) {
+    return 'warning'; // recoverable
+  }
+  return 'info'; // generic failures
+}
+
+// ─── Threshold Rules ────────────────────────────────────────────────────────
+
+interface ThresholdRule {
+  check: (metrics: ProviderMetricsSnapshot) => ProviderHealthAlert | null;
+}
+
+interface ProviderMetricsSnapshot {
+  provider: string;
+  errorRate: number;
+  rateLimitRate: number;
+  latencyP50: number;
+  latencyP95: number;
+  recentCalls: number;
+}
+
+const thresholdRules: ThresholdRule[] = [
+  {
+    check: (m) => {
+      if (m.recentCalls < 10) return null;
+      if (m.errorRate > 0.5) {
+        return {
+          provider: m.provider,
+          event: 'error_rate_threshold',
+          severity: 'critical',
+          message: `Provider ${m.provider} error rate at ${Math.round(m.errorRate * 100)}% (${m.recentCalls} recent calls)`,
+          metrics: { errorRate: m.errorRate, recentCalls: m.recentCalls },
+          timestamp: new Date().toISOString(),
+        };
+      }
+      return null;
+    },
+  },
+  {
+    check: (m) => {
+      if (m.recentCalls < 10) return null;
+      if (m.rateLimitRate > 0.3) {
+        return {
+          provider: m.provider,
+          event: 'rate_limit_surge',
+          severity: 'warning',
+          message: `Provider ${m.provider} rate-limited ${Math.round(m.rateLimitRate * 100)}% of requests`,
+          metrics: { rateLimitRate: m.rateLimitRate, recentCalls: m.recentCalls },
+          timestamp: new Date().toISOString(),
+        };
+      }
+      return null;
+    },
+  },
+  {
+    check: (m) => {
+      if (m.recentCalls < 5 || m.errorRate > 0.5) return null;
+      if (m.latencyP95 > 60_000) {
+        return {
+          provider: m.provider,
+          event: 'latency_degradation',
+          severity: 'warning',
+          message: `Provider ${m.provider} P95 latency at ${Math.round(m.latencyP95 / 1000)}s`,
+          metrics: { latencyP50: m.latencyP50, latencyP95: m.latencyP95, recentCalls: m.recentCalls },
+          timestamp: new Date().toISOString(),
+        };
+      }
+      return null;
+    },
+  },
+];
+
+// ─── Webhook Dispatch ───────────────────────────────────────────────────────
 
 function envUrls(): string[] {
   const raw = process.env.OMEGA_WEBHOOK_URLS;
@@ -16,30 +114,18 @@ function envUrls(): string[] {
   return raw.split(',').map((u) => u.trim()).filter(Boolean);
 }
 
-export async function notifyFailure(prisma: PrismaClient, alert: FailureAlert): Promise<void> {
+async function postWebhook(event: string, payload: Record<string, unknown>): Promise<void> {
   const urls = envUrls();
   if (urls.length === 0) return;
 
-  const payload = JSON.stringify({
-    event: 'task.failed',
-    task: {
-      id: alert.taskId,
-      title: alert.title,
-      provider: alert.provider,
-      model: alert.model,
-      error: alert.error,
-      tags: alert.tags,
-    },
-    timestamp: alert.timestamp,
-  });
-
+  const body = JSON.stringify({ event, ...payload });
   await Promise.allSettled(
     urls.map(async (url) => {
       try {
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: payload,
+          body,
           signal: AbortSignal.timeout(10_000),
         });
         if (!res.ok) {
@@ -52,32 +138,88 @@ export async function notifyFailure(prisma: PrismaClient, alert: FailureAlert): 
   );
 }
 
+// ─── Public API ─────────────────────────────────────────────────────────────
+
+export async function notifyFailure(prisma: PrismaClient, alert: FailureAlert): Promise<void> {
+  const severity = alert.severity ?? classifySeverity(alert.error);
+  console.error(`[${severity.toUpperCase()}] Task ${alert.taskId} failed: ${alert.error.slice(0, 200)}`);
+  void postWebhook('task.failed', {
+    severity,
+    task: {
+      id: alert.taskId,
+      title: alert.title,
+      provider: alert.provider,
+      model: alert.model,
+      error: alert.error,
+      tags: alert.tags,
+    },
+    timestamp: alert.timestamp,
+  });
+}
+
 export async function notifyQueueDrained(
   prisma: PrismaClient,
   stats: { active: number; queued: number; completed: number; failed: number },
 ): Promise<void> {
-  const urls = envUrls();
-  if (urls.length === 0) return;
   if (stats.failed === 0) return;
-
-  const payload = JSON.stringify({
-    event: 'queue.drained',
+  console.warn(`Queue drained: ${stats.failed} failed, ${stats.completed} completed`);
+  void postWebhook('queue.drained', {
     stats,
     timestamp: new Date().toISOString(),
   });
+}
 
-  await Promise.allSettled(
-    urls.map(async (url) => {
-      try {
-        await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-          signal: AbortSignal.timeout(10_000),
-        });
-      } catch {
-        // best-effort
+export async function notifyProviderHealth(
+  prisma: PrismaClient,
+  alert: ProviderHealthAlert,
+): Promise<void> {
+  console.warn(`[${alert.severity.toUpperCase()}] ${alert.message}`);
+  void postWebhook('provider.health', {
+    severity: alert.severity,
+    provider: alert.provider,
+    event: alert.event,
+    message: alert.message,
+    metrics: alert.metrics,
+    timestamp: alert.timestamp,
+  });
+}
+
+/**
+ * Runs threshold checks against all provider health data.
+ * Called periodically by the server.
+ */
+export async function checkThresholds(
+  prisma: PrismaClient,
+  router?: { health: { getEntries(): Array<{ provider: string; errorRate: number; rateLimitRate: number; latencyP50: number; latencyP95: number; recentCalls: number; circuitState: string }> } },
+): Promise<void> {
+  if (!router) return;
+  const entries = router.health.getEntries();
+  for (const entry of entries) {
+    const snapshot: ProviderMetricsSnapshot = {
+      provider: entry.provider,
+      errorRate: entry.errorRate,
+      rateLimitRate: entry.rateLimitRate,
+      latencyP50: entry.latencyP50,
+      latencyP95: entry.latencyP95,
+      recentCalls: entry.recentCalls,
+    };
+    for (const rule of thresholdRules) {
+      const alert = rule.check(snapshot);
+      if (alert) {
+        void notifyProviderHealth(prisma, alert);
       }
-    }),
-  );
+    }
+  }
+}
+
+/**
+ * Detects credential-specific failures by checking error messages
+ * against known authentication and authorization patterns.
+ */
+export function isCredentialError(error: string): boolean {
+  const lower = error.toLowerCase();
+  return lower.includes('401') || lower.includes('403') ||
+    lower.includes('authentication') || lower.includes('unauthorized') ||
+    lower.includes('invalid api key') || lower.includes('login fail') ||
+    lower.includes('no api-key') || lower.includes('invalid_authentication');
 }

@@ -7,6 +7,9 @@ import { prisma, applyMigrations, seedDefaults } from '@omega/db';
 import { seedSkills } from './seed-skills.js';
 import { startGrpcServer } from './grpc.js';
 import { queue } from './lib/task-queue.js';
+import { getRouter } from './lib/intelligent-router.js';
+import { saveRouterState } from '@omega/router';
+import { checkThresholds } from './lib/webhook-alerts.js';
 
 // Load .env before any provider/database config is read.
 dotenvConfig();
@@ -45,8 +48,17 @@ async function bootstrap(): Promise<void> {
 
   startGrpcServer(prisma, GRPC_PORT, HOST);
 
+  // Periodic router state persistence + threshold alerting
+  const router = await getRouter(prisma);
+  const periodicInterval = setInterval(() => {
+    void saveRouterState(router);
+    void checkThresholds(prisma, router);
+  }, 5 * 60 * 1000);
+
   const shutdown = async (signal: string): Promise<void> => {
     console.log(`${signal} received, shutting down…`);
+    clearInterval(periodicInterval);
+    await saveRouterState(router);
     const status = queue.status();
     console.log(`Queue: ${status.active} active, ${status.queued} queued`);
 

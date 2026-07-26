@@ -149,7 +149,10 @@ export class OpenAIProvider implements Provider {
     );
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new Error(`OpenAI request failed: ${res.status.toString()} ${res.statusText} — ${body.slice(0, 500)}`);
+      const prefix = res.status === 401 || res.status === 403
+        ? 'CREDENTIAL_ERROR: '
+        : 'OpenAI request failed: ';
+      throw new Error(`${prefix}${res.status.toString()} ${res.statusText} — ${body.slice(0, 500)}`);
     }
     const data = (await res.json()) as {
       choices?: { message?: { content?: string; tool_calls?: unknown[] } }[];
@@ -206,7 +209,10 @@ export class OpenAIProvider implements Provider {
         }))
       );
       console.error('OpenAI tools messages summary:', summary);
-      throw new Error(`OpenAI tools request failed: ${res.status.toString()} ${res.statusText} — ${body.slice(0, 500)}`);
+      const prefix = res.status === 401 || res.status === 403
+        ? 'CREDENTIAL_ERROR: '
+        : 'OpenAI tools request failed: ';
+      throw new Error(`${prefix}${res.status.toString()} ${res.statusText} — ${body.slice(0, 500)}`);
     }
     const data = (await res.json()) as {
       choices?: {

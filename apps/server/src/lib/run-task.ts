@@ -212,7 +212,20 @@ export async function runTask(
       return { status: 'in_progress', taskId, ...result };
     }
     const agentResult = await run();
-    return 'task' in agentResult ? agentResult.task : prisma.task.findUnique({ where: { id: taskId } });
+    // Record health/performance for the intelligent router after agent completion
+    const finalTask = 'task' in agentResult ? agentResult.task : await prisma.task.findUnique({ where: { id: taskId } });
+    if (finalTask) {
+      const provider = (finalTask as Record<string, unknown>).provider as string | undefined;
+      const model = (finalTask as Record<string, unknown>).model as string | undefined;
+      if (provider && model) {
+        const router = await getRouter(prisma);
+        const passed = finalTask.status === 'done';
+        const costUsd = (finalTask as Record<string, unknown>).costUsd as number | undefined;
+        const durationMs = finalTask.updatedAt.getTime() - finalTask.createdAt.getTime();
+        recordTaskOutcome(router, `${provider}/${model}`, passed, costUsd ?? 0, durationMs, durationMs, true, false);
+      }
+    }
+    return finalTask;
   }
 
   const configs = await prisma.providerConfig.findMany();
@@ -249,11 +262,30 @@ export async function runTask(
     return { status: 'failed', error: 'No provider available' };
   }
 
-  // Try primary, then fallbacks in order
-  const candidates = [decision.primary, ...decision.fallbacks];
+  // Filter out circuit-broken providers to avoid wasting time on known-bad endpoints
+  const candidates = [decision.primary, ...decision.fallbacks].filter((c) => {
+    if (router.health.isCircuitBroken(c.provider.name)) {
+      return false;
+    }
+    return true;
+  });
+  if (candidates.length === 0) {
+    // All circuit-broken — try primary anyway as a last resort
+    candidates.push(decision.primary);
+  }
+
+  // Total cascade timeout: don't spend more than 3 minutes across all fallbacks
+  const CASCADE_TIMEOUT_MS = 3 * 60 * 1000;
+  const cascadeStart = Date.now();
   let lastError = '';
 
   for (const candidate of candidates) {
+    const elapsed = Date.now() - cascadeStart;
+    if (elapsed > CASCADE_TIMEOUT_MS) {
+      lastError = `Cascade timeout after ${Math.round(elapsed / 1000)}s across ${candidates.length} providers`;
+      break;
+    }
+
     const config = candidate.provider;
     const providerName = config.name;
     const modelName = candidate.model;
@@ -262,7 +294,7 @@ export async function runTask(
     const startMs = Date.now();
 
     try {
-      const result = await provider.send(prompt, { model: modelName });
+      const result = await provider.send(prompt, { model: modelName, timeoutMs: 45_000, maxRetries: 3 });
       const durationMs = Date.now() - startMs;
 
       // Record success

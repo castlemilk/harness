@@ -145,6 +145,7 @@ export class OpenAIProvider implements Provider {
         }),
       },
       'OpenAI',
+      { timeoutMs: opts?.timeoutMs, maxRetries: opts?.maxRetries },
     );
     if (!res.ok) {
       const body = await res.text().catch(() => '');

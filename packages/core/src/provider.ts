@@ -55,6 +55,8 @@ export interface SendOptions {
   temperature?: number;
   onUsage?: (usage: UsageInfo) => void;
   messages?: ChatMessage[];
+  timeoutMs?: number;
+  maxRetries?: number;
 }
 
 export interface ToolDefinition {

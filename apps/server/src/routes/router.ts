@@ -137,8 +137,8 @@ export function routerRoutes(prisma: PrismaClient): Router {
 
   // Strategy learning summary
   r.get('/learning', asyncHandler(async (_req, res) => {
-    const learner = new StrategyLearner();
-    res.json(learner.getStats());
+    const router = await getRouter(prisma);
+    res.json(router.strategyLearner.getStats());
   }));
 
   // Provider health overview

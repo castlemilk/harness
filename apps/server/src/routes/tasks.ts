@@ -512,5 +512,71 @@ export function taskRoutes(prisma: PrismaClient): Router {
     });
   }));
 
+  // ─── Replay ───────────────────────────────────────────────────────────────
+  // Re-run a completed or failed task with optional provider/model override.
+  // Creates a NEW task (original is preserved) and returns the new task + trace.
+  const replaySchema = z.object({
+    provider: z.string().optional(),
+    model: z.string().optional(),
+    description: z.string().optional(),
+  });
+
+  r.post('/:id/replay', asyncHandler(async (req, res) => {
+    const original = await prisma.task.findUnique({
+      where: { id: req.params.id },
+      include: { project: true },
+    });
+    if (!original) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+
+    const body = replaySchema.parse(req.body);
+    const tags: string[] = original.tags ? (JSON.parse(original.tags) as string[]) : [];
+    const replayTags = [...tags.filter((t) => !t.startsWith('replay:')), `replay:of-${original.id.slice(0, 8)}`];
+
+    // When overriding provider, use its default model unless model is also overridden
+    let replayModel = body.model ?? original.model;
+    if (body.provider && !body.model) {
+      const providerConfig = await prisma.providerConfig.findFirst({ where: { name: body.provider } });
+      if (providerConfig) replayModel = providerConfig.defaultModel;
+    }
+
+    const newTask = await prisma.task.create({
+      data: {
+        projectId: original.projectId,
+        title: original.title,
+        description: body.description ?? original.description,
+        complexity: original.complexity,
+        tags: JSON.stringify(replayTags),
+        provider: body.provider ?? original.provider,
+        model: replayModel,
+        status: 'todo',
+      },
+    });
+
+    // Run it immediately
+    const { runTask } = await import('../lib/run-task.js');
+    const result = await runTask(prisma, newTask.id, { detached: false });
+
+    // Fetch the final task state
+    const finalTask = await prisma.task.findUnique({ where: { id: newTask.id } });
+    const trace = (await import('../lib/trace-log.js')).getTrace(newTask.id);
+
+    res.json({
+      original: {
+        id: original.id,
+        title: original.title,
+        provider: original.provider,
+        model: original.model,
+        status: original.status,
+        result: original.result,
+        error: original.error,
+      },
+      replay: finalTask,
+      trace: trace ?? null,
+    });
+  }));
+
   return r;
 }

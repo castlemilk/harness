@@ -9,7 +9,7 @@ export interface Project {
   _count?: { tasks: number };
 }
 
-export type View = 'tasks' | 'benchmarks' | 'costs' | 'router';
+export type View = 'tasks' | 'benchmarks' | 'costs' | 'router' | 'errors' | 'traces' | 'compare';
 
 interface Props {
   projects: Project[];
@@ -122,6 +122,29 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onChange, view 
       </div>
       </>
       )}
+
+      <div className="border-t border-gray-200 p-2 space-y-0.5">
+        <p className="text-[10px] font-medium text-gray-400 uppercase px-2 pt-1">Views</p>
+        {([
+          ['tasks', 'Tasks'],
+          ['benchmarks', 'Benchmarks'],
+          ['costs', 'Costs'],
+          ['router', 'Router'],
+          ['errors', 'Errors'],
+          ['traces', 'Traces'],
+          ['compare', 'Compare'],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => { onViewChange?.(key); }}
+            className={`w-full text-left px-3 py-1.5 rounded text-xs ${
+              view === key ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-100 text-gray-600'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </aside>
   );
 }

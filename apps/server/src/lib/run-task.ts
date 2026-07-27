@@ -7,6 +7,7 @@ import { queue } from './task-queue.js';
 import { notifyFailure } from './webhook-alerts.js';
 import { getNextStrategy, executeRetry, type RetryContext, type RetryRecord } from './retry-strategies.js';
 import { getRouter, recordTaskOutcome } from './intelligent-router.js';
+import { startTrace, traceEvent, completeTrace } from './trace-log.js';
 
 async function tryAutoRetry(
   prisma: PrismaClient,
@@ -257,6 +258,7 @@ export async function runTask(
   };
 
   // Use the intelligent router with fallback cascade
+  const trace = startTrace(taskId);
   const router = await getRouter(prisma);
   const decision = router.route(coreConfigs, taskForRouter, {
     strategy: 'balanced',
@@ -264,6 +266,9 @@ export async function runTask(
   });
 
   if (!decision) {
+    traceEvent(trace, 'route.start');
+    traceEvent(trace, 'route.candidates', { count: 0, reason: 'no_provider_available' });
+    completeTrace(trace, 'error');
     await prisma.task.update({
       where: { id: taskId },
       data: { status: 'failed', error: 'No provider available for this task' },
@@ -272,11 +277,23 @@ export async function runTask(
   }
 
   // Filter out circuit-broken providers to avoid wasting time on known-bad endpoints
-  const candidates = [decision.primary, ...decision.fallbacks].filter((c) => {
-    if (router.health.isCircuitBroken(c.provider.name)) {
-      return false;
+  const allCandidates = [decision.primary, ...decision.fallbacks];
+  traceEvent(trace, 'route.start', { strategy: 'balanced' });
+  traceEvent(trace, 'route.candidates', {
+    candidates: allCandidates.map((c) => ({
+      provider: c.provider.name,
+      model: c.model,
+      score: c.score,
+      breakdown: c.breakdown,
+    })),
+  });
+
+  const candidates = allCandidates.filter((c) => {
+    const broken = router.health.isCircuitBroken(c.provider.name);
+    if (broken) {
+      traceEvent(trace, 'circuit.open_skip', { provider: c.provider.name });
     }
-    return true;
+    return !broken;
   });
   if (candidates.length === 0) {
     // All circuit-broken — try primary anyway as a last resort
@@ -292,19 +309,34 @@ export async function runTask(
     const elapsed = Date.now() - cascadeStart;
     if (elapsed > CASCADE_TIMEOUT_MS) {
       lastError = `Cascade timeout after ${Math.round(elapsed / 1000)}s across ${candidates.length} providers`;
+      traceEvent(trace, 'timeout.abort', { elapsed, cascadeTimeout: CASCADE_TIMEOUT_MS });
       break;
     }
 
     const config = candidate.provider;
     const providerName = config.name;
     const modelName = candidate.model;
+    traceEvent(trace, 'route.selected', { provider: providerName, model: modelName, score: candidate.score, breakdown: candidate.breakdown });
+
+    // Rate limit backpressure: if provider was recently rate-limited, wait before trying
+    const recentRateLimit = router.health.getEntries().find((e) => e.provider === `${providerName}/${modelName}`);
+    if (recentRateLimit && recentRateLimit.rateLimitRate > 0.5) {
+      const backpressureMs = Math.min(5000, recentRateLimit.latencyP50 * 0.5);
+      traceEvent(trace, 'rate_limit.backpressure', { provider: providerName, delayMs: backpressureMs });
+      await new Promise((r) => setTimeout(r, backpressureMs));
+    }
+
     const provider = createProvider(config);
     const prompt = [task.title, task.description].filter(Boolean).join('\n\n');
     const startMs = Date.now();
+    traceEvent(trace, 'llm.request', { provider: providerName, model: modelName, promptLen: prompt.length });
 
     try {
       const result = await provider.send(prompt, { model: modelName, timeoutMs: 45_000, maxRetries: 3 });
       const durationMs = Date.now() - startMs;
+
+      traceEvent(trace, 'llm.response', { provider: providerName, model: modelName, durationMs, resultLen: result.length });
+      completeTrace(trace, 'success', providerName, modelName);
 
       // Record success
       recordTaskOutcome(router, `${providerName}/${modelName}`, true, 0, durationMs, durationMs, true, false, inferDomain(task), task.complexity);
@@ -325,6 +357,9 @@ export async function runTask(
       const durationMs = Date.now() - startMs;
       const isRateLimited = message.includes('429') || message.includes('rate') || message.includes('Too Many');
       const isTimeout = message.includes('timeout') || message.includes('TIMEOUT');
+      const isCredential = message.includes('CREDENTIAL_ERROR') || message.includes('401') || message.includes('403');
+
+      traceEvent(trace, 'llm.error', { provider: providerName, model: modelName, durationMs, isRateLimited, isTimeout, isCredential, error: message.slice(0, 200) });
 
       // Record failure
       recordTaskOutcome(router, `${providerName}/${modelName}`, false, 0, durationMs, durationMs, false, isRateLimited, inferDomain(task), task.complexity);
@@ -344,6 +379,13 @@ export async function runTask(
   }
 
   // All candidates failed
+  const authErrors = candidates.filter((c) => {
+    const entry = router.health.getEntries().find((e) => e.provider === `${c.provider.name}/${c.model}`);
+    return entry && entry.errorRate > 0.8;
+  });
+  const outcome = authErrors.length === candidates.length ? 'auth_error' : 'error';
+  completeTrace(trace, outcome, candidates[0]?.provider.name, candidates[0]?.model);
+
   void notifyFailure(prisma, {
     taskId, title: task.title, provider: candidates[0]!.provider.name,
     model: candidates[0]!.model, error: lastError, tags,

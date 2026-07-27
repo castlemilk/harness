@@ -9,6 +9,9 @@ import { BenchmarkPanel } from './components/BenchmarkPanel.js';
 import { CostDashboard } from './components/CostDashboard.js';
 import StrategyLearningPanel from './components/StrategyLearningPanel.js';
 import ProviderHealthPanel from './components/ProviderHealthPanel.js';
+import ErrorAnalysisPanel from './components/ErrorAnalysisPanel.js';
+import ProviderComparePanel from './components/ProviderComparePanel.js';
+import TraceTimelinePanel from './components/TraceTimelinePanel.js';
 
 function App() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -75,6 +78,18 @@ function App() {
               </div>
             </div>
           </div>
+        </main>
+      ) : view === 'errors' ? (
+        <main className="flex-1 h-screen overflow-y-auto bg-gray-50 p-6">
+          <ErrorAnalysisPanel />
+        </main>
+      ) : view === 'traces' ? (
+        <main className="flex-1 h-screen overflow-y-auto bg-gray-50 p-6">
+          <TraceTimelinePanel />
+        </main>
+      ) : view === 'compare' ? (
+        <main className="flex-1 h-screen overflow-y-auto bg-gray-50 p-6">
+          <ProviderComparePanel />
         </main>
       ) : (
         <TaskBoard projectId={selectedProjectId} />

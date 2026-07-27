@@ -293,4 +293,62 @@ export const api = {
       completionTokens: number;
       createdAt: string;
     }>>(`/costs/per-task?limit=${limit}`),
+
+  // ── Error analysis ──────────────────────────────────────
+
+  getErrors: (limit = 100) =>
+    request<{
+      total: number;
+      byCategory: Record<string, { count: number; providers: Record<string, number> }>;
+      dailyTrend: Record<string, Record<string, number>>;
+      topErrors: Array<{ pattern: string; count: number; category: string; sample: string }>;
+      recent: Array<{ taskId: string; title: string; provider: string | null; model: string | null; error: string; category: string; timestamp: string }>;
+    }>(`/errors?limit=${limit}`),
+
+  // ── Traces ──────────────────────────────────────────────
+
+  getTraces: (limit = 30) =>
+    request<Array<{
+      traceId: string;
+      taskId: string;
+      startedAt: number;
+      events: Array<{ ts: number; phase: string; data?: Record<string, unknown> }>;
+      completedAt?: number;
+      outcome?: string;
+      totalMs?: number;
+      provider?: string;
+      model?: string;
+    }>>(`/traces?limit=${limit}`),
+
+  getTraceStats: () =>
+    request<{
+      totalTraces: number;
+      avgMs: number;
+      byOutcome: Record<string, number>;
+      byProvider: Record<string, { count: number; avgMs: number; errorRate: number }>;
+    }>('/traces/stats'),
+
+  // ── Provider comparison ─────────────────────────────────
+
+  getProviderCompare: () =>
+    request<Array<{
+      provider: string;
+      model: string;
+      total: number;
+      passed: number;
+      failed: number;
+      avgDurationMs: number;
+      passRate: number;
+      topErrors: Array<{ error: string; count: number }>;
+      byComplexity: Record<string, { total: number; passed: number }>;
+    }>>('/providers/compare'),
+
+  // ── Task replay ─────────────────────────────────────────
+
+  replayTask: (id: string, body: { provider?: string; model?: string; description?: string }) =>
+    request<{
+      original: { id: string; title: string; provider: string | null; model: string | null; status: string; result: string | null; error: string | null };
+      replay: Record<string, unknown>;
+      trace: Record<string, unknown> | null;
+    }>(`/tasks/${id}/replay`, { method: 'POST', body: JSON.stringify(body) }),
 };

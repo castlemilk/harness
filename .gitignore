@@ -16,3 +16,4 @@ packages/bundle/dist/
 pglite-data.bak.*
 .serena/
 jobs/
+web/

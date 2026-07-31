@@ -1,4 +1,6 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { promisify } from 'node:util';
 import type { PrismaClient } from '@omega/db';
 import type { AgentOptions } from '@omega/core';
@@ -235,6 +237,51 @@ async function commandExists(cmd: string): Promise<boolean> {
   }
 }
 
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function needsDependencyBootstrap(projectPath: string): Promise<boolean> {
+  const nodeModulesPath = path.join(projectPath, 'node_modules');
+  if (!(await pathExists(nodeModulesPath))) return true;
+
+  const [pnpmDirExists, binDirExists] = await Promise.all([
+    pathExists(path.join(nodeModulesPath, '.pnpm')),
+    pathExists(path.join(nodeModulesPath, '.bin')),
+  ]);
+  return !pnpmDirExists && !binDirExists;
+}
+
+async function bootstrapDependencies(projectPath: string): Promise<void> {
+  if (!(await needsDependencyBootstrap(projectPath))) return;
+
+  const hasPackageJson = await pathExists(path.join(projectPath, 'package.json'));
+  const hasPnpmLock = await pathExists(path.join(projectPath, 'pnpm-lock.yaml'));
+  if (!hasPackageJson && !hasPnpmLock) return;
+
+  const args = hasPnpmLock ? ['install', '--frozen-lockfile'] : ['install'];
+  try {
+    await execFileAsync('pnpm', args, {
+      cwd: projectPath,
+      timeout: 300_000,
+      maxBuffer: 32 * 1024 * 1024,
+    });
+  } catch (err) {
+    const details = err instanceof Error ? err.message : String(err);
+    throw new Error(`External agent dependency bootstrap failed in ${projectPath}: ${details}`);
+  }
+
+  logger.warn('External agent dependencies were bootstrapped; failures after install are attributable to project code', {
+    projectPath,
+    command: `pnpm ${args.join(' ')}`,
+  });
+}
+
 /**
  * Drive an external coding-agent CLI (Codex, Claude Code, agy, OpenCode,
  * Cursor CLI, Aider) to complete a task in the project. The external agent
@@ -305,6 +352,8 @@ export async function runExternalAgentTask(
   let success = false;
   let rawOutput = '';
   try {
+    await bootstrapDependencies(options.projectPath);
+
     const runSpan = tracer.startSpan(`external.${options.cli}`, rootSpan.toContext());
     try {
       if (options.cli === 'codex' && codexDriverAvailable) {

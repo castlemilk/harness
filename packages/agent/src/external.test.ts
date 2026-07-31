@@ -34,7 +34,7 @@ vi.mock('./project-utils.js', () => ({
   deriveVerificationCommand: mocks.deriveVerificationCommand,
 }));
 
-import { runExternalAgentTask } from './external.js';
+import { needsDependencyBootstrap, runExternalAgentTask } from './external.js';
 
 const originalPath = process.env.PATH;
 const fakeBinDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-external-agent-test-'));
@@ -74,6 +74,23 @@ afterEach(() => {
 });
 
 describe('runExternalAgentTask', () => {
+  it('detects missing external-agent dependency markers', async () => {
+    const projectPath = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-dependency-test-'));
+
+    try {
+      expect(await needsDependencyBootstrap(projectPath)).toBe(true);
+
+      fs.mkdirSync(path.join(projectPath, 'node_modules', '.pnpm'), { recursive: true });
+      expect(await needsDependencyBootstrap(projectPath)).toBe(false);
+
+      fs.rmSync(path.join(projectPath, 'node_modules', '.pnpm'), { recursive: true, force: true });
+      fs.mkdirSync(path.join(projectPath, 'node_modules', '.bin'), { recursive: true });
+      expect(await needsDependencyBootstrap(projectPath)).toBe(false);
+    } finally {
+      fs.rmSync(projectPath, { recursive: true, force: true });
+    }
+  });
+
   it('records the configured Codex model and effort while preserving provider identity', async () => {
     const taskUpdate = vi.fn().mockResolvedValue({});
     const agentRunUpdate = vi.fn().mockResolvedValue({});

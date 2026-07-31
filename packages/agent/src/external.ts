@@ -320,6 +320,8 @@ export async function runExternalAgentTask(
         success = result.status === 'completed';
         output = result.finalMessage;
         rawOutput = JSON.stringify({
+          model: options.model ?? null,
+          effort: options.effort ?? null,
           turns: 1,
           status: result.status,
           threadId: result.threadId,
@@ -423,7 +425,7 @@ export async function runExternalAgentTask(
         result: sanitizeForDb(summary),
         error: passed ? null : sanitizeForDb(summary),
         provider: options.cli,
-        model: options.cli,
+        model: options.cli === 'codex' && options.model ? options.model : options.cli,
       },
     });
     await prisma.agentRun.update({

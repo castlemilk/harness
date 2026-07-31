@@ -1,6 +1,4 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { promisify } from 'node:util';
 import type { PrismaClient } from '@omega/db';
 import type { AgentOptions } from '@omega/core';
@@ -16,6 +14,53 @@ import { deriveVerificationCommand } from './project-utils.js';
 import { sanitizeForDb } from './utils.js';
 
 const execFileAsync = promisify(execFile);
+
+const CODEX_PHASES = ['investigating', 'editing', 'running', 'verifying', 'finalizing'] as const;
+type CodexPhase = (typeof CODEX_PHASES)[number];
+type CodexPhaseTimings = Partial<Record<CodexPhase, number>>;
+
+interface CodexTimingMetrics {
+  turnDurationMs: number;
+  phaseTimings: CodexPhaseTimings;
+}
+
+interface CodexTimingTracker {
+  turnStartedAt: number;
+  activePhase?: { name: CodexPhase; startedAt: number };
+  phaseTimings: CodexPhaseTimings;
+}
+
+function isCodexPhase(phase: string | null | undefined): phase is CodexPhase {
+  return typeof phase === 'string' && (CODEX_PHASES as readonly string[]).includes(phase);
+}
+
+function addCodexPhaseDuration(tracker: CodexTimingTracker, endedAt: number): void {
+  const activePhase = tracker.activePhase;
+  if (!activePhase) return;
+
+  const duration = Math.max(0, endedAt - activePhase.startedAt);
+  tracker.phaseTimings[activePhase.name] = (tracker.phaseTimings[activePhase.name] ?? 0) + duration;
+}
+
+function recordCodexPhaseTransition(
+  tracker: CodexTimingTracker,
+  phase: string | null | undefined,
+  timestamp: number,
+): void {
+  if (!isCodexPhase(phase) || tracker.activePhase?.name === phase) return;
+
+  addCodexPhaseDuration(tracker, timestamp);
+  tracker.activePhase = { name: phase, startedAt: timestamp };
+}
+
+function finishCodexTiming(tracker: CodexTimingTracker, turnEndedAt: number): CodexTimingMetrics {
+  addCodexPhaseDuration(tracker, turnEndedAt);
+  tracker.activePhase = undefined;
+  return {
+    turnDurationMs: Math.max(0, turnEndedAt - tracker.turnStartedAt),
+    phaseTimings: tracker.phaseTimings,
+  };
+}
 
 /**
  * Spawn a process with stdin closed and capture stdout/stderr.
@@ -87,6 +132,8 @@ function buildAgentRunMetricsUpdate(
   costUsd?: number;
   turnCount?: number;
   toolCalls?: string;
+  turnDurationMs?: number;
+  phaseTimings?: string;
 } {
   if (!spec.metricsParser) return {};
   try {
@@ -98,6 +145,8 @@ function buildAgentRunMetricsUpdate(
       costUsd: m.costUsd,
       turnCount: m.turns,
       toolCalls: m.toolCalls ? JSON.stringify(m.toolCalls) : undefined,
+      turnDurationMs: m.turnDurationMs,
+      phaseTimings: m.phaseTimings ? JSON.stringify(m.phaseTimings) : undefined,
     };
   } catch (err) {
     logger.warn('External agent metrics parser failed', {
@@ -157,6 +206,8 @@ interface ExtractedMetrics {
   costUsd?: number;
   turns?: number;
   toolCalls?: Record<string, number>;
+  turnDurationMs?: number;
+  phaseTimings?: Record<string, number>;
 }
 
 function parseCodexMetrics(raw: string): ExtractedMetrics {
@@ -164,13 +215,22 @@ function parseCodexMetrics(raw: string): ExtractedMetrics {
     turns?: number;
     commandCount?: number;
     fileChangeCount?: number;
+    turnDurationMs?: number;
+    phaseTimings?: Record<string, number>;
   };
   const toolCalls: Record<string, number> = {};
   if (envelope.commandCount) toolCalls.command = envelope.commandCount;
   if (envelope.fileChangeCount) toolCalls.fileChange = envelope.fileChangeCount;
+  const phaseTimings = envelope.phaseTimings && typeof envelope.phaseTimings === 'object'
+    ? Object.fromEntries(
+      Object.entries(envelope.phaseTimings).filter(([, duration]) => typeof duration === 'number' && Number.isFinite(duration)),
+    )
+    : undefined;
   return {
     turns: envelope.turns,
     toolCalls: Object.keys(toolCalls).length > 0 ? toolCalls : undefined,
+    turnDurationMs: typeof envelope.turnDurationMs === 'number' ? envelope.turnDurationMs : undefined,
+    phaseTimings,
   };
 }
 
@@ -235,51 +295,6 @@ async function commandExists(cmd: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-async function pathExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export async function needsDependencyBootstrap(projectPath: string): Promise<boolean> {
-  const nodeModulesPath = path.join(projectPath, 'node_modules');
-  if (!(await pathExists(nodeModulesPath))) return true;
-
-  const [pnpmDirExists, binDirExists] = await Promise.all([
-    pathExists(path.join(nodeModulesPath, '.pnpm')),
-    pathExists(path.join(nodeModulesPath, '.bin')),
-  ]);
-  return !pnpmDirExists && !binDirExists;
-}
-
-async function bootstrapDependencies(projectPath: string): Promise<void> {
-  if (!(await needsDependencyBootstrap(projectPath))) return;
-
-  const hasPackageJson = await pathExists(path.join(projectPath, 'package.json'));
-  const hasPnpmLock = await pathExists(path.join(projectPath, 'pnpm-lock.yaml'));
-  if (!hasPackageJson && !hasPnpmLock) return;
-
-  const args = hasPnpmLock ? ['install', '--frozen-lockfile'] : ['install'];
-  try {
-    await execFileAsync('pnpm', args, {
-      cwd: projectPath,
-      timeout: 300_000,
-      maxBuffer: 32 * 1024 * 1024,
-    });
-  } catch (err) {
-    const details = err instanceof Error ? err.message : String(err);
-    throw new Error(`External agent dependency bootstrap failed in ${projectPath}: ${details}`);
-  }
-
-  logger.warn('External agent dependencies were bootstrapped; failures after install are attributable to project code', {
-    projectPath,
-    command: `pnpm ${args.join(' ')}`,
-  });
 }
 
 /**
@@ -351,21 +366,32 @@ export async function runExternalAgentTask(
   let output = '';
   let success = false;
   let rawOutput = '';
+  let codexTiming: CodexTimingMetrics | undefined;
   try {
-    await bootstrapDependencies(options.projectPath);
-
     const runSpan = tracer.startSpan(`external.${options.cli}`, rootSpan.toContext());
     try {
       if (options.cli === 'codex' && codexDriverAvailable) {
-        const result: CodexTurnResult = await runCodexTurn(options.projectPath, codexPrompt, {
-          timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
-          threadName: `task:${taskId} ${task.title}`.slice(0, 96),
-          model: options.model,
-          effort: options.effort,
-          onProgress: (message, phase) => {
-            logger.debug(`codex: ${message}`, { taskId, phase: phase ?? undefined });
-          },
-        });
+        const timingTracker: CodexTimingTracker = {
+          turnStartedAt: Date.now(),
+          phaseTimings: {},
+        };
+        let result: CodexTurnResult;
+        try {
+          result = await runCodexTurn(options.projectPath, codexPrompt, {
+            timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
+            threadName: `task:${taskId} ${task.title}`.slice(0, 96),
+            model: options.model,
+            effort: options.effort,
+            onProgress: (message, phase) => {
+              runSpan.addEvent('codex.progress', { message, phase: phase ?? undefined });
+              recordCodexPhaseTransition(timingTracker, phase, Date.now());
+              logger.debug(`codex: ${message}`, { taskId, phase: phase ?? undefined });
+            },
+          });
+        } finally {
+          codexTiming = finishCodexTiming(timingTracker, Date.now());
+          runSpan.setAttributes({ ...codexTiming });
+        }
         success = result.status === 'completed';
         output = result.finalMessage;
         rawOutput = JSON.stringify({
@@ -378,6 +404,7 @@ export async function runExternalAgentTask(
           commandCount: result.commandExecutions.length,
           fileChangeCount: result.fileChanges.length,
           touchedFileCount: result.touchedFiles.length,
+          ...codexTiming,
         });
       } else {
         let stdout: string;
@@ -424,6 +451,21 @@ export async function runExternalAgentTask(
       // Apply output transform even on error (partial output may be useful)
       if (spec.outputTransform) {
         output = spec.outputTransform(output);
+      }
+
+      if (options.cli === 'codex' && codexTiming && !rawOutput) {
+        rawOutput = JSON.stringify({
+          model: options.model ?? null,
+          effort: options.effort ?? null,
+          turns: 1,
+          status: 'failed',
+          threadId: null,
+          turnId: null,
+          commandCount: 0,
+          fileChangeCount: 0,
+          touchedFileCount: 0,
+          ...codexTiming,
+        });
       }
 
       runSpan.recordError(err);

@@ -107,6 +107,8 @@ model AgentRun {
   costUsd            Float?
   turnCount          Int?
   toolCalls          String? // JSON: { toolName: count, ... }
+  turnDurationMs     Int?
+  phaseTimings       String? // JSON: { phaseName: durationMs, ... }
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 

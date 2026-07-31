@@ -34,7 +34,7 @@ vi.mock('./project-utils.js', () => ({
   deriveVerificationCommand: mocks.deriveVerificationCommand,
 }));
 
-import { needsDependencyBootstrap, runExternalAgentTask } from './external.js';
+import { runExternalAgentTask } from './external.js';
 
 const originalPath = process.env.PATH;
 const fakeBinDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-external-agent-test-'));
@@ -74,21 +74,119 @@ afterEach(() => {
 });
 
 describe('runExternalAgentTask', () => {
-  it('detects missing external-agent dependency markers', async () => {
-    const projectPath = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-dependency-test-'));
+  it('records Codex phase timings in the metrics envelope, agent run, and trace', async () => {
+    let now = 1_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    mocks.runCodexTurn.mockImplementation(async (_cwd, _prompt, options) => {
+      now = 1_100;
+      options.onProgress?.('Inspecting the repository.', 'investigating');
+      now = 1_200;
+      options.onProgress?.('Editing files.', 'editing');
+      now = 1_300;
+      options.onProgress?.('Running the build.', 'running');
+      now = 1_400;
+      options.onProgress?.('Verifying the changes.', 'verifying');
+      now = 1_500;
+      options.onProgress?.('Finalizing the turn.', 'finalizing');
+      now = 1_750;
+      return {
+        status: 'completed',
+        finalMessage: 'Done.',
+        threadId: 'thread-1',
+        turnId: 'turn-1',
+        commandExecutions: [{ command: 'pnpm test' }],
+        fileChanges: [{ path: 'src/file.ts' }],
+        touchedFiles: ['src/file.ts'],
+      };
+    });
 
-    try {
-      expect(await needsDependencyBootstrap(projectPath)).toBe(true);
+    const taskUpdate = vi.fn().mockResolvedValue({});
+    const agentRunUpdate = vi.fn().mockResolvedValue({});
+    const traceSpanCreate = vi.fn().mockResolvedValue({});
+    const prisma = {
+      task: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          title: 'Test task',
+          description: 'Test description',
+          tags: null,
+        }),
+        update: taskUpdate,
+      },
+      agentRun: {
+        create: vi.fn().mockResolvedValue({ id: 'run-1' }),
+        update: agentRunUpdate,
+      },
+      taskDiff: {
+        create: vi.fn().mockResolvedValue({}),
+      },
+      traceSpan: {
+        create: traceSpanCreate,
+      },
+    } as unknown as PrismaClient;
 
-      fs.mkdirSync(path.join(projectPath, 'node_modules', '.pnpm'), { recursive: true });
-      expect(await needsDependencyBootstrap(projectPath)).toBe(false);
+    const stringifySpy = vi.spyOn(JSON, 'stringify');
+    const result = await runExternalAgentTask(prisma, 'task-1', {
+      cli: 'codex',
+      projectPath: '/tmp/project',
+      projectName: 'project',
+      timeoutMs: 1_000,
+    });
 
-      fs.rmSync(path.join(projectPath, 'node_modules', '.pnpm'), { recursive: true, force: true });
-      fs.mkdirSync(path.join(projectPath, 'node_modules', '.bin'), { recursive: true });
-      expect(await needsDependencyBootstrap(projectPath)).toBe(false);
-    } finally {
-      fs.rmSync(projectPath, { recursive: true, force: true });
-    }
+    expect(result.status).toBe('done');
+
+    const metricsEnvelope = stringifySpy.mock.calls
+      .map(([value]) => value)
+      .find((value) => (
+        typeof value === 'object' &&
+        value !== null &&
+        'turns' in value &&
+        (value as { turns?: number }).turns === 1
+      )) as Record<string, unknown> | undefined;
+    expect(metricsEnvelope).toEqual(expect.objectContaining({
+      turnDurationMs: 750,
+      phaseTimings: {
+        investigating: 100,
+        editing: 100,
+        running: 100,
+        verifying: 100,
+        finalizing: 250,
+      },
+    }));
+
+    expect(agentRunUpdate).toHaveBeenCalledWith({
+      where: { id: 'run-1' },
+      data: expect.objectContaining({
+        resultStatus: 'done',
+        turnDurationMs: 750,
+        phaseTimings: JSON.stringify({
+          investigating: 100,
+          editing: 100,
+          running: 100,
+          verifying: 100,
+          finalizing: 250,
+        }),
+      }),
+    });
+
+    const codexSpan = traceSpanCreate.mock.calls
+      .map(([call]) => call as { data?: { name?: string; attributes?: string; events?: string } })
+      .find((call) => call.data?.name === 'external.codex');
+    expect(codexSpan?.data?.attributes).toBeDefined();
+    expect(JSON.parse(codexSpan?.data?.attributes ?? '{}')).toEqual(expect.objectContaining({
+      turnDurationMs: 750,
+      phaseTimings: {
+        investigating: 100,
+        editing: 100,
+        running: 100,
+        verifying: 100,
+        finalizing: 250,
+      },
+    }));
+    expect(JSON.parse(codexSpan?.data?.events ?? '[]')).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'codex.progress', attributes: expect.objectContaining({ phase: 'investigating' }) }),
+      expect.objectContaining({ name: 'codex.progress', attributes: expect.objectContaining({ phase: 'finalizing' }) }),
+    ]));
   });
 
   it('records the configured Codex model and effort while preserving provider identity', async () => {

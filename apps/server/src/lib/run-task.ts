@@ -95,6 +95,21 @@ export async function runTask(
     if (!VALID_CLIS.includes(cli)) {
       throw new Error(`Invalid external CLI: ${cli}. Allowed: ${VALID_CLIS.join(', ')}`);
     }
+    let model = task.model ?? process.env.CODEX_MODEL;
+    let effort = process.env.CODEX_EFFORT;
+    if (cli === 'codex') {
+      const modelTag = tags.find((tag) => tag.startsWith('codex-model:'));
+      const effortTag = tags.find((tag) => tag.startsWith('codex-effort:'));
+      model = modelTag?.slice('codex-model:'.length) ?? model;
+      effort = effortTag?.slice('codex-effort:'.length) ?? effort;
+
+      if (model) {
+        await prisma.task.update({
+          where: { id: taskId },
+          data: { model },
+        });
+      }
+    }
     const run = () =>
       runExternalAgentTask(prisma, taskId, {
         projectPath: task.project.path,
@@ -102,8 +117,8 @@ export async function runTask(
         autoPublish: tags.includes('publish'),
         cli,
         complexity: task.complexity,
-        model: task.model ?? process.env.CODEX_MODEL,
-        effort: process.env.CODEX_EFFORT,
+        model,
+        effort,
       });
     if (options.detached) {
       const result = queue.enqueue(taskId, cli, async () => {

@@ -220,7 +220,9 @@ function formatElapsed(createdAt: string): string {
 }
 
 function sanitizeTitle(title: string): string {
-  return title.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 70);
+  return Array.from(title, (c) => (c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127 ? ' ' : c))
+    .join('')
+    .slice(0, 70);
 }
 
 function renderBoard(rows: TaskStatusRow[]): number {
@@ -245,13 +247,12 @@ async function subscribeTaskStream(onTask: (event: { id: string; status?: string
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  let aborted = false;
   void (async () => {
     try {
       for (;;) {
-        const { done, value } = await reader.read();
-        if (done || aborted) break;
-        buffer += decoder.decode(value, { stream: true });
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        buffer += decoder.decode(chunk.value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
         let eventType = '';
@@ -271,7 +272,6 @@ async function subscribeTaskStream(onTask: (event: { id: string; status?: string
     }
   })();
   return () => {
-    aborted = true;
     void reader.cancel().catch(() => undefined);
   };
 }
@@ -295,7 +295,7 @@ taskCmd
   .option('--json', 'print raw snapshot JSON and exit')
   .action(async (opts: { project?: string; all?: boolean; limit?: number; once?: boolean; json?: boolean }) => {
     const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
-    const query = `?limit=${limit}${opts.project ? `&projectId=${encodeURIComponent(opts.project)}` : ''}`;
+    const query = `?limit=${String(limit)}${opts.project ? `&projectId=${encodeURIComponent(opts.project)}` : ''}`;
     const data = (await apiFetch(`/tasks${query}`)) as { tasks: TaskStatusRow[]; total: number };
     const rows = filterTaskRows(data.tasks, Boolean(opts.all));
 
@@ -309,7 +309,7 @@ taskCmd
 
     const redraw = (): void => {
       if (rendered > 0) {
-        process.stdout.write(`\x1b[${rendered}A\x1b[0J`);
+        process.stdout.write(`\x1b[${String(rendered)}A\x1b[0J`);
       }
       const visible = filterTaskRows([...board.values()], Boolean(opts.all)).sort(
         (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),

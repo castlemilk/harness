@@ -1,6 +1,6 @@
 ---
 name: auto-build-a-task-queue-with-retry-support
-description: Auto-generated skill for: Build a task queue with retry support
+description: "Auto-generated skill for: Build a task queue with retry support"
 ---
 
 # Auto-generated skill: Build a task queue with retry support

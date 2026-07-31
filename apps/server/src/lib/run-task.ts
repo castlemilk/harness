@@ -102,6 +102,8 @@ export async function runTask(
         autoPublish: tags.includes('publish'),
         cli,
         complexity: task.complexity,
+        model: task.model ?? process.env.CODEX_MODEL,
+        effort: process.env.CODEX_EFFORT,
       });
     if (options.detached) {
       const result = queue.enqueue(taskId, cli, async () => {

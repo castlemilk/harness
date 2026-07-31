@@ -110,6 +110,10 @@ export interface ExternalAgentOptions extends AgentOptions {
   cli: ExternalCli;
   /** Timeout for the external agent run. Default: adaptive by complexity. */
   timeoutMs?: number;
+  /** Model for the codex app-server driver. Default: codex global config default. */
+  model?: string | null;
+  /** Reasoning effort for the codex app-server driver. */
+  effort?: string | null;
 }
 
 function timeoutForComplexity(complexity: string | undefined): number {
@@ -307,6 +311,8 @@ export async function runExternalAgentTask(
         const result: CodexTurnResult = await runCodexTurn(options.projectPath, codexPrompt, {
           timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
           threadName: `task:${taskId} ${task.title}`.slice(0, 96),
+          model: options.model,
+          effort: options.effort,
           onProgress: (message, phase) => {
             logger.debug(`codex: ${message}`, { taskId, phase: phase ?? undefined });
           },

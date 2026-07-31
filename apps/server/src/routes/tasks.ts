@@ -31,6 +31,17 @@ const runSchema = z.object({
   concurrency: z.number().int().min(1).max(5).optional(),
 });
 
+async function resolveTaskId(prisma: PrismaClient, partial: string): Promise<string | null> {
+  if (partial.length === 36) return partial;
+  const matches = await prisma.task.findMany({
+    where: { id: { startsWith: partial } },
+    select: { id: true },
+    take: 2,
+  });
+  if (matches.length !== 1) return null;
+  return matches[0] === undefined ? null : matches[0].id;
+}
+
 export function taskRoutes(prisma: PrismaClient): Router {
   const r = Router();
 
@@ -109,7 +120,11 @@ export function taskRoutes(prisma: PrismaClient): Router {
   }));
 
   r.get('/:id/stream', asyncHandler(async (req, res) => {
-    const taskId = req.params.id;
+    const taskId = await resolveTaskId(prisma, req.params.id);
+    if (!taskId) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
     const task = await prisma.task.findUnique({ where: { id: taskId } });
     if (!task) {
       res.status(404).json({ error: 'Task not found' });
@@ -270,7 +285,12 @@ export function taskRoutes(prisma: PrismaClient): Router {
   }));
 
   r.get('/:id', asyncHandler(async (req, res) => {
-    const task = await prisma.task.findUnique({ where: { id: req.params.id } });
+    const taskId = await resolveTaskId(prisma, req.params.id);
+    if (!taskId) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
     if (!task) {
       res.status(404).json({ error: 'Task not found' });
       return;

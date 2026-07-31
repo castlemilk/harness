@@ -74,6 +74,165 @@ async function streamTaskEvents(taskId: string): Promise<void> {
   }
 }
 
+async function readSse(
+  res: Response,
+  onFrame: (event: string, data: Record<string, unknown>) => void,
+): Promise<void> {
+  if (!res.ok || !res.body) {
+    console.error(`SSE stream returned ${String(res.status)}`);
+    return;
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      let eventType = '';
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith('data: ')) {
+          try {
+            onFrame(eventType, JSON.parse(line.slice(6)) as Record<string, unknown>);
+          } catch {
+            // not JSON, skip
+          }
+          eventType = '';
+        } else if (line === '') {
+          eventType = '';
+        }
+      }
+    }
+  } catch (err) {
+    if ((err as { code?: string }).code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+      console.error(`\nStream error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+}
+
+async function watchTask(taskId: string): Promise<void> {
+  let task: Record<string, unknown>;
+  try {
+    const data = (await apiFetch(`/tasks/${taskId}`)) as Record<string, unknown>;
+    if (!data || typeof data.id !== 'string') {
+      console.error(`Task ${taskId} not found.`);
+      return;
+    }
+    task = data;
+  } catch (err) {
+    console.error(`Failed to load task ${taskId}: ${err instanceof Error ? err.message : String(err)}`);
+    return;
+  }
+
+  const title = typeof task.title === 'string' ? task.title : taskId;
+  const status = formatStatus(typeof task.status === 'string' ? task.status : '');
+  const model = typeof task.model === 'string' ? task.model : typeof task.provider === 'string' ? task.provider : '-';
+  const createdAt = task.createdAt as string | undefined;
+  const elapsed = createdAt ? formatElapsed(createdAt) : '';
+  const complexity = typeof task.complexity === 'string' ? task.complexity : undefined;
+
+  console.log(`\n━━━ attaching to ${taskId.slice(0, 8)} — ${sanitizeTitle(title)}`);
+  console.log(`  status=${status}  model=${model}  elapsed=${elapsed}${complexity ? `  complexity=${complexity}` : ''}`);
+  if (typeof task.result === 'string') console.log(`  result: ${task.result.slice(0, 300)}`);
+  if (typeof task.error === 'string') console.log(`  error: ${task.error.slice(0, 300)}`);
+  console.log(`  Ctrl+C detaches (task keeps running). Re-attach: harness task watch ${taskId}\n`);
+
+  let finished = false;
+  const onFrame = (event: string, parsed: Record<string, unknown>): void => {
+    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+    switch (event) {
+      case 'init': {
+        const agentRun = parsed.agentRun as Record<string, unknown> | undefined;
+        const spans = parsed.spans as unknown[] | undefined;
+        const diffs = parsed.diffs as unknown[] | undefined;
+        const t = parsed.task as Record<string, unknown> | undefined;
+        if (t) {
+          console.log(`[${ts}] snapshot: ${formatStatus(typeof t.status === 'string' ? t.status : '')}${typeof t.model === 'string' ? ` (${t.model})` : ''}`);
+        }
+        if (spans && spans.length > 0) console.log(`[${ts}] ${String(spans.length)} trace span(s) replayed`);
+        if (diffs && diffs.length > 0) console.log(`[${ts}] ${String(diffs.length)} diff(s) replayed`);
+        if (agentRun) {
+          const parts: string[] = [];
+          if (typeof agentRun.turnDurationMs === 'number') {
+            parts.push(`turn=${Math.round(agentRun.turnDurationMs / 1000)}s`);
+          }
+          const phase = agentRun.phaseTimings;
+          if (phase && typeof phase === 'object') {
+            const phases = Object.entries(phase as Record<string, unknown>)
+              .map(([k, v]) => `${k}:${Math.round(Number(v) / 1000)}s`)
+              .join(',');
+            parts.push(`phases=${phases}`);
+          }
+          if (typeof agentRun.totalTokens === 'number') parts.push(`tokens=${agentRun.totalTokens}`);
+          if (typeof agentRun.branch === 'string') parts.push(`branch=${agentRun.branch}`);
+          if (parts.length > 0) console.log(`[${ts}] agentRun: ${parts.join('  ')}`);
+        }
+        break;
+      }
+      case 'span': {
+        const name = String(parsed.name ?? '');
+        const spanStatus = String(parsed.status ?? '');
+        const mark = spanStatus === 'ok' ? '✓' : spanStatus === 'error' ? '✗' : '·';
+        console.log(`[${ts}] ${mark} ${name}`);
+        break;
+      }
+      case 'diff': {
+        const patch = String(parsed.patch ?? '');
+        const lines = patch.split('\n').filter((l) => l.startsWith('+') || l.startsWith('-')).length;
+        console.log(`[${ts}] diff: ${String(lines)} changed line(s)`);
+        break;
+      }
+      case 'agent-run': {
+        const parts: string[] = [];
+        if (typeof parsed.resultStatus === 'string') parts.push(`status=${parsed.resultStatus}`);
+        if (typeof parsed.totalTokens === 'number') parts.push(`tokens=${parsed.totalTokens}`);
+        if (parts.length > 0) console.log(`[${ts}] agentRun update: ${parts.join('  ')}`);
+        break;
+      }
+      case 'task': {
+        console.log(`[${ts}] ${formatStatus(typeof parsed.status === 'string' ? parsed.status : '')}`);
+        if (typeof parsed.result === 'string') console.log(`       ${parsed.result.slice(0, 400)}`);
+        if (typeof parsed.error === 'string') console.log(`       ${parsed.error.slice(0, 400)}`);
+        break;
+      }
+      case 'end': {
+        finished = true;
+        console.log(`[${ts}] ${formatStatus(typeof parsed.status === 'string' ? parsed.status : '')} — session ended.`);
+        break;
+      }
+      default:
+        break;
+    }
+  };
+
+  const heartbeat = setInterval(() => {
+    process.stderr.write('.');
+  }, 15_000);
+
+process.once('SIGINT', () => {
+    clearInterval(heartbeat);
+    console.log(`\nDetached — task ${taskId} continues in the background. Re-attach: harness task watch ${taskId}`);
+    process.exit(0);
+  });
+
+  let res: Response;
+  try {
+    res = await fetch(`${getApiUrl()}/tasks/${taskId}/stream`);
+  } catch (err) {
+    console.error(`Failed to connect to stream: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
+  await readSse(res, onFrame);
+  clearInterval(heartbeat);
+
+  if (finished) process.exit(0);
+}
+
 function handleEvent(event: string, data: Record<string, unknown>): void {
   const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
   switch (event) {
@@ -284,6 +443,15 @@ function filterTaskRows(tasks: TaskStatusRow[], all: boolean): TaskStatusRow[] {
   }
   return inFlight;
 }
+
+taskCmd
+  .command('watch')
+  .alias('attach')
+  .description('Attach to a running task and stream its live events; Ctrl+C detaches (task keeps running)')
+  .argument('<id>', 'task id to attach to')
+  .action(async (id: string) => {
+    await watchTask(id);
+  });
 
 taskCmd
   .command('status')

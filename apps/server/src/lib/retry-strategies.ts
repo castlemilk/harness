@@ -1,9 +1,7 @@
 import type { PrismaClient } from '@omega/db';
-import type { ProviderConfig as CoreProviderConfig } from '@omega/core';
-import { createProvider } from '@omega/providers';
-import { selectProvider } from '@omega/router';
 import { runAgentTask, runExternalAgentTask, type ExternalCli } from '@omega/agent';
 import { notifyFailure } from './webhook-alerts.js';
+import { envInt, safeJsonParse } from './utils.js';
 
 export interface RetryStrategy {
   name: string;
@@ -43,13 +41,6 @@ export interface RetryRecord {
   model?: string;
   error: string;
   timestamp: string;
-}
-
-function envInt(key: string, fallback: number): number {
-  const raw = process.env[key];
-  if (!raw) return fallback;
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
 const MAX_RETRIES = envInt('OMEGA_MAX_RETRIES', 3);
@@ -141,28 +132,6 @@ export function getNextStrategy(ctx: RetryContext): RetryAttempt | undefined {
   return undefined;
 }
 
-function toCoreConfig(row: {
-  id: string;
-  name: string;
-  kind: string;
-  baseUrl: string | null;
-  apiKey: string | null;
-  defaultModel: string;
-  capabilities: string;
-  enabled: boolean;
-}): CoreProviderConfig {
-  return {
-    id: row.id,
-    name: row.name,
-    kind: row.kind as CoreProviderConfig['kind'],
-    baseUrl: row.baseUrl ?? undefined,
-    apiKey: row.apiKey ?? undefined,
-    defaultModel: row.defaultModel,
-    capabilities: JSON.parse(row.capabilities) as CoreProviderConfig['capabilities'],
-    enabled: row.enabled,
-  };
-}
-
 export async function executeRetry(
   prisma: PrismaClient,
   taskId: string,
@@ -227,12 +196,16 @@ export async function executeRetry(
 
   const task = await prisma.task.findUnique({ where: { id: taskId } });
   if (!task) return;
-  const existing = task.retryHistory ? (JSON.parse(task.retryHistory) as RetryRecord[]) : [];
+  const existing = safeJsonParse<RetryRecord[]>(task.retryHistory, []);
   existing.push(record);
+
+  // Only increment retry count if the task is still failed
+  const isStillFailed = task.status === 'failed' || task.status === 'in_progress';
+
   await prisma.task.update({
     where: { id: taskId },
     data: {
-      retryCount: { increment: 1 },
+      retryCount: isStillFailed ? { increment: 1 } : undefined,
       lastRetryAt: new Date(),
       retryHistory: JSON.stringify(existing),
     },

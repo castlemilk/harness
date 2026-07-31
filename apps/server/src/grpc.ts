@@ -151,6 +151,11 @@ export function startGrpcServer(prisma: PrismaClient, port = 50051, host = '127.
         clearInterval(interval);
       });
 
+      call.on('end', () => {
+        cancelled = true;
+        clearInterval(interval);
+      });
+
       call.on('error', () => {
         cancelled = true;
         clearInterval(interval);

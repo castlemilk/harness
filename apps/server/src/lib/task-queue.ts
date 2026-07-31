@@ -1,4 +1,29 @@
 import { EventEmitter } from 'node:events';
+import { envInt } from './utils.js';
+
+export class Mutex {
+  private queue: (() => void)[] = [];
+  private locked = false;
+
+  async acquire(): Promise<void> {
+    if (!this.locked) {
+      this.locked = true;
+      return;
+    }
+    return new Promise((resolve) => {
+      this.queue.push(resolve);
+    });
+  }
+
+  release(): void {
+    const next = this.queue.shift();
+    if (next) {
+      next();
+    } else {
+      this.locked = false;
+    }
+  }
+}
 
 export interface QueueResult {
   queued: boolean;
@@ -19,13 +44,6 @@ interface QueueEntry {
   run: () => Promise<unknown>;
 }
 
-function envInt(key: string, fallback: number): number {
-  const raw = process.env[key];
-  if (!raw) return fallback;
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
-}
-
 class TaskQueue extends EventEmitter {
   private maxConcurrency: number;
   private providerLimits: Map<string, number>;
@@ -44,7 +62,7 @@ class TaskQueue extends EventEmitter {
 
   private getProviderLimit(provider: string): number {
     if (this.providerLimits.has(provider)) {
-      return this.providerLimits.get(provider)!;
+      return this.providerLimits.get(provider) ?? this.maxConcurrency;
     }
     const limit = envInt(`OMEGA_MAX_CONCURRENT_${provider.toUpperCase()}`, this.maxConcurrency);
     this.providerLimits.set(provider, limit);
@@ -97,11 +115,13 @@ class TaskQueue extends EventEmitter {
   }
 
   private processQueue(): void {
-    for (let i = 0; i < this.queue.length; i++) {
-      const entry = this.queue[i]!;
+    for (let i = 0; i < this.queue.length; ) {
+      const entry = this.queue[i];
       if (this.canRun(entry)) {
         this.queue.splice(i, 1);
         this.runEntry(entry);
+      } else {
+        i++;
       }
     }
   }

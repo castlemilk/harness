@@ -12,6 +12,15 @@
  */
 
 import type { ProviderConfig, Task, Capability, Complexity, CapabilityLevel } from '@omega/core';
+import { ProviderHealthRegistry } from './health-registry.js';
+import { PerformanceCache } from './performance-cache.js';
+import { StrategyLearner } from './strategy-learner.js';
+
+export { ProviderHealthRegistry };
+export { PerformanceCache };
+export { StrategyLearner };
+export type { ProviderHealth } from './health-registry.js';
+export type { PerfScore } from './performance-cache.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -59,300 +68,6 @@ export interface IntelligentRouterOptions {
   explorationRate?: number;    // probability of trying an unknown provider (0-1)
 }
 
-// ─── Provider Health Registry ───────────────────────────────────────────────
-
-interface HealthSample {
-  timestamp: number;
-  latencyMs: number;
-  success: boolean;
-  rateLimited: boolean;
-  costUsd: number;
-}
-
-const HEALTH_WINDOW_MS = 30 * 60 * 1000; // 30-minute rolling window
-const HEALTH_DECAY = 0.95;                // exponential decay per sample
-
-export class ProviderHealthRegistry {
-  private samples = new Map<string, HealthSample[]>();
-  private circuits = new Map<string, { state: 'closed' | 'open' | 'half-open'; openedAt: number; cooldownUntil: number; trialInFlight: boolean }>();
-  private buckets = new Map<string, { tokens: number; lastRefill: number }>();
-
-  private static readonly COOLDOWN_MS = 5 * 60 * 1000; // 5 min before half-open probe
-  private static readonly DEFAULT_RATE_LIMIT = 60; // 60 requests per minute per provider
-  private static readonly RATE_WINDOW_MS = 60_000; // 1-minute sliding window
-
-  record(providerKey: string, sample: Omit<HealthSample, 'timestamp'>): void {
-    const list = this.samples.get(providerKey) ?? [];
-    list.push({ ...sample, timestamp: Date.now() });
-    // Prune old samples
-    const cutoff = Date.now() - HEALTH_WINDOW_MS;
-    while (list.length > 0 && list[0]!.timestamp < cutoff) list.shift();
-    this.samples.set(providerKey, list);
-
-    // Update circuit breaker state on failures
-    if (!sample.success && !sample.rateLimited) {
-      const health = this.getHealth(providerKey);
-      if (health.errorRate > 0.5 && health.recentCalls >= 5) {
-        const circuit = this.circuits.get(providerKey);
-        if (!circuit || circuit.state !== 'open') {
-          this.circuits.set(providerKey, {
-            state: 'open',
-            openedAt: Date.now(),
-            cooldownUntil: Date.now() + ProviderHealthRegistry.COOLDOWN_MS,
-            trialInFlight: false,
-          });
-        }
-      }
-    } else if (sample.success) {
-      // Recovery: close the circuit on success
-      this.circuits.set(providerKey, {
-        state: 'closed',
-        openedAt: 0,
-        cooldownUntil: 0,
-        trialInFlight: false,
-      });
-    }
-  }
-
-  getHealth(providerKey: string): ProviderHealth {
-    const list = this.samples.get(providerKey) ?? [];
-    if (list.length === 0) {
-      return { latencyP50: 0, latencyP95: 0, errorRate: 0, rateLimitRate: 0, recentCalls: 0, score: 5 };
-    }
-
-    const latencies = list.map((s) => s.latencyMs).sort((a, b) => a - b);
-    const p50 = latencies[Math.floor(latencies.length * 0.5)] ?? 0;
-    const p95 = latencies[Math.floor(latencies.length * 0.95)] ?? 0;
-    const errors = list.filter((s) => !s.success).length;
-    const rateLimits = list.filter((s) => s.rateLimited).length;
-    const errorRate = errors / list.length;
-    const rateLimitRate = rateLimits / list.length;
-
-    // Score: 10 = perfect health, 0 = completely unhealthy
-    let score = 10;
-    // Penalize high error rates (up to -5)
-    score -= errorRate * 5;
-    // Penalize rate limiting (up to -3)
-    score -= rateLimitRate * 3;
-    // Penalize high latency (up to -2)
-    if (p95 > 30_000) score -= 2;
-    else if (p95 > 15_000) score -= 1;
-    else if (p95 > 5_000) score -= 0.5;
-
-    return {
-      latencyP50: p50,
-      latencyP95: p95,
-      errorRate,
-      rateLimitRate,
-      recentCalls: list.length,
-      score: Math.max(0, Math.min(10, score)),
-    };
-  }
-
-  /** Check if a provider is currently circuit-broken (high recent error rate). */
-  isCircuitBroken(providerKey: string): boolean {
-    const circuit = this.circuits.get(providerKey);
-    if (!circuit || circuit.state === 'closed') {
-      return false;
-    }
-    // Open: fully blocked
-    if (circuit.state === 'open') {
-      // Check if cooldown has elapsed — transition to half-open
-      if (Date.now() >= circuit.cooldownUntil) {
-        circuit.state = 'half-open';
-        circuit.trialInFlight = false;
-        return false; // allow a trial request
-      }
-      return true;
-    }
-    // Half-open: allow exactly one trial request
-    if (circuit.state === 'half-open') {
-      if (circuit.trialInFlight) {
-        return true; // trial already in progress, block
-      }
-      circuit.trialInFlight = true;
-      return false; // allow this one
-    }
-    return false;
-  }
-
-  /** Get circuit state for diagnostics */
-  getCircuitState(providerKey: string): 'closed' | 'open' | 'half-open' {
-    return this.circuits.get(providerKey)?.state ?? 'closed';
-  }
-
-  /**
-   * Simple token-bucket rate limiter. Refills tokens proportionally to
-   * elapsed time. Returns true if the request can proceed immediately.
-   */
-  checkRateLimit(providerKey: string, maxRpm = ProviderHealthRegistry.DEFAULT_RATE_LIMIT): boolean {
-    const now = Date.now();
-    let bucket = this.buckets.get(providerKey);
-    if (!bucket) {
-      bucket = { tokens: maxRpm, lastRefill: now };
-      this.buckets.set(providerKey, bucket);
-    }
-    // Refill tokens based on elapsed time
-    const elapsed = now - bucket.lastRefill;
-    const refill = (elapsed / ProviderHealthRegistry.RATE_WINDOW_MS) * maxRpm;
-    bucket.tokens = Math.min(maxRpm, bucket.tokens + refill);
-    bucket.lastRefill = now;
-    // Consume one token
-    if (bucket.tokens >= 1) {
-      bucket.tokens -= 1;
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Returns the estimated wait time in ms before a token is available.
-   * Used for backpressure — callers can delay scheduling instead of burning retries.
-   */
-  rateLimitWaitMs(providerKey: string, maxRpm = ProviderHealthRegistry.DEFAULT_RATE_LIMIT): number {
-    let bucket = this.buckets.get(providerKey);
-    if (!bucket) return 0;
-    if (bucket.tokens >= 1) return 0;
-    const tokenIntervalMs = ProviderHealthRegistry.RATE_WINDOW_MS / maxRpm;
-    return Math.ceil((1 - bucket.tokens) * tokenIntervalMs);
-  }
-
-  /**
-   * Get all provider health summaries for the dashboard.
-   */
-  getEntries(): Array<ProviderHealth & { provider: string; circuitState: string }> {
-    return Array.from(this.samples.entries()).map(([name, samples]) => {
-      const list = samples.slice(-200);
-      const errors = list.filter((s) => !s.success).length;
-      const rateLimits = list.filter((s) => s.rateLimited).length;
-      const errorRate = list.length > 0 ? errors / list.length : 0;
-      const rateLimitRate = list.length > 0 ? rateLimits / list.length : 0;
-      const latencies = list
-        .filter((s) => s.success && !s.rateLimited)
-        .map((s) => s.latencyMs)
-        .sort((a, b) => a - b);
-      return {
-        provider: name,
-        latencyP50: latencies[Math.floor(latencies.length * 0.5)] ?? 0,
-        latencyP95: latencies[Math.floor(latencies.length * 0.95)] ?? 0,
-        errorRate,
-        rateLimitRate,
-        recentCalls: list.length,
-        score: this.getHealth(name).score,
-        circuitState: this.getCircuitState(name),
-      };
-    });
-  }
-}
-
-export interface ProviderHealth {
-  latencyP50: number;
-  latencyP95: number;
-  errorRate: number;
-  rateLimitRate: number;
-  recentCalls: number;
-  score: number;
-}
-
-// ─── Performance Cache ──────────────────────────────────────────────────────
-
-interface PerfEntry {
-  passes: number;
-  total: number;
-  totalCost: number;
-  totalDuration: number;
-  lastUpdated: number;
-}
-
-export class PerformanceCache {
-  private cache = new Map<string, PerfEntry>();
-  private decayHalfLife = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-  update(key: string, passed: boolean, costUsd: number, durationMs: number): void {
-    const entry = this.cache.get(key) ?? { passes: 0, total: 0, totalCost: 0, totalDuration: 0, lastUpdated: Date.now() };
-    entry.total++;
-    if (passed) entry.passes++;
-    entry.totalCost += costUsd;
-    entry.totalDuration += durationMs;
-    entry.lastUpdated = Date.now();
-    this.cache.set(key, entry);
-  }
-
-  /** Load historical data from DB rows. */
-  loadFromRows(rows: Array<{
-    provider: string | null;
-    model: string | null;
-    resultStatus: string;
-    costUsd: number | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }>): void {
-    for (const row of rows) {
-      if (!row.provider || !row.model) continue;
-      const key = `${row.provider}/${row.model}`;
-      const entry = this.cache.get(key) ?? { passes: 0, total: 0, totalCost: 0, totalDuration: 0, lastUpdated: Date.now() };
-      entry.total++;
-      if (row.resultStatus === 'done') entry.passes++;
-      entry.totalCost += row.costUsd ?? 0;
-      entry.totalDuration += row.updatedAt.getTime() - row.createdAt.getTime();
-      entry.lastUpdated = row.updatedAt.getTime();
-      this.cache.set(key, entry);
-    }
-  }
-
-  getScore(key: string): PerfScore | undefined {
-    const entry = this.cache.get(key);
-    if (!entry || entry.total === 0) return undefined;
-
-    const passRate = entry.passes / entry.total;
-    const avgCost = entry.totalCost / entry.total;
-    const avgDuration = entry.totalDuration / entry.total;
-
-    // Wilson lower bound for 95% CI
-    const n = entry.total;
-    const z = 1.96;
-    const phat = passRate;
-    const wilson = (phat + z * z / (2 * n) - z * Math.sqrt((phat * (1 - phat) + z * z / (4 * n)) / n)) / (1 + z * z / n);
-
-    // Cost per pass rate (lower is better)
-    const costPerPass = passRate > 0 ? avgCost / passRate : Infinity;
-
-    // Recency decay — penalize entries not updated recently
-    const age = Date.now() - entry.lastUpdated;
-    const recencyFactor = Math.pow(0.5, age / this.decayHalfLife);
-
-    return {
-      passRate,
-      wilsonLowerBound: Math.max(0, wilson),
-      avgCostUsd: avgCost,
-      avgDurationMs: avgDuration,
-      totalRuns: entry.total,
-      costPerPass,
-      recencyFactor,
-    };
-  }
-
-  /** Get all cached scores. */
-  getAllScores(): Map<string, PerfScore> {
-    const result = new Map<string, PerfScore>();
-    for (const key of this.cache.keys()) {
-      const score = this.getScore(key);
-      if (score) result.set(key, score);
-    }
-    return result;
-  }
-}
-
-export interface PerfScore {
-  passRate: number;
-  wilsonLowerBound: number;
-  avgCostUsd: number;
-  avgDurationMs: number;
-  totalRuns: number;
-  costPerPass: number;
-  recencyFactor: number;
-}
-
 // ─── Task Classifier ────────────────────────────────────────────────────────
 
 const CODE_KEYWORDS = ['fix', 'bug', 'implement', 'refactor', 'code', 'function', 'class', 'method', 'test', 'lint', 'type', 'error', 'exception', 'module', 'package', 'import', 'export', 'api', 'endpoint', 'route', 'schema', 'migration', 'deploy', 'ci', 'cd', 'git', 'commit', 'pr', 'diff', 'patch'];
@@ -381,7 +96,7 @@ export function classifyTask(task: Task): TaskClassification {
   domainScores.general = 1; // baseline
 
   const domain = (Object.entries(domainScores) as [TaskDomain, number][])
-    .sort((a, b) => b[1] - a[1])[0]![0];
+    .sort((a, b) => b[1] - a[1])[0][0];
 
   // Required capabilities from tags
   const requiredCapabilities: string[] = [];
@@ -393,7 +108,7 @@ export function classifyTask(task: Task): TaskClassification {
     complexity: task.complexity,
     domain,
     requiredCapabilities,
-    estimatedTokens: TOKEN_ESTIMATES[task.complexity] ?? 8000,
+    estimatedTokens: TOKEN_ESTIMATES[task.complexity],
   };
 }
 
@@ -466,8 +181,9 @@ export class IntelligentRouter {
       budgetUsd,
       maxCandidates = 3,
       minHistoricalRuns = 3,
-      explorationRate = 0,
+      explorationRate: rawExplorationRate = 0,
     } = options;
+    const explorationRate = Math.max(0, Math.min(1, rawExplorationRate));
 
     // Let strategy learner recommend based on historical outcomes
     let strategy = options.strategy ?? 'balanced';
@@ -482,8 +198,9 @@ export class IntelligentRouter {
 
     // Honour explicit model pin
     if (task.assignedModel) {
+      const am = task.assignedModel;
       const provider = enabled.find(
-        (c) => c.id === task.assignedModel!.provider || c.name === task.assignedModel!.provider,
+        (c) => c.id === am.provider || c.name === am.provider,
       );
       if (provider) {
         return {
@@ -581,7 +298,7 @@ export class IntelligentRouter {
 
     if (candidates.length === 0) return undefined;
 
-    const primary = candidates[0]!;
+    const primary = candidates[0];
     const fallbacks = candidates.slice(1, maxCandidates + 1);
 
     // Build reasoning string
@@ -589,7 +306,7 @@ export class IntelligentRouter {
     parts.push(`strategy=${strategy}`);
     parts.push(`domain=${classification.domain}`);
     parts.push(`complexity=${classification.complexity}`);
-    if (budgetUsd !== undefined) parts.push(`budget=$${budgetUsd}`);
+    if (budgetUsd !== undefined) parts.push(`budget=$${String(budgetUsd)}`);
     if (primary.breakdown.performance > 0) {
       parts.push(`perf=${primary.breakdown.performance.toFixed(1)}`);
     }
@@ -673,16 +390,16 @@ function strategy(s?: string): RoutingStrategy {
 
 // ─── Persistence ────────────────────────────────────────────────────────────
 
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 
 interface PersistedRouterState {
   version: 2;
   savedAt: string;
-  health: Record<string, Array<Omit<HealthSample, 'timestamp'> & { timestamp: number }>>;
-  performance: Record<string, PerfEntry>;
+  health: Record<string, { timestamp: number; latencyMs: number; success: boolean; rateLimited: boolean; costUsd: number }[]>;
+  performance: Record<string, { passes: number; total: number; totalCost: number; totalDuration: number; lastUpdated: number }>;
   strategyScores: Record<string, { wins: number; total: number; avgScore: number }>;
-  circuits: Record<string, { state: string; openedAt: number; cooldownUntil: number; trialInFlight: boolean }>;
+  circuits?: Record<string, { state: string; openedAt: number; cooldownUntil: number; trialInFlight: boolean; consecutiveSuccesses?: number }>;
 }
 
 const DEFAULT_PERSIST_PATH = join(process.env.HOME ?? '~', '.omega', 'router-state.json');
@@ -692,13 +409,18 @@ export async function saveRouterState(router: IntelligentRouter, path?: string):
   const state: PersistedRouterState = {
     version: 2,
     savedAt: new Date().toISOString(),
+    // eslint-disable-next-line @typescript-eslint/dot-notation
     health: Object.fromEntries([...router.health['samples'].entries()]),
+    // eslint-disable-next-line @typescript-eslint/dot-notation
     performance: Object.fromEntries([...router.performance['cache'].entries()].map(([k, v]) => [k, v])),
     strategyScores: Object.fromEntries([...router.strategyLearner.scores.entries()]),
+    // eslint-disable-next-line @typescript-eslint/dot-notation
     circuits: Object.fromEntries([...router.health['circuits'].entries()]),
   };
   await mkdir(dirname(filePath), { recursive: true });
-  await writeFile(filePath, JSON.stringify(state, null, 2));
+  const tmpPath = `${filePath}.tmp.${String(process.pid)}`;
+  await writeFile(tmpPath, JSON.stringify(state, null, 2));
+  await rename(tmpPath, filePath);
 }
 
 export async function loadRouterState(router: IntelligentRouter, path?: string): Promise<boolean> {
@@ -706,17 +428,16 @@ export async function loadRouterState(router: IntelligentRouter, path?: string):
   try {
     const raw = await readFile(filePath, 'utf-8');
     const state = JSON.parse(raw) as PersistedRouterState;
-    if (state.version < 1 || state.version > 2) return false;
-
-    // Restore health samples
+    // Restore health samples with original timestamps
     for (const [key, samples] of Object.entries(state.health)) {
       for (const sample of samples) {
-        router.health.record(key, sample);
+        router.health.restoreSample(key, sample);
       }
     }
 
     // Restore performance cache
     for (const [key, entry] of Object.entries(state.performance)) {
+      // eslint-disable-next-line @typescript-eslint/dot-notation
       router.performance['cache'].set(key, entry);
     }
 
@@ -725,91 +446,18 @@ export async function loadRouterState(router: IntelligentRouter, path?: string):
       router.strategyLearner.scores.set(key, score);
     }
 
-    // Restore circuit breaker states (v2+)
-    if (state.version >= 2 && state.circuits) {
-      for (const [key, circuit] of Object.entries(state.circuits)) {
-        router.health['circuits'].set(key, circuit as { state: 'closed' | 'open' | 'half-open'; openedAt: number; cooldownUntil: number; trialInFlight: boolean });
+    // Restore circuit breaker states (v2+) with validation
+    const validStates = new Set(['closed', 'open', 'half-open']);
+    for (const [key, circuit] of Object.entries(state.circuits ?? {})) {
+      if (!validStates.has(circuit.state)) {
+        circuit.state = 'closed';
       }
+      // eslint-disable-next-line @typescript-eslint/dot-notation
+      router.health['circuits'].set(key, circuit as { state: 'closed' | 'open' | 'half-open'; openedAt: number; cooldownUntil: number; trialInFlight: boolean; consecutiveSuccesses?: number });
     }
 
     return true;
   } catch {
     return false;
-  }
-}
-
-// ─── Strategy Learning ──────────────────────────────────────────────────────
-
-interface StrategyScore {
-  wins: number;
-  total: number;
-  avgScore: number;
-}
-
-/**
- * Tracks which routing strategy performs best for each task domain/complexity
- * combination. After enough data, automatically adjusts the strategy weights
- * to favor what works.
- */
-export class StrategyLearner {
-  /** key = "${domain}:${complexity}" */
-  scores = new Map<string, StrategyScore>();
-
-  /**
-   * Record the outcome of a routing decision.
-   */
-  recordOutcome(
-    domain: TaskDomain,
-    complexity: Complexity,
-    strategy: RoutingStrategy,
-    passed: boolean,
-    costUsd: number,
-  ): void {
-    const key = `${domain}:${complexity}`;
-    const existing = this.scores.get(key) ?? { wins: 0, total: 0, avgScore: 0 };
-    existing.total++;
-    if (passed) existing.wins++;
-    // Exponential moving average of "goodness" (pass - normalized cost)
-    const goodness = (passed ? 1 : 0) - Math.min(1, costUsd * 10);
-    existing.avgScore = existing.avgScore * 0.9 + goodness * 0.1;
-    this.scores.set(key, existing);
-  }
-
-  /**
-   * Recommend a strategy for a given task based on historical outcomes.
-   */
-  recommend(domain: TaskDomain, complexity: Complexity): RoutingStrategy | undefined {
-    // Need at least 5 data points before recommending
-    const key = `${domain}:${complexity}`;
-    const score = this.scores.get(key);
-    if (!score || score.total < 5) return undefined;
-
-    // If performance-optimized tasks have higher avgScore, recommend it
-    // This is a simple heuristic; more sophisticated approaches could
-    // track per-strategy scores separately
-    if (score.avgScore > 0.3 && score.wins / score.total > 0.7) {
-      return 'performance-optimized';
-    }
-    if (score.avgScore < -0.1) {
-      return 'cost-optimized';
-    }
-    return undefined;
-  }
-
-  /**
-   * Get all scores as an array for display.
-   */
-  getStats(): Array<{ domain: string; complexity: string; wins: number; total: number; passRate: number; avgScore: number }> {
-    return Array.from(this.scores.entries()).map(([key, s]) => {
-      const [domain, complexity] = key.split(':');
-      return {
-        domain,
-        complexity,
-        wins: s.wins,
-        total: s.total,
-        passRate: s.total > 0 ? s.wins / s.total : 0,
-        avgScore: s.avgScore,
-      };
-    });
   }
 }

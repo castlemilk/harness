@@ -13,13 +13,13 @@ export interface WarmupResult {
  */
 export async function warmupProvider(config: ProviderConfig, model?: string): Promise<WarmupResult> {
   const baseUrl = (config.baseUrl ?? 'https://api.openai.com/v1').replace(/\/$/, '');
-  const testModel = model ?? config.defaultModel ?? 'unknown';
+  const testModel = model ?? config.defaultModel;
   const start = Date.now();
 
   try {
     // Try a lightweight models list as a connectivity check
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
+    const timeout = setTimeout(() => { controller.abort(); }, 15_000);
 
     const res = await fetch(`${baseUrl}/models`, {
       method: 'GET',
@@ -32,19 +32,20 @@ export async function warmupProvider(config: ProviderConfig, model?: string): Pr
     clearTimeout(timeout);
 
     if (!res.ok) {
-      const body = await res.text().catch(() => '');
+      const body: string = await res.text().catch(() => '');
       return {
         ok: false,
         latencyMs: Date.now() - start,
-        error: `${res.status}: ${body.slice(0, 200)}`,
+        error: `${String(res.status)}: ${body.slice(0, 200)}`,
       };
     }
 
-    const data = await res.json();
-    const modelCount = data?.data?.length ?? 0;
+    const data = await res.json() as { data?: { id: string }[] };
+    const modelCount = data.data?.length ?? 0;
 
     // Now do a minimal chat completion probe to verify the model works
-    const probeStart = Date.now();
+    // Kimi models require temperature=1, others work with 0
+    const probeTemp = config.kind === 'kimi' ? 1 : 0;
     const chatRes = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -55,23 +56,23 @@ export async function warmupProvider(config: ProviderConfig, model?: string): Pr
         model: testModel,
         messages: [{ role: 'user', content: 'ping' }],
         max_tokens: 1,
-        temperature: 0,
+        temperature: probeTemp,
       }),
     });
 
     if (!chatRes.ok) {
-      const body = await chatRes.text().catch(() => '');
+      const body: string = await chatRes.text().catch(() => '');
       return {
         ok: false,
         latencyMs: Date.now() - start,
-        error: `Chat probe failed: ${chatRes.status}: ${body.slice(0, 200)}`,
+        error: `Chat probe failed: ${String(chatRes.status)}: ${body.slice(0, 200)}`,
         modelCount,
       };
     }
 
     return {
       ok: true,
-      latencyMs: probeStart - start,
+      latencyMs: Date.now() - start,
       modelCount,
     };
   } catch (err) {

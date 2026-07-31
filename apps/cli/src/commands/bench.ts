@@ -248,11 +248,12 @@ const runCmd = new Command('run')
     }
 
     // Baseline comparison
-    if (opts.baseline) {
-      const text = await compareReports({ baseline: opts.baseline, candidate: reportFile });
-      console.log('\n' + text);
-      if (opts.failOnRegression) {
-        const baselineReport = JSON.parse(await import('node:fs/promises').then((fs) => fs.readFile(opts.baseline!, 'utf-8'))) as { passed: number; total: number };
+      if (opts.baseline) {
+        const baselinePath = opts.baseline;
+        const text = await compareReports({ baseline: baselinePath, candidate: reportFile });
+        console.log('\n' + text);
+        if (opts.failOnRegression) {
+          const baselineReport = JSON.parse(await import('node:fs/promises').then((fs) => fs.readFile(baselinePath, 'utf-8'))) as { passed: number; total: number };
         const baseRate = baselineReport.total > 0 ? baselineReport.passed / baselineReport.total : 0;
         const candRate = report.total > 0 ? report.passed / report.total : 0;
         if (candRate < baseRate) {
@@ -540,7 +541,7 @@ const consensusCmd = new Command('consensus')
             ? `winner: ${report.winner.provider}/${report.winner.model}`
             : 'no winner';
           console.log(
-            `  ${report.passed ? '✓' : '✗'} ${taskId} (${report.candidates.length} candidates, ${winner})`,
+            `  ${report.passed ? '✓' : '✗'} ${taskId} (${String(report.candidates.length)} candidates, ${winner})`,
           );
         },
       });
@@ -625,9 +626,7 @@ const strategyCmd = new Command('strategy')
         tasks = tasks.filter((t) => opts.taskId.includes(t.id));
       }
 
-      const strategies = opts.strategies.split(',').map((s) => s.trim()).filter(Boolean) as Array<
-        'default' | 'verify-before-finish' | 'research-first' | 'concise' | 'plan-then-execute'
-      >;
+      const strategies = opts.strategies.split(',').map((s) => s.trim()).filter(Boolean) as ('default' | 'verify-before-finish' | 'research-first' | 'concise' | 'plan-then-execute')[];
       const timeoutMs = Number(opts.timeout);
       const autoStrategies = opts.auto ?? false;
 
@@ -656,12 +655,12 @@ const strategyCmd = new Command('strategy')
       });
 
       console.log(
-        `\nUnion pass rate: ${result.summary.unionPassRate.toFixed(0)}% (${result.tasks.filter((r) => r.passed).length}/${result.tasks.length})`,
+        `\nUnion pass rate: ${result.summary.unionPassRate.toFixed(0)}% (${String(result.tasks.filter((r) => r.passed).length)}/${String(result.tasks.length)})`,
       );
       console.log(`\nPer-strategy pass rate:`);
       for (const [name, s] of Object.entries(result.summary.perStrategy)) {
         console.log(
-          `  ${name.padEnd(24)} ${s.passes}/${s.runs} (${(s.passRate * 100).toFixed(0)}%)  avg ${Math.round(s.avgDurationMs / 1000)}s`,
+          `  ${name.padEnd(24)} ${String(s.passes)}/${String(s.runs)} (${(s.passRate * 100).toFixed(0)}%)  avg ${String(Math.round(s.avgDurationMs / 1000))}s`,
         );
       }
       console.log(`\nWins by strategy:`, result.summary.winsByStrategy);
@@ -669,7 +668,7 @@ const strategyCmd = new Command('strategy')
       // Analyze failures from traces.
       const insights = analyseFailures(result.tasks);
       if (insights.length > 0) {
-        console.log(`\n--- Failure Analysis (${insights.length} tasks failed across all strategies) ---`);
+        console.log(`\n--- Failure Analysis (${String(insights.length)} tasks failed across all strategies) ---`);
         for (const insight of insights) {
           console.log(`\n  ${insight.taskName}:`);
           console.log(`    Reason: ${insight.reason}`);
@@ -773,10 +772,10 @@ const adversarialCmd = new Command('adversarial')
         return;
       }
 
-      const outputPath = opts.output ?? `${omegaReportsDir()}/adversarial-${opts.taskId}-${Date.now()}.json`;
+      const outputPath = opts.output ?? `${omegaReportsDir()}/adversarial-${opts.taskId}-${String(Date.now())}.json`;
       await saveAdversarialTasks(adversarialTasks, outputPath);
 
-      console.log(`\nGenerated ${adversarialTasks.length} adversarial tasks:`);
+      console.log(`\nGenerated ${String(adversarialTasks.length)} adversarial tasks:`);
       for (const task of adversarialTasks) {
         console.log(`  ${task.id}: ${task.title}`);
         console.log(`    Wrong fix: ${task.wrongFixHint}`);
@@ -968,7 +967,7 @@ const serverRunCmd = new Command('server-run')
       ? opts.models.split(',').map((m) => m.trim()).filter(Boolean).map((m) => {
           if (m.includes('/')) {
             const [provider, ...rest] = m.split('/');
-            return { provider: provider!, model: rest.join('/') };
+            return { provider: provider, model: rest.join('/') };
           }
           return { provider: 'external', model: m };
         })
@@ -1021,7 +1020,7 @@ const serverRunCmd = new Command('server-run')
     const decoder = new TextDecoder();
     let buffer = '';
 
-    while (true) {
+    for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
 
@@ -1059,7 +1058,7 @@ const serverRunCmd = new Command('server-run')
       };
       console.log(`\n=== Benchmark Complete ===`);
       console.log(`Status: ${final.status}`);
-      console.log(`Passed: ${final.passed}/${final.passed + final.failed + final.timeouts}`);
+      console.log(`Passed: ${String(final.passed)}/${String(final.passed + final.failed + final.timeouts)}`);
       console.log(`Duration: ${(final.totalDurationMs / 1000).toFixed(1)}s`);
       if (final.totalCostUsd != null) {
         console.log(`Cost: $${final.totalCostUsd.toFixed(2)}`);
@@ -1070,23 +1069,23 @@ const serverRunCmd = new Command('server-run')
 function handleServerRunEvent(type: string, data: Record<string, unknown>): void {
   switch (type) {
     case 'started':
-      console.log(`Run started for suite: ${data.suite as string ?? 'unknown'}`);
+      console.log(`Run started for suite: ${data.suite as string}`);
       break;
     case 'task-started':
-      console.log(`  → ${data.taskName as string ?? data.taskId as string} [${data.model as string ?? 'default'}]`);
+      console.log(`  → ${data.taskName as string} [${data.model as string}]`);
       break;
     case 'task-completed': {
       const symbol = data.passed ? '✓' : '✗';
       const dur = typeof data.durationMs === 'number' ? `${(data.durationMs / 1000).toFixed(1)}s` : '';
       const winner = typeof data.winnerModel === 'string' ? ` (winner: ${data.winnerModel})` : '';
       const variance = typeof data.variancePassRate === 'number' ? ` (${(data.variancePassRate * 100).toFixed(0)}% pass rate)` : '';
-      console.log(`  ${symbol} ${data.taskName as string ?? data.taskId as string} (${dur})${winner}${variance}`);
+      console.log(`  ${symbol} ${data.taskName as string} (${dur})${winner}${variance}`);
       break;
     }
     case 'completed': {
       const s = data.summary as { total: number; passed: number; failed: number; timeouts: number; totalDurationMs: number; winsByModel?: Record<string, number> } | undefined;
       if (s) {
-        console.log(`\n  Total: ${s.passed}/${s.total} passed (${(s.totalDurationMs / 1000).toFixed(1)}s)`);
+        console.log(`\n  Total: ${String(s.passed)}/${String(s.total)} passed (${(s.totalDurationMs / 1000).toFixed(1)}s)`);
         if (s.winsByModel && Object.keys(s.winsByModel).length > 0) {
           console.log(`  Wins by model:`, s.winsByModel);
         }
@@ -1094,7 +1093,7 @@ function handleServerRunEvent(type: string, data: Record<string, unknown>): void
       break;
     }
     case 'failed':
-      console.error(`  ✗ Run failed: ${data.error as string ?? 'unknown error'}`);
+      console.error(`  ✗ Run failed: ${data.error as string}`);
       break;
   }
 }

@@ -42,12 +42,12 @@ export function providerCompareRoutes(prisma: PrismaClient): Router {
     }>();
 
     for (const t of tasks) {
-      const key = `${t.provider}/${t.model}`;
+      const key = `${t.provider ?? ''}/${t.model ?? ''}`;
       let entry = stats.get(key);
       if (!entry) {
         entry = {
-          provider: t.provider!,
-          model: t.model!,
+          provider: t.provider ?? '',
+          model: t.model ?? '',
           total: 0,
           passed: 0,
           failed: 0,
@@ -69,7 +69,7 @@ export function providerCompareRoutes(prisma: PrismaClient): Router {
         entry.errors[key] = (entry.errors[key] ?? 0) + 1;
       }
 
-      if (!entry.byComplexity[t.complexity]) entry.byComplexity[t.complexity] = { total: 0, passed: 0 };
+      if (!(t.complexity in entry.byComplexity)) entry.byComplexity[t.complexity] = { total: 0, passed: 0 };
       entry.byComplexity[t.complexity].total++;
       if (t.status === 'done') entry.byComplexity[t.complexity].passed++;
     }
@@ -128,7 +128,7 @@ export function providerCompareRoutes(prisma: PrismaClient): Router {
     const daily: Record<string, { passed: number; failed: number }> = {};
     for (const t of tasks) {
       const day = t.createdAt.toISOString().slice(0, 10);
-      if (!daily[day]) daily[day] = { passed: 0, failed: 0 };
+      if (!(day in daily)) daily[day] = { passed: 0, failed: 0 };
       if (t.status === 'done') daily[day].passed++;
       else daily[day].failed++;
     }

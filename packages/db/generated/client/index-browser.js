@@ -291,6 +291,19 @@ exports.Prisma.BenchmarkRunScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.ProviderCircuitStateScalarFieldEnum = {
+  providerName: 'providerName',
+  state: 'state',
+  errorRate: 'errorRate',
+  lastFailureAt: 'lastFailureAt',
+  lastSuccessAt: 'lastSuccessAt',
+  cooldownUntil: 'cooldownUntil',
+  trialStartedAt: 'trialStartedAt',
+  trialRequestId: 'trialRequestId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -319,7 +332,8 @@ exports.Prisma.ModelName = {
   SkillArtifact: 'SkillArtifact',
   PromptVersion: 'PromptVersion',
   BenchmarkHistory: 'BenchmarkHistory',
-  BenchmarkRun: 'BenchmarkRun'
+  BenchmarkRun: 'BenchmarkRun',
+  ProviderCircuitState: 'ProviderCircuitState'
 };
 
 /**

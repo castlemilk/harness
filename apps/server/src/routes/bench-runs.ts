@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { EventEmitter } from 'node:events';
 import { startBenchRun, cancelRun, type BenchRunConfig } from '../lib/benchmark-runner.js';
 import { asyncHandler } from '../lib/async-handler.js';
+import { safeJsonParse } from '../lib/utils.js';
 
 const runSchema = z.object({
   suite: z.enum(['synthetic', 'fast', 'harder', 'harder-v2', 'hard-targeting', 'swebench-lite', 'deepswe']),
@@ -74,7 +75,7 @@ export function benchRunRoutes(prisma: PrismaClient): Router {
 
   // List all runs
   r.get('/', asyncHandler(async (req, res) => {
-    const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 20;
+    const limit = typeof req.query.limit === 'string' ? Math.min(parseInt(req.query.limit, 10) || 20, 100) : 20;
     const runs = await prisma.benchmarkRun.findMany({
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -108,8 +109,8 @@ export function benchRunRoutes(prisma: PrismaClient): Router {
     }
     res.json({
       ...run,
-      config: JSON.parse(run.config) as BenchRunConfig,
-      results: run.results ? JSON.parse(run.results) : null,
+      config: safeJsonParse<BenchRunConfig>(run.config, {} as BenchRunConfig),
+      results: safeJsonParse<unknown>(run.results, null),
     });
   }));
 
@@ -201,12 +202,12 @@ export function benchRunRoutes(prisma: PrismaClient): Router {
     req.on('close', close);
 
     // Also poll DB for updates (in case events are missed)
-    const poll = setInterval(async () => {
+    const poll = setInterval(() => {
       if (closed) return;
-      try {
-        const current = await prisma.benchmarkRun.findUnique({
-          where: { id: req.params.id },
-        });
+      prisma.benchmarkRun.findUnique({
+        where: { id: req.params.id },
+      }).then((current) => {
+        if (closed) return;
         if (current && (current.status === 'done' || current.status === 'failed' || current.status === 'cancelled')) {
           send('end', {
             status: current.status,
@@ -217,13 +218,13 @@ export function benchRunRoutes(prisma: PrismaClient): Router {
           });
           close();
         }
-      } catch {
+      }).catch(() => {
         // ignore poll errors
-      }
+      });
     }, 2000);
 
     // Clean up poll on close
-    req.on('close', () => clearInterval(poll));
+    req.on('close', () => { clearInterval(poll); });
   }));
 
   return r;

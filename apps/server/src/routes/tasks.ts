@@ -4,23 +4,24 @@ import { z } from 'zod';
 import { runTask } from '../lib/run-task.js';
 import { getNextStrategy, executeRetry, type RetryContext, type RetryRecord } from '../lib/retry-strategies.js';
 import { asyncHandler } from '../lib/async-handler.js';
+import { safeJsonParse } from '../lib/utils.js';
 
 const createSchema = z.object({
   projectId: z.string().uuid(),
-  title: z.string().min(1),
-  description: z.string().optional(),
+  title: z.string().min(1).max(500),
+  description: z.string().max(100_000).optional(),
   complexity: z.enum(['simple', 'medium', 'complex']).default('simple'),
-  tags: z.array(z.string()).default([]),
+  tags: z.array(z.string().max(200)).max(20).default([]),
 });
 
 const updateSchema = z.object({
   status: z.enum(['todo', 'in_progress', 'done', 'failed']).optional(),
-  title: z.string().min(1).optional(),
-  description: z.string().optional(),
+  title: z.string().min(1).max(500).optional(),
+  description: z.string().max(100_000).optional(),
   complexity: z.enum(['simple', 'medium', 'complex']).optional(),
-  tags: z.array(z.string()).optional(),
-  provider: z.string().optional(),
-  model: z.string().optional(),
+  tags: z.array(z.string().max(200)).max(20).optional(),
+  provider: z.string().max(100).optional(),
+  model: z.string().max(200).optional(),
 });
 
 const runSchema = z.object({
@@ -35,11 +36,18 @@ export function taskRoutes(prisma: PrismaClient): Router {
 
   r.get('/', asyncHandler(async (req, res) => {
     const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
-    const tasks = await prisma.task.findMany({
-      where: projectId ? { projectId } : undefined,
-      orderBy: { createdAt: 'desc' },
-    });
-    res.json(tasks);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 100, 1), 500);
+    const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+    const [tasks, total] = await Promise.all([
+      prisma.task.findMany({
+        where: projectId ? { projectId } : undefined,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.task.count({ where: projectId ? { projectId } : undefined }),
+    ]);
+    res.json({ tasks, total, limit, offset });
   }));
 
   r.get('/stream', asyncHandler(async (_req, res) => {
@@ -172,11 +180,12 @@ export function taskRoutes(prisma: PrismaClient): Router {
         for (const trace of newTraces) {
           if (seenTraces.has(trace.id)) continue;
           seenTraces.add(trace.id);
+          const toolCalls = safeJsonParse(trace.toolCalls, null);
           send('trace', {
             id: trace.id,
             role: trace.role,
             content: trace.content ?? undefined,
-            toolCalls: trace.toolCalls ? (JSON.parse(trace.toolCalls) as unknown) : undefined,
+            toolCalls,
             createdAt: trace.createdAt,
             stepId: trace.stepId ?? undefined,
           });
@@ -185,6 +194,8 @@ export function taskRoutes(prisma: PrismaClient): Router {
         for (const span of newSpans) {
           if (seenSpans.has(span.id)) continue;
           seenSpans.add(span.id);
+          const attributes = safeJsonParse(span.attributes, null);
+          const events = safeJsonParse(span.events, null);
           send('span', {
             id: span.id,
             name: span.name,
@@ -193,8 +204,8 @@ export function taskRoutes(prisma: PrismaClient): Router {
             startTime: span.startTime,
             endTime: span.endTime ?? undefined,
             status: span.status,
-            attributes: span.attributes ? (JSON.parse(span.attributes) as unknown) : undefined,
-            events: span.events ? (JSON.parse(span.events) as unknown) : undefined,
+            attributes,
+            events,
           });
         }
 
@@ -317,8 +328,8 @@ export function taskRoutes(prisma: PrismaClient): Router {
     if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
     if (task.status !== 'failed') { res.status(400).json({ error: 'Only failed tasks can be retried' }); return; }
 
-    const tags: string[] = task.tags ? (JSON.parse(task.tags) as string[]) : [];
-    const retryHistory = task.retryHistory ? (JSON.parse(task.retryHistory) as RetryRecord[]) : [];
+    const tags = safeJsonParse<string[]>(task.tags, []);
+    const retryHistory = safeJsonParse<RetryRecord[]>(task.retryHistory, []);
     const ctx: RetryContext = {
       task: {
         id: task.id,
@@ -362,7 +373,19 @@ export function taskRoutes(prisma: PrismaClient): Router {
   }));
 
   r.delete('/:id', asyncHandler(async (req, res) => {
-    await prisma.task.delete({ where: { id: req.params.id } });
+    // Atomic delete: only delete if not in_progress (prevents TOCTOU race)
+    const deleted = await prisma.task.deleteMany({
+      where: { id: req.params.id, status: { not: 'in_progress' } },
+    });
+    if (deleted.count === 0) {
+      const task = await prisma.task.findUnique({ where: { id: req.params.id } });
+      if (!task) {
+        res.status(404).json({ error: 'Task not found' });
+      } else {
+        res.status(409).json({ error: 'Cannot delete task in progress. Cancel it first.' });
+      }
+      return;
+    }
     res.status(204).send();
   }));
 
@@ -415,15 +438,20 @@ export function taskRoutes(prisma: PrismaClient): Router {
       byParent[parent].push(span);
     }
 
-    function buildTree(parentId: string | null): unknown[] {
+    function buildTree(parentId: string | null, depth = 0): unknown[] {
+      if (depth > 50) return []; // prevent infinite recursion from cyclic data
       const key = parentId ?? '__root__';
       const children = byParent[key] ?? [];
-      return children.map((s) => ({
-        ...s,
-        attributes: s.attributes ? (JSON.parse(s.attributes) as Record<string, unknown>) : undefined,
-        events: s.events ? (JSON.parse(s.events) as Record<string, unknown>) : undefined,
-        children: buildTree(s.spanId),
-      }));
+      return children.map((s) => {
+        const attributes = safeJsonParse(s.attributes, null);
+        const events = safeJsonParse(s.events, null);
+        return {
+          ...s,
+          attributes,
+          events,
+          children: buildTree(s.spanId, depth + 1),
+        };
+      });
     }
 
     res.json({
@@ -448,7 +476,7 @@ export function taskRoutes(prisma: PrismaClient): Router {
     const errors: { tool?: string; message: string; time: string }[] = [];
 
     for (const span of toolSpans) {
-      const attrs = span.attributes ? (JSON.parse(span.attributes) as Record<string, unknown>) : {};
+      const attrs = span.attributes ? safeJsonParse<Record<string, unknown>>(span.attributes, {}) : {};
       const toolName =
         span.name === 'agent.tool'
           ? typeof attrs.tool === 'string'
@@ -532,7 +560,7 @@ export function taskRoutes(prisma: PrismaClient): Router {
     }
 
     const body = replaySchema.parse(req.body);
-    const tags: string[] = original.tags ? (JSON.parse(original.tags) as string[]) : [];
+    const tags = safeJsonParse<string[]>(original.tags, []);
     const replayTags = [...tags.filter((t) => !t.startsWith('replay:')), `replay:of-${original.id.slice(0, 8)}`];
 
     // When overriding provider, use its default model unless model is also overridden
@@ -557,7 +585,7 @@ export function taskRoutes(prisma: PrismaClient): Router {
 
     // Run it immediately
     const { runTask } = await import('../lib/run-task.js');
-    const result = await runTask(prisma, newTask.id, { detached: false });
+    await runTask(prisma, newTask.id, { detached: false });
 
     // Fetch the final task state
     const finalTask = await prisma.task.findUnique({ where: { id: newTask.id } });

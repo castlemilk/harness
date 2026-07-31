@@ -2,10 +2,10 @@ import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import { z } from 'zod';
 import { selectProvider } from '@omega/router';
-import { StrategyLearner } from '@omega/router';
-import type { ProviderConfig as CoreProviderConfig, Task } from '@omega/core';
+import type { Task } from '@omega/core';
 import { asyncHandler } from '../lib/async-handler.js';
 import { getRouter } from '../lib/intelligent-router.js';
+import { toCoreConfig } from '../lib/utils.js';
 
 const selectSchema = z.object({
   title: z.string().min(1),
@@ -22,28 +22,6 @@ const intelligentSelectSchema = z.object({
   budgetUsd: z.number().positive().optional(),
   maxCandidates: z.number().int().min(1).max(5).default(3),
 });
-
-function toCoreConfig(row: {
-  id: string;
-  name: string;
-  kind: string;
-  baseUrl: string | null;
-  apiKey: string | null;
-  defaultModel: string;
-  capabilities: string;
-  enabled: boolean;
-}): CoreProviderConfig {
-  return {
-    id: row.id,
-    name: row.name,
-    kind: row.kind as CoreProviderConfig['kind'],
-    baseUrl: row.baseUrl ?? undefined,
-    apiKey: row.apiKey ?? undefined,
-    defaultModel: row.defaultModel,
-    capabilities: JSON.parse(row.capabilities) as CoreProviderConfig['capabilities'],
-    enabled: row.enabled,
-  };
-}
 
 export function routerRoutes(prisma: PrismaClient): Router {
   const r = Router();

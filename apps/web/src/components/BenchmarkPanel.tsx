@@ -750,7 +750,7 @@ interface ServerBenchRun {
 interface ServerBenchRunDetail extends ServerBenchRun {
   config: Record<string, unknown>;
   totalTokens: number;
-  results: Array<{
+  results: {
     taskName: string;
     harnessTaskId: string;
     passed: boolean;
@@ -759,7 +759,7 @@ interface ServerBenchRunDetail extends ServerBenchRun {
     winnerModel?: string;
     variancePassRate?: number;
     error?: string;
-  }> | null;
+  }[] | null;
 }
 
 function statusBadge(status: string): { label: string; cls: string } {
@@ -776,7 +776,6 @@ function statusBadge(status: string): { label: string; cls: string } {
 function ServerBenchRuns({ onError }: { onError: (msg: string) => void }) {
   const [runs, setRuns] = useState<ServerBenchRun[]>([]);
   const [selectedRun, setSelectedRun] = useState<ServerBenchRunDetail | null>(null);
-  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     suite: 'harder-v2',
     models: 'deepseek/deepseek-v4-pro',
@@ -786,6 +785,16 @@ function ServerBenchRuns({ onError }: { onError: (msg: string) => void }) {
   });
   const [starting, setStarting] = useState(false);
   const evtRef = useRef<EventSource | null>(null);
+
+  // Clean up EventSource on unmount
+  useEffect(() => {
+    return () => {
+      if (evtRef.current) {
+        evtRef.current.close();
+        evtRef.current = null;
+      }
+    };
+  }, []);
 
   const loadRuns = useCallback(async () => {
     try {
@@ -824,7 +833,7 @@ function ServerBenchRuns({ onError }: { onError: (msg: string) => void }) {
         ? form.models.split(',').map((m) => m.trim()).filter(Boolean).map((m) => {
             if (m.includes('/')) {
               const [provider, ...rest] = m.split('/');
-              return { provider: provider!, model: rest.join('/') };
+              return { provider: provider, model: rest.join('/') };
             }
             return { provider: 'external', model: m };
           })

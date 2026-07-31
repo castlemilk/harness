@@ -47,7 +47,7 @@ function mulberry32(seed: number): () => number {
 const CACHE_DIR = path.join(process.env.HOME ?? '~', '.omega', 'cache', 'swebench-repos');
 
 async function cloneRepo(repo: string, commit: string, targetPath: string): Promise<void> {
-  await fs.rm(targetPath, { recursive: true, force: true }).catch(() => {});
+  await fs.rm(targetPath, { recursive: true, force: true }).catch(() => undefined);
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
   const repoUrl = `https://github.com/${repo}.git`;
   const cacheName = `${repo.replace('/', '_')}.git`;
@@ -91,7 +91,7 @@ function parseTestIds(raw: string): string[] {
   if (!raw || raw.trim().length === 0) return [];
   let ids: string[];
   try {
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (Array.isArray(parsed)) ids = parsed.map(String);
     else return [];
   } catch {
@@ -99,7 +99,7 @@ function parseTestIds(raw: string): string[] {
   }
   // Convert SWE-bench format "test_name (module.Class)" to pytest format "path/to/file.py::Class::test_name"
   return ids.map((id) => {
-    const m = id.match(/^(\w+)\s*\(([^)]+)\)$/);
+    const m = /^(\w+)\s*\(([^)]+)\)$/.exec(id);
     if (m) {
       const [, testFunc, testClass] = m;
       // Convert module.Class to path/file.py::Class::testFunc
@@ -129,23 +129,23 @@ async function installPythonDeps(projectPath: string): Promise<string> {
   }
   if (!pythonCmd) throw new Error('No Python interpreter found');
 
-  await fs.rm(venvPath, { recursive: true, force: true }).catch(() => {});
+  await fs.rm(venvPath, { recursive: true, force: true }).catch(() => undefined);
   await runCommand(pythonCmd, ['-m', 'venv', venvPath], { cwd: projectPath, timeout: 120000 });
-  await runCommand(pipBin, ['install', '--upgrade', 'pip'], { cwd: projectPath, timeout: 120000 }).catch(() => {});
-  await runCommand(pipBin, ['install', 'setuptools'], { cwd: projectPath, timeout: 120000 }).catch(() => {});
+  await runCommand(pipBin, ['install', '--upgrade', 'pip'], { cwd: projectPath, timeout: 120000 }).catch(() => undefined);
+  await runCommand(pipBin, ['install', 'setuptools'], { cwd: projectPath, timeout: 120000 }).catch(() => undefined);
 
   if (await has('pyproject.toml') || await has('setup.py')) {
     const r = await runCommand(pipBin, ['install', '-e', '.'], { cwd: projectPath, timeout: 600000 });
     if (r.exitCode !== 0) {
       console.warn(`[swebench] pip install -e . failed: ${r.stderr.slice(-300)}`);
-      await runCommand(pipBin, ['install', '.'], { cwd: projectPath, timeout: 600000 }).catch(() => {});
+      await runCommand(pipBin, ['install', '.'], { cwd: projectPath, timeout: 600000 }).catch(() => undefined);
     }
   }
   if (await has('requirements.txt')) {
-    await runCommand(pipBin, ['install', '-r', 'requirements.txt'], { cwd: projectPath, timeout: 600000 }).catch(() => {});
+    await runCommand(pipBin, ['install', '-r', 'requirements.txt'], { cwd: projectPath, timeout: 600000 }).catch(() => undefined);
   }
 
-  await runCommand(pipBin, ['install', 'pytest'], { cwd: projectPath, timeout: 120000 }).catch(() => {});
+  await runCommand(pipBin, ['install', 'pytest'], { cwd: projectPath, timeout: 120000 }).catch(() => undefined);
 
   return pythonBin;
 }
@@ -160,7 +160,7 @@ async function findTestFile(projectPath: string, relativePath: string): Promise<
     try {
       await fs.access(path.join(projectPath, candidate));
       return candidate;
-    } catch {}
+    } catch { /* empty */ }
   }
   // Search for the file
   const fileName = path.basename(relativePath);
@@ -170,7 +170,7 @@ async function findTestFile(projectPath: string, relativePath: string): Promise<
       const first = result.stdout.trim().split('\n')[0];
       return path.relative(projectPath, first);
     }
-  } catch {}
+  } catch { /* empty */ }
   return null;
 }
 
@@ -208,9 +208,9 @@ async function runF2PTests(
   });
 
   const output = `${result.stdout}\n${result.stderr}`;
-  const passedMatch = output.match(/(\d+) passed/);
-  const failedMatch = output.match(/(\d+) failed/);
-  const errorMatch = output.match(/(\d+) error/);
+  const passedMatch = /(\d+) passed/.exec(output);
+  const failedMatch = /(\d+) failed/.exec(output);
+  const errorMatch = /(\d+) error/.exec(output);
   const passedCount = passedMatch ? parseInt(passedMatch[1]) : 0;
   const failedCount = (failedMatch ? parseInt(failedMatch[1]) : 0) + (errorMatch ? parseInt(errorMatch[1]) : 0);
 
@@ -291,15 +291,17 @@ SCOPE CONSTRAINT: Only edit source files directly related to the issue. Do NOT m
 
 export async function loadSWebenchLiteSuite(options: SWebenchOptions): Promise<BenchmarkTask[]> {
   const raw = await fs.readFile(options.datasetPath, 'utf-8');
-  const allTasks: SWebenchTask[] = JSON.parse(raw);
+  const allTasks = JSON.parse(raw) as SWebenchTask[];
 
   let tasks = allTasks;
 
   if (options.taskIds && options.taskIds.length > 0) {
-    tasks = tasks.filter((t) => options.taskIds!.includes(t.instance_id));
+    const ids = options.taskIds;
+    tasks = tasks.filter((t) => ids.includes(t.instance_id));
   }
   if (options.repos && options.repos.length > 0) {
-    tasks = tasks.filter((t) => options.repos!.includes(t.repo));
+    const repos = options.repos;
+    tasks = tasks.filter((t) => repos.includes(t.repo));
   }
   if (options.nTasks && options.nTasks > 0 && options.nTasks < tasks.length) {
     const seed = options.sampleSeed ?? 0;
@@ -328,13 +330,13 @@ export async function loadSWebenchLiteSuite(options: SWebenchOptions): Promise<B
       setup: async (projectPath: string) => {
         await cloneRepo(task.repo, task.base_commit, projectPath);
 
-        const pythonBin = await installPythonDeps(projectPath);
+        await installPythonDeps(projectPath);
 
         if (testPatch && testPatch.trim().length > 0) {
           const patchFile = path.join(projectPath, '.swebench-test-patch.patch');
           await fs.writeFile(patchFile, testPatch, 'utf-8');
-          await runCommand('git', ['-C', projectPath, 'apply', '--check', patchFile], { timeout: 30000 }).catch(() => {});
-          await runCommand('git', ['-C', projectPath, 'apply', patchFile], { timeout: 30000 }).catch(() => {});
+          await runCommand('git', ['-C', projectPath, 'apply', '--check', patchFile], { timeout: 30000 }).catch(() => undefined);
+          await runCommand('git', ['-C', projectPath, 'apply', patchFile], { timeout: 30000 }).catch(() => undefined);
           await fs.rm(patchFile, { force: true });
         }
 
@@ -352,7 +354,7 @@ export async function loadSWebenchLiteSuite(options: SWebenchOptions): Promise<B
         const venvPath = path.join(ctx.projectPath, '.venv');
         const pythonBin = path.join(venvPath, 'bin', 'python');
         let pythonExists = false;
-        try { await fs.access(pythonBin); pythonExists = true; } catch {}
+        try { await fs.access(pythonBin); pythonExists = true; } catch { /* empty */ }
 
         const finalPython = pythonExists ? pythonBin : 'python3';
 
@@ -365,8 +367,8 @@ export async function loadSWebenchLiteSuite(options: SWebenchOptions): Promise<B
           passed,
           score: passed ? 1 : f2pResult.passedCount / (f2pResult.passedCount + f2pResult.failedCount),
           message: passed
-            ? `SWE-bench verified: f2p ${f2pResult.passedCount}/${failToPass.length} passed, p2p ${p2pResult.passed ? 'ok' : 'fail'}`
-            : `SWE-bench failed: f2p ${f2pResult.passedCount}/${failToPass.length} passed (${f2pResult.failedCount} failed), p2p ${p2pResult.passed ? 'ok' : 'fail'}`,
+            ? `SWE-bench verified: f2p ${String(f2pResult.passedCount)}/${String(failToPass.length)} passed, p2p ${p2pResult.passed ? 'ok' : 'fail'}`
+            : `SWE-bench failed: f2p ${String(f2pResult.passedCount)}/${String(failToPass.length)} passed (${String(f2pResult.failedCount)} failed), p2p ${p2pResult.passed ? 'ok' : 'fail'}`,
           metrics: {
             f2p_passed: f2pResult.passedCount,
             f2p_failed: f2pResult.failedCount,

@@ -3,7 +3,7 @@ import { api } from '../lib/api.js';
 
 interface IntelligentDecision {
   primary: { provider: string; model: string; score: number; breakdown: Record<string, number> };
-  fallbacks: Array<{ provider: string; model: string; score: number; breakdown: Record<string, number> }>;
+  fallbacks: { provider: string; model: string; score: number; breakdown: Record<string, number> }[];
   classification: { complexity: string; domain: string; requiredCapabilities: string[]; estimatedTokens: number };
   strategy: string;
   reasoning: string;
@@ -24,7 +24,7 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
     <div className="flex items-center gap-2 text-[10px]">
       <span className="w-16 text-gray-500 truncate">{label}</span>
       <div className="flex-1 h-1.5 bg-gray-200 rounded overflow-hidden">
-        <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
+        <div className={`h-full ${color}`} style={{ width: `${String(pct)}%` }} />
       </div>
       <span className="w-6 text-right font-mono">{value.toFixed(1)}</span>
     </div>
@@ -48,12 +48,12 @@ function CandidateCard({
       </div>
       <div className="font-medium">{candidate.provider} / {candidate.model}</div>
       <div className="mt-1.5 space-y-0.5">
-        <ScoreBar label="capability" value={candidate.breakdown.capability ?? 0} />
-        <ScoreBar label="performance" value={candidate.breakdown.performance ?? 0} />
-        <ScoreBar label="cost" value={candidate.breakdown.cost ?? 0} />
-        <ScoreBar label="health" value={candidate.breakdown.health ?? 0} />
-        <ScoreBar label="budget" value={candidate.breakdown.budget ?? 0} />
-        <ScoreBar label="recency" value={candidate.breakdown.recency ?? 0} />
+        <ScoreBar label="capability" value={candidate.breakdown.capability} />
+        <ScoreBar label="performance" value={candidate.breakdown.performance} />
+        <ScoreBar label="cost" value={candidate.breakdown.cost} />
+        <ScoreBar label="health" value={candidate.breakdown.health} />
+        <ScoreBar label="budget" value={candidate.breakdown.budget} />
+        <ScoreBar label="recency" value={candidate.breakdown.recency} />
       </div>
     </div>
   );
@@ -68,7 +68,7 @@ export function RouterPanel() {
     strategy: 'balanced',
   });
   const [decision, setDecision] = useState<IntelligentDecision | null>(null);
-  const [ranking, setRanking] = useState<Array<{ provider: string; model: string; score: number; breakdown: Record<string, number> }>>([]);
+  const [ranking, setRanking] = useState<{ provider: string; model: string; score: number; breakdown: Record<string, number> }[]>([]);
   const [health, setHealth] = useState<Record<string, HealthInfo>>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -181,7 +181,7 @@ export function RouterPanel() {
             <div className="space-y-2">
               <div className="text-[10px] text-gray-500 uppercase tracking-wide">Fallbacks</div>
               {decision.fallbacks.map((f, i) => (
-                <CandidateCard key={`${f.provider}/${f.model}`} candidate={f} label={`#${i + 2}`} isPrimary={false} />
+                <CandidateCard key={`${f.provider}/${f.model}`} candidate={f} label={`#${String(i + 2)}`} isPrimary={false} />
               ))}
             </div>
           )}

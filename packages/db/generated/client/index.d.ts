@@ -73,6 +73,11 @@ export type BenchmarkHistory = $Result.DefaultSelection<Prisma.$BenchmarkHistory
  * 
  */
 export type BenchmarkRun = $Result.DefaultSelection<Prisma.$BenchmarkRunPayload>
+/**
+ * Model ProviderCircuitState
+ * 
+ */
+export type ProviderCircuitState = $Result.DefaultSelection<Prisma.$ProviderCircuitStatePayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -316,6 +321,16 @@ export class PrismaClient<
     * ```
     */
   get benchmarkRun(): Prisma.BenchmarkRunDelegate<ExtArgs>;
+
+  /**
+   * `prisma.providerCircuitState`: Exposes CRUD operations for the **ProviderCircuitState** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ProviderCircuitStates
+    * const providerCircuitStates = await prisma.providerCircuitState.findMany()
+    * ```
+    */
+  get providerCircuitState(): Prisma.ProviderCircuitStateDelegate<ExtArgs>;
 }
 
 export namespace Prisma {
@@ -768,7 +783,8 @@ export namespace Prisma {
     SkillArtifact: 'SkillArtifact',
     PromptVersion: 'PromptVersion',
     BenchmarkHistory: 'BenchmarkHistory',
-    BenchmarkRun: 'BenchmarkRun'
+    BenchmarkRun: 'BenchmarkRun',
+    ProviderCircuitState: 'ProviderCircuitState'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -784,7 +800,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "skillArtifact" | "promptVersion" | "benchmarkHistory" | "benchmarkRun"
+      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "skillArtifact" | "promptVersion" | "benchmarkHistory" | "benchmarkRun" | "providerCircuitState"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1625,6 +1641,76 @@ export namespace Prisma {
           count: {
             args: Prisma.BenchmarkRunCountArgs<ExtArgs>
             result: $Utils.Optional<BenchmarkRunCountAggregateOutputType> | number
+          }
+        }
+      }
+      ProviderCircuitState: {
+        payload: Prisma.$ProviderCircuitStatePayload<ExtArgs>
+        fields: Prisma.ProviderCircuitStateFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ProviderCircuitStateFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ProviderCircuitStateFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>
+          }
+          findFirst: {
+            args: Prisma.ProviderCircuitStateFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ProviderCircuitStateFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>
+          }
+          findMany: {
+            args: Prisma.ProviderCircuitStateFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>[]
+          }
+          create: {
+            args: Prisma.ProviderCircuitStateCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>
+          }
+          createMany: {
+            args: Prisma.ProviderCircuitStateCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ProviderCircuitStateCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>[]
+          }
+          delete: {
+            args: Prisma.ProviderCircuitStateDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>
+          }
+          update: {
+            args: Prisma.ProviderCircuitStateUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>
+          }
+          deleteMany: {
+            args: Prisma.ProviderCircuitStateDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ProviderCircuitStateUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.ProviderCircuitStateUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>
+          }
+          aggregate: {
+            args: Prisma.ProviderCircuitStateAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateProviderCircuitState>
+          }
+          groupBy: {
+            args: Prisma.ProviderCircuitStateGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ProviderCircuitStateGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ProviderCircuitStateCountArgs<ExtArgs>
+            result: $Utils.Optional<ProviderCircuitStateCountAggregateOutputType> | number
           }
         }
       }
@@ -14234,6 +14320,978 @@ export namespace Prisma {
 
 
   /**
+   * Model ProviderCircuitState
+   */
+
+  export type AggregateProviderCircuitState = {
+    _count: ProviderCircuitStateCountAggregateOutputType | null
+    _avg: ProviderCircuitStateAvgAggregateOutputType | null
+    _sum: ProviderCircuitStateSumAggregateOutputType | null
+    _min: ProviderCircuitStateMinAggregateOutputType | null
+    _max: ProviderCircuitStateMaxAggregateOutputType | null
+  }
+
+  export type ProviderCircuitStateAvgAggregateOutputType = {
+    errorRate: number | null
+  }
+
+  export type ProviderCircuitStateSumAggregateOutputType = {
+    errorRate: number | null
+  }
+
+  export type ProviderCircuitStateMinAggregateOutputType = {
+    providerName: string | null
+    state: string | null
+    errorRate: number | null
+    lastFailureAt: Date | null
+    lastSuccessAt: Date | null
+    cooldownUntil: Date | null
+    trialStartedAt: Date | null
+    trialRequestId: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ProviderCircuitStateMaxAggregateOutputType = {
+    providerName: string | null
+    state: string | null
+    errorRate: number | null
+    lastFailureAt: Date | null
+    lastSuccessAt: Date | null
+    cooldownUntil: Date | null
+    trialStartedAt: Date | null
+    trialRequestId: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ProviderCircuitStateCountAggregateOutputType = {
+    providerName: number
+    state: number
+    errorRate: number
+    lastFailureAt: number
+    lastSuccessAt: number
+    cooldownUntil: number
+    trialStartedAt: number
+    trialRequestId: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type ProviderCircuitStateAvgAggregateInputType = {
+    errorRate?: true
+  }
+
+  export type ProviderCircuitStateSumAggregateInputType = {
+    errorRate?: true
+  }
+
+  export type ProviderCircuitStateMinAggregateInputType = {
+    providerName?: true
+    state?: true
+    errorRate?: true
+    lastFailureAt?: true
+    lastSuccessAt?: true
+    cooldownUntil?: true
+    trialStartedAt?: true
+    trialRequestId?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ProviderCircuitStateMaxAggregateInputType = {
+    providerName?: true
+    state?: true
+    errorRate?: true
+    lastFailureAt?: true
+    lastSuccessAt?: true
+    cooldownUntil?: true
+    trialStartedAt?: true
+    trialRequestId?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ProviderCircuitStateCountAggregateInputType = {
+    providerName?: true
+    state?: true
+    errorRate?: true
+    lastFailureAt?: true
+    lastSuccessAt?: true
+    cooldownUntil?: true
+    trialStartedAt?: true
+    trialRequestId?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type ProviderCircuitStateAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ProviderCircuitState to aggregate.
+     */
+    where?: ProviderCircuitStateWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProviderCircuitStates to fetch.
+     */
+    orderBy?: ProviderCircuitStateOrderByWithRelationInput | ProviderCircuitStateOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ProviderCircuitStateWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProviderCircuitStates from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProviderCircuitStates.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ProviderCircuitStates
+    **/
+    _count?: true | ProviderCircuitStateCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: ProviderCircuitStateAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ProviderCircuitStateSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ProviderCircuitStateMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ProviderCircuitStateMaxAggregateInputType
+  }
+
+  export type GetProviderCircuitStateAggregateType<T extends ProviderCircuitStateAggregateArgs> = {
+        [P in keyof T & keyof AggregateProviderCircuitState]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateProviderCircuitState[P]>
+      : GetScalarType<T[P], AggregateProviderCircuitState[P]>
+  }
+
+
+
+
+  export type ProviderCircuitStateGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ProviderCircuitStateWhereInput
+    orderBy?: ProviderCircuitStateOrderByWithAggregationInput | ProviderCircuitStateOrderByWithAggregationInput[]
+    by: ProviderCircuitStateScalarFieldEnum[] | ProviderCircuitStateScalarFieldEnum
+    having?: ProviderCircuitStateScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ProviderCircuitStateCountAggregateInputType | true
+    _avg?: ProviderCircuitStateAvgAggregateInputType
+    _sum?: ProviderCircuitStateSumAggregateInputType
+    _min?: ProviderCircuitStateMinAggregateInputType
+    _max?: ProviderCircuitStateMaxAggregateInputType
+  }
+
+  export type ProviderCircuitStateGroupByOutputType = {
+    providerName: string
+    state: string
+    errorRate: number
+    lastFailureAt: Date | null
+    lastSuccessAt: Date | null
+    cooldownUntil: Date | null
+    trialStartedAt: Date | null
+    trialRequestId: string | null
+    createdAt: Date
+    updatedAt: Date
+    _count: ProviderCircuitStateCountAggregateOutputType | null
+    _avg: ProviderCircuitStateAvgAggregateOutputType | null
+    _sum: ProviderCircuitStateSumAggregateOutputType | null
+    _min: ProviderCircuitStateMinAggregateOutputType | null
+    _max: ProviderCircuitStateMaxAggregateOutputType | null
+  }
+
+  type GetProviderCircuitStateGroupByPayload<T extends ProviderCircuitStateGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ProviderCircuitStateGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ProviderCircuitStateGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ProviderCircuitStateGroupByOutputType[P]>
+            : GetScalarType<T[P], ProviderCircuitStateGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ProviderCircuitStateSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    providerName?: boolean
+    state?: boolean
+    errorRate?: boolean
+    lastFailureAt?: boolean
+    lastSuccessAt?: boolean
+    cooldownUntil?: boolean
+    trialStartedAt?: boolean
+    trialRequestId?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["providerCircuitState"]>
+
+  export type ProviderCircuitStateSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    providerName?: boolean
+    state?: boolean
+    errorRate?: boolean
+    lastFailureAt?: boolean
+    lastSuccessAt?: boolean
+    cooldownUntil?: boolean
+    trialStartedAt?: boolean
+    trialRequestId?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["providerCircuitState"]>
+
+  export type ProviderCircuitStateSelectScalar = {
+    providerName?: boolean
+    state?: boolean
+    errorRate?: boolean
+    lastFailureAt?: boolean
+    lastSuccessAt?: boolean
+    cooldownUntil?: boolean
+    trialStartedAt?: boolean
+    trialRequestId?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+
+  export type $ProviderCircuitStatePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ProviderCircuitState"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      providerName: string
+      state: string
+      errorRate: number
+      lastFailureAt: Date | null
+      lastSuccessAt: Date | null
+      cooldownUntil: Date | null
+      trialStartedAt: Date | null
+      trialRequestId: string | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["providerCircuitState"]>
+    composites: {}
+  }
+
+  type ProviderCircuitStateGetPayload<S extends boolean | null | undefined | ProviderCircuitStateDefaultArgs> = $Result.GetResult<Prisma.$ProviderCircuitStatePayload, S>
+
+  type ProviderCircuitStateCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<ProviderCircuitStateFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: ProviderCircuitStateCountAggregateInputType | true
+    }
+
+  export interface ProviderCircuitStateDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ProviderCircuitState'], meta: { name: 'ProviderCircuitState' } }
+    /**
+     * Find zero or one ProviderCircuitState that matches the filter.
+     * @param {ProviderCircuitStateFindUniqueArgs} args - Arguments to find a ProviderCircuitState
+     * @example
+     * // Get one ProviderCircuitState
+     * const providerCircuitState = await prisma.providerCircuitState.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ProviderCircuitStateFindUniqueArgs>(args: SelectSubset<T, ProviderCircuitStateFindUniqueArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one ProviderCircuitState that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {ProviderCircuitStateFindUniqueOrThrowArgs} args - Arguments to find a ProviderCircuitState
+     * @example
+     * // Get one ProviderCircuitState
+     * const providerCircuitState = await prisma.providerCircuitState.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ProviderCircuitStateFindUniqueOrThrowArgs>(args: SelectSubset<T, ProviderCircuitStateFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first ProviderCircuitState that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateFindFirstArgs} args - Arguments to find a ProviderCircuitState
+     * @example
+     * // Get one ProviderCircuitState
+     * const providerCircuitState = await prisma.providerCircuitState.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ProviderCircuitStateFindFirstArgs>(args?: SelectSubset<T, ProviderCircuitStateFindFirstArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first ProviderCircuitState that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateFindFirstOrThrowArgs} args - Arguments to find a ProviderCircuitState
+     * @example
+     * // Get one ProviderCircuitState
+     * const providerCircuitState = await prisma.providerCircuitState.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ProviderCircuitStateFindFirstOrThrowArgs>(args?: SelectSubset<T, ProviderCircuitStateFindFirstOrThrowArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more ProviderCircuitStates that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ProviderCircuitStates
+     * const providerCircuitStates = await prisma.providerCircuitState.findMany()
+     * 
+     * // Get first 10 ProviderCircuitStates
+     * const providerCircuitStates = await prisma.providerCircuitState.findMany({ take: 10 })
+     * 
+     * // Only select the `providerName`
+     * const providerCircuitStateWithProviderNameOnly = await prisma.providerCircuitState.findMany({ select: { providerName: true } })
+     * 
+     */
+    findMany<T extends ProviderCircuitStateFindManyArgs>(args?: SelectSubset<T, ProviderCircuitStateFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a ProviderCircuitState.
+     * @param {ProviderCircuitStateCreateArgs} args - Arguments to create a ProviderCircuitState.
+     * @example
+     * // Create one ProviderCircuitState
+     * const ProviderCircuitState = await prisma.providerCircuitState.create({
+     *   data: {
+     *     // ... data to create a ProviderCircuitState
+     *   }
+     * })
+     * 
+     */
+    create<T extends ProviderCircuitStateCreateArgs>(args: SelectSubset<T, ProviderCircuitStateCreateArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many ProviderCircuitStates.
+     * @param {ProviderCircuitStateCreateManyArgs} args - Arguments to create many ProviderCircuitStates.
+     * @example
+     * // Create many ProviderCircuitStates
+     * const providerCircuitState = await prisma.providerCircuitState.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ProviderCircuitStateCreateManyArgs>(args?: SelectSubset<T, ProviderCircuitStateCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ProviderCircuitStates and returns the data saved in the database.
+     * @param {ProviderCircuitStateCreateManyAndReturnArgs} args - Arguments to create many ProviderCircuitStates.
+     * @example
+     * // Create many ProviderCircuitStates
+     * const providerCircuitState = await prisma.providerCircuitState.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ProviderCircuitStates and only return the `providerName`
+     * const providerCircuitStateWithProviderNameOnly = await prisma.providerCircuitState.createManyAndReturn({ 
+     *   select: { providerName: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ProviderCircuitStateCreateManyAndReturnArgs>(args?: SelectSubset<T, ProviderCircuitStateCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a ProviderCircuitState.
+     * @param {ProviderCircuitStateDeleteArgs} args - Arguments to delete one ProviderCircuitState.
+     * @example
+     * // Delete one ProviderCircuitState
+     * const ProviderCircuitState = await prisma.providerCircuitState.delete({
+     *   where: {
+     *     // ... filter to delete one ProviderCircuitState
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ProviderCircuitStateDeleteArgs>(args: SelectSubset<T, ProviderCircuitStateDeleteArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one ProviderCircuitState.
+     * @param {ProviderCircuitStateUpdateArgs} args - Arguments to update one ProviderCircuitState.
+     * @example
+     * // Update one ProviderCircuitState
+     * const providerCircuitState = await prisma.providerCircuitState.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ProviderCircuitStateUpdateArgs>(args: SelectSubset<T, ProviderCircuitStateUpdateArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more ProviderCircuitStates.
+     * @param {ProviderCircuitStateDeleteManyArgs} args - Arguments to filter ProviderCircuitStates to delete.
+     * @example
+     * // Delete a few ProviderCircuitStates
+     * const { count } = await prisma.providerCircuitState.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ProviderCircuitStateDeleteManyArgs>(args?: SelectSubset<T, ProviderCircuitStateDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ProviderCircuitStates.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ProviderCircuitStates
+     * const providerCircuitState = await prisma.providerCircuitState.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ProviderCircuitStateUpdateManyArgs>(args: SelectSubset<T, ProviderCircuitStateUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one ProviderCircuitState.
+     * @param {ProviderCircuitStateUpsertArgs} args - Arguments to update or create a ProviderCircuitState.
+     * @example
+     * // Update or create a ProviderCircuitState
+     * const providerCircuitState = await prisma.providerCircuitState.upsert({
+     *   create: {
+     *     // ... data to create a ProviderCircuitState
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ProviderCircuitState we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ProviderCircuitStateUpsertArgs>(args: SelectSubset<T, ProviderCircuitStateUpsertArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of ProviderCircuitStates.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateCountArgs} args - Arguments to filter ProviderCircuitStates to count.
+     * @example
+     * // Count the number of ProviderCircuitStates
+     * const count = await prisma.providerCircuitState.count({
+     *   where: {
+     *     // ... the filter for the ProviderCircuitStates we want to count
+     *   }
+     * })
+    **/
+    count<T extends ProviderCircuitStateCountArgs>(
+      args?: Subset<T, ProviderCircuitStateCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ProviderCircuitStateCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ProviderCircuitState.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ProviderCircuitStateAggregateArgs>(args: Subset<T, ProviderCircuitStateAggregateArgs>): Prisma.PrismaPromise<GetProviderCircuitStateAggregateType<T>>
+
+    /**
+     * Group by ProviderCircuitState.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ProviderCircuitStateGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ProviderCircuitStateGroupByArgs['orderBy'] }
+        : { orderBy?: ProviderCircuitStateGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ProviderCircuitStateGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetProviderCircuitStateGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ProviderCircuitState model
+   */
+  readonly fields: ProviderCircuitStateFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ProviderCircuitState.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ProviderCircuitStateClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ProviderCircuitState model
+   */ 
+  interface ProviderCircuitStateFieldRefs {
+    readonly providerName: FieldRef<"ProviderCircuitState", 'String'>
+    readonly state: FieldRef<"ProviderCircuitState", 'String'>
+    readonly errorRate: FieldRef<"ProviderCircuitState", 'Float'>
+    readonly lastFailureAt: FieldRef<"ProviderCircuitState", 'DateTime'>
+    readonly lastSuccessAt: FieldRef<"ProviderCircuitState", 'DateTime'>
+    readonly cooldownUntil: FieldRef<"ProviderCircuitState", 'DateTime'>
+    readonly trialStartedAt: FieldRef<"ProviderCircuitState", 'DateTime'>
+    readonly trialRequestId: FieldRef<"ProviderCircuitState", 'String'>
+    readonly createdAt: FieldRef<"ProviderCircuitState", 'DateTime'>
+    readonly updatedAt: FieldRef<"ProviderCircuitState", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ProviderCircuitState findUnique
+   */
+  export type ProviderCircuitStateFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * Filter, which ProviderCircuitState to fetch.
+     */
+    where: ProviderCircuitStateWhereUniqueInput
+  }
+
+  /**
+   * ProviderCircuitState findUniqueOrThrow
+   */
+  export type ProviderCircuitStateFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * Filter, which ProviderCircuitState to fetch.
+     */
+    where: ProviderCircuitStateWhereUniqueInput
+  }
+
+  /**
+   * ProviderCircuitState findFirst
+   */
+  export type ProviderCircuitStateFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * Filter, which ProviderCircuitState to fetch.
+     */
+    where?: ProviderCircuitStateWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProviderCircuitStates to fetch.
+     */
+    orderBy?: ProviderCircuitStateOrderByWithRelationInput | ProviderCircuitStateOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ProviderCircuitStates.
+     */
+    cursor?: ProviderCircuitStateWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProviderCircuitStates from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProviderCircuitStates.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ProviderCircuitStates.
+     */
+    distinct?: ProviderCircuitStateScalarFieldEnum | ProviderCircuitStateScalarFieldEnum[]
+  }
+
+  /**
+   * ProviderCircuitState findFirstOrThrow
+   */
+  export type ProviderCircuitStateFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * Filter, which ProviderCircuitState to fetch.
+     */
+    where?: ProviderCircuitStateWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProviderCircuitStates to fetch.
+     */
+    orderBy?: ProviderCircuitStateOrderByWithRelationInput | ProviderCircuitStateOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ProviderCircuitStates.
+     */
+    cursor?: ProviderCircuitStateWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProviderCircuitStates from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProviderCircuitStates.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ProviderCircuitStates.
+     */
+    distinct?: ProviderCircuitStateScalarFieldEnum | ProviderCircuitStateScalarFieldEnum[]
+  }
+
+  /**
+   * ProviderCircuitState findMany
+   */
+  export type ProviderCircuitStateFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * Filter, which ProviderCircuitStates to fetch.
+     */
+    where?: ProviderCircuitStateWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProviderCircuitStates to fetch.
+     */
+    orderBy?: ProviderCircuitStateOrderByWithRelationInput | ProviderCircuitStateOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ProviderCircuitStates.
+     */
+    cursor?: ProviderCircuitStateWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProviderCircuitStates from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProviderCircuitStates.
+     */
+    skip?: number
+    distinct?: ProviderCircuitStateScalarFieldEnum | ProviderCircuitStateScalarFieldEnum[]
+  }
+
+  /**
+   * ProviderCircuitState create
+   */
+  export type ProviderCircuitStateCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * The data needed to create a ProviderCircuitState.
+     */
+    data: XOR<ProviderCircuitStateCreateInput, ProviderCircuitStateUncheckedCreateInput>
+  }
+
+  /**
+   * ProviderCircuitState createMany
+   */
+  export type ProviderCircuitStateCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ProviderCircuitStates.
+     */
+    data: ProviderCircuitStateCreateManyInput | ProviderCircuitStateCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ProviderCircuitState createManyAndReturn
+   */
+  export type ProviderCircuitStateCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many ProviderCircuitStates.
+     */
+    data: ProviderCircuitStateCreateManyInput | ProviderCircuitStateCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ProviderCircuitState update
+   */
+  export type ProviderCircuitStateUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * The data needed to update a ProviderCircuitState.
+     */
+    data: XOR<ProviderCircuitStateUpdateInput, ProviderCircuitStateUncheckedUpdateInput>
+    /**
+     * Choose, which ProviderCircuitState to update.
+     */
+    where: ProviderCircuitStateWhereUniqueInput
+  }
+
+  /**
+   * ProviderCircuitState updateMany
+   */
+  export type ProviderCircuitStateUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ProviderCircuitStates.
+     */
+    data: XOR<ProviderCircuitStateUpdateManyMutationInput, ProviderCircuitStateUncheckedUpdateManyInput>
+    /**
+     * Filter which ProviderCircuitStates to update
+     */
+    where?: ProviderCircuitStateWhereInput
+  }
+
+  /**
+   * ProviderCircuitState upsert
+   */
+  export type ProviderCircuitStateUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * The filter to search for the ProviderCircuitState to update in case it exists.
+     */
+    where: ProviderCircuitStateWhereUniqueInput
+    /**
+     * In case the ProviderCircuitState found by the `where` argument doesn't exist, create a new ProviderCircuitState with this data.
+     */
+    create: XOR<ProviderCircuitStateCreateInput, ProviderCircuitStateUncheckedCreateInput>
+    /**
+     * In case the ProviderCircuitState was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ProviderCircuitStateUpdateInput, ProviderCircuitStateUncheckedUpdateInput>
+  }
+
+  /**
+   * ProviderCircuitState delete
+   */
+  export type ProviderCircuitStateDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * Filter which ProviderCircuitState to delete.
+     */
+    where: ProviderCircuitStateWhereUniqueInput
+  }
+
+  /**
+   * ProviderCircuitState deleteMany
+   */
+  export type ProviderCircuitStateDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ProviderCircuitStates to delete
+     */
+    where?: ProviderCircuitStateWhereInput
+  }
+
+  /**
+   * ProviderCircuitState without action
+   */
+  export type ProviderCircuitStateDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -14450,6 +15508,22 @@ export namespace Prisma {
   };
 
   export type BenchmarkRunScalarFieldEnum = (typeof BenchmarkRunScalarFieldEnum)[keyof typeof BenchmarkRunScalarFieldEnum]
+
+
+  export const ProviderCircuitStateScalarFieldEnum: {
+    providerName: 'providerName',
+    state: 'state',
+    errorRate: 'errorRate',
+    lastFailureAt: 'lastFailureAt',
+    lastSuccessAt: 'lastSuccessAt',
+    cooldownUntil: 'cooldownUntil',
+    trialStartedAt: 'trialStartedAt',
+    trialRequestId: 'trialRequestId',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type ProviderCircuitStateScalarFieldEnum = (typeof ProviderCircuitStateScalarFieldEnum)[keyof typeof ProviderCircuitStateScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -15588,6 +16662,85 @@ export namespace Prisma {
     completedAt?: DateTimeNullableWithAggregatesFilter<"BenchmarkRun"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"BenchmarkRun"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"BenchmarkRun"> | Date | string
+  }
+
+  export type ProviderCircuitStateWhereInput = {
+    AND?: ProviderCircuitStateWhereInput | ProviderCircuitStateWhereInput[]
+    OR?: ProviderCircuitStateWhereInput[]
+    NOT?: ProviderCircuitStateWhereInput | ProviderCircuitStateWhereInput[]
+    providerName?: StringFilter<"ProviderCircuitState"> | string
+    state?: StringFilter<"ProviderCircuitState"> | string
+    errorRate?: FloatFilter<"ProviderCircuitState"> | number
+    lastFailureAt?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    lastSuccessAt?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    cooldownUntil?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    trialStartedAt?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    trialRequestId?: StringNullableFilter<"ProviderCircuitState"> | string | null
+    createdAt?: DateTimeFilter<"ProviderCircuitState"> | Date | string
+    updatedAt?: DateTimeFilter<"ProviderCircuitState"> | Date | string
+  }
+
+  export type ProviderCircuitStateOrderByWithRelationInput = {
+    providerName?: SortOrder
+    state?: SortOrder
+    errorRate?: SortOrder
+    lastFailureAt?: SortOrderInput | SortOrder
+    lastSuccessAt?: SortOrderInput | SortOrder
+    cooldownUntil?: SortOrderInput | SortOrder
+    trialStartedAt?: SortOrderInput | SortOrder
+    trialRequestId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ProviderCircuitStateWhereUniqueInput = Prisma.AtLeast<{
+    providerName?: string
+    AND?: ProviderCircuitStateWhereInput | ProviderCircuitStateWhereInput[]
+    OR?: ProviderCircuitStateWhereInput[]
+    NOT?: ProviderCircuitStateWhereInput | ProviderCircuitStateWhereInput[]
+    state?: StringFilter<"ProviderCircuitState"> | string
+    errorRate?: FloatFilter<"ProviderCircuitState"> | number
+    lastFailureAt?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    lastSuccessAt?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    cooldownUntil?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    trialStartedAt?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    trialRequestId?: StringNullableFilter<"ProviderCircuitState"> | string | null
+    createdAt?: DateTimeFilter<"ProviderCircuitState"> | Date | string
+    updatedAt?: DateTimeFilter<"ProviderCircuitState"> | Date | string
+  }, "providerName">
+
+  export type ProviderCircuitStateOrderByWithAggregationInput = {
+    providerName?: SortOrder
+    state?: SortOrder
+    errorRate?: SortOrder
+    lastFailureAt?: SortOrderInput | SortOrder
+    lastSuccessAt?: SortOrderInput | SortOrder
+    cooldownUntil?: SortOrderInput | SortOrder
+    trialStartedAt?: SortOrderInput | SortOrder
+    trialRequestId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: ProviderCircuitStateCountOrderByAggregateInput
+    _avg?: ProviderCircuitStateAvgOrderByAggregateInput
+    _max?: ProviderCircuitStateMaxOrderByAggregateInput
+    _min?: ProviderCircuitStateMinOrderByAggregateInput
+    _sum?: ProviderCircuitStateSumOrderByAggregateInput
+  }
+
+  export type ProviderCircuitStateScalarWhereWithAggregatesInput = {
+    AND?: ProviderCircuitStateScalarWhereWithAggregatesInput | ProviderCircuitStateScalarWhereWithAggregatesInput[]
+    OR?: ProviderCircuitStateScalarWhereWithAggregatesInput[]
+    NOT?: ProviderCircuitStateScalarWhereWithAggregatesInput | ProviderCircuitStateScalarWhereWithAggregatesInput[]
+    providerName?: StringWithAggregatesFilter<"ProviderCircuitState"> | string
+    state?: StringWithAggregatesFilter<"ProviderCircuitState"> | string
+    errorRate?: FloatWithAggregatesFilter<"ProviderCircuitState"> | number
+    lastFailureAt?: DateTimeNullableWithAggregatesFilter<"ProviderCircuitState"> | Date | string | null
+    lastSuccessAt?: DateTimeNullableWithAggregatesFilter<"ProviderCircuitState"> | Date | string | null
+    cooldownUntil?: DateTimeNullableWithAggregatesFilter<"ProviderCircuitState"> | Date | string | null
+    trialStartedAt?: DateTimeNullableWithAggregatesFilter<"ProviderCircuitState"> | Date | string | null
+    trialRequestId?: StringNullableWithAggregatesFilter<"ProviderCircuitState"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"ProviderCircuitState"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"ProviderCircuitState"> | Date | string
   }
 
   export type ProjectCreateInput = {
@@ -16794,6 +17947,97 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type ProviderCircuitStateCreateInput = {
+    providerName: string
+    state?: string
+    errorRate?: number
+    lastFailureAt?: Date | string | null
+    lastSuccessAt?: Date | string | null
+    cooldownUntil?: Date | string | null
+    trialStartedAt?: Date | string | null
+    trialRequestId?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ProviderCircuitStateUncheckedCreateInput = {
+    providerName: string
+    state?: string
+    errorRate?: number
+    lastFailureAt?: Date | string | null
+    lastSuccessAt?: Date | string | null
+    cooldownUntil?: Date | string | null
+    trialStartedAt?: Date | string | null
+    trialRequestId?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ProviderCircuitStateUpdateInput = {
+    providerName?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    errorRate?: FloatFieldUpdateOperationsInput | number
+    lastFailureAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastSuccessAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    cooldownUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialRequestId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProviderCircuitStateUncheckedUpdateInput = {
+    providerName?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    errorRate?: FloatFieldUpdateOperationsInput | number
+    lastFailureAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastSuccessAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    cooldownUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialRequestId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProviderCircuitStateCreateManyInput = {
+    providerName: string
+    state?: string
+    errorRate?: number
+    lastFailureAt?: Date | string | null
+    lastSuccessAt?: Date | string | null
+    cooldownUntil?: Date | string | null
+    trialStartedAt?: Date | string | null
+    trialRequestId?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ProviderCircuitStateUpdateManyMutationInput = {
+    providerName?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    errorRate?: FloatFieldUpdateOperationsInput | number
+    lastFailureAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastSuccessAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    cooldownUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialRequestId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProviderCircuitStateUncheckedUpdateManyInput = {
+    providerName?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    errorRate?: FloatFieldUpdateOperationsInput | number
+    lastFailureAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastSuccessAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    cooldownUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialRequestId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -17703,6 +18947,53 @@ export namespace Prisma {
     totalDurationMs?: SortOrder
     totalCostUsd?: SortOrder
     totalTokens?: SortOrder
+  }
+
+  export type ProviderCircuitStateCountOrderByAggregateInput = {
+    providerName?: SortOrder
+    state?: SortOrder
+    errorRate?: SortOrder
+    lastFailureAt?: SortOrder
+    lastSuccessAt?: SortOrder
+    cooldownUntil?: SortOrder
+    trialStartedAt?: SortOrder
+    trialRequestId?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ProviderCircuitStateAvgOrderByAggregateInput = {
+    errorRate?: SortOrder
+  }
+
+  export type ProviderCircuitStateMaxOrderByAggregateInput = {
+    providerName?: SortOrder
+    state?: SortOrder
+    errorRate?: SortOrder
+    lastFailureAt?: SortOrder
+    lastSuccessAt?: SortOrder
+    cooldownUntil?: SortOrder
+    trialStartedAt?: SortOrder
+    trialRequestId?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ProviderCircuitStateMinOrderByAggregateInput = {
+    providerName?: SortOrder
+    state?: SortOrder
+    errorRate?: SortOrder
+    lastFailureAt?: SortOrder
+    lastSuccessAt?: SortOrder
+    cooldownUntil?: SortOrder
+    trialStartedAt?: SortOrder
+    trialRequestId?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ProviderCircuitStateSumOrderByAggregateInput = {
+    errorRate?: SortOrder
   }
 
   export type TaskCreateNestedManyWithoutProjectInput = {
@@ -19999,6 +21290,10 @@ export namespace Prisma {
      * @deprecated Use BenchmarkRunDefaultArgs instead
      */
     export type BenchmarkRunArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = BenchmarkRunDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use ProviderCircuitStateDefaultArgs instead
+     */
+    export type ProviderCircuitStateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ProviderCircuitStateDefaultArgs<ExtArgs>
 
   /**
    * Batch Payload for updateMany & deleteMany & createMany

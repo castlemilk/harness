@@ -1,5 +1,5 @@
 import type { ProviderConfig, Task } from '@omega/core';
-import { selectProvider, type RoutingRule } from './rules.js';
+import { type RoutingRule } from './rules.js';
 
 export interface HistoricalScore {
   provider: string;
@@ -24,14 +24,14 @@ function costPerPass(passRate: number, avgCostUsd: number): number {
 }
 
 export async function getHistoricalScores(
-  queryFn: () => Promise<Array<{
+  queryFn: () => Promise<{
     resultStatus: string;
     costUsd: number | null;
     createdAt: Date;
     updatedAt: Date;
     provider: string | null;
     model: string | null;
-  }>>,
+  }[]>,
 ): Promise<Map<string, HistoricalScore>> {
   const runs = await queryFn();
 
@@ -54,8 +54,8 @@ export async function getHistoricalScores(
   for (const [key, data] of scoreMap) {
     const [provider, model] = key.split('/');
     result.set(key, {
-      provider: provider!,
-      model: model!,
+      provider: provider,
+      model: model,
       runs: data.total,
       passes: data.passes,
       passRate: data.total > 0 ? data.passes / data.total : 0,

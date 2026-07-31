@@ -7,8 +7,7 @@ import { prisma, applyMigrations, seedDefaults } from '@omega/db';
 import { seedSkills } from './seed-skills.js';
 import { startGrpcServer } from './grpc.js';
 import { queue } from './lib/task-queue.js';
-import { getRouter } from './lib/intelligent-router.js';
-import { saveRouterState } from '@omega/router';
+import { getRouter, shutdownRouter } from './lib/intelligent-router.js';
 import { checkThresholds } from './lib/webhook-alerts.js';
 
 // Load .env before any provider/database config is read.
@@ -34,7 +33,17 @@ async function bootstrap(): Promise<void> {
   await seedDefaults();
   await seedSkills();
 
-  console.log(`Task queue concurrency: ${queue.status().maxConcurrency}`);
+  // Recover orphaned tasks stuck in_progress from a previous crash
+  const staleThreshold = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes
+  const orphaned = await prisma.task.updateMany({
+    where: { status: 'in_progress', updatedAt: { lt: staleThreshold } },
+    data: { status: 'failed', error: 'Orphaned: server restarted while task was in progress' },
+  });
+  if (orphaned.count > 0) {
+    console.log(`Recovered ${String(orphaned.count)} orphaned in_progress task(s)`);
+  }
+
+  console.log(`Task queue concurrency: ${String(queue.status().maxConcurrency)}`);
 
   app.use(express.static(WEB_DIST_DIR));
   app.get('*', (_req, res) => {
@@ -46,23 +55,30 @@ async function bootstrap(): Promise<void> {
     console.log(`Serving web UI from ${WEB_DIST_DIR}`);
   });
 
-  startGrpcServer(prisma, GRPC_PORT, HOST);
+  const grpcServer = startGrpcServer(prisma, GRPC_PORT, HOST);
 
-  // Periodic router state persistence + threshold alerting
+  // Initialize router (handles its own periodic persistence)
   const router = await getRouter(prisma);
-  const periodicInterval = setInterval(() => {
-    void saveRouterState(router);
+
+  // Periodic threshold alerting (separate from router persistence)
+  const alertInterval = setInterval(() => {
     void checkThresholds(prisma, router);
   }, 5 * 60 * 1000);
 
   const shutdown = async (signal: string): Promise<void> => {
     console.log(`${signal} received, shutting down…`);
-    clearInterval(periodicInterval);
-    await saveRouterState(router);
-    const status = queue.status();
-    console.log(`Queue: ${status.active} active, ${status.queued} queued`);
+    clearInterval(alertInterval);
 
+    const status = queue.status();
+    console.log(`Queue: ${String(status.active)} active, ${String(status.queued)} queued`);
+
+    // Shutdown router (persists state, clears intervals)
+    await shutdownRouter();
+
+    // Close servers
     server.close();
+    grpcServer.forceShutdown();
+
     await queue.drain();
 
     console.log('Queue drained, closing database');

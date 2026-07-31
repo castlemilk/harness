@@ -38,8 +38,8 @@ export function TaskBoard({ projectId }: Props) {
   async function load() {
     if (!projectId) return;
     setLoading(true);
-    const data = await api.getTasks(projectId);
-    setTasks(data);
+    const { tasks } = await api.getTasks(projectId);
+    setTasks(tasks);
     setLoading(false);
   }
 

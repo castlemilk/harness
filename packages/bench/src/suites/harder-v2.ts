@@ -14,14 +14,17 @@ const execFileAsync = promisify(execFile);
 function runNode(cwd: string, file: string): Promise<{ ok: boolean; output: string }> {
   return execFileAsync('node', [file], { cwd, timeout: 10000 })
     .then(({ stdout, stderr }) => ({ ok: true, output: stdout + '\n' + stderr }))
-    .catch((e: any) => ({ ok: false, output: (e.stdout || '') + '\n' + (e.stderr || '') }));
+    .catch((e: unknown) => {
+      const err = e as { stdout?: string; stderr?: string };
+      return { ok: false, output: `${err.stdout ?? ''}\n${err.stderr ?? ''}` };
+    });
 }
 
 function harderV2Task(
   id: string,
   title: string,
   description: string,
-  files: Array<[string, string]>,
+  files: [string, string][],
   testFn: (ctx: EvaluationContext) => Promise<BenchmarkEvaluation> | BenchmarkEvaluation
 ) {
   return task({

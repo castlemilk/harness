@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
+import { writeFileSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
-import { EventEmitter } from 'node:events';
+import type { EventEmitter } from 'node:events';
 import { execSync, execFileSync } from 'node:child_process';
 import { omegaWorkDir } from '@omega/core';
 import type { PrismaClient } from '@omega/db';
@@ -10,7 +11,7 @@ import { runTask } from './run-task.js';
 
 export interface BenchRunConfig {
   suite: string;
-  models?: Array<{ provider: string; model: string }>;
+  models?: { provider: string; model: string }[];
   strategy?: 'single' | 'consensus' | 'variance';
   concurrency?: number;
   timeoutMs?: number;
@@ -92,7 +93,7 @@ function resetToCommit(repoPath: string, commit: string): void {
 function tryGitApply(repoPath: string, patch: string): boolean {
   const tmp = path.join(repoPath, '.bench-apply.patch');
   try {
-    require('node:fs').writeFileSync(tmp, patch.endsWith('\n') ? patch : `${patch}\n`);
+    writeFileSync(tmp, patch.endsWith('\n') ? patch : `${patch}\n`);
     try {
       execFileSync('git', ['apply', '--whitespace=nowarn', tmp], { cwd: repoPath, stdio: 'ignore' });
       return true;
@@ -105,7 +106,7 @@ function tryGitApply(repoPath: string, patch: string): boolean {
       }
     }
   } finally {
-    try { require('node:fs').unlinkSync(tmp); } catch { /* ignore */ }
+    try { unlinkSync(tmp); } catch { /* ignore */ }
   }
 }
 
@@ -154,7 +155,8 @@ async function loadSuite(
     }
 
     if (options.taskIds && options.taskIds.length > 0) {
-      tasks = tasks.filter((t) => options.taskIds!.includes(t.id));
+      const ids = options.taskIds;
+      tasks = tasks.filter((t) => ids.includes(t.id));
     }
     if (options.nTasks && options.nTasks > 0) {
       tasks = tasks.slice(0, options.nTasks);
@@ -168,9 +170,7 @@ async function loadSuite(
 
 async function ensureProject(prisma: PrismaClient, name: string, projectPath: string): Promise<string> {
   let project = await prisma.project.findFirst({ where: { path: projectPath } });
-  if (!project) {
-    project = await prisma.project.create({ data: { name, path: projectPath } });
-  }
+  project ??= await prisma.project.create({ data: { name, path: projectPath } });
   return project.id;
 }
 
@@ -187,7 +187,7 @@ async function createHarnessTask(
       title: task.title,
       description: task.description,
       complexity: task.complexity ?? 'simple',
-      tags: JSON.stringify(['benchmark', ...tags, task.name, ...(task.tags ?? [])]),
+      tags: JSON.stringify(['benchmark', 'agent', ...tags, task.name, ...(task.tags ?? [])]),
     },
   });
   if (model) {
@@ -268,7 +268,7 @@ async function runSingleTask(
   const modelUsed = model ? `${model.provider}/${model.model}` : undefined;
 
   await runTask(prisma, harnessTaskId, { tokenBudget });
-  const finished = await waitForTaskCompletion(prisma, harnessTaskId, timeoutMs, signal);
+  await waitForTaskCompletion(prisma, harnessTaskId, timeoutMs, signal);
 
   const agentRun = await getAgentRunData(prisma, harnessTaskId);
   const diffs = await getTaskDiffs(prisma, harnessTaskId);
@@ -291,7 +291,7 @@ async function runConsensusTask(
   task: BenchmarkTask,
   projectPath: string,
   projectPrefix: string,
-  models: Array<{ provider: string; model: string }>,
+  models: { provider: string; model: string }[],
   timeoutMs: number,
   tokenBudget: number | undefined,
   signal: AbortSignal,
@@ -314,7 +314,7 @@ async function runConsensusTask(
     const finished = await waitForTaskCompletion(prisma, harnessTaskId, timeoutMs, signal);
     const agentRun = await getAgentRunData(prisma, harnessTaskId);
     const diffs = await getTaskDiffs(prisma, harnessTaskId);
-    const patch = diffs.find((d) => d.patch?.length > 0)?.patch;
+    const patch = diffs.find((d) => d.patch.length > 0)?.patch;
     return {
       model,
       harnessTaskId,
@@ -406,7 +406,7 @@ async function runVarianceTask(
 
   for (let run = 0; run < nRuns; run++) {
     if (signal.aborted) break;
-    const runProjectPath = path.join(projectPath, `run-${run}`);
+    const runProjectPath = path.join(projectPath, `run-${String(run)}`);
     await fs.mkdir(runProjectPath, { recursive: true });
     // Copy the base project files by using the task's setup function again
     if (task.setup) await task.setup(runProjectPath);
@@ -423,7 +423,7 @@ async function runVarianceTask(
 
   return {
     harnessTaskId: lastHarnessTaskId,
-    evaluation: { passed: passRate >= 0.5, message: `${passes}/${nRuns} passed (${(passRate * 100).toFixed(0)}%)`, metrics: { passRate, passes, nRuns } },
+    evaluation: { passed: passRate >= 0.5, message: `${String(passes)}/${String(nRuns)} passed (${(passRate * 100).toFixed(0)}%)`, metrics: { passRate, passes, nRuns } },
     durationMs: Date.now() - start,
     model: modelUsed,
     variancePassRate: passRate,
@@ -477,7 +477,7 @@ export async function startBenchRun(
     let totalCostUsd = 0;
     let totalTokens = 0;
     const winsByModel: Record<string, number> = {};
-    const results: Array<{
+    const results: {
       taskName: string;
       harnessTaskId: string;
       passed: boolean;
@@ -486,18 +486,18 @@ export async function startBenchRun(
       winnerModel?: string;
       variancePassRate?: number;
       error?: string;
-    }> = [];
+    }[] = [];
 
     // Concurrency pool — run up to `concurrency` tasks in parallel
     const concurrency = config.concurrency ?? 1;
     let running = 0;
     let taskIdx = 0;
-    let resolveAll: () => void;
+    let resolveAll: (() => void) | undefined;
     const allDone = new Promise<void>((r) => { resolveAll = r; });
 
     const launchNext = () => {
       if (abortController.signal.aborted || taskIdx >= tasks.length) {
-        if (running === 0) resolveAll!();
+        if (running === 0) resolveAll?.();
         return;
       }
       const idx = taskIdx++;

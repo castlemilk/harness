@@ -4,6 +4,8 @@ export { selectProviderWithHistory, getHistoricalScores, type HistoricalScore, t
 export {
   IntelligentRouter,
   StrategyLearner,
+  ProviderHealthRegistry,
+  PerformanceCache,
   classifyTask,
   saveRouterState,
   loadRouterState,

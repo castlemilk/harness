@@ -25,7 +25,7 @@ function scoreBg(score: number): string {
 
 function formatLatency(ms: number): string {
   if (ms === 0) return '—';
-  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 1000) return `${String(Math.round(ms))}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
@@ -34,7 +34,7 @@ export default function ProviderHealthPanel() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getProviderHealth().then(setEntries).catch(console.error).finally(() => setLoading(false));
+    api.getProviderHealth().then(setEntries).catch(console.error).finally(() => { setLoading(false); });
   }, []);
 
   if (loading) return <div className="text-neutral-500 text-xs p-4">Loading provider health...</div>;

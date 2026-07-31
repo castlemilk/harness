@@ -1,4 +1,7 @@
 import type { PrismaClient } from '@omega/db';
+import { isCredentialError } from './utils.js';
+
+export { isCredentialError };
 
 // ─── Alert Types ────────────────────────────────────────────────────────────
 
@@ -64,7 +67,7 @@ const thresholdRules: ThresholdRule[] = [
           provider: m.provider,
           event: 'error_rate_threshold',
           severity: 'critical',
-          message: `Provider ${m.provider} error rate at ${Math.round(m.errorRate * 100)}% (${m.recentCalls} recent calls)`,
+          message: `Provider ${m.provider} error rate at ${String(Math.round(m.errorRate * 100))}% (${String(m.recentCalls)} recent calls)`,
           metrics: { errorRate: m.errorRate, recentCalls: m.recentCalls },
           timestamp: new Date().toISOString(),
         };
@@ -80,7 +83,7 @@ const thresholdRules: ThresholdRule[] = [
           provider: m.provider,
           event: 'rate_limit_surge',
           severity: 'warning',
-          message: `Provider ${m.provider} rate-limited ${Math.round(m.rateLimitRate * 100)}% of requests`,
+          message: `Provider ${m.provider} rate-limited ${String(Math.round(m.rateLimitRate * 100))}% of requests`,
           metrics: { rateLimitRate: m.rateLimitRate, recentCalls: m.recentCalls },
           timestamp: new Date().toISOString(),
         };
@@ -96,7 +99,7 @@ const thresholdRules: ThresholdRule[] = [
           provider: m.provider,
           event: 'latency_degradation',
           severity: 'warning',
-          message: `Provider ${m.provider} P95 latency at ${Math.round(m.latencyP95 / 1000)}s`,
+          message: `Provider ${m.provider} P95 latency at ${String(Math.round(m.latencyP95 / 1000))}s`,
           metrics: { latencyP50: m.latencyP50, latencyP95: m.latencyP95, recentCalls: m.recentCalls },
           timestamp: new Date().toISOString(),
         };
@@ -129,7 +132,7 @@ async function postWebhook(event: string, payload: Record<string, unknown>): Pro
           signal: AbortSignal.timeout(10_000),
         });
         if (!res.ok) {
-          console.warn(`Webhook ${url} returned ${res.status}`);
+          console.warn(`Webhook ${url} returned ${String(res.status)}`);
         }
       } catch (err) {
         console.warn(`Webhook ${url} failed:`, err instanceof Error ? err.message : err);
@@ -143,7 +146,7 @@ async function postWebhook(event: string, payload: Record<string, unknown>): Pro
 export async function notifyFailure(prisma: PrismaClient, alert: FailureAlert): Promise<void> {
   const severity = alert.severity ?? classifySeverity(alert.error);
   console.error(`[${severity.toUpperCase()}] Task ${alert.taskId} failed: ${alert.error.slice(0, 200)}`);
-  void postWebhook('task.failed', {
+  await postWebhook('task.failed', {
     severity,
     task: {
       id: alert.taskId,
@@ -162,8 +165,8 @@ export async function notifyQueueDrained(
   stats: { active: number; queued: number; completed: number; failed: number },
 ): Promise<void> {
   if (stats.failed === 0) return;
-  console.warn(`Queue drained: ${stats.failed} failed, ${stats.completed} completed`);
-  void postWebhook('queue.drained', {
+  console.warn(`Queue drained: ${String(stats.failed)} failed, ${String(stats.completed)} completed`);
+  await postWebhook('queue.drained', {
     stats,
     timestamp: new Date().toISOString(),
   });
@@ -174,7 +177,7 @@ export async function notifyProviderHealth(
   alert: ProviderHealthAlert,
 ): Promise<void> {
   console.warn(`[${alert.severity.toUpperCase()}] ${alert.message}`);
-  void postWebhook('provider.health', {
+  await postWebhook('provider.health', {
     severity: alert.severity,
     provider: alert.provider,
     event: alert.event,
@@ -190,7 +193,7 @@ export async function notifyProviderHealth(
  */
 export async function checkThresholds(
   prisma: PrismaClient,
-  router?: { health: { getEntries(): Array<{ provider: string; errorRate: number; rateLimitRate: number; latencyP50: number; latencyP95: number; recentCalls: number; circuitState: string }> } },
+  router?: { health: { getEntries(): { provider: string; errorRate: number; rateLimitRate: number; latencyP50: number; latencyP95: number; recentCalls: number; circuitState: string }[] } },
 ): Promise<void> {
   if (!router) return;
   const entries = router.health.getEntries();
@@ -206,20 +209,8 @@ export async function checkThresholds(
     for (const rule of thresholdRules) {
       const alert = rule.check(snapshot);
       if (alert) {
-        void notifyProviderHealth(prisma, alert);
+        await notifyProviderHealth(prisma, alert);
       }
     }
   }
-}
-
-/**
- * Detects credential-specific failures by checking error messages
- * against known authentication and authorization patterns.
- */
-export function isCredentialError(error: string): boolean {
-  const lower = error.toLowerCase();
-  return lower.includes('401') || lower.includes('403') ||
-    lower.includes('authentication') || lower.includes('unauthorized') ||
-    lower.includes('invalid api key') || lower.includes('login fail') ||
-    lower.includes('no api-key') || lower.includes('invalid_authentication');
 }

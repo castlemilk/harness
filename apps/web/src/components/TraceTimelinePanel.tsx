@@ -28,10 +28,13 @@ type Trace = Awaited<ReturnType<typeof api.getTraces>>[number];
 export default function TraceTimelinePanel() {
   const [traces, setTraces] = useState<Trace[]>([]);
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    api.getTraces(30).then(setTraces).catch(() => {});
+    api.getTraces(30).then(setTraces).catch((err: unknown) => { setError(err instanceof Error ? err.message : 'Failed to load traces'); });
   }, []);
 
+  if (error) return <div className="p-6 text-sm text-red-500">{error}</div>;
   if (traces.length === 0) return <div className="p-6 text-sm text-gray-400">No traces recorded yet</div>;
 
   return (

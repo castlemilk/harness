@@ -15,7 +15,6 @@
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
-import { omegaWorkDir } from '@omega/core';
 import type { BenchmarkTask, BenchmarkEvaluation, EvaluationContext } from './types.js';
 
 /** Load .env file if not already loaded. */
@@ -30,7 +29,7 @@ function loadEnvFile(): void {
       if (eqIdx < 0) continue;
       const key = trimmed.slice(0, eqIdx).trim();
       const val = trimmed.slice(eqIdx + 1).trim();
-      if (!process.env[key]) process.env[key] = val;
+      process.env[key] ??= val;
     }
   } catch { /* no .env file */ }
 }
@@ -92,7 +91,7 @@ the visible tests. For each wrong fix:
 3. Explain why it's wrong (violates the spec, breaks edge cases, etc.)
 4. Write a test case that would catch this wrong fix
 
-Generate ${3} different adversarial scenarios. For each, provide:
+Generate 3 different adversarial scenarios. For each, provide:
 - WRONG FIX: <description>
 - PASSES BECAUSE: <why visible tests pass>
 - ACTUALLY WRONG: <why it's incorrect>
@@ -136,13 +135,13 @@ async function askModel(
   });
 
   if (!response.ok) {
-    throw new Error(`Model request failed: ${response.status} ${await response.text()}`);
+    throw new Error(`Model request failed: ${String(response.status)} ${await response.text()}`);
   }
 
-  const data = await response.json() as { choices?: Array<{ message?: { content?: string; reasoning_content?: string } }> };
+  const data = await response.json() as { choices?: { message?: { content?: string; reasoning_content?: string } }[] };
   // Some models (e.g. DeepSeek) put the answer in reasoning_content with empty content.
   const msg = data.choices?.[0]?.message;
-  return msg?.content || msg?.reasoning_content || '';
+  return msg?.content ?? msg?.reasoning_content ?? '';
 }
 
 function parseAdversarialResponse(
@@ -166,9 +165,9 @@ function parseAdversarialResponse(
     if (!wrongFix || !adversarialTest) continue;
 
     tasks.push({
-      id: `${baseTask.id}-adversarial-${i}`,
-      name: `${baseTask.name}-adversarial-${i}`,
-      title: `${baseTask.title} (adversarial ${i + 1})`,
+      id: `${baseTask.id}-adversarial-${String(i)}`,
+      name: `${baseTask.name}-adversarial-${String(i)}`,
+      title: `${baseTask.title} (adversarial ${String(i + 1)})`,
       description: [
         baseTask.description,
         '',
@@ -176,8 +175,8 @@ function parseAdversarialResponse(
         '',
         'ADVERSARIAL CHALLENGE:',
         `A naive agent might try: ${wrongFix}`,
-        `This passes visible tests because: ${passesBecause}`,
-        `But it's actually wrong because: ${actuallyWrong}`,
+        `This passes visible tests because: ${String(passesBecause)}`,
+        `But it's actually wrong because: ${String(actuallyWrong)}`,
         '',
         'Your task: produce a CORRECT fix that passes ALL tests, including hidden ones.',
       ].join('\n'),
@@ -186,7 +185,7 @@ function parseAdversarialResponse(
       setup: baseTask.setup,
       evaluate: baseTask.evaluate,
       baseTaskId: baseTask.id,
-      adversarialDescription: `Wrong fix: ${wrongFix}. Why wrong: ${actuallyWrong}`,
+      adversarialDescription: `Wrong fix: ${wrongFix}. Why wrong: ${String(actuallyWrong)}`,
       wrongFixHint: wrongFix,
     });
   }
@@ -230,7 +229,7 @@ export async function loadAdversarialTasks(
   evaluators: Record<string, (ctx: EvaluationContext) => Promise<BenchmarkEvaluation> | BenchmarkEvaluation>,
 ): Promise<AdversarialTask[]> {
   const raw = await fs.readFile(inputPath, 'utf-8');
-  const data = JSON.parse(raw) as Array<{
+  const data = JSON.parse(raw) as {
     id: string;
     name: string;
     title: string;
@@ -239,7 +238,7 @@ export async function loadAdversarialTasks(
     adversarialDescription: string;
     wrongFixHint: string;
     tags?: string[];
-  }>;
+  }[];
 
   return data.map((item) => ({
     ...item,

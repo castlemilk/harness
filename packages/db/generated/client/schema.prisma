@@ -43,6 +43,10 @@ model Task {
   diffs        TaskDiff[]
   agentRuns    AgentRun[]
   traceSpans   TraceSpan[]
+
+  @@index([status, createdAt])
+  @@index([projectId])
+  @@index([provider, createdAt])
 }
 
 model TaskStep {
@@ -108,6 +112,7 @@ model AgentRun {
 
   @@index([taskId])
   @@index([promptVersionId])
+  @@index([createdAt])
 }
 
 model TraceSpan {
@@ -210,4 +215,17 @@ model BenchmarkRun {
   @@index([status])
   @@index([suite])
   @@index([createdAt])
+}
+
+model ProviderCircuitState {
+  providerName   String    @id
+  state          String    @default("closed") // closed, open, half-open
+  errorRate      Float     @default(0)
+  lastFailureAt  DateTime?
+  lastSuccessAt  DateTime?
+  cooldownUntil  DateTime?
+  trialStartedAt DateTime?
+  trialRequestId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }

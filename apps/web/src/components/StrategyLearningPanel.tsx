@@ -27,7 +27,7 @@ export default function StrategyLearningPanel() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getStrategyLearning().then(setScores).catch(console.error).finally(() => setLoading(false));
+    api.getStrategyLearning().then(setScores).catch(console.error).finally(() => { setLoading(false); });
   }, []);
 
   if (loading) return <div className="text-neutral-500 text-xs p-4">Loading strategy data...</div>;
@@ -63,7 +63,7 @@ export default function StrategyLearningPanel() {
                 <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-emerald-500 rounded-full transition-all"
-                    style={{ width: `${Math.round(e.passRate * 100)}%` }}
+                    style={{ width: `${String(Math.round(e.passRate * 100))}%` }}
                   />
                 </div>
               </div>

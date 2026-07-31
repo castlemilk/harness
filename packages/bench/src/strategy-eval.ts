@@ -19,11 +19,10 @@
  */
 
 import fs from 'node:fs/promises';
-import fsSync from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { omegaWorkDir } from '@omega/core';
-import type { BenchmarkTask, BenchmarkReport, BenchmarkEvaluation, TraceSummary } from './types.js';
+import type { BenchmarkTask, BenchmarkEvaluation, TraceSummary, EvaluationContext, ToolSummaryEntry } from './types.js';
 import {
   ensureProject,
   createTask,
@@ -32,9 +31,9 @@ import {
   getAgentRun,
   getDiffs,
   pollForDiffs,
-  countSpans,
   getTraceSummary,
 } from './api-client.js';
+import { ensureGitRepo, resetToCommit } from './git-utils.js';
 
 /**
  * Strategy prompt snippets prepended to the harness's standard prompt.
@@ -191,53 +190,6 @@ export interface FailureInsight {
   suggestion: string;
 }
 
-function ensureGitRepo(repoPath: string): void {
-  try {
-    execFileSync('git', ['rev-parse', '--git-dir'], { cwd: repoPath, stdio: 'ignore' });
-    return;
-  } catch {
-    // not a git repo
-  }
-  execFileSync('git', ['init'], { cwd: repoPath, stdio: 'ignore', env: process.env });
-  execFileSync('git', ['config', 'user.email', 'bench@omega.local'], { cwd: repoPath, stdio: 'ignore', env: process.env });
-  execFileSync('git', ['config', 'user.name', 'Omega Bench'], { cwd: repoPath, stdio: 'ignore', env: process.env });
-  execFileSync('git', ['add', '.'], { cwd: repoPath, stdio: 'ignore', env: process.env });
-  execFileSync('git', ['commit', '-m', 'bench init'], { cwd: repoPath, stdio: 'ignore', env: process.env });
-}
-
-function resetToCommit(repoPath: string, commit: string): void {
-  execFileSync('git', ['reset', '--hard', commit], { cwd: repoPath, stdio: ['ignore', 'pipe', 'ignore'], env: process.env });
-  execFileSync('git', ['clean', '-fd'], { cwd: repoPath, stdio: ['ignore', 'pipe', 'ignore'], env: process.env });
-}
-
-function tryGitApply(repoPath: string, patch: string): boolean {
-  const tmp = path.join(repoPath, '.strategy-apply.patch');
-  // Strip index lines — the blob hashes won't match after reset and git
-  // apply chokes on them even when context lines are correct.
-  const cleaned = patch.replace(/^index\s+[0-9a-f]+\.\.[0-9a-f]+\s+\d+\n/m, '');
-  fsSync.writeFileSync(tmp, cleaned.endsWith('\n') ? cleaned : `${cleaned}\n`);
-  try {
-    execFileSync('git', ['apply', '--whitespace=nowarn', tmp], { cwd: repoPath, stdio: ['ignore', 'pipe', 'ignore'], env: process.env });
-    return true;
-  } catch {
-    // Try 3-way merge as fallback (uses patch hunks, not index hashes).
-    try {
-      execFileSync('git', ['apply', '--3way', '--whitespace=nowarn', tmp], { cwd: repoPath, stdio: ['ignore', 'pipe', 'ignore'], env: process.env });
-      return true;
-    } catch {
-      // Last resort: use the `patch` command which is more tolerant.
-      try {
-        const patchOutput = execFileSync('patch', ['-p1', '--no-backup-if-mismatch', '-f'], { cwd: repoPath, input: cleaned, stdio: ['ignore', 'pipe', 'ignore'], env: process.env });
-        return true;
-      } catch {
-        return false;
-      }
-    }
-  } finally {
-    try { fsSync.unlinkSync(tmp); } catch { /* ignore */ }
-  }
-}
-
 export async function runStrategyEval(
   tasks: BenchmarkTask[],
   options: StrategyOptions,
@@ -250,7 +202,6 @@ export async function runStrategyEval(
     provider,
     model,
     tokenBudget,
-    suiteName = 'strategy',
     autoStrategies = false,
     onProgress,
   } = options;
@@ -350,7 +301,7 @@ export async function runStrategyEval(
           if (agentRun?.totalTokens != null) break;
           await new Promise((r) => setTimeout(r, 500));
         }
-        patchBytes = diffs.reduce((sum, d) => sum + (d.patch?.length ?? 0), 0);
+        patchBytes = diffs.reduce((sum, d) => sum + d.patch.length, 0);
         totalTokens = agentRun?.totalTokens ?? null;
         costUsd = agentRun?.costUsd ?? null;
 
@@ -370,7 +321,7 @@ export async function runStrategyEval(
           evalMessage = 'no patch produced';
         } else {
           // Build eval context — evaluator handles patch application.
-          const context: import('./types.js').EvaluationContext = {
+          const context: EvaluationContext = {
             apiUrl,
             taskId: harnessTask.id,
             projectPath,
@@ -458,8 +409,8 @@ export function analyseFailures(tasks: StrategyTaskReport[]): FailureInsight[] {
     if (task.passed) continue;
     // Collect trace summaries from all failed candidates.
     const traces = task.candidates
-      .filter((c) => !c.passed && c.traceSummary)
-      .map((c) => ({ strategy: c.strategy, trace: c.traceSummary! }));
+      .filter((c): c is typeof c & { traceSummary: TraceSummary } => !c.passed && !!c.traceSummary)
+      .map((c) => ({ strategy: c.strategy, trace: c.traceSummary }));
 
     if (traces.length === 0) {
       insights.push({
@@ -478,7 +429,8 @@ export function analyseFailures(tasks: StrategyTaskReport[]): FailureInsight[] {
     const topErrors: string[] = [];
 
     // Check for common failure patterns.
-    const toolMap = new Map(representative.toolSummary.map((t) => [t.tool, t]));
+    const entries: [string, ToolSummaryEntry][] = representative.toolSummary.map((t) => [t.tool, t]);
+    const toolMap = new Map(entries);
 
     // Never read files → likely guessing.
     const readFile = toolMap.get('read_file');
@@ -489,7 +441,7 @@ export function analyseFailures(tasks: StrategyTaskReport[]): FailureInsight[] {
     // Tried to edit but failed repeatedly.
     const editFile = toolMap.get('edit_file');
     if (editFile && editFile.failure > 2) {
-      toolAnomalies.push(`edit_file failed ${editFile.failure}/${editFile.total} times`);
+      toolAnomalies.push(`edit_file failed ${String(editFile.failure)}/${String(editFile.total)} times`);
     }
 
     // Used bash to run tests but tests still failed.
@@ -508,7 +460,8 @@ export function analyseFailures(tasks: StrategyTaskReport[]): FailureInsight[] {
     }
 
     // Top errors.
-    for (const err of representative.topErrors.slice(0, 3)) {
+    const topSlice: { tool: string; message: string; time: string }[] = representative.topErrors.slice(0, 3);
+    for (const err of topSlice) {
       topErrors.push(`[${err.tool}] ${err.message}`);
     }
 

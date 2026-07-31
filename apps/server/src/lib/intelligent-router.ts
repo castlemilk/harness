@@ -8,52 +8,69 @@ import { IntelligentRouter, saveRouterState, loadRouterState } from '@omega/rout
 import type { PrismaClient } from '@omega/db';
 
 let router: IntelligentRouter | null = null;
+let routerPromise: Promise<IntelligentRouter> | null = null;
+let persistInterval: ReturnType<typeof setInterval> | null = null;
 
 export async function getRouter(prisma: PrismaClient): Promise<IntelligentRouter> {
   if (router) return router;
+  if (routerPromise) return routerPromise;
 
-  router = new IntelligentRouter();
+  routerPromise = (async () => {
+    const r = new IntelligentRouter();
 
-  // Restore persisted state (health, performance, strategy scores)
-  await loadRouterState(router);
+    // Restore persisted state (health, performance, strategy scores)
+    await loadRouterState(r);
 
-  // Load historical performance data (last 1000 agent runs)
-  try {
-    const rows = await prisma.agentRun.findMany({
-      take: 1000,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        resultStatus: true,
-        costUsd: true,
-        createdAt: true,
-        updatedAt: true,
-        task: { select: { provider: true, model: true } },
-      },
-    });
-    router.performance.loadFromRows(rows.map((r) => ({
-      provider: r.task.provider,
-      model: r.task.model,
-      resultStatus: r.resultStatus,
-      costUsd: r.costUsd,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
-    })));
-  } catch {
-    // Historical data not available yet — router will use capability-only scoring
-  }
+    // Load historical performance data (last 1000 agent runs)
+    try {
+      const rows = await prisma.agentRun.findMany({
+        take: 1000,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          resultStatus: true,
+          costUsd: true,
+          createdAt: true,
+          updatedAt: true,
+          task: { select: { provider: true, model: true } },
+        },
+      });
+      r.performance.loadFromRows(rows.map((row) => ({
+        provider: row.task.provider,
+        model: row.task.model,
+        resultStatus: row.resultStatus,
+        costUsd: row.costUsd,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      })));
+    } catch {
+      // Historical data not available yet — router will use capability-only scoring
+    }
 
-  // Periodically persist state (every 5 minutes)
-  const persistInterval = setInterval(() => {
-    void saveRouterState(router!);
-  }, 5 * 60 * 1000);
+    router = r;
 
-  // Clean up on process exit
-  process.on('SIGTERM', () => {
+    // Periodically persist state (every 5 minutes)
+    persistInterval = setInterval(() => {
+      void saveRouterState(r);
+    }, 5 * 60 * 1000);
+
+    return r;
+  })();
+
+  return routerPromise;
+}
+
+/**
+ * Clean up router resources (intervals, state persistence).
+ * Call from the single SIGTERM handler in index.ts.
+ */
+export async function shutdownRouter(): Promise<void> {
+  if (persistInterval) {
     clearInterval(persistInterval);
-    void saveRouterState(router!);
-  });
-
-  return router;
+    persistInterval = null;
+  }
+  if (router) {
+    await saveRouterState(router);
+  }
 }
 
 /**

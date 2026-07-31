@@ -55,6 +55,12 @@ app.use('/providers/compare', providerCompareRoutes(prisma));
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
+  if (err instanceof Error && err.name === 'ZodError' && 'issues' in err) {
+    const issues = (err as { issues: { path: (string | number)[]; message: string }[] }).issues;
+    const details = issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
+    res.status(400).json({ error: 'Validation error', details });
+    return;
+  }
   const message = err instanceof Error ? err.message : 'Internal error';
   res.status(500).json({ error: message });
 });

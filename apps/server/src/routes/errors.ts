@@ -1,48 +1,7 @@
 import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import { asyncHandler } from '../lib/async-handler.js';
-
-// ─── Error Classification ───────────────────────────────────────────────────
-
-type ErrorCategory =
-  | 'auth'
-  | 'rate_limit'
-  | 'timeout'
-  | 'credential'
-  | 'server_error'
-  | 'model_error'
-  | 'unknown';
-
-interface ClassifiedError {
-  taskId: string;
-  title: string;
-  provider: string | null;
-  model: string | null;
-  error: string;
-  category: ErrorCategory;
-  timestamp: Date;
-  complexity: string;
-}
-
-function classifyError(error: string): ErrorCategory {
-  const lower = error.toLowerCase();
-  if (lower.includes('401') || lower.includes('403') || lower.includes('unauthorized') || lower.includes('invalid api key') || lower.includes('authentication') || lower.includes('credential_error')) {
-    return 'auth';
-  }
-  if (lower.includes('429') || lower.includes('rate') || lower.includes('too many')) {
-    return 'rate_limit';
-  }
-  if (lower.includes('timeout') || lower.includes('abort') || lower.includes('timed out')) {
-    return 'timeout';
-  }
-  if (lower.includes('500') || lower.includes('502') || lower.includes('503') || lower.includes('internal')) {
-    return 'server_error';
-  }
-  if (lower.includes('model') || lower.includes('invalid_request') || lower.includes('context_length')) {
-    return 'model_error';
-  }
-  return 'unknown';
-}
+import { classifyError, type ErrorCategory } from '../lib/utils.js';
 
 // ─── Routes ─────────────────────────────────────────────────────────────────
 
@@ -68,6 +27,17 @@ export function errorRoutes(prisma: PrismaClient): Router {
       take: limit,
     });
 
+    interface ClassifiedError {
+      taskId: string;
+      title: string;
+      provider: string | null;
+      model: string | null;
+      error: string;
+      category: ErrorCategory;
+      timestamp: Date;
+      complexity: string;
+    }
+
     const classified: ClassifiedError[] = failedTasks.map((t) => ({
       taskId: t.id,
       title: t.title,
@@ -84,7 +54,6 @@ export function errorRoutes(prisma: PrismaClient): Router {
       auth: { count: 0, providers: {} },
       rate_limit: { count: 0, providers: {} },
       timeout: { count: 0, providers: {} },
-      credential: { count: 0, providers: {} },
       server_error: { count: 0, providers: {} },
       model_error: { count: 0, providers: {} },
       unknown: { count: 0, providers: {} },
@@ -99,7 +68,7 @@ export function errorRoutes(prisma: PrismaClient): Router {
     const dailyTrend: Record<string, Record<ErrorCategory, number>> = {};
     for (const e of classified) {
       const day = e.timestamp.toISOString().slice(0, 10);
-      if (!dailyTrend[day]) dailyTrend[day] = { auth: 0, rate_limit: 0, timeout: 0, credential: 0, server_error: 0, model_error: 0, unknown: 0 };
+      if (!(day in dailyTrend)) dailyTrend[day] = { auth: 0, rate_limit: 0, timeout: 0, server_error: 0, model_error: 0, unknown: 0 };
       dailyTrend[day][e.category]++;
     }
 

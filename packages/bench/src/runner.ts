@@ -1,6 +1,5 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
 import { omegaWorkDir } from '@omega/core';
 import type { BenchmarkReport, BenchmarkResult, BenchmarkTask, BenchmarkEvaluation, TraceFlowInfo } from './types.js';
 import { classifyFailure } from './analyse.js';
@@ -17,6 +16,7 @@ import {
   getPromptVersion,
   countSpans,
 } from './api-client.js';
+import { ensureGitRepo } from './git-utils.js';
 
 export interface RunnerOptions {
   apiUrl: string;
@@ -34,20 +34,6 @@ export interface RunnerOptions {
 function countAllSpans(traceFlow?: TraceFlowInfo): number {
   if (!traceFlow) return 0;
   return traceFlow.spans.reduce((acc, span) => acc + countSpans(span), 0);
-}
-
-function ensureGitRepo(repoPath: string): void {
-  try {
-    execSync('git rev-parse --git-dir', { cwd: repoPath, stdio: 'ignore' });
-    return;
-  } catch {
-    // not a git repo; initialise one.
-  }
-  execSync('git init', { cwd: repoPath, stdio: 'ignore' });
-  execSync('git config user.email "bench@omega.local"', { cwd: repoPath, stdio: 'ignore' });
-  execSync('git config user.name "Omega Bench"', { cwd: repoPath, stdio: 'ignore' });
-  execSync('git add .', { cwd: repoPath, stdio: 'ignore' });
-  execSync('git commit -m "bench init"', { cwd: repoPath, stdio: 'ignore' });
 }
 
 export async function runBenchmark(

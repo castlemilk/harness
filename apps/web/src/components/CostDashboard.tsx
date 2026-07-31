@@ -43,10 +43,10 @@ interface ProviderBucket {
 }
 
 interface TaskTimeseries {
-  created: Array<{ bucket: string; count: number }>;
-  completed: Array<{ bucket: string; count: number }>;
-  failed: Array<{ bucket: string; count: number }>;
-  passRate: Array<{ bucket: string; rate: number }>;
+  created: { bucket: string; count: number }[];
+  completed: { bucket: string; count: number }[];
+  failed: { bucket: string; count: number }[];
+  passRate: { bucket: string; rate: number }[];
 }
 
 function formatCost(usd: number): string {
@@ -61,12 +61,6 @@ function formatTokens(tokens: number): string {
   return String(tokens);
 }
 
-function formatDuration(ms: number): string {
-  if (ms >= 60_000) return `${(ms / 60_000).toFixed(1)}m`;
-  if (ms >= 1_000) return `${(ms / 1_000).toFixed(1)}s`;
-  return `${ms}ms`;
-}
-
 function BarChart({ data, maxValue, color }: { data: number[]; maxValue: number; color: string }) {
   return (
     <div className="flex items-end gap-px h-16">
@@ -74,7 +68,7 @@ function BarChart({ data, maxValue, color }: { data: number[]; maxValue: number;
         <div
           key={i}
           className={`flex-1 ${color} rounded-t-sm min-w-[2px]`}
-          style={{ height: maxValue > 0 ? `${(v / maxValue) * 100}%` : '0%' }}
+          style={{ height: maxValue > 0 ? `${String((v / maxValue) * 100)}%` : '0%' }}
           title={String(v)}
         />
       ))}
@@ -100,9 +94,9 @@ function TimeseriesBarChart({
       <div className="text-[10px] text-gray-500 mb-1">{label}</div>
       <BarChart data={values} maxValue={maxVal} color={color} />
       <div className="flex justify-between text-[9px] text-gray-400 mt-1">
-        {timeseries.length > 0 && <span>{timeseries[0]!.bucket.slice(5, 10)}</span>}
-        {timeseries.length > 2 && <span>{timeseries[Math.floor(timeseries.length / 2)]!.bucket.slice(5, 10)}</span>}
-        {timeseries.length > 1 && <span>{timeseries[timeseries.length - 1]!.bucket.slice(5, 10)}</span>}
+        {timeseries.length > 0 && <span>{timeseries[0].bucket.slice(5, 10)}</span>}
+        {timeseries.length > 2 && <span>{timeseries[Math.floor(timeseries.length / 2)].bucket.slice(5, 10)}</span>}
+        {timeseries.length > 1 && <span>{timeseries[timeseries.length - 1].bucket.slice(5, 10)}</span>}
       </div>
     </div>
   );
@@ -162,7 +156,7 @@ export function CostDashboard() {
         <div className="flex gap-2 text-xs">
           <select
             value={bucket}
-            onChange={(e) => setBucket(e.target.value as 'hour' | 'day' | 'week')}
+            onChange={(e) => { setBucket(e.target.value as 'hour' | 'day' | 'week'); }}
             className="border rounded px-2 py-1"
           >
             <option value="hour">Hour</option>
@@ -171,7 +165,7 @@ export function CostDashboard() {
           </select>
           <select
             value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
+            onChange={(e) => { setDays(Number(e.target.value)); }}
             className="border rounded px-2 py-1"
           >
             <option value={7}>7d</option>
@@ -247,8 +241,8 @@ export function CostDashboard() {
                       <div
                         key={i}
                         className="flex-1 bg-indigo-400 rounded-t-sm min-w-[2px]"
-                        style={{ height: `${(v / maxRuns) * 100}%` }}
-                        title={`${v} runs`}
+                        style={{ height: `${String((v / maxRuns) * 100)}%` }}
+                        title={`${String(v)} runs`}
                       />
                     ))}
                   </div>
@@ -277,7 +271,7 @@ export function CostDashboard() {
                   <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-blue-500 rounded-full"
-                      style={{ width: `${(cost / totalCostAll) * 100}%` }}
+                      style={{ width: `${String((cost / totalCostAll) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -301,7 +295,7 @@ export function CostDashboard() {
                   <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-violet-500 rounded-full"
-                      style={{ width: `${(cost / totalCostAll) * 100}%` }}
+                      style={{ width: `${String((cost / totalCostAll) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -320,14 +314,14 @@ export function CostDashboard() {
               <div
                 key={i}
                 className={`flex-1 rounded-t-sm min-w-[2px] ${pr.rate >= 0.8 ? 'bg-green-500' : pr.rate >= 0.5 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                style={{ height: `${pr.rate * 100}%` }}
+                style={{ height: `${String(pr.rate * 100)}%` }}
                 title={`${pr.bucket.slice(0, 10)}: ${(pr.rate * 100).toFixed(0)}%`}
               />
             ))}
           </div>
           <div className="flex justify-between text-[9px] text-gray-400 mt-1">
-            {taskTs.passRate.length > 0 && <span>{taskTs.passRate[0]!.bucket.slice(5, 10)}</span>}
-            {taskTs.passRate.length > 1 && <span>{taskTs.passRate[taskTs.passRate.length - 1]!.bucket.slice(5, 10)}</span>}
+            {taskTs.passRate.length > 0 && <span>{taskTs.passRate[0].bucket.slice(5, 10)}</span>}
+            {taskTs.passRate.length > 1 && <span>{taskTs.passRate[taskTs.passRate.length - 1].bucket.slice(5, 10)}</span>}
           </div>
         </div>
       )}

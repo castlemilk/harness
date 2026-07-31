@@ -1,5 +1,4 @@
 import { runBenchmark, type BenchmarkTask, type BenchmarkResult } from './index.js';
-import { writeModelEvalReport } from './model-eval.js';
 
 export interface VarianceTaskResult {
   taskId: string;
@@ -79,13 +78,13 @@ export async function runVarianceEval(
       });
 
       const firstResult = result.results[0];
-      const passed = firstResult?.evaluation.passed ?? false;
+      const passed = firstResult.evaluation.passed;
       runBools.push(passed);
       totalDurationMs += result.totalDurationMs;
-      totalTokens += firstResult?.usage?.totalTokens ?? firstResult?.agentRun?.totalTokens ?? 0;
-      totalCostUsd += firstResult?.agentRun?.costUsd ?? 0;
+      totalTokens += firstResult.usage?.totalTokens ?? firstResult.agentRun?.totalTokens ?? 0;
+      totalCostUsd += firstResult.agentRun?.costUsd ?? 0;
 
-      options.onProgress?.(task.id, run, firstResult!);
+      options.onProgress?.(task.id, run, firstResult);
     }
 
     const passes = runBools.filter(Boolean).length;

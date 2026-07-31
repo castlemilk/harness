@@ -1,0 +1,61 @@
+{
+  "version": 2,
+  "createdAt": "2026-07-28T19:00:00Z",
+  "description": "Adversarial review remediation — truly atomic tasks, one small edit each",
+  "providers": [
+    { "id": "deepseek", "model": "deepseek-v4-pro" },
+    { "id": "kimi", "model": "k3" },
+    { "id": "qwen", "model": "qwen3.8-max-preview" },
+    { "id": "minimax", "model": "MiniMax-M3" }
+  ],
+  "tasks": [
+    {
+      "id": "REM-006",
+      "title": "Fix abort signal in retry sleep (executor.ts)",
+      "priority": "medium",
+      "files": ["packages/agent/src/executor.ts"],
+      "targetFile": "packages/agent/src/executor.ts",
+      "prompt": "Edit packages/agent/src/executor.ts to fix the abort signal during retry sleep.\n\nIn the withProviderRetry function, find the setTimeout-based sleep for exponential backoff. Replace the bare setTimeout with an abort-aware version.\n\nFind this pattern (approximately line 1830-1840):\n  await new Promise<void>((resolve) => setTimeout(resolve, backoffMs));\n\nReplace it with:\n  await new Promise<void>((resolve, reject) => {\n    const timer = setTimeout(resolve, backoffMs);\n    signal?.addEventListener('abort', () => {\n      clearTimeout(timer);\n      reject(new DOMException('Aborted', 'AbortError'));\n    }, { once: true });\n  });\n\nIMPORTANT:\n- Do NOT run pnpm install\n- Do NOT run pnpm build\n- Do NOT run pnpm test\n- Just make this ONE edit and call finish\n- The file is at packages/agent/src/executor.ts relative to the project root"
+    },
+    {
+      "id": "REM-008",
+      "title": "Expand isReadOnlyShellCommand regex (executor.ts)",
+      "priority": "medium",
+      "files": ["packages/agent/src/executor.ts"],
+      "targetFile": "packages/agent/src/executor.ts",
+      "prompt": "Edit packages/agent/src/executor.ts to expand the isReadOnlyShellCommand regex.\n\nFind the isReadOnlyShellCommand function. It has a regex that splits on shell operators. Expand it to also handle |& (pipe with stderr).\n\nCurrent regex might be something like: /(?:&&|\\|\\||\\|;)/\nChange it to: /(?:&&|\\|\\||\\|&|;)/\n\nThis adds support for |& which is bash's pipe-with-stderr operator.\n\nIMPORTANT:\n- Do NOT run pnpm install\n- Do NOT run pnpm build\n- Do NOT run pnpm test\n- Just make this ONE regex edit and call finish\n- The file is at packages/agent/src/executor.ts relative to the project root"
+    },
+    {
+      "id": "REM-009",
+      "title": "Add mutex to task-queue.ts",
+      "priority": "high",
+      "files": ["apps/server/src/lib/task-queue.ts"],
+      "targetFile": "apps/server/src/lib/task-queue.ts",
+      "prompt": "Edit apps/server/src/lib/task-queue.ts to add a simple Promise-based mutex.\n\nAdd this class at the top of the file (after imports):\n\nclass Mutex {\n  private queue: Array<() => void> = [];\n  private locked = false;\n  async acquire(): Promise<void> {\n    if (this.locked) {\n      await new Promise<void>(r => this.queue.push(r));\n    }\n    this.locked = true;\n  }\n  release(): void {\n    const next = this.queue.shift();\n    if (next) next();\n    else this.locked = false;\n  }\n}\n\nThen find the processQueue function and any enqueue-like functions, and wrap their queue state mutations with:\n  const mutex = new Mutex(); // at module level\n  // In each function that mutates queue state:\n  await mutex.acquire();\n  try { /* existing logic */ } finally { mutex.release(); }\n\nIMPORTANT:\n- Do NOT run pnpm install\n- Do NOT run pnpm build\n- Do NOT run pnpm test\n- Just make these edits and call finish\n- The file is at apps/server/src/lib/task-queue.ts relative to the project root"
+    },
+    {
+      "id": "REM-010",
+      "title": "Split ProviderHealthRegistry from intelligent.ts",
+      "priority": "critical",
+      "files": ["packages/router/src/intelligent.ts"],
+      "targetFile": "packages/router/src/health-registry.ts",
+      "prompt": "Extract the ProviderHealthRegistry class from packages/router/src/intelligent.ts into a new file packages/router/src/health-registry.ts.\n\nSteps:\n1. Read packages/router/src/intelligent.ts and find the ProviderHealthRegistry class\n2. Create packages/router/src/health-registry.ts with just that class (and any types it needs)\n3. In intelligent.ts, replace the class definition with an import: import { ProviderHealthRegistry } from './health-registry';\n4. Make sure to re-export it from intelligent.ts so external imports still work\n\nIMPORTANT:\n- Do NOT run pnpm install\n- Do NOT run pnpm build\n- Do NOT run pnpm test\n- Just make these edits and call finish\n- The files are at packages/router/src/ relative to the project root"
+    },
+    {
+      "id": "REM-011",
+      "title": "Split PerformanceCache from intelligent.ts",
+      "priority": "critical",
+      "files": ["packages/router/src/intelligent.ts"],
+      "targetFile": "packages/router/src/performance-cache.ts",
+      "prompt": "Extract the PerformanceCache class from packages/router/src/intelligent.ts into a new file packages/router/src/performance-cache.ts.\n\nSteps:\n1. Read packages/router/src/intelligent.ts and find the PerformanceCache class\n2. Create packages/router/src/performance-cache.ts with just that class (and any types it needs)\n3. In intelligent.ts, replace the class definition with an import: import { PerformanceCache } from './performance-cache';\n4. Make sure to re-export it from intelligent.ts so external imports still work\n\nIMPORTANT:\n- Do NOT run pnpm install\n- Do NOT run pnpm build\n- Do NOT run pnpm test\n- Just make these edits and call finish\n- The files are at packages/router/src/ relative to the project root"
+    },
+    {
+      "id": "REM-012",
+      "title": "Split StrategyLearner from intelligent.ts",
+      "priority": "critical",
+      "files": ["packages/router/src/intelligent.ts"],
+      "targetFile": "packages/router/src/strategy-learner.ts",
+      "prompt": "Extract the StrategyLearner class from packages/router/src/intelligent.ts into a new file packages/router/src/strategy-learner.ts.\n\nSteps:\n1. Read packages/router/src/intelligent.ts and find the StrategyLearner class\n2. Create packages/router/src/strategy-learner.ts with just that class (and any types it needs)\n3. In intelligent.ts, replace the class definition with an import: import { StrategyLearner } from './strategy-learner';\n4. Make sure to re-export it from intelligent.ts so external imports still work\n\nIMPORTANT:\n- Do NOT run pnpm install\n- Do NOT run pnpm build\n- Do NOT run pnpm test\n- Just make these edits and call finish\n- The files are at packages/router/src/ relative to the project root"
+    }
+  ]
+}

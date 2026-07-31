@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import { asyncHandler } from '../lib/async-handler.js';
+import { truncateToBucket } from '../lib/utils.js';
 
 export function timeseriesRoutes(prisma: PrismaClient): Router {
   const r = Router();
@@ -9,7 +10,7 @@ export function timeseriesRoutes(prisma: PrismaClient): Router {
     const bucket = typeof req.query.bucket === 'string' && ['hour', 'day', 'week'].includes(req.query.bucket)
       ? req.query.bucket as 'hour' | 'day' | 'week'
       : 'day';
-    const days = typeof req.query.days === 'string' ? parseInt(req.query.days, 10) : 30;
+    const days = typeof req.query.days === 'string' ? (parseInt(req.query.days, 10) || 30) : 30;
 
     const since = new Date();
     since.setDate(since.getDate() - days);
@@ -52,7 +53,7 @@ export function timeseriesRoutes(prisma: PrismaClient): Router {
     const bucket = typeof req.query.bucket === 'string' && ['hour', 'day', 'week'].includes(req.query.bucket)
       ? req.query.bucket as 'hour' | 'day' | 'week'
       : 'day';
-    const days = typeof req.query.days === 'string' ? parseInt(req.query.days, 10) : 30;
+    const days = typeof req.query.days === 'string' ? (parseInt(req.query.days, 10) || 30) : 30;
 
     const since = new Date();
     since.setDate(since.getDate() - days);
@@ -98,18 +99,4 @@ export function timeseriesRoutes(prisma: PrismaClient): Router {
   }));
 
   return r;
-}
-
-function truncateToBucket(date: Date, bucket: 'hour' | 'day' | 'week'): string {
-  const d = new Date(date);
-  if (bucket === 'hour') {
-    d.setMinutes(0, 0, 0);
-  } else if (bucket === 'day') {
-    d.setHours(0, 0, 0, 0);
-  } else if (bucket === 'week') {
-    const dayOfWeek = d.getDay();
-    d.setDate(d.getDate() - dayOfWeek);
-    d.setHours(0, 0, 0, 0);
-  }
-  return d.toISOString();
 }

@@ -135,13 +135,13 @@ export async function getPassRateTrend(
   provider?: string,
   model?: string,
   limit: number = 20,
-): Promise<Array<{
+): Promise<{
   timestamp: string;
   passRate: number;
   totalTasks: number;
   passed: number;
   totalCostUsd: number | null;
-}>> {
+}[]> {
   const where: Record<string, unknown> = { suite };
   if (provider) where.provider = provider;
   if (model) where.model = model;

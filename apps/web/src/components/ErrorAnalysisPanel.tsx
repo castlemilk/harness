@@ -15,12 +15,15 @@ export default function ErrorAnalysisPanel() {
   const [errors, setErrors] = useState<Awaited<ReturnType<typeof api.getErrors>> | null>(null);
   const [traceStats, setTraceStats] = useState<Awaited<ReturnType<typeof api.getTraceStats>> | null>(null);
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     Promise.all([api.getErrors(100), api.getTraceStats()])
       .then(([e, t]) => { setErrors(e); setTraceStats(t); })
-      .catch(() => {});
+      .catch((err: unknown) => { setError(err instanceof Error ? err.message : 'Failed to load error data'); });
   }, []);
 
+  if (error) return <div className="p-6 text-sm text-red-500">{error}</div>;
   if (!errors || !traceStats) return <div className="p-6 text-sm text-gray-400">Loading...</div>;
 
   const categories = Object.entries(errors.byCategory).filter(([, v]) => v.count > 0).sort((a, b) => b[1].count - a[1].count);

@@ -61,8 +61,14 @@ export const api = {
     request<Project>('/projects', { method: 'POST', body: JSON.stringify(body) }),
   deleteProject: (id: string) => request(`/projects/${id}`, { method: 'DELETE' }),
 
-  getTasks: (projectId?: string) =>
-    request<Task[]>(`/tasks${projectId ? `?projectId=${projectId}` : ''}`),
+  getTasks: (projectId?: string, opts?: { limit?: number; offset?: number }) => {
+    const params = new URLSearchParams();
+    if (projectId) params.set('projectId', projectId);
+    if (opts?.limit) params.set('limit', String(opts.limit));
+    if (opts?.offset) params.set('offset', String(opts.offset));
+    const qs = params.toString();
+    return request<{ tasks: Task[]; total: number; limit: number; offset: number }>(`/tasks${qs ? `?${qs}` : ''}`);
+  },
   createTask: (body: {
     projectId: string;
     title: string;
@@ -97,12 +103,12 @@ export const api = {
     request<{
       decision: {
         primary: { provider: string; model: string; score: number; breakdown: Record<string, number> };
-        fallbacks: Array<{ provider: string; model: string; score: number; breakdown: Record<string, number> }>;
+        fallbacks: { provider: string; model: string; score: number; breakdown: Record<string, number> }[];
         classification: { complexity: string; domain: string; requiredCapabilities: string[]; estimatedTokens: number };
         strategy: string;
         reasoning: string;
       };
-      ranking: Array<{ provider: string; model: string; score: number; breakdown: Record<string, number> }>;
+      ranking: { provider: string; model: string; score: number; breakdown: Record<string, number> }[];
       health: Record<string, { latencyP50: number; latencyP95: number; errorRate: number; rateLimitRate: number; score: number }>;
     }>('/router/intelligent', {
       method: 'POST',
@@ -162,35 +168,35 @@ export const api = {
     }>('/costs/summary'),
 
   getCostTimeseries: (bucket: 'hour' | 'day' | 'week' = 'day', days = 30) =>
-    request<Array<{
+    request<{
       bucket: string;
       costUsd: number;
       tokens: number;
       runs: number;
       avgDurationMs: number;
-    }>>(`/costs/timeseries?bucket=${bucket}&days=${days}`),
+    }[]>(`/costs/timeseries?bucket=${bucket}&days=${String(days)}`),
 
   getTaskTimeseries: (bucket: 'hour' | 'day' | 'week' = 'day', days = 30) =>
     request<{
-      created: Array<{ bucket: string; count: number }>;
-      completed: Array<{ bucket: string; count: number }>;
-      failed: Array<{ bucket: string; count: number }>;
-      passRate: Array<{ bucket: string; rate: number }>;
-    }>(`/timeseries/tasks?bucket=${bucket}&days=${days}`),
+      created: { bucket: string; count: number }[];
+      completed: { bucket: string; count: number }[];
+      failed: { bucket: string; count: number }[];
+      passRate: { bucket: string; rate: number }[];
+    }>(`/timeseries/tasks?bucket=${bucket}&days=${String(days)}`),
 
   getProviderTimeseries: (bucket: 'hour' | 'day' | 'week' = 'day', days = 30) =>
-    request<Array<{
+    request<{
       bucket: string;
       provider: string;
       runs: number;
       avgDurationMs: number;
       totalTokens: number;
-    }>>(`/timeseries/providers?bucket=${bucket}&days=${days}`),
+    }[]>(`/timeseries/providers?bucket=${bucket}&days=${String(days)}`),
 
   // Server-side benchmark runs
   startBenchRun: (body: {
     suite: string;
-    models?: Array<{ provider: string; model: string }>;
+    models?: { provider: string; model: string }[];
     strategy?: 'single' | 'consensus' | 'variance';
     concurrency?: number;
     timeoutMs?: number;
@@ -204,7 +210,7 @@ export const api = {
   }),
 
   listBenchRuns: (limit = 20) =>
-    request<Array<{
+    request<{
       id: string;
       suite: string;
       status: string;
@@ -218,7 +224,7 @@ export const api = {
       startedAt: string | null;
       completedAt: string | null;
       createdAt: string;
-    }>>(`/bench/run?limit=${limit}`),
+    }[]>(`/bench/run?limit=${String(limit)}`),
 
   getBenchRun: (id: string) =>
     request<{
@@ -233,7 +239,7 @@ export const api = {
       totalDurationMs: number;
       totalCostUsd: number | null;
       totalTokens: number;
-      results: Array<{
+      results: {
         taskName: string;
         harnessTaskId: string;
         passed: boolean;
@@ -242,7 +248,7 @@ export const api = {
         winnerModel?: string;
         variancePassRate?: number;
         error?: string;
-      }> | null;
+      }[] | null;
       error: string | null;
       startedAt: string | null;
       completedAt: string | null;
@@ -257,17 +263,17 @@ export const api = {
   // ── Router ──────────────────────────────────────────────
 
   getStrategyLearning: () =>
-    request<Array<{
+    request<{
       domain: string;
       complexity: string;
       wins: number;
       total: number;
       passRate: number;
       avgScore: number;
-    }>>('/router/learning'),
+    }[]>('/router/learning'),
 
   getProviderHealth: () =>
-    request<Array<{
+    request<{
       provider: string;
       latencyP50: number;
       latencyP95: number;
@@ -275,12 +281,12 @@ export const api = {
       rateLimitRate: number;
       recentCalls: number;
       score: number;
-    }>>('/router/health'),
+    }[]>('/router/health'),
 
   // ── Costs per task ─────────────────────────────────────
 
   getCostsPerTask: (limit = 50) =>
-    request<Array<{
+    request<{
       taskId: string;
       title: string;
       status: string;
@@ -292,7 +298,7 @@ export const api = {
       promptTokens: number;
       completionTokens: number;
       createdAt: string;
-    }>>(`/costs/per-task?limit=${limit}`),
+    }[]>(`/costs/per-task?limit=${String(limit)}`),
 
   // ── Error analysis ──────────────────────────────────────
 
@@ -301,24 +307,24 @@ export const api = {
       total: number;
       byCategory: Record<string, { count: number; providers: Record<string, number> }>;
       dailyTrend: Record<string, Record<string, number>>;
-      topErrors: Array<{ pattern: string; count: number; category: string; sample: string }>;
-      recent: Array<{ taskId: string; title: string; provider: string | null; model: string | null; error: string; category: string; timestamp: string }>;
-    }>(`/errors?limit=${limit}`),
+      topErrors: { pattern: string; count: number; category: string; sample: string }[];
+      recent: { taskId: string; title: string; provider: string | null; model: string | null; error: string; category: string; timestamp: string }[];
+    }>(`/errors?limit=${String(limit)}`),
 
   // ── Traces ──────────────────────────────────────────────
 
   getTraces: (limit = 30) =>
-    request<Array<{
+    request<{
       traceId: string;
       taskId: string;
       startedAt: number;
-      events: Array<{ ts: number; phase: string; data?: Record<string, unknown> }>;
+      events: { ts: number; phase: string; data?: Record<string, unknown> }[];
       completedAt?: number;
       outcome?: string;
       totalMs?: number;
       provider?: string;
       model?: string;
-    }>>(`/traces?limit=${limit}`),
+    }[]>(`/traces?limit=${String(limit)}`),
 
   getTraceStats: () =>
     request<{
@@ -331,7 +337,7 @@ export const api = {
   // ── Provider comparison ─────────────────────────────────
 
   getProviderCompare: () =>
-    request<Array<{
+    request<{
       provider: string;
       model: string;
       total: number;
@@ -339,9 +345,9 @@ export const api = {
       failed: number;
       avgDurationMs: number;
       passRate: number;
-      topErrors: Array<{ error: string; count: number }>;
+      topErrors: { error: string; count: number }[];
       byComplexity: Record<string, { total: number; passed: number }>;
-    }>>('/providers/compare'),
+    }[]>('/providers/compare'),
 
   // ── Task replay ─────────────────────────────────────────
 

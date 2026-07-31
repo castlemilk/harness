@@ -63,7 +63,9 @@ export class OpenAIProvider implements Provider {
         tokenExpiresAt: newExpiresAt,
       });
     } catch (err) {
-      console.warn('Token refresh failed, continuing with existing token:', err);
+      // Token refresh failed — mark as expired so callers get a clear signal
+      this.config.tokenExpiresAt = 0;
+      throw new Error(`Token refresh failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -196,7 +198,7 @@ export class OpenAIProvider implements Provider {
       const body = await res.text().catch(() => '');
       let parsedBody: { messages?: { role?: string; content?: string; tool_calls?: { id?: string }[]; tool_call_id?: string }[] } = {};
       try {
-        parsedBody = JSON.parse(requestBody) as typeof parsedBody;
+        parsedBody = JSON.parse(body) as typeof parsedBody;
       } catch {
         // ignore parse errors
       }
@@ -208,7 +210,7 @@ export class OpenAIProvider implements Provider {
           toolCallId: m.tool_call_id,
         }))
       );
-      console.error('OpenAI tools messages summary:', summary);
+      console.error('OpenAI tools response summary:', summary);
       const prefix = res.status === 401 || res.status === 403
         ? 'CREDENTIAL_ERROR: '
         : 'OpenAI tools request failed: ';

@@ -141,7 +141,7 @@ export function metricsRoutes(prisma: PrismaClient): Router {
     let benchmarkTotalTokens = 0;
     let benchmarkSolvedCount = 0;
     let benchmarkAvgDurationMs = 0;
-    let benchmarkReportCount = benchmarkReports.length;
+    const benchmarkReportCount = benchmarkReports.length;
 
     if (benchmarkReports.length > 0) {
       const latest = benchmarkReports[0];

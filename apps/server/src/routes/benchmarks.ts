@@ -107,7 +107,7 @@ export function benchmarkRoutes(_prisma: PrismaClient): Router {
     const filePath = path.join(reportsDir, file);
     const resolved = path.resolve(filePath);
     const resolvedReportsDir = path.resolve(reportsDir);
-    if (!resolved.startsWith(resolvedReportsDir + path.sep) && resolved !== resolvedReportsDir) {
+    if (!resolved.startsWith(resolvedReportsDir + path.sep)) {
       res.status(400).json({ error: 'Invalid report path' });
       return;
     }
@@ -152,11 +152,12 @@ export function benchmarkRoutes(_prisma: PrismaClient): Router {
     });
 
     let output = '';
+    const MAX_OUTPUT = 1_000_000; // 1MB cap to prevent memory exhaustion
     child.stdout.on('data', (chunk: Buffer) => {
-      output += chunk.toString();
+      if (output.length < MAX_OUTPUT) output += chunk.toString();
     });
     child.stderr.on('data', (chunk: Buffer) => {
-      output += chunk.toString();
+      if (output.length < MAX_OUTPUT) output += chunk.toString();
     });
 
     child.on('exit', () => {

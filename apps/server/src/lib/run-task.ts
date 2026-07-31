@@ -1,13 +1,13 @@
 import { createProvider } from '@omega/providers';
-import { selectProvider } from '@omega/router';
 import { runAgentTask, runOrchestratedTask, runExternalAgentTask, type ExternalCli } from '@omega/agent';
 import type { PrismaClient } from '@omega/db';
-import type { ProviderConfig as CoreProviderConfig, Task } from '@omega/core';
+import type { Task } from '@omega/core';
 import { queue } from './task-queue.js';
 import { notifyFailure } from './webhook-alerts.js';
 import { getNextStrategy, executeRetry, type RetryContext, type RetryRecord } from './retry-strategies.js';
 import { getRouter, recordTaskOutcome } from './intelligent-router.js';
 import { startTrace, traceEvent, completeTrace } from './trace-log.js';
+import { toCoreConfig, isRateLimitError, isTimeoutError, isCredentialError, safeJsonParse } from './utils.js';
 
 async function tryAutoRetry(
   prisma: PrismaClient,
@@ -15,10 +15,10 @@ async function tryAutoRetry(
 ): Promise<void> {
   if (process.env.OMEGA_AUTO_RETRY !== 'true') return;
   const task = await prisma.task.findUnique({ where: { id: taskId }, include: { project: true } });
-  if (!task || task.status !== 'failed') return;
+  if (task?.status !== 'failed') return;
 
-  const tags: string[] = task.tags ? (JSON.parse(task.tags) as string[]) : [];
-  const retryHistory = task.retryHistory ? (JSON.parse(task.retryHistory) as RetryRecord[]) : [];
+  const tags = safeJsonParse<string[]>(task.tags, []);
+  const retryHistory = safeJsonParse<RetryRecord[]>(task.retryHistory, []);
   const ctx: RetryContext = {
     task: {
       id: task.id,
@@ -49,29 +49,7 @@ async function tryAutoRetry(
     projectPath: task.project.path,
     projectName: task.project.name,
     autoPublish: tags.includes('publish'),
-  });
-}
-
-function toCoreConfig(row: {
-  id: string;
-  name: string;
-  kind: string;
-  baseUrl: string | null;
-  apiKey: string | null;
-  defaultModel: string;
-  capabilities: string;
-  enabled: boolean;
-}): CoreProviderConfig {
-  return {
-    id: row.id,
-    name: row.name,
-    kind: row.kind as CoreProviderConfig['kind'],
-    baseUrl: row.baseUrl ?? undefined,
-    apiKey: row.apiKey ?? undefined,
-    defaultModel: row.defaultModel,
-    capabilities: JSON.parse(row.capabilities) as CoreProviderConfig['capabilities'],
-    enabled: row.enabled,
-  };
+  }).catch(console.error);
 }
 
 function inferDomain(task: { title: string; tags?: string | null }): 'code' | 'data' | 'reasoning' | 'creative' | 'general' {
@@ -106,13 +84,17 @@ export async function runTask(
     data: { status: 'in_progress', error: null, result: null },
   });
 
-  const tags: string[] = task.tags ? (JSON.parse(task.tags) as string[]) : [];
+  const tags = safeJsonParse<string[]>(task.tags, []);
 
   // Tasks tagged external:<cli> are driven by an external coding-agent CLI
   // (Codex, Claude Code, Gemini CLI, OpenCode, Cursor CLI, Aider).
+  const VALID_CLIS: ExternalCli[] = ['agy', 'claude-code', 'opencode', 'codex', 'gemini-cli', 'aider', 'cursor-cli'];
   const externalTag = tags.find((t) => t.startsWith('external:'));
   if (externalTag) {
     const cli = externalTag.split(':')[1] as ExternalCli;
+    if (!VALID_CLIS.includes(cli)) {
+      throw new Error(`Invalid external CLI: ${cli}. Allowed: ${VALID_CLIS.join(', ')}`);
+    }
     const run = () =>
       runExternalAgentTask(prisma, taskId, {
         projectPath: task.project.path,
@@ -131,8 +113,8 @@ export async function runTask(
           void notifyFailure(prisma, {
             taskId, title: task.title, provider: cli, error: message, tags,
             timestamp: new Date().toISOString(),
-          });
-          void tryAutoRetry(prisma, taskId);
+          }).catch(console.error);
+          void tryAutoRetry(prisma, taskId).catch(console.error);
         }
       });
       return { status: 'in_progress', taskId, ...result };
@@ -141,6 +123,7 @@ export async function runTask(
   }
 
   if (tags.includes('agent') || tags.includes('self-improve') || tags.includes('orchestrate')) {
+    const trace = startTrace(taskId);
     const tokenBudget = options.tokenBudget ?? (process.env.OMEGA_TOKEN_BUDGET
       ? Number(process.env.OMEGA_TOKEN_BUDGET)
       : undefined);
@@ -159,7 +142,7 @@ export async function runTask(
           description: task.description ?? undefined,
           status: task.status as Task['status'],
           complexity: task.complexity as Task['complexity'],
-          tags: task.tags ? (JSON.parse(task.tags) as Task['tags']) : [],
+          tags: safeJsonParse<string[]>(task.tags, []),
           createdAt: task.createdAt,
           updatedAt: task.updatedAt,
         };
@@ -177,6 +160,8 @@ export async function runTask(
         // Fallback: let executor use its own routing
       }
     }
+
+    traceEvent(trace, 'route.start', { strategy: 'balanced' });
 
     // Tasks tagged 'orchestrate' go through the multi-agent orchestrator
     // (high-tier planner/reviewer + smaller sub-agent models); the
@@ -209,33 +194,46 @@ export async function runTask(
       const result = queue.enqueue(taskId, undefined, async () => {
         try {
           await run();
+          traceEvent(trace, 'route.selected', { provider: task.provider ?? undefined, model: task.model ?? undefined });
+          completeTrace(trace, 'success', task.provider ?? undefined, task.model ?? undefined);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
+          traceEvent(trace, 'llm.error', { error: message });
+          completeTrace(trace, 'error');
           console.error(`Detached agent task ${taskId} failed:`, message);
           void notifyFailure(prisma, {
             taskId, title: task.title, error: message, tags,
             timestamp: new Date().toISOString(),
-          });
-          void tryAutoRetry(prisma, taskId);
+          }).catch(console.error);
+          void tryAutoRetry(prisma, taskId).catch(console.error);
         }
       });
       return { status: 'in_progress', taskId, ...result };
     }
-    const agentResult = await run();
-    // Record health/performance for the intelligent router after agent completion
-    const finalTask = 'task' in agentResult ? agentResult.task : await prisma.task.findUnique({ where: { id: taskId } });
-    if (finalTask) {
-      const provider = (finalTask as Record<string, unknown>).provider as string | undefined;
-      const model = (finalTask as Record<string, unknown>).model as string | undefined;
-      if (provider && model) {
-        const router = await getRouter(prisma);
-        const passed = finalTask.status === 'done';
-        const costUsd = (finalTask as Record<string, unknown>).costUsd as number | undefined;
-        const durationMs = finalTask.updatedAt.getTime() - finalTask.createdAt.getTime();
-        recordTaskOutcome(router, `${provider}/${model}`, passed, costUsd ?? 0, durationMs, durationMs, true, false, inferDomain(task), task.complexity);
+    try {
+      const agentResult = await run();
+      traceEvent(trace, 'route.selected', { provider: task.provider ?? undefined, model: task.model ?? undefined });
+      completeTrace(trace, 'success', task.provider ?? undefined, task.model ?? undefined);
+      // Record health/performance for the intelligent router after agent completion
+      const finalTask = 'task' in agentResult ? agentResult.task : await prisma.task.findUnique({ where: { id: taskId } });
+      if (finalTask) {
+        const provider = (finalTask as Record<string, unknown>).provider as string | undefined;
+        const model = (finalTask as Record<string, unknown>).model as string | undefined;
+        if (provider && model) {
+          const router = await getRouter(prisma);
+          const passed = finalTask.status === 'done';
+          const costUsd = (finalTask as Record<string, unknown>).costUsd as number | undefined;
+          const durationMs = finalTask.updatedAt.getTime() - finalTask.createdAt.getTime();
+          recordTaskOutcome(router, `${provider}/${model}`, passed, costUsd ?? 0, durationMs, durationMs, true, false, inferDomain(task), task.complexity);
+        }
       }
+      return finalTask;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      traceEvent(trace, 'llm.error', { error: message });
+      completeTrace(trace, 'error');
+      throw err;
     }
-    return finalTask;
   }
 
   const configs = await prisma.providerConfig.findMany();
@@ -248,7 +246,7 @@ export async function runTask(
     description: task.description ?? undefined,
     status: task.status as Task['status'],
     complexity: task.complexity as Task['complexity'],
-    tags: task.tags ? (JSON.parse(task.tags) as Task['tags']) : [],
+    tags: safeJsonParse<string[]>(task.tags, []),
     assignedModel:
       task.provider && task.model ? { provider: task.provider, model: task.model } : undefined,
     result: task.result ?? undefined,
@@ -308,7 +306,7 @@ export async function runTask(
   for (const candidate of candidates) {
     const elapsed = Date.now() - cascadeStart;
     if (elapsed > CASCADE_TIMEOUT_MS) {
-      lastError = `Cascade timeout after ${Math.round(elapsed / 1000)}s across ${candidates.length} providers`;
+      lastError = `Cascade timeout after ${String(Math.round(elapsed / 1000))}s across ${String(candidates.length)} providers`;
       traceEvent(trace, 'timeout.abort', { elapsed, cascadeTimeout: CASCADE_TIMEOUT_MS });
       break;
     }
@@ -331,8 +329,17 @@ export async function runTask(
     const startMs = Date.now();
     traceEvent(trace, 'llm.request', { provider: providerName, model: modelName, promptLen: prompt.length });
 
+    // Timeout per-provider: clamp to remaining cascade budget so a single
+    // provider with multiple retries cannot exceed the total 3-minute window.
+    const isKimiK3 = config.kind === 'kimi' && modelName.startsWith('k3');
+    const isQwen = config.kind === 'generic' && modelName.includes('qwen3.8');
+    const perProviderTimeoutMs = (isKimiK3 || isQwen) ? 180_000 : 45_000;
+    const remaining = CASCADE_TIMEOUT_MS - (Date.now() - cascadeStart);
+    const attemptTimeoutMs = Math.min(perProviderTimeoutMs, Math.max(10_000, remaining / 2));
+    const maxAttempts = Math.max(0, Math.min(3, Math.floor(remaining / attemptTimeoutMs) - 1));
+    traceEvent(trace, 'cascade.budget', { provider: providerName, remainingMs: remaining, timeoutMs: attemptTimeoutMs, maxRetries: maxAttempts });
     try {
-      const result = await provider.send(prompt, { model: modelName, timeoutMs: 45_000, maxRetries: 3 });
+      const result = await provider.send(prompt, { model: modelName, timeoutMs: attemptTimeoutMs, maxRetries: maxAttempts });
       const durationMs = Date.now() - startMs;
 
       traceEvent(trace, 'llm.response', { provider: providerName, model: modelName, durationMs, resultLen: result.length });
@@ -355,19 +362,19 @@ export async function runTask(
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       const durationMs = Date.now() - startMs;
-      const isRateLimited = message.includes('429') || message.includes('rate') || message.includes('Too Many');
-      const isTimeout = message.includes('timeout') || message.includes('TIMEOUT');
-      const isCredential = message.includes('CREDENTIAL_ERROR') || message.includes('401') || message.includes('403');
+      const rateLimited = isRateLimitError(message);
+      const timeout = isTimeoutError(message);
+      const credential = isCredentialError(message);
 
-      traceEvent(trace, 'llm.error', { provider: providerName, model: modelName, durationMs, isRateLimited, isTimeout, isCredential, error: message.slice(0, 200) });
+      traceEvent(trace, 'llm.error', { provider: providerName, model: modelName, durationMs, isRateLimited: rateLimited, isTimeout: timeout, isCredential: credential, error: message.slice(0, 200) });
 
       // Record failure
-      recordTaskOutcome(router, `${providerName}/${modelName}`, false, 0, durationMs, durationMs, false, isRateLimited, inferDomain(task), task.complexity);
+      recordTaskOutcome(router, `${providerName}/${modelName}`, false, 0, durationMs, durationMs, false, rateLimited, inferDomain(task), task.complexity);
 
       lastError = message;
 
       // If rate-limited or timed out, try next candidate
-      if (isRateLimited || isTimeout) {
+      if (rateLimited || timeout) {
         continue;
       }
 
@@ -387,19 +394,19 @@ export async function runTask(
   completeTrace(trace, outcome, candidates[0]?.provider.name, candidates[0]?.model);
 
   void notifyFailure(prisma, {
-    taskId, title: task.title, provider: candidates[0]!.provider.name,
-    model: candidates[0]!.model, error: lastError, tags,
+    taskId, title: task.title, provider: candidates[0].provider.name,
+    model: candidates[0].model, error: lastError, tags,
     timestamp: new Date().toISOString(),
-  });
+  }).catch(console.error);
   const updated = await prisma.task.update({
     where: { id: taskId },
     data: {
       status: 'failed',
       error: lastError,
-      provider: candidates[0]!.provider.name,
-      model: candidates[0]!.model,
+      provider: candidates[0].provider.name,
+      model: candidates[0].model,
     },
   });
-  void tryAutoRetry(prisma, taskId);
+  void tryAutoRetry(prisma, taskId).catch(console.error);
   return updated;
 }

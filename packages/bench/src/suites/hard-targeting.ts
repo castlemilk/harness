@@ -19,12 +19,10 @@
  * "spec.js" file the agent doesn't see) to catch the adversarial case.
  */
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { EvaluationContext, BenchmarkEvaluation } from '../types.js';
-import { task, codeFile, jsonFile, nodeProject } from './builder.js';
+import { task, codeFile, nodeProject } from './builder.js';
 import { applyLatestPatch } from './eval-helpers.js';
 
 const execFileAsync = promisify(execFile);
@@ -243,7 +241,9 @@ function adversarialTestFix(): (ctx: EvaluationContext) => Promise<BenchmarkEval
 // Suite definitions
 // --------------------------------------------------------------------------
 
-export function hardTargetedSuite(): import('../types.js').BenchmarkTask[] {
+import type { BenchmarkTask } from '../types.js';
+
+export function hardTargetedSuite(): BenchmarkTask[] {
   return [
     // 1. Event listener leak (debug)
     task({

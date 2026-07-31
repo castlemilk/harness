@@ -60,7 +60,7 @@ function formatDuration(ms: number): string {
   const s = ms / 1000;
   if (s < 60) return `${s.toFixed(1)}s`;
   const m = Math.floor(s / 60);
-  return `${m}m ${Math.round(s - m * 60)}s`;
+  return `${String(m)}m ${String(Math.round(s - m * 60))}s`;
 }
 
 function TimelineBar({ subtask }: { subtask: Subtask }) {
@@ -70,7 +70,7 @@ function TimelineBar({ subtask }: { subtask: Subtask }) {
 
   return (
     <div className="flex items-center gap-2 text-[10px] text-gray-500 mt-1">
-      <div className={`h-1.5 rounded-full ${statusBg(subtask.status)}`} style={{ width: `${Math.min(100, Math.max(8, duration / 100))}%` }} />
+      <div className={`h-1.5 rounded-full ${statusBg(subtask.status)}`} style={{ width: `${String(Math.min(100, Math.max(8, duration / 100)))}%` }} />
       <span>{duration > 0 ? formatDuration(duration) : '—'}</span>
     </div>
   );
@@ -114,17 +114,17 @@ export function OrchestrationView({ taskId, projectId, live = false }: Props) {
   async function load() {
     setLoading(true);
     try {
-      const [tasks, traceData] = await Promise.all([
-        api.getTasks(projectId).catch(() => [] as Subtask[]),
+      const [taskResult, traceData] = await Promise.all([
+        api.getTasks(projectId).catch(() => ({ tasks: [] as Subtask[], total: 0 })),
         api.getTraceFlow(taskId).catch(() => null),
       ]);
       const parentTag = `parent:${taskId}`;
-      const children = (tasks as Subtask[]).filter((t) => parseTags(t.tags).includes(parentTag));
+      const children = (taskResult.tasks as Subtask[]).filter((t) => parseTags(t.tags).includes(parentTag));
       children.sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''));
       setSubtasks(children);
 
       if (traceData && typeof traceData === 'object' && 'spans' in traceData) {
-        setSpans((traceData as { spans: TraceSpan[] }).spans ?? []);
+        setSpans((traceData as { spans: TraceSpan[] }).spans);
       }
     } catch {
       // ignore

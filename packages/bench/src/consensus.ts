@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { omegaWorkDir } from '@omega/core';
-import type { BenchmarkTask, BenchmarkReport, BenchmarkEvaluation } from './types.js';
+import type { BenchmarkTask, BenchmarkReport, BenchmarkEvaluation, EvaluationContext, AgentRunInfo } from './types.js';
 import {
   ensureProject,
   createTask,
@@ -11,8 +11,8 @@ import {
   getAgentRun,
   getDiffs,
   pollForDiffs,
-  countSpans,
 } from './api-client.js';
+import { ensureGitRepo, resetToCommit } from './git-utils.js';
 
 /**
  * Best-of-N consensus eval: run N agents in parallel on the same task,
@@ -101,52 +101,10 @@ interface CandidateRun {
   status: 'running' | 'done' | 'failed' | 'timeout';
 }
 
-function ensureGitRepo(repoPath: string): void {
-  try {
-    execFileSync('git', ['rev-parse', '--git-dir'], { cwd: repoPath, stdio: 'ignore', env: process.env });
-    return;
-  } catch {
-    // not a git repo
-  }
-  execFileSync('git', ['init'], { cwd: repoPath, stdio: 'ignore', env: process.env });
-  execFileSync('git', ['config', 'user.email', 'bench@omega.local'], { cwd: repoPath, stdio: 'ignore', env: process.env });
-  execFileSync('git', ['config', 'user.name', 'Omega Bench'], { cwd: repoPath, stdio: 'ignore', env: process.env });
-  execFileSync('git', ['add', '.'], { cwd: repoPath, stdio: 'ignore', env: process.env });
-  execFileSync('git', ['commit', '-m', 'bench init'], { cwd: repoPath, stdio: 'ignore', env: process.env });
-}
-
-async function getBaseCommit(repoPath: string): Promise<string> {
+function getBaseCommit(repoPath: string): string {
   return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoPath, stdio: ['ignore', 'pipe', 'ignore'], env: process.env })
     .toString()
     .trim();
-}
-
-function tryGitApply(repoPath: string, patch: string): boolean {
-  // Try strict first, then 3way fallback. Returns true on success.
-  const tmp = path.join(repoPath, '.consensus-apply.patch');
-  require('node:fs').writeFileSync(tmp, patch.endsWith('\n') ? patch : `${patch}\n`);
-  try {
-    execFileSync('git', ['apply', '--whitespace=nowarn', tmp], { cwd: repoPath, stdio: 'ignore', env: process.env });
-    return true;
-  } catch {
-    try {
-      execFileSync('git', ['apply', '--3way', '--whitespace=nowarn', tmp], { cwd: repoPath, stdio: 'ignore', env: process.env });
-      return true;
-    } catch {
-      return false;
-    }
-  } finally {
-    try {
-      require('node:fs').unlinkSync(tmp);
-    } catch {
-      /* ignore */
-    }
-  }
-}
-
-function resetToCommit(repoPath: string, commit: string): void {
-  execFileSync('git', ['checkout', '-f', commit], { cwd: repoPath, stdio: 'ignore', env: process.env });
-  execFileSync('git', ['clean', '-fd'], { cwd: repoPath, stdio: 'ignore', env: process.env });
 }
 
 export async function runConsensusEval(
@@ -200,7 +158,6 @@ export async function runConsensusEval(
   const winsByModel: Record<string, number> = {};
 
   // Top-level "consensus" pseudo-model for the dashboard.
-  const CONSENSUS_KEY = `consensus/${models.map((m) => m.model).join('+')}`;
   const consensusReport: ConsensusResult = {
     provider: 'consensus',
     model: models.map((m) => m.model).join('+'),
@@ -269,7 +226,7 @@ export async function runConsensusEval(
 
     // Register all harness tasks and capture base commits.
     for (const r of runs) {
-      const baseCommit = await getBaseCommit(r.projectPath);
+      const baseCommit = getBaseCommit(r.projectPath);
       r.baseCommit = baseCommit;
       const projectName = `${projectPrefix}-${r.provider}-${r.model}-${task.id}`.slice(0, 200);
       const project = await ensureProject(apiUrl, projectName, r.projectPath);
@@ -339,7 +296,7 @@ export async function runConsensusEval(
           if (agentRun?.totalTokens != null) break;
           await new Promise((resolve) => setTimeout(resolve, 500));
         }
-        const totalPatchBytes = diffs.reduce((sum, d) => sum + (d.patch?.length ?? 0), 0);
+        const totalPatchBytes = diffs.reduce((sum, d) => sum + d.patch.length, 0);
         r.diff = {
           bytes: totalPatchBytes,
           tokens: agentRun?.totalTokens ?? null,
@@ -398,7 +355,7 @@ export async function runConsensusEval(
       }
 
       // Build a synthetic EvaluationContext for the task's evaluate().
-      const context: import('./types.js').EvaluationContext = {
+      const context: EvaluationContext = {
         apiUrl,
         taskId: candidate.run.harnessTaskId,
         projectPath: evalSandbox,
@@ -486,7 +443,6 @@ export async function runConsensusEval(
       const c = candidates[i];
       const key = `${r.provider}/${r.model}`;
       const sub = candidatesByModel[key];
-      if (!sub) continue;
       sub.report.total++;
       sub.report.totalDurationMs += c.durationMs;
       // Per-model counters:
@@ -498,7 +454,7 @@ export async function runConsensusEval(
       // The meaningful per-model pass rate is `passed / tried` — fraction
       // of tested candidates that succeeded.
       const candidateWon = !!winner && winner.c.provider === r.provider && winner.c.model === r.model;
-      const candidateTried = candidateWon || c.evalPassed || false;
+      const candidateTried = candidateWon || c.evalPassed;
       if (candidateTried && c.evalPassed) sub.report.passed++;
       else if (candidateTried) sub.report.failed++;
       sub.report.results.push({
@@ -522,7 +478,7 @@ export async function runConsensusEval(
                 costUsd: c.costUsd,
                 createdAt: '',
                 updatedAt: '',
-              } as unknown as import('./types.js').AgentRunInfo)
+              } as unknown as AgentRunInfo)
             : undefined,
         diffs: c.patchBytes > 0 ? [{ id: 'consensus', branch: 'master', patch: '' }] : undefined,
         spanCount: 0,

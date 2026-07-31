@@ -75,7 +75,7 @@ function formatDuration(ms: number): string {
   const s = ms / 1000;
   if (s < 60) return `${s.toFixed(1)}s`;
   const m = Math.floor(s / 60);
-  return `${m}m ${Math.round(s - m * 60)}s`;
+  return `${String(m)}m ${String(Math.round(s - m * 60))}s`;
 }
 
 function formatTokens(n: number): string {
@@ -100,7 +100,7 @@ export function formatTrend(entries: TrendEntry[]): string {
 
   lines.push(`Reports:  ${String(entries.length)}`);
   lines.push(`Suite:    ${latest.suite}`);
-  lines.push(`Latest:   ${latest.passRate}% (${String(latest.passed)}/${String(latest.total)}) at ${latest.timestamp}`);
+  lines.push(`Latest:   ${String(latest.passRate)}% (${String(latest.passed)}/${String(latest.total)}) at ${latest.timestamp}`);
   lines.push(`Best:     ${String(bestRate)}%`);
   lines.push(`Avg tokens: ${formatTokens(Math.round(avgTokens))}`);
 

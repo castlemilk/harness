@@ -5,12 +5,15 @@ export default function ProviderComparePanel() {
   const [providers, setProviders] = useState<Awaited<ReturnType<typeof api.getProviderCompare>>>([]);
   const [traceMap, setTraceMap] = useState<Record<string, { count: number; avgMs: number; errorRate: number }>>({});
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     Promise.all([api.getProviderCompare(), api.getTraceStats()])
       .then(([p, t]) => { setProviders(p); setTraceMap(t.byProvider); })
-      .catch(() => {});
+      .catch((err: unknown) => { setError(err instanceof Error ? err.message : 'Failed to load provider data'); });
   }, []);
 
+  if (error) return <div className="p-6 text-sm text-red-500">{error}</div>;
   if (providers.length === 0) return <div className="p-6 text-sm text-gray-400">No provider data yet</div>;
 
   return (
@@ -22,7 +25,7 @@ export default function ProviderComparePanel() {
 
       {providers.map((p) => {
         const traceInfo = traceMap[p.provider];
-        const errRate = traceInfo ? Math.round(traceInfo.errorRate * 100) : 0;
+        const errRate = Math.round(traceInfo.errorRate * 100);
         const passColor = p.passRate >= 0.8 ? '#22c55e' : p.passRate >= 0.5 ? '#f59e0b' : '#ef4444';
         return (
           <div key={`${p.provider}/${p.model}`} className="bg-white border rounded p-4">
@@ -49,7 +52,7 @@ export default function ProviderComparePanel() {
                 <div className="text-gray-400">error rate</div>
               </div>
               <div>
-                <div className="tabular-nums font-medium">{traceInfo?.count ?? 0}</div>
+                <div className="tabular-nums font-medium">{traceInfo.count}</div>
                 <div className="text-gray-400">traces</div>
               </div>
             </div>

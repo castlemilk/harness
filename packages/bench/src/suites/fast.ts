@@ -1,6 +1,4 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import type { BenchmarkTask, EvaluationContext, BenchmarkEvaluation } from '../types.js';
+import type { BenchmarkTask } from '../types.js';
 import {
   task,
   nodeProject,
@@ -9,7 +7,7 @@ import {
   expectFileContains,
   combined,
 } from './builder.js';
-import { applyLatestPatch, runScript, expectScriptOutput } from './eval-helpers.js';
+import { applyLatestPatch, expectScriptOutput } from './eval-helpers.js';
 
 /**
  * Fast, lightweight benchmark suite: ten tiny plain-Node tasks with no

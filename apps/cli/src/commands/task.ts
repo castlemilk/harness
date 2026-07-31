@@ -11,11 +11,6 @@ function formatStatus(status: string): string {
   }
 }
 
-function formatTs(ts: string): string {
-  const d = new Date(ts);
-  return d.toLocaleTimeString('en-US', { hour12: false });
-}
-
 async function streamTaskEvents(taskId: string): Promise<void> {
   const url = `${getApiUrl()}/tasks/${taskId}/stream`;
   let res: Response;
@@ -38,7 +33,7 @@ async function streamTaskEvents(taskId: string): Promise<void> {
   let taskStatus = 'in_progress';
 
   try {
-    while (true) {
+    for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
@@ -56,7 +51,7 @@ async function streamTaskEvents(taskId: string): Promise<void> {
             const parsed = JSON.parse(data) as Record<string, unknown>;
             handleEvent(eventType, parsed);
             if (eventType === 'task') {
-              taskStatus = (parsed.status as string) ?? taskStatus;
+              taskStatus = parsed.status as string;
             }
           } catch {
             // not JSON, skip
@@ -85,8 +80,8 @@ function handleEvent(event: string, data: Record<string, unknown>): void {
     case 'init': {
       const task = data.task as Record<string, unknown> | undefined;
       if (task) {
-        console.log(`[${ts}] Task ${String(task.id).slice(0, 8)} status=${formatStatus(String(task.status ?? ''))}`);
-        if (task.provider) console.log(`         provider=${String(task.provider)} model=${String(task.model ?? '')}`);
+        console.log(`[${ts}] Task ${String(task.id).slice(0, 8)} status=${formatStatus(typeof task.status === 'string' ? task.status : '')}`);
+        if (task.provider) console.log(`         provider=${typeof task.provider === 'string' ? task.provider : ''} model=${typeof task.model === 'string' ? task.model : ''}`);
       }
       const spans = data.spans as unknown[] | undefined;
       const diffs = data.diffs as unknown[] | undefined;
@@ -95,7 +90,7 @@ function handleEvent(event: string, data: Record<string, unknown>): void {
       break;
     }
     case 'task': {
-      const status = formatStatus(String(data.status ?? ''));
+      const status = formatStatus(typeof data.status === 'string' ? data.status : '');
       const result = typeof data.result === 'string' ? data.result.slice(0, 200) : '';
       const error = typeof data.error === 'string' ? data.error.slice(0, 200) : '';
       console.log(`[${ts}] Task status=${status}`);
@@ -104,11 +99,11 @@ function handleEvent(event: string, data: Record<string, unknown>): void {
       break;
     }
     case 'span': {
-      const name = String(data.name ?? '');
-      const spanStatus = String(data.status ?? '');
+      const name = typeof data.name === 'string' ? data.name : '';
+      const spanStatus = typeof data.status === 'string' ? data.status : '';
       const icon = spanStatus === 'ok' ? '✓' : spanStatus === 'error' ? '✗' : '·';
       const attrs = data.attributes as Record<string, unknown> | undefined;
-      const detail = attrs?.cli ? ` (${String(attrs.cli)})` : '';
+      const detail = typeof attrs?.cli === 'string' ? ` (${attrs.cli})` : '';
       console.log(`[${ts}] ${icon} span: ${name}${detail}`);
       break;
     }
@@ -120,7 +115,7 @@ function handleEvent(event: string, data: Record<string, unknown>): void {
     }
     case 'agent-run': {
       const tokens = data.totalTokens ?? data.promptTokens;
-      if (tokens) console.log(`[${ts}] tokens: ${String(tokens)}`);
+      if (typeof tokens === 'number') console.log(`[${ts}] tokens: ${String(tokens)}`);
       break;
     }
     default:

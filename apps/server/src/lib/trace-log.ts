@@ -1,4 +1,4 @@
-// ─── Trace Entry ────────────────────────────────────────────────────────────
+// ─── In-Memory Store (ring buffer of last 500 traces) ──────────────────────
 
 let traceCounter = 0;
 
@@ -20,6 +20,7 @@ export interface TraceEvent {
     | 'agent.loop.iteration'
     | 'agent.loop.complete'
     | 'timeout.abort'
+    | 'cascade.budget'
     | 'task.complete';
   data?: Record<string, unknown>;
 }
@@ -36,11 +37,9 @@ export interface Trace {
   model?: string;
 }
 
-// ─── In-Memory Store (ring buffer of last 500 traces) ──────────────────────
-
 const MAX_TRACES = 500;
 const traces: Trace[] = [];
-const taskIndex = new Map<string, Trace>();
+const taskIndex = new Map<string, Trace[]>();
 
 export function startTrace(taskId: string): Trace {
   const trace: Trace = {
@@ -50,10 +49,21 @@ export function startTrace(taskId: string): Trace {
     events: [],
   };
   traces.push(trace);
-  taskIndex.set(taskId, trace);
+
+  // Store all traces per task (supports retries)
+  const existing = taskIndex.get(taskId) ?? [];
+  existing.push(trace);
+  taskIndex.set(taskId, existing);
+
   if (traces.length > MAX_TRACES) {
-    const old = traces.shift()!;
-    if (taskIndex.get(old.taskId) === old) taskIndex.delete(old.taskId);
+    const old = traces.shift();
+    if (!old) return trace;
+    const list = taskIndex.get(old.taskId);
+    if (list) {
+      const idx = list.indexOf(old);
+      if (idx >= 0) list.splice(idx, 1);
+      if (list.length === 0) taskIndex.delete(old.taskId);
+    }
   }
   return trace;
 }
@@ -78,7 +88,12 @@ export function completeTrace(
 // ─── Query API ──────────────────────────────────────────────────────────────
 
 export function getTrace(taskId: string): Trace | undefined {
-  return taskIndex.get(taskId);
+  const list = taskIndex.get(taskId);
+  return list?.[list.length - 1];
+}
+
+export function getAllTracesForTask(taskId: string): Trace[] {
+  return taskIndex.get(taskId) ?? [];
 }
 
 export function getRecentTraces(limit = 50): Trace[] {
@@ -93,7 +108,7 @@ export function getTraceStats(): {
 } {
   const completed = traces.filter((t) => t.totalMs != null);
   const avgMs = completed.length > 0
-    ? completed.reduce((s, t) => s + t.totalMs!, 0) / completed.length
+    ? completed.reduce((s, t) => s + (t.totalMs ?? 0), 0) / completed.length
     : 0;
 
   const byOutcome: Record<string, number> = {};
@@ -105,9 +120,9 @@ export function getTraceStats(): {
   const byProvider: Record<string, { count: number; avgMs: number; errorRate: number }> = {};
   for (const t of completed) {
     const key = t.provider ?? 'unknown';
-    if (!byProvider[key]) byProvider[key] = { count: 0, avgMs: 0, errorRate: 0 };
+    if (!(key in byProvider)) byProvider[key] = { count: 0, avgMs: 0, errorRate: 0 };
     byProvider[key].count++;
-    byProvider[key].avgMs += t.totalMs!;
+    byProvider[key].avgMs += t.totalMs ?? 0;
     if (t.outcome === 'error' || t.outcome === 'auth_error') byProvider[key].errorRate++;
   }
   for (const key of Object.keys(byProvider)) {
@@ -126,10 +141,10 @@ export function formatTraceSummary(trace: Trace): string {
   const lines = [`[trace:${trace.traceId.slice(0, 8)}] task=${trace.taskId.slice(0, 8)}`];
   for (const ev of trace.events) {
     const rel = ev.ts - trace.startedAt;
-    lines.push(`  +${rel}ms ${ev.phase}${ev.data ? ' ' + JSON.stringify(ev.data) : ''}`);
+    lines.push(`  +${String(rel)}ms ${ev.phase}${ev.data ? ' ' + JSON.stringify(ev.data) : ''}`);
   }
   if (trace.totalMs != null) {
-    lines.push(`  total=${trace.totalMs}ms outcome=${trace.outcome} provider=${trace.provider}/${trace.model}`);
+    lines.push(`  total=${String(trace.totalMs)}ms outcome=${trace.outcome ?? ''} provider=${trace.provider ?? ''}/${trace.model ?? ''}`);
   }
   return lines.join('\n');
 }

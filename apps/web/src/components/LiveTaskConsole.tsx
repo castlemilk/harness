@@ -49,6 +49,8 @@ interface LiveAgentRun {
   completionTokens?: number;
   totalTokens?: number;
   promptVersionId?: string;
+  turnDurationMs?: number;
+  phaseTimings?: string;
 }
 
 interface InitPayload {
@@ -119,6 +121,57 @@ function SpanRow({ span, depth = 0 }: { span: LiveSpan; depth?: number }) {
       {span.children.map((child) => (
         <SpanRow key={child.spanId} span={child} depth={depth + 1} />
       ))}
+    </div>
+  );
+}
+
+function formatDuration(ms: number): string {
+  const totalSeconds = Math.round(ms / 1000);
+  if (totalSeconds < 60) return `${totalSeconds.toString()}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return seconds === 0 ? `${minutes.toString()}m` : `${minutes.toString()}m${seconds.toString()}s`;
+}
+
+function parsePhaseTimings(raw: string): Record<string, number> {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === 'object') {
+      const out: Record<string, number> = {};
+      for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+        if (typeof v === 'number') out[k] = v;
+      }
+      return out;
+    }
+  } catch {
+    // fall through
+  }
+  return {};
+}
+
+function PhaseTimings({ timings }: { timings: string }) {
+  const parsed = parsePhaseTimings(timings);
+  const entries = Object.entries(parsed);
+  if (entries.length === 0) return null;
+  const total = entries.reduce((acc, [, ms]) => acc + ms, 0);
+  return (
+    <div>
+      <div className="flex justify-between text-gray-500">
+        <span>Phases</span>
+        <span className="font-mono text-[10px]">
+          {entries.map(([phase, ms]) => `${phase}=${formatDuration(ms)}`).join(' · ')}
+        </span>
+      </div>
+      <div className="mt-1 flex h-1.5 rounded overflow-hidden bg-gray-200">
+        {entries.map(([phase, ms], idx) => (
+          <div
+            key={phase}
+            className={idx % 2 === 0 ? 'bg-blue-400' : 'bg-blue-600'}
+            style={{ width: `${((ms / total) * 100).toFixed(2)}%` }}
+            title={`${phase}: ${formatDuration(ms)} (${((ms / total) * 100).toFixed(1)}%)`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -245,6 +298,13 @@ export function LiveTaskConsole({ taskId }: { taskId: string }) {
                 </span>
               </div>
             )}
+            {agentRun.turnDurationMs !== undefined && agentRun.turnDurationMs !== null && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Turn duration</span>
+                <span>{formatDuration(agentRun.turnDurationMs)}</span>
+              </div>
+            )}
+            {agentRun.phaseTimings && <PhaseTimings timings={agentRun.phaseTimings} />}
           </>
         )}
         {task?.error && <div className="text-red-600">{task.error}</div>}

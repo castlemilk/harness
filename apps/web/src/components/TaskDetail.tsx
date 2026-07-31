@@ -85,6 +85,10 @@ export function TaskDetail({ taskId, taskStatus, taskError, failureCategory, pro
     void load();
   }, [taskId]);
 
+  useEffect(() => {
+    if (taskStatus === 'in_progress') setTab('live');
+  }, [taskId, taskStatus]);
+
   return (
     <div className="mt-3 border-t border-gray-200 pt-3 text-xs">
       {(failureCategory ?? taskError) && (
@@ -151,15 +155,15 @@ export function TaskDetail({ taskId, taskStatus, taskError, failureCategory, pro
             Orchestration
           </button>
         )}
-        {isRunning && (
-          <button
-            onClick={() => { setTab('live'); }}
-            className={`px-2 py-1 rounded flex items-center gap-1 ${tab === 'live' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}
-          >
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            Live
-          </button>
-        )}
+        <button
+          onClick={() => { setTab('live'); }}
+          className={`px-2 py-1 rounded flex items-center gap-1 ${tab === 'live' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}
+        >
+          <span
+            className={`inline-block w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}
+          />
+          Live
+        </button>
         <button onClick={() => { void load(); }} className="ml-auto px-2 py-1 bg-gray-100 rounded">
           Refresh
         </button>

@@ -192,6 +192,153 @@ taskCmd
     console.log(JSON.stringify(tasks, null, 2));
   });
 
+interface TaskStatusRow {
+  id: string;
+  status: string;
+  model?: string | null;
+  provider?: string | null;
+  title: string;
+  createdAt: string;
+  result?: string | null;
+  error?: string | null;
+}
+
+const ANSI = {
+  dim: '\x1b[2m',
+  reset: '\x1b[0m',
+  cyan: '\x1b[36m',
+};
+
+function formatElapsed(createdAt: string): string {
+  const ms = Math.max(0, Date.now() - new Date(createdAt).getTime());
+  const totalSec = Math.floor(ms / 1000);
+  if (totalSec < 60) return `${String(totalSec)}s`;
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  if (min < 60) return `${String(min)}m${String(sec).padStart(2, '0')}`;
+  return `${String(Math.floor(min / 60))}h${String(min % 60).padStart(2, '0')}m`;
+}
+
+function sanitizeTitle(title: string): string {
+  return title.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 70);
+}
+
+function renderBoard(rows: TaskStatusRow[]): number {
+  if (rows.length === 0) {
+    console.log(`${ANSI.dim}No tasks matching filters.${ANSI.reset}`);
+    return 1;
+  }
+  console.log(`${ANSI.cyan}ID        STATUS            MODEL               ELAPSED  TASK${ANSI.reset}`);
+  for (const task of rows) {
+    const id = task.id.slice(0, 8);
+    const status = formatStatus(task.status);
+    const model = (task.model ?? task.provider ?? '-').padEnd(18).slice(0, 18);
+    const elapsed = formatElapsed(task.createdAt).padEnd(7);
+    console.log(`${id.padEnd(10)}${status.padEnd(18)}${model}${elapsed}${sanitizeTitle(task.title)}`);
+  }
+  return rows.length + 1;
+}
+
+async function subscribeTaskStream(onTask: (event: { id: string; status?: string; model?: string; provider?: string }) => void): Promise<() => void> {
+  const res = await fetch(`${getApiUrl()}/tasks/stream`);
+  if (!res.ok || !res.body) throw new Error(`SSE stream returned ${String(res.status)}`);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let aborted = false;
+  void (async () => {
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done || aborted) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        let eventType = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+          else if (line.startsWith('data: ') && eventType === 'task') {
+            try {
+              onTask(JSON.parse(line.slice(6)) as { id: string; status?: string; model?: string; provider?: string });
+            } catch {
+              // skip malformed frames
+            }
+          }
+        }
+      }
+    } catch {
+      // stream closed
+    }
+  })();
+  return () => {
+    aborted = true;
+    void reader.cancel().catch(() => undefined);
+  };
+}
+
+function filterTaskRows(tasks: TaskStatusRow[], all: boolean): TaskStatusRow[] {
+  const inFlight = tasks.filter((t) => t.status === 'in_progress');
+  if (all) {
+    const finished = tasks.filter((t) => t.status !== 'in_progress').slice(0, 10);
+    return [...inFlight, ...finished];
+  }
+  return inFlight;
+}
+
+taskCmd
+  .command('status')
+  .description('Show in-flight tasks, live-updating from the SSE stream (Ctrl+C to stop)')
+  .option('--project <id>', 'filter by project id')
+  .option('--all', 'also show recent finished tasks')
+  .option('--limit <n>', 'max tasks to fetch', parseInt)
+  .option('--once', 'snapshot only, do not subscribe to live updates')
+  .option('--json', 'print raw snapshot JSON and exit')
+  .action(async (opts: { project?: string; all?: boolean; limit?: number; once?: boolean; json?: boolean }) => {
+    const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
+    const query = `?limit=${limit}${opts.project ? `&projectId=${encodeURIComponent(opts.project)}` : ''}`;
+    const data = (await apiFetch(`/tasks${query}`)) as { tasks: TaskStatusRow[]; total: number };
+    const rows = filterTaskRows(data.tasks, Boolean(opts.all));
+
+    if (opts.json || opts.once) {
+      console.log(JSON.stringify({ tasks: rows, total: data.total }, null, 2));
+      return;
+    }
+
+    let rendered = 0;
+    const board = new Map<string, TaskStatusRow>(rows.map((t) => [t.id, t]));
+
+    const redraw = (): void => {
+      if (rendered > 0) {
+        process.stdout.write(`\x1b[${rendered}A\x1b[0J`);
+      }
+      const visible = filterTaskRows([...board.values()], Boolean(opts.all)).sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+      rendered = renderBoard(visible);
+    };
+
+    redraw();
+    const stop = await subscribeTaskStream((event) => {
+      const existing = board.get(event.id);
+      board.set(event.id, {
+        id: event.id,
+        status: event.status ?? existing?.status ?? 'in_progress',
+        model: event.model ?? existing?.model,
+        provider: event.provider ?? existing?.provider,
+        title: existing?.title ?? '<new task>',
+        createdAt: existing?.createdAt ?? new Date().toISOString(),
+      });
+      redraw();
+    });
+
+    const onExit = (): void => {
+      stop();
+      process.exit(0);
+    };
+    process.on('SIGINT', onExit);
+    process.on('SIGTERM', onExit);
+  });
+
 taskCmd
   .command('run')
   .description('Run a task through the router')

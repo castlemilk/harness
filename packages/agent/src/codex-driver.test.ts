@@ -7,6 +7,8 @@ const FAKE_BIN_DIR = path.join(import.meta.dirname, 'test-fixtures', 'bin');
 
 const originalPath = process.env.PATH;
 
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 beforeAll(() => {
   fs.mkdirSync(FAKE_BIN_DIR, { recursive: true });
   fs.symlinkSync(path.join(import.meta.dirname, 'test-fixtures', 'fake-codex.mjs'), path.join(FAKE_BIN_DIR, 'codex'));
@@ -55,6 +57,33 @@ describe('runCodexTurn', () => {
     expect(result.reasoningSummary).toEqual(['Analyzed the code']);
     expect(result.timedOut).toBe(false);
     expect(progress.some((p) => p.phase === 'finalizing')).toBe(true);
+  });
+
+  it('waits for a subagent turn to drain before completing a final answer', async () => {
+    process.env.FAKE_CODEX_MODE = 'collaboration';
+    const result = await runCodexTurn(fs.mkdtempSync(path.join(import.meta.dirname, 'tmp-')), 'Implement the feature.', {
+      timeoutMs: 2_000,
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.fileChanges).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'subagent-file' })]));
+  });
+
+  it('does not finish while a subagent is still draining after the top-level final answer', async () => {
+    process.env.FAKE_CODEX_MODE = 'collaboration-final-answer-first';
+    const resultPromise = runCodexTurn(fs.mkdtempSync(path.join(import.meta.dirname, 'tmp-')), 'Implement the feature.', {
+      timeoutMs: 2_000,
+    });
+
+    const completionState = await Promise.race([
+      resultPromise.then(() => 'completed' as const),
+      wait(300).then(() => 'pending' as const),
+    ]);
+    expect(completionState).toBe('pending');
+
+    const result = await resultPromise;
+    expect(result.status).toBe('completed');
+    expect(result.fileChanges).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'subagent-file' })]));
   });
 
   it('interrupts and reports timed-out when the turn never completes', async () => {

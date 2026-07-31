@@ -57,6 +57,64 @@ rl.on('line', (line) => {
     if (process.env.FAKE_CODEX_MODE === 'hang') {
       return;
     }
+
+    if (process.env.FAKE_CODEX_MODE === 'collaboration' || process.env.FAKE_CODEX_MODE === 'collaboration-final-answer-first') {
+      const nestedThreadId = 'thread-test-subagent';
+      const nestedTurnId = 'turn-test-subagent';
+      const collaborationItem = {
+        id: 'collaboration-1',
+        type: 'collabAgentToolCall',
+        status: 'inProgress',
+        tool: 'spawn_agent',
+        receiverThreadIds: [nestedThreadId],
+      };
+
+      notify('turn/started', { threadId: 'thread-test-1', turn: { id: 'turn-test-1', status: 'inProgress' } });
+      notify('item/started', {
+        threadId: 'thread-test-1',
+        turnId: 'turn-test-1',
+        item: collaborationItem,
+      });
+      notify('item/completed', {
+        threadId: 'thread-test-1',
+        turnId: 'turn-test-1',
+        item: collaborationItem,
+      });
+      notify('thread/started', { thread: { id: nestedThreadId, agentNickname: 'subagent' } });
+      notify('turn/started', { threadId: nestedThreadId, turn: { id: nestedTurnId, status: 'inProgress' } });
+
+      const completeNestedTurn = () => {
+        notify('item/completed', {
+          threadId: nestedThreadId,
+          turnId: nestedTurnId,
+          item: { id: 'subagent-file', type: 'fileChange', status: 'completed', changes: [{ path: 'src/subagent.ts' }] },
+        });
+        notify('turn/completed', { threadId: nestedThreadId, turn: { id: nestedTurnId, status: 'completed' } });
+        notify('item/completed', {
+          threadId: 'thread-test-1',
+          turnId: 'turn-test-1',
+          item: { ...collaborationItem, status: 'completed' },
+        });
+      };
+
+      if (process.env.FAKE_CODEX_MODE === 'collaboration-final-answer-first') {
+        notify('item/completed', {
+          threadId: 'thread-test-1',
+          turnId: 'turn-test-1',
+          item: { id: 'it4', type: 'agentMessage', phase: 'final_answer', text: 'Done implementing the task.' },
+        });
+        setTimeout(completeNestedTurn, 400);
+      } else {
+        completeNestedTurn();
+        notify('item/completed', {
+          threadId: 'thread-test-1',
+          turnId: 'turn-test-1',
+          item: { id: 'it4', type: 'agentMessage', phase: 'final_answer', text: 'Done implementing the task.' },
+        });
+      }
+      return;
+    }
+
     notify('turn/started', { threadId: 'thread-test-1', turn: { id: 'turn-test-1', status: 'inProgress' } });
     notify('item/completed', {
       threadId: 'thread-test-1',

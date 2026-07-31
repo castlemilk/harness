@@ -8,6 +8,10 @@ import { logger } from './logger.js';
 import { spawnWithPty } from './pty-spawn.js';
 import { extractOpencodeResult, parseOpencodeMetrics } from './opencode-output.js';
 import { parseClaudeCodeStreamJson } from './claude-code-output.js';
+import { runCodexTurn, getCodexAvailability, type CodexTurnResult } from './codex-driver.js';
+import { buildCodexTaskPrompt } from './codex-prompt.js';
+import { deriveVerificationCommand } from './project-utils.js';
+import { sanitizeForDb } from './utils.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -30,8 +34,8 @@ function spawnWithStdinClosed(
 
     const outChunks: Buffer[] = [];
     const errChunks: Buffer[] = [];
-    child.stdout?.on('data', (d) => outChunks.push(d));
-    child.stderr?.on('data', (d) => errChunks.push(d));
+    child.stdout?.on('data', (d: Buffer) => outChunks.push(d));
+    child.stderr?.on('data', (d: Buffer) => errChunks.push(d));
 
     let settled = false;
     const timer = setTimeout(() => {
@@ -149,12 +153,28 @@ interface ExtractedMetrics {
   toolCalls?: Record<string, number>;
 }
 
+function parseCodexMetrics(raw: string): ExtractedMetrics {
+  const envelope = JSON.parse(raw) as {
+    turns?: number;
+    commandCount?: number;
+    fileChangeCount?: number;
+  };
+  const toolCalls: Record<string, number> = {};
+  if (envelope.commandCount) toolCalls.command = envelope.commandCount;
+  if (envelope.fileChangeCount) toolCalls.fileChange = envelope.fileChangeCount;
+  return {
+    turns: envelope.turns,
+    toolCalls: Object.keys(toolCalls).length > 0 ? toolCalls : undefined,
+  };
+}
+
 function cliSpec(cli: ExternalCli): CliSpec {
   switch (cli) {
     case 'codex':
       return {
         command: 'codex',
         args: (prompt) => ['exec', '--sandbox', 'workspace-write', '--skip-git-repo-check', prompt],
+        metricsParser: parseCodexMetrics,
       };
     case 'claude-code':
       return {
@@ -211,17 +231,6 @@ async function commandExists(cmd: string): Promise<boolean> {
   }
 }
 
-function sanitizeForDb(value: string | null | undefined): string | null {
-  if (value === undefined || value === null) return null;
-  return value
-    .split('')
-    .filter((c) => {
-      const code = c.charCodeAt(0);
-      return code !== 0x00 && !(code >= 0x01 && code <= 0x08) && code !== 0x0b && code !== 0x0c && !(code >= 0x0e && code <= 0x1f);
-    })
-    .join('');
-}
-
 /**
  * Drive an external coding-agent CLI (Codex, Claude Code, agy, OpenCode,
  * Cursor CLI, Aider) to complete a task in the project. The external agent
@@ -267,6 +276,8 @@ export async function runExternalAgentTask(
     return { status: 'failed', diff: '', output: message };
   }
 
+  const codexDriverAvailable = options.cli === 'codex' ? (await getCodexAvailability()).available : false;
+
   const prompt = [
     `Task: ${task.title}`,
     task.description ? `Description:\n${task.description}` : '',
@@ -276,47 +287,78 @@ export async function runExternalAgentTask(
     .filter(Boolean)
     .join('\n\n');
 
+  let codexPrompt = '';
+  if (options.cli === 'codex') {
+    const verificationCommand = await deriveVerificationCommand(options.projectPath);
+    codexPrompt = buildCodexTaskPrompt({
+      title: task.title,
+      description: task.description ?? undefined,
+      verificationCommand,
+    });
+  }
+
   let output = '';
   let success = false;
   let rawOutput = '';
   try {
     const runSpan = tracer.startSpan(`external.${options.cli}`, rootSpan.toContext());
     try {
-      let stdout: string;
-      let stderr: string;
-
-      if (spec.pty) {
-        // PTY path — required for CLIs that gate stdout on isatty()
-        const timeoutMs = options.timeoutMs ?? timeoutForComplexity(options.complexity);
-        const result = await spawnWithPty(spec.command, spec.args(prompt, options.projectPath), {
-          cwd: options.projectPath,
-          env: spec.env,
-          timeoutMs,
+      if (options.cli === 'codex' && codexDriverAvailable) {
+        const result: CodexTurnResult = await runCodexTurn(options.projectPath, codexPrompt, {
+          timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
+          threadName: `task:${taskId} ${task.title}`.slice(0, 96),
+          onProgress: (message, phase) => {
+            logger.debug(`codex: ${message}`, { taskId, phase: phase ?? undefined });
+          },
         });
-        stdout = result.stdout;
-        stderr = result.stderr;
+        success = result.status === 'completed';
+        output = result.finalMessage;
+        rawOutput = JSON.stringify({
+          turns: 1,
+          status: result.status,
+          threadId: result.threadId,
+          turnId: result.turnId,
+          commandCount: result.commandExecutions.length,
+          fileChangeCount: result.fileChanges.length,
+          touchedFileCount: result.touchedFiles.length,
+        });
       } else {
-        const result = await spawnWithStdinClosed(
-          spec.command,
-          spec.args(prompt, options.projectPath),
-          {
+        let stdout: string;
+        let stderr: string;
+
+        if (spec.pty) {
+          // PTY path — required for CLIs that gate stdout on isatty()
+          const timeoutMs = options.timeoutMs ?? timeoutForComplexity(options.complexity);
+          const result = await spawnWithPty(spec.command, spec.args(prompt, options.projectPath), {
             cwd: options.projectPath,
             env: spec.env,
-            timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
-          },
-        );
-        stdout = result.stdout;
-        stderr = result.stderr;
+            timeoutMs,
+          });
+          stdout = result.stdout;
+          stderr = result.stderr;
+        } else {
+          const result = await spawnWithStdinClosed(
+            spec.command,
+            spec.args(prompt, options.projectPath),
+            {
+              cwd: options.projectPath,
+              env: spec.env,
+              timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
+            },
+          );
+          stdout = result.stdout;
+          stderr = result.stderr;
+        }
+
+        // Keep the raw stdout around for metrics parsing — the outputTransform
+        // strips it down to plain text and the metricsParser needs the JSONL.
+        rawOutput = `${stdout}\n${stderr}`.trim();
+
+        // Apply output transform if present (e.g. opencode JSONL → clean text)
+        output = spec.outputTransform ? spec.outputTransform(rawOutput) : rawOutput;
+
+        success = true;
       }
-
-      // Keep the raw stdout around for metrics parsing — the outputTransform
-      // strips it down to plain text and the metricsParser needs the JSONL.
-      rawOutput = `${stdout}\n${stderr}`.trim();
-
-      // Apply output transform if present (e.g. opencode JSONL → clean text)
-      output = spec.outputTransform ? spec.outputTransform(rawOutput) : rawOutput;
-
-      success = true;
       await runSpan.end('ok');
     } catch (err) {
       const e = err as { stdout?: string; stderr?: string; message?: string };

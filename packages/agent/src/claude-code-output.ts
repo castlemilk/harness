@@ -26,11 +26,11 @@ interface ClaudeUsage {
 }
 
 interface ClaudeAssistantMessage {
-  content?: Array<{
+  content?: {
     type: string;
     name?: string;
     [k: string]: unknown;
-  }>;
+  }[];
   usage?: ClaudeUsage;
 }
 

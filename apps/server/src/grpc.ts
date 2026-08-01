@@ -69,7 +69,7 @@ function parseRequest(req: unknown): SubmitTaskRequest {
   };
 }
 
-export function startGrpcServer(prisma: PrismaClient, port = 50051): grpc.Server {
+export function startGrpcServer(prisma: PrismaClient, port = 50051, host = '127.0.0.1'): grpc.Server {
   const server = new grpc.Server();
 
   server.addService(proto.omega.TaskIngestion.service, {
@@ -151,6 +151,11 @@ export function startGrpcServer(prisma: PrismaClient, port = 50051): grpc.Server
         clearInterval(interval);
       });
 
+      call.on('end', () => {
+        cancelled = true;
+        clearInterval(interval);
+      });
+
       call.on('error', () => {
         cancelled = true;
         clearInterval(interval);
@@ -158,12 +163,12 @@ export function startGrpcServer(prisma: PrismaClient, port = 50051): grpc.Server
     },
   });
 
-  server.bindAsync(`0.0.0.0:${port.toString()}`, grpc.ServerCredentials.createInsecure(), (err) => {
+  server.bindAsync(`${host}:${port.toString()}`, grpc.ServerCredentials.createInsecure(), (err) => {
     if (err) {
       console.error('gRPC server failed to start:', err);
       return;
     }
-    console.log(`gRPC task ingestion on 0.0.0.0:${port.toString()}`);
+    console.log(`gRPC task ingestion on ${host}:${port.toString()}`);
   });
 
   return server;

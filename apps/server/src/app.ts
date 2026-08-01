@@ -9,10 +9,33 @@ import { metricsRoutes } from './routes/metrics.js';
 import { benchmarkRoutes } from './routes/benchmarks.js';
 import { reportRoutes } from './routes/reports.js';
 import { promptVersionRoutes } from './routes/prompt-versions.js';
+import { costRoutes } from './routes/costs.js';
+import { timeseriesRoutes } from './routes/timeseries.js';
+import { benchRunRoutes } from './routes/bench-runs.js';
+import { traceRoutes } from './routes/traces.js';
+import { errorRoutes } from './routes/errors.js';
+import { providerCompareRoutes } from './routes/provider-compare.js';
 
 export const app: express.Express = express();
 
-app.use(cors());
+const allowedOrigins = new Set([
+  'http://localhost:3000',
+  'http://localhost:4000',
+  'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:4000',
+  'http://127.0.0.1:5173',
+]);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.has(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+}));
 app.use(express.json());
 
 app.use('/projects', projectRoutes(prisma));
@@ -23,9 +46,21 @@ app.use('/metrics', metricsRoutes(prisma));
 app.use('/benchmarks', benchmarkRoutes(prisma));
 app.use('/reports', reportRoutes());
 app.use('/prompt-versions', promptVersionRoutes(prisma));
+app.use('/costs', costRoutes(prisma));
+app.use('/timeseries', timeseriesRoutes(prisma));
+app.use('/bench/run', benchRunRoutes(prisma));
+app.use('/traces', traceRoutes());
+app.use('/errors', errorRoutes(prisma));
+app.use('/providers/compare', providerCompareRoutes(prisma));
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
+  if (err instanceof Error && err.name === 'ZodError' && 'issues' in err) {
+    const issues = (err as { issues: { path: (string | number)[]; message: string }[] }).issues;
+    const details = issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
+    res.status(400).json({ error: 'Validation error', details });
+    return;
+  }
   const message = err instanceof Error ? err.message : 'Internal error';
   res.status(500).json({ error: message });
 });

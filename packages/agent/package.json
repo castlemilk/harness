@@ -10,16 +10,22 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --config vitest.config.ts --passWithNoTests"
   },
   "dependencies": {
     "@omega/core": "workspace:*",
     "@omega/db": "workspace:*",
     "@omega/providers": "workspace:*",
     "@omega/router": "workspace:*",
+    "node-pty": "^1.0.0",
+    "strip-ansi": "^7.0.0",
+    "tsx": "^4.22.4",
     "typescript-language-server": "^4.3.4"
   },
   "devDependencies": {

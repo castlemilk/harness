@@ -2,12 +2,30 @@ import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { omegaReportsDir } from '@omega/core';
 import { asyncHandler } from '../lib/async-handler.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const root = path.resolve(__filename, '..', '..', '..', '..');
-const reportsDir = path.join(root, '.omega', 'reports');
+// Inline BenchmarkReport type to avoid adding @omega/bench as a server dep
+// (the bundle deploy can't resolve workspace deps from npm).
+interface BenchmarkReport {
+  timestamp: string;
+  suite: string;
+  total: number;
+  passed: number;
+  failed: number;
+  timeouts: number;
+  totalDurationMs: number;
+  totalUsage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
+  results: {
+    task: { name: string };
+    status: string;
+    durationMs: number;
+    evaluation: { passed: boolean; score?: number };
+    agentRun?: { totalTokens?: number };
+  }[];
+}
+
+const reportsDir = omegaReportsDir();
 
 async function latestReport(pattern: RegExp): Promise<{ file: string; data: unknown } | undefined> {
   try {
@@ -26,6 +44,29 @@ async function latestReport(pattern: RegExp): Promise<{ file: string; data: unkn
   }
 }
 
+async function loadRecentBenchmarkReports(limit = 20): Promise<BenchmarkReport[]> {
+  try {
+    const files = await fs.readdir(reportsDir);
+    const jsonFiles = files
+      .filter((f) => f.startsWith('benchmark-') && f.endsWith('.json') && !f.includes('latest'))
+      .sort()
+      .reverse()
+      .slice(0, limit);
+    const reports: BenchmarkReport[] = [];
+    for (const file of jsonFiles) {
+      try {
+        const raw = await fs.readFile(path.join(reportsDir, file), 'utf-8');
+        reports.push(JSON.parse(raw) as BenchmarkReport);
+      } catch {
+        // skip malformed
+      }
+    }
+    return reports;
+  } catch {
+    return [];
+  }
+}
+
 function durationMs(start: Date, end: Date | null): number | undefined {
   if (!end) return undefined;
   return end.getTime() - start.getTime();
@@ -40,7 +81,7 @@ export function metricsRoutes(prisma: PrismaClient): Router {
       agentRuns,
     ] = await Promise.all([
       prisma.task.findMany({
-        select: { status: true, provider: true, model: true },
+        select: { status: true, provider: true, model: true, createdAt: true, updatedAt: true },
       }),
       prisma.agentRun.findMany({
         take: 10,
@@ -94,6 +135,45 @@ export function metricsRoutes(prisma: PrismaClient): Router {
     const e2eReport = await latestReport(/^e2e-raw-/);
     const benchmarkReport = await latestReport(/^benchmark-/);
 
+    // ── Core metrics from benchmark reports ──────────────────────────────
+    const benchmarkReports = await loadRecentBenchmarkReports(20);
+    let benchmarkPassRate: number | null = null;
+    let benchmarkTotalTokens = 0;
+    let benchmarkSolvedCount = 0;
+    let benchmarkAvgDurationMs = 0;
+    const benchmarkReportCount = benchmarkReports.length;
+
+    if (benchmarkReports.length > 0) {
+      const latest = benchmarkReports[0];
+      benchmarkPassRate = latest.total > 0 ? Math.round((latest.passed / latest.total) * 100) : 0;
+
+      for (const report of benchmarkReports) {
+        for (const result of report.results) {
+          const tokens = result.agentRun?.totalTokens ?? 0;
+          benchmarkTotalTokens += tokens;
+          if (result.evaluation.passed) {
+            benchmarkSolvedCount++;
+            benchmarkAvgDurationMs += result.durationMs;
+          }
+        }
+      }
+    }
+
+    const tokensPerSolved = benchmarkSolvedCount > 0
+      ? Math.round(benchmarkTotalTokens / benchmarkSolvedCount)
+      : 0;
+    const avgSolvedDurationMs = benchmarkSolvedCount > 0
+      ? Math.round(benchmarkAvgDurationMs / benchmarkSolvedCount)
+      : 0;
+
+    // Failure taxonomy from recent task failures
+    const failedTasks = tasks.filter((t) => t.status === 'failed');
+    const failureByProvider: Record<string, number> = {};
+    for (const t of failedTasks) {
+      const key = t.provider && t.model ? `${t.provider}/${t.model}` : 'unknown';
+      failureByProvider[key] = (failureByProvider[key] ?? 0) + 1;
+    }
+
     res.json({
       taskCounts,
       totalTasks: tasks.length,
@@ -104,6 +184,19 @@ export function metricsRoutes(prisma: PrismaClient): Router {
       latestReports: {
         e2e: e2eReport,
         benchmark: benchmarkReport,
+      },
+      // Core metrics
+      benchmark: {
+        passRate: benchmarkPassRate,
+        totalTokens: benchmarkTotalTokens,
+        tokensPerSolved,
+        avgSolvedDurationMs,
+        solvedCount: benchmarkSolvedCount,
+        reportCount: benchmarkReportCount,
+      },
+      failures: {
+        total: failedTasks.length,
+        byProvider: failureByProvider,
       },
     });
   }));

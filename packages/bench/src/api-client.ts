@@ -1,4 +1,4 @@
-import type { AgentRunInfo, DiffInfo, TraceFlowInfo } from './types.js';
+import type { AgentRunInfo, DiffInfo, TraceFlowInfo, TraceSummary } from './types.js';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -55,8 +55,12 @@ export async function createTask(
   });
 }
 
-export async function runTask(apiUrl: string, taskId: string): Promise<void> {
-  await apiFetch(`${apiUrl}/tasks/${taskId}/run`, { method: 'POST' });
+export async function runTask(apiUrl: string, taskId: string, tokenBudget?: number): Promise<void> {
+  await apiFetch(`${apiUrl}/tasks/${taskId}/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tokenBudget }),
+  });
 }
 
 export async function getTask(apiUrl: string, taskId: string): Promise<{ status: string; result?: string; error?: string }> {
@@ -93,9 +97,36 @@ export async function getDiffs(apiUrl: string, taskId: string): Promise<DiffInfo
   }
 }
 
+export async function pollForDiffs(
+  apiUrl: string,
+  taskId: string,
+  graceMs = 180_000,
+  pollIntervalMs = 2_000
+): Promise<DiffInfo[]> {
+  // After a bench timeout, the agent may still be finishing its final steps and
+  // committing the model.patch to the taskDiff table. Poll for up to graceMs
+  // so we capture late-arriving diffs and feed them to the verifier.
+  const deadline = Date.now() + graceMs;
+  let last: DiffInfo[] = [];
+  while (Date.now() < deadline) {
+    last = await getDiffs(apiUrl, taskId);
+    if (last.length > 0) return last;
+    await new Promise((r) => setTimeout(r, pollIntervalMs));
+  }
+  return last;
+}
+
 export async function getTraceFlow(apiUrl: string, taskId: string): Promise<TraceFlowInfo | undefined> {
   try {
     return await apiFetch<TraceFlowInfo>(`${apiUrl}/tasks/${taskId}/trace-flow`);
+  } catch {
+    return undefined;
+  }
+}
+
+export async function getTraceSummary(apiUrl: string, taskId: string): Promise<TraceSummary | undefined> {
+  try {
+    return await apiFetch<TraceSummary>(`${apiUrl}/tasks/${taskId}/trace-analysis`);
   } catch {
     return undefined;
   }

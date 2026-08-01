@@ -3,6 +3,7 @@ dist/
 *.log
 .env
 .env.local
+.env.bak
 db.sqlite
 *.sqlite
 .DS_Store
@@ -13,3 +14,6 @@ packages/db/generated/
 packages/bundle/*.tgz
 packages/bundle/dist/
 pglite-data.bak.*
+.serena/
+jobs/
+web/

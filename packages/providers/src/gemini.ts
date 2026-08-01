@@ -1,4 +1,5 @@
 import type { Provider, ProviderConfig, SendOptions, UsageInfo } from '@omega/core';
+import { fetchWithRetry } from './fetch-retry.js';
 
 const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
@@ -16,7 +17,7 @@ export class GeminiProvider implements Provider {
   async listModels(): Promise<string[]> {
     const url = new URL(`${this.baseUrl}/models`);
     if (this.config.apiKey) url.searchParams.set('key', this.config.apiKey);
-    const res = await fetch(url.toString());
+    const res = await fetchWithRetry(url.toString(), undefined, 'Gemini models', { maxRetries: 1 });
     if (!res.ok) return [this.config.defaultModel];
     const data = (await res.json()) as { models?: { name: string }[] };
     return data.models?.map((m) => m.name.replace(/^models\//, '')) ?? [this.config.defaultModel];
@@ -37,11 +38,15 @@ export class GeminiProvider implements Provider {
       body.generationConfig = { temperature: opts.temperature };
     }
 
-    const res = await fetch(url.toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const res = await fetchWithRetry(
+      url.toString(),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+      'Gemini generateContent',
+    );
     if (!res.ok) {
       throw new Error(`Gemini request failed: ${res.status.toString()} ${res.statusText}`);
     }

@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "AgentRun" ADD COLUMN IF NOT EXISTS "currentPhase" TEXT;
+ALTER TABLE "AgentRun" ADD COLUMN IF NOT EXISTS "currentPhaseStartedAt" TIMESTAMP(3);
+ALTER TABLE "AgentRun" ADD COLUMN IF NOT EXISTS "currentTurn" INTEGER;

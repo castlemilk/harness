@@ -63,6 +63,21 @@ export type SkillArtifact = $Result.DefaultSelection<Prisma.$SkillArtifactPayloa
  * 
  */
 export type PromptVersion = $Result.DefaultSelection<Prisma.$PromptVersionPayload>
+/**
+ * Model BenchmarkHistory
+ * 
+ */
+export type BenchmarkHistory = $Result.DefaultSelection<Prisma.$BenchmarkHistoryPayload>
+/**
+ * Model BenchmarkRun
+ * 
+ */
+export type BenchmarkRun = $Result.DefaultSelection<Prisma.$BenchmarkRunPayload>
+/**
+ * Model ProviderCircuitState
+ * 
+ */
+export type ProviderCircuitState = $Result.DefaultSelection<Prisma.$ProviderCircuitStatePayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -286,6 +301,36 @@ export class PrismaClient<
     * ```
     */
   get promptVersion(): Prisma.PromptVersionDelegate<ExtArgs>;
+
+  /**
+   * `prisma.benchmarkHistory`: Exposes CRUD operations for the **BenchmarkHistory** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more BenchmarkHistories
+    * const benchmarkHistories = await prisma.benchmarkHistory.findMany()
+    * ```
+    */
+  get benchmarkHistory(): Prisma.BenchmarkHistoryDelegate<ExtArgs>;
+
+  /**
+   * `prisma.benchmarkRun`: Exposes CRUD operations for the **BenchmarkRun** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more BenchmarkRuns
+    * const benchmarkRuns = await prisma.benchmarkRun.findMany()
+    * ```
+    */
+  get benchmarkRun(): Prisma.BenchmarkRunDelegate<ExtArgs>;
+
+  /**
+   * `prisma.providerCircuitState`: Exposes CRUD operations for the **ProviderCircuitState** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ProviderCircuitStates
+    * const providerCircuitStates = await prisma.providerCircuitState.findMany()
+    * ```
+    */
+  get providerCircuitState(): Prisma.ProviderCircuitStateDelegate<ExtArgs>;
 }
 
 export namespace Prisma {
@@ -736,7 +781,10 @@ export namespace Prisma {
     TraceSpan: 'TraceSpan',
     ProviderConfig: 'ProviderConfig',
     SkillArtifact: 'SkillArtifact',
-    PromptVersion: 'PromptVersion'
+    PromptVersion: 'PromptVersion',
+    BenchmarkHistory: 'BenchmarkHistory',
+    BenchmarkRun: 'BenchmarkRun',
+    ProviderCircuitState: 'ProviderCircuitState'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -752,7 +800,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "skillArtifact" | "promptVersion"
+      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "skillArtifact" | "promptVersion" | "benchmarkHistory" | "benchmarkRun" | "providerCircuitState"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1453,6 +1501,216 @@ export namespace Prisma {
           count: {
             args: Prisma.PromptVersionCountArgs<ExtArgs>
             result: $Utils.Optional<PromptVersionCountAggregateOutputType> | number
+          }
+        }
+      }
+      BenchmarkHistory: {
+        payload: Prisma.$BenchmarkHistoryPayload<ExtArgs>
+        fields: Prisma.BenchmarkHistoryFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.BenchmarkHistoryFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkHistoryPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.BenchmarkHistoryFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkHistoryPayload>
+          }
+          findFirst: {
+            args: Prisma.BenchmarkHistoryFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkHistoryPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.BenchmarkHistoryFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkHistoryPayload>
+          }
+          findMany: {
+            args: Prisma.BenchmarkHistoryFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkHistoryPayload>[]
+          }
+          create: {
+            args: Prisma.BenchmarkHistoryCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkHistoryPayload>
+          }
+          createMany: {
+            args: Prisma.BenchmarkHistoryCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.BenchmarkHistoryCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkHistoryPayload>[]
+          }
+          delete: {
+            args: Prisma.BenchmarkHistoryDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkHistoryPayload>
+          }
+          update: {
+            args: Prisma.BenchmarkHistoryUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkHistoryPayload>
+          }
+          deleteMany: {
+            args: Prisma.BenchmarkHistoryDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.BenchmarkHistoryUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.BenchmarkHistoryUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkHistoryPayload>
+          }
+          aggregate: {
+            args: Prisma.BenchmarkHistoryAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateBenchmarkHistory>
+          }
+          groupBy: {
+            args: Prisma.BenchmarkHistoryGroupByArgs<ExtArgs>
+            result: $Utils.Optional<BenchmarkHistoryGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.BenchmarkHistoryCountArgs<ExtArgs>
+            result: $Utils.Optional<BenchmarkHistoryCountAggregateOutputType> | number
+          }
+        }
+      }
+      BenchmarkRun: {
+        payload: Prisma.$BenchmarkRunPayload<ExtArgs>
+        fields: Prisma.BenchmarkRunFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.BenchmarkRunFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkRunPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.BenchmarkRunFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkRunPayload>
+          }
+          findFirst: {
+            args: Prisma.BenchmarkRunFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkRunPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.BenchmarkRunFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkRunPayload>
+          }
+          findMany: {
+            args: Prisma.BenchmarkRunFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkRunPayload>[]
+          }
+          create: {
+            args: Prisma.BenchmarkRunCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkRunPayload>
+          }
+          createMany: {
+            args: Prisma.BenchmarkRunCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.BenchmarkRunCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkRunPayload>[]
+          }
+          delete: {
+            args: Prisma.BenchmarkRunDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkRunPayload>
+          }
+          update: {
+            args: Prisma.BenchmarkRunUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkRunPayload>
+          }
+          deleteMany: {
+            args: Prisma.BenchmarkRunDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.BenchmarkRunUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.BenchmarkRunUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$BenchmarkRunPayload>
+          }
+          aggregate: {
+            args: Prisma.BenchmarkRunAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateBenchmarkRun>
+          }
+          groupBy: {
+            args: Prisma.BenchmarkRunGroupByArgs<ExtArgs>
+            result: $Utils.Optional<BenchmarkRunGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.BenchmarkRunCountArgs<ExtArgs>
+            result: $Utils.Optional<BenchmarkRunCountAggregateOutputType> | number
+          }
+        }
+      }
+      ProviderCircuitState: {
+        payload: Prisma.$ProviderCircuitStatePayload<ExtArgs>
+        fields: Prisma.ProviderCircuitStateFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ProviderCircuitStateFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ProviderCircuitStateFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>
+          }
+          findFirst: {
+            args: Prisma.ProviderCircuitStateFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ProviderCircuitStateFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>
+          }
+          findMany: {
+            args: Prisma.ProviderCircuitStateFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>[]
+          }
+          create: {
+            args: Prisma.ProviderCircuitStateCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>
+          }
+          createMany: {
+            args: Prisma.ProviderCircuitStateCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ProviderCircuitStateCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>[]
+          }
+          delete: {
+            args: Prisma.ProviderCircuitStateDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>
+          }
+          update: {
+            args: Prisma.ProviderCircuitStateUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>
+          }
+          deleteMany: {
+            args: Prisma.ProviderCircuitStateDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ProviderCircuitStateUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.ProviderCircuitStateUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ProviderCircuitStatePayload>
+          }
+          aggregate: {
+            args: Prisma.ProviderCircuitStateAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateProviderCircuitState>
+          }
+          groupBy: {
+            args: Prisma.ProviderCircuitStateGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ProviderCircuitStateGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ProviderCircuitStateCountArgs<ExtArgs>
+            result: $Utils.Optional<ProviderCircuitStateCountAggregateOutputType> | number
           }
         }
       }
@@ -2727,8 +2985,18 @@ export namespace Prisma {
 
   export type AggregateTask = {
     _count: TaskCountAggregateOutputType | null
+    _avg: TaskAvgAggregateOutputType | null
+    _sum: TaskSumAggregateOutputType | null
     _min: TaskMinAggregateOutputType | null
     _max: TaskMaxAggregateOutputType | null
+  }
+
+  export type TaskAvgAggregateOutputType = {
+    retryCount: number | null
+  }
+
+  export type TaskSumAggregateOutputType = {
+    retryCount: number | null
   }
 
   export type TaskMinAggregateOutputType = {
@@ -2743,6 +3011,9 @@ export namespace Prisma {
     model: string | null
     result: string | null
     error: string | null
+    retryCount: number | null
+    lastRetryAt: Date | null
+    retryHistory: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2759,6 +3030,9 @@ export namespace Prisma {
     model: string | null
     result: string | null
     error: string | null
+    retryCount: number | null
+    lastRetryAt: Date | null
+    retryHistory: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2775,11 +3049,22 @@ export namespace Prisma {
     model: number
     result: number
     error: number
+    retryCount: number
+    lastRetryAt: number
+    retryHistory: number
     createdAt: number
     updatedAt: number
     _all: number
   }
 
+
+  export type TaskAvgAggregateInputType = {
+    retryCount?: true
+  }
+
+  export type TaskSumAggregateInputType = {
+    retryCount?: true
+  }
 
   export type TaskMinAggregateInputType = {
     id?: true
@@ -2793,6 +3078,9 @@ export namespace Prisma {
     model?: true
     result?: true
     error?: true
+    retryCount?: true
+    lastRetryAt?: true
+    retryHistory?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -2809,6 +3097,9 @@ export namespace Prisma {
     model?: true
     result?: true
     error?: true
+    retryCount?: true
+    lastRetryAt?: true
+    retryHistory?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -2825,6 +3116,9 @@ export namespace Prisma {
     model?: true
     result?: true
     error?: true
+    retryCount?: true
+    lastRetryAt?: true
+    retryHistory?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -2868,6 +3162,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: TaskAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: TaskSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: TaskMinAggregateInputType
@@ -2898,6 +3204,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: TaskCountAggregateInputType | true
+    _avg?: TaskAvgAggregateInputType
+    _sum?: TaskSumAggregateInputType
     _min?: TaskMinAggregateInputType
     _max?: TaskMaxAggregateInputType
   }
@@ -2914,9 +3222,14 @@ export namespace Prisma {
     model: string | null
     result: string | null
     error: string | null
+    retryCount: number
+    lastRetryAt: Date | null
+    retryHistory: string | null
     createdAt: Date
     updatedAt: Date
     _count: TaskCountAggregateOutputType | null
+    _avg: TaskAvgAggregateOutputType | null
+    _sum: TaskSumAggregateOutputType | null
     _min: TaskMinAggregateOutputType | null
     _max: TaskMaxAggregateOutputType | null
   }
@@ -2947,6 +3260,9 @@ export namespace Prisma {
     model?: boolean
     result?: boolean
     error?: boolean
+    retryCount?: boolean
+    lastRetryAt?: boolean
+    retryHistory?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     project?: boolean | ProjectDefaultArgs<ExtArgs>
@@ -2970,6 +3286,9 @@ export namespace Prisma {
     model?: boolean
     result?: boolean
     error?: boolean
+    retryCount?: boolean
+    lastRetryAt?: boolean
+    retryHistory?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     project?: boolean | ProjectDefaultArgs<ExtArgs>
@@ -2987,6 +3306,9 @@ export namespace Prisma {
     model?: boolean
     result?: boolean
     error?: boolean
+    retryCount?: boolean
+    lastRetryAt?: boolean
+    retryHistory?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -3026,6 +3348,9 @@ export namespace Prisma {
       model: string | null
       result: string | null
       error: string | null
+      retryCount: number
+      lastRetryAt: Date | null
+      retryHistory: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["task"]>
@@ -3438,6 +3763,9 @@ export namespace Prisma {
     readonly model: FieldRef<"Task", 'String'>
     readonly result: FieldRef<"Task", 'String'>
     readonly error: FieldRef<"Task", 'String'>
+    readonly retryCount: FieldRef<"Task", 'Int'>
+    readonly lastRetryAt: FieldRef<"Task", 'DateTime'>
+    readonly retryHistory: FieldRef<"Task", 'String'>
     readonly createdAt: FieldRef<"Task", 'DateTime'>
     readonly updatedAt: FieldRef<"Task", 'DateTime'>
   }
@@ -6817,12 +7145,16 @@ export namespace Prisma {
     promptTokens: number | null
     completionTokens: number | null
     totalTokens: number | null
+    costUsd: number | null
+    turnCount: number | null
   }
 
   export type AgentRunSumAggregateOutputType = {
     promptTokens: number | null
     completionTokens: number | null
     totalTokens: number | null
+    costUsd: number | null
+    turnCount: number | null
   }
 
   export type AgentRunMinAggregateOutputType = {
@@ -6837,6 +7169,9 @@ export namespace Prisma {
     promptTokens: number | null
     completionTokens: number | null
     totalTokens: number | null
+    costUsd: number | null
+    turnCount: number | null
+    toolCalls: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -6853,6 +7188,9 @@ export namespace Prisma {
     promptTokens: number | null
     completionTokens: number | null
     totalTokens: number | null
+    costUsd: number | null
+    turnCount: number | null
+    toolCalls: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -6869,6 +7207,9 @@ export namespace Prisma {
     promptTokens: number
     completionTokens: number
     totalTokens: number
+    costUsd: number
+    turnCount: number
+    toolCalls: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -6879,12 +7220,16 @@ export namespace Prisma {
     promptTokens?: true
     completionTokens?: true
     totalTokens?: true
+    costUsd?: true
+    turnCount?: true
   }
 
   export type AgentRunSumAggregateInputType = {
     promptTokens?: true
     completionTokens?: true
     totalTokens?: true
+    costUsd?: true
+    turnCount?: true
   }
 
   export type AgentRunMinAggregateInputType = {
@@ -6899,6 +7244,9 @@ export namespace Prisma {
     promptTokens?: true
     completionTokens?: true
     totalTokens?: true
+    costUsd?: true
+    turnCount?: true
+    toolCalls?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -6915,6 +7263,9 @@ export namespace Prisma {
     promptTokens?: true
     completionTokens?: true
     totalTokens?: true
+    costUsd?: true
+    turnCount?: true
+    toolCalls?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -6931,6 +7282,9 @@ export namespace Prisma {
     promptTokens?: true
     completionTokens?: true
     totalTokens?: true
+    costUsd?: true
+    turnCount?: true
+    toolCalls?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -7034,6 +7388,9 @@ export namespace Prisma {
     promptTokens: number | null
     completionTokens: number | null
     totalTokens: number | null
+    costUsd: number | null
+    turnCount: number | null
+    toolCalls: string | null
     createdAt: Date
     updatedAt: Date
     _count: AgentRunCountAggregateOutputType | null
@@ -7069,6 +7426,9 @@ export namespace Prisma {
     promptTokens?: boolean
     completionTokens?: boolean
     totalTokens?: boolean
+    costUsd?: boolean
+    turnCount?: boolean
+    toolCalls?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -7087,6 +7447,9 @@ export namespace Prisma {
     promptTokens?: boolean
     completionTokens?: boolean
     totalTokens?: boolean
+    costUsd?: boolean
+    turnCount?: boolean
+    toolCalls?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -7105,6 +7468,9 @@ export namespace Prisma {
     promptTokens?: boolean
     completionTokens?: boolean
     totalTokens?: boolean
+    costUsd?: boolean
+    turnCount?: boolean
+    toolCalls?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -7136,6 +7502,9 @@ export namespace Prisma {
       promptTokens: number | null
       completionTokens: number | null
       totalTokens: number | null
+      costUsd: number | null
+      turnCount: number | null
+      toolCalls: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["agentRun"]>
@@ -7544,6 +7913,9 @@ export namespace Prisma {
     readonly promptTokens: FieldRef<"AgentRun", 'Int'>
     readonly completionTokens: FieldRef<"AgentRun", 'Int'>
     readonly totalTokens: FieldRef<"AgentRun", 'Int'>
+    readonly costUsd: FieldRef<"AgentRun", 'Float'>
+    readonly turnCount: FieldRef<"AgentRun", 'Int'>
+    readonly toolCalls: FieldRef<"AgentRun", 'String'>
     readonly createdAt: FieldRef<"AgentRun", 'DateTime'>
     readonly updatedAt: FieldRef<"AgentRun", 'DateTime'>
   }
@@ -8929,6 +9301,8 @@ export namespace Prisma {
     kind: string | null
     baseUrl: string | null
     apiKey: string | null
+    refreshToken: string | null
+    tokenExpiresAt: Date | null
     defaultModel: string | null
     capabilities: string | null
     enabled: boolean | null
@@ -8941,6 +9315,8 @@ export namespace Prisma {
     kind: string | null
     baseUrl: string | null
     apiKey: string | null
+    refreshToken: string | null
+    tokenExpiresAt: Date | null
     defaultModel: string | null
     capabilities: string | null
     enabled: boolean | null
@@ -8953,6 +9329,8 @@ export namespace Prisma {
     kind: number
     baseUrl: number
     apiKey: number
+    refreshToken: number
+    tokenExpiresAt: number
     defaultModel: number
     capabilities: number
     enabled: number
@@ -8967,6 +9345,8 @@ export namespace Prisma {
     kind?: true
     baseUrl?: true
     apiKey?: true
+    refreshToken?: true
+    tokenExpiresAt?: true
     defaultModel?: true
     capabilities?: true
     enabled?: true
@@ -8979,6 +9359,8 @@ export namespace Prisma {
     kind?: true
     baseUrl?: true
     apiKey?: true
+    refreshToken?: true
+    tokenExpiresAt?: true
     defaultModel?: true
     capabilities?: true
     enabled?: true
@@ -8991,6 +9373,8 @@ export namespace Prisma {
     kind?: true
     baseUrl?: true
     apiKey?: true
+    refreshToken?: true
+    tokenExpiresAt?: true
     defaultModel?: true
     capabilities?: true
     enabled?: true
@@ -9076,6 +9460,8 @@ export namespace Prisma {
     kind: string
     baseUrl: string | null
     apiKey: string | null
+    refreshToken: string | null
+    tokenExpiresAt: Date | null
     defaultModel: string
     capabilities: string
     enabled: boolean
@@ -9105,6 +9491,8 @@ export namespace Prisma {
     kind?: boolean
     baseUrl?: boolean
     apiKey?: boolean
+    refreshToken?: boolean
+    tokenExpiresAt?: boolean
     defaultModel?: boolean
     capabilities?: boolean
     enabled?: boolean
@@ -9117,6 +9505,8 @@ export namespace Prisma {
     kind?: boolean
     baseUrl?: boolean
     apiKey?: boolean
+    refreshToken?: boolean
+    tokenExpiresAt?: boolean
     defaultModel?: boolean
     capabilities?: boolean
     enabled?: boolean
@@ -9129,6 +9519,8 @@ export namespace Prisma {
     kind?: boolean
     baseUrl?: boolean
     apiKey?: boolean
+    refreshToken?: boolean
+    tokenExpiresAt?: boolean
     defaultModel?: boolean
     capabilities?: boolean
     enabled?: boolean
@@ -9145,6 +9537,8 @@ export namespace Prisma {
       kind: string
       baseUrl: string | null
       apiKey: string | null
+      refreshToken: string | null
+      tokenExpiresAt: Date | null
       defaultModel: string
       capabilities: string
       enabled: boolean
@@ -9547,6 +9941,8 @@ export namespace Prisma {
     readonly kind: FieldRef<"ProviderConfig", 'String'>
     readonly baseUrl: FieldRef<"ProviderConfig", 'String'>
     readonly apiKey: FieldRef<"ProviderConfig", 'String'>
+    readonly refreshToken: FieldRef<"ProviderConfig", 'String'>
+    readonly tokenExpiresAt: FieldRef<"ProviderConfig", 'DateTime'>
     readonly defaultModel: FieldRef<"ProviderConfig", 'String'>
     readonly capabilities: FieldRef<"ProviderConfig", 'String'>
     readonly enabled: FieldRef<"ProviderConfig", 'Boolean'>
@@ -11784,6 +12180,3118 @@ export namespace Prisma {
 
 
   /**
+   * Model BenchmarkHistory
+   */
+
+  export type AggregateBenchmarkHistory = {
+    _count: BenchmarkHistoryCountAggregateOutputType | null
+    _avg: BenchmarkHistoryAvgAggregateOutputType | null
+    _sum: BenchmarkHistorySumAggregateOutputType | null
+    _min: BenchmarkHistoryMinAggregateOutputType | null
+    _max: BenchmarkHistoryMaxAggregateOutputType | null
+  }
+
+  export type BenchmarkHistoryAvgAggregateOutputType = {
+    totalTasks: number | null
+    passed: number | null
+    failed: number | null
+    timeouts: number | null
+    passRate: number | null
+    totalDurationMs: number | null
+    totalCostUsd: number | null
+    totalTokens: number | null
+  }
+
+  export type BenchmarkHistorySumAggregateOutputType = {
+    totalTasks: number | null
+    passed: number | null
+    failed: number | null
+    timeouts: number | null
+    passRate: number | null
+    totalDurationMs: number | null
+    totalCostUsd: number | null
+    totalTokens: number | null
+  }
+
+  export type BenchmarkHistoryMinAggregateOutputType = {
+    id: string | null
+    suite: string | null
+    provider: string | null
+    model: string | null
+    totalTasks: number | null
+    passed: number | null
+    failed: number | null
+    timeouts: number | null
+    passRate: number | null
+    totalDurationMs: number | null
+    totalCostUsd: number | null
+    totalTokens: number | null
+    metadata: string | null
+    reportPath: string | null
+    createdAt: Date | null
+  }
+
+  export type BenchmarkHistoryMaxAggregateOutputType = {
+    id: string | null
+    suite: string | null
+    provider: string | null
+    model: string | null
+    totalTasks: number | null
+    passed: number | null
+    failed: number | null
+    timeouts: number | null
+    passRate: number | null
+    totalDurationMs: number | null
+    totalCostUsd: number | null
+    totalTokens: number | null
+    metadata: string | null
+    reportPath: string | null
+    createdAt: Date | null
+  }
+
+  export type BenchmarkHistoryCountAggregateOutputType = {
+    id: number
+    suite: number
+    provider: number
+    model: number
+    totalTasks: number
+    passed: number
+    failed: number
+    timeouts: number
+    passRate: number
+    totalDurationMs: number
+    totalCostUsd: number
+    totalTokens: number
+    metadata: number
+    reportPath: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type BenchmarkHistoryAvgAggregateInputType = {
+    totalTasks?: true
+    passed?: true
+    failed?: true
+    timeouts?: true
+    passRate?: true
+    totalDurationMs?: true
+    totalCostUsd?: true
+    totalTokens?: true
+  }
+
+  export type BenchmarkHistorySumAggregateInputType = {
+    totalTasks?: true
+    passed?: true
+    failed?: true
+    timeouts?: true
+    passRate?: true
+    totalDurationMs?: true
+    totalCostUsd?: true
+    totalTokens?: true
+  }
+
+  export type BenchmarkHistoryMinAggregateInputType = {
+    id?: true
+    suite?: true
+    provider?: true
+    model?: true
+    totalTasks?: true
+    passed?: true
+    failed?: true
+    timeouts?: true
+    passRate?: true
+    totalDurationMs?: true
+    totalCostUsd?: true
+    totalTokens?: true
+    metadata?: true
+    reportPath?: true
+    createdAt?: true
+  }
+
+  export type BenchmarkHistoryMaxAggregateInputType = {
+    id?: true
+    suite?: true
+    provider?: true
+    model?: true
+    totalTasks?: true
+    passed?: true
+    failed?: true
+    timeouts?: true
+    passRate?: true
+    totalDurationMs?: true
+    totalCostUsd?: true
+    totalTokens?: true
+    metadata?: true
+    reportPath?: true
+    createdAt?: true
+  }
+
+  export type BenchmarkHistoryCountAggregateInputType = {
+    id?: true
+    suite?: true
+    provider?: true
+    model?: true
+    totalTasks?: true
+    passed?: true
+    failed?: true
+    timeouts?: true
+    passRate?: true
+    totalDurationMs?: true
+    totalCostUsd?: true
+    totalTokens?: true
+    metadata?: true
+    reportPath?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type BenchmarkHistoryAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which BenchmarkHistory to aggregate.
+     */
+    where?: BenchmarkHistoryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BenchmarkHistories to fetch.
+     */
+    orderBy?: BenchmarkHistoryOrderByWithRelationInput | BenchmarkHistoryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: BenchmarkHistoryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BenchmarkHistories from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BenchmarkHistories.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned BenchmarkHistories
+    **/
+    _count?: true | BenchmarkHistoryCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: BenchmarkHistoryAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: BenchmarkHistorySumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: BenchmarkHistoryMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: BenchmarkHistoryMaxAggregateInputType
+  }
+
+  export type GetBenchmarkHistoryAggregateType<T extends BenchmarkHistoryAggregateArgs> = {
+        [P in keyof T & keyof AggregateBenchmarkHistory]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateBenchmarkHistory[P]>
+      : GetScalarType<T[P], AggregateBenchmarkHistory[P]>
+  }
+
+
+
+
+  export type BenchmarkHistoryGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BenchmarkHistoryWhereInput
+    orderBy?: BenchmarkHistoryOrderByWithAggregationInput | BenchmarkHistoryOrderByWithAggregationInput[]
+    by: BenchmarkHistoryScalarFieldEnum[] | BenchmarkHistoryScalarFieldEnum
+    having?: BenchmarkHistoryScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: BenchmarkHistoryCountAggregateInputType | true
+    _avg?: BenchmarkHistoryAvgAggregateInputType
+    _sum?: BenchmarkHistorySumAggregateInputType
+    _min?: BenchmarkHistoryMinAggregateInputType
+    _max?: BenchmarkHistoryMaxAggregateInputType
+  }
+
+  export type BenchmarkHistoryGroupByOutputType = {
+    id: string
+    suite: string
+    provider: string | null
+    model: string | null
+    totalTasks: number
+    passed: number
+    failed: number
+    timeouts: number
+    passRate: number
+    totalDurationMs: number
+    totalCostUsd: number | null
+    totalTokens: number | null
+    metadata: string | null
+    reportPath: string | null
+    createdAt: Date
+    _count: BenchmarkHistoryCountAggregateOutputType | null
+    _avg: BenchmarkHistoryAvgAggregateOutputType | null
+    _sum: BenchmarkHistorySumAggregateOutputType | null
+    _min: BenchmarkHistoryMinAggregateOutputType | null
+    _max: BenchmarkHistoryMaxAggregateOutputType | null
+  }
+
+  type GetBenchmarkHistoryGroupByPayload<T extends BenchmarkHistoryGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<BenchmarkHistoryGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof BenchmarkHistoryGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], BenchmarkHistoryGroupByOutputType[P]>
+            : GetScalarType<T[P], BenchmarkHistoryGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type BenchmarkHistorySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    suite?: boolean
+    provider?: boolean
+    model?: boolean
+    totalTasks?: boolean
+    passed?: boolean
+    failed?: boolean
+    timeouts?: boolean
+    passRate?: boolean
+    totalDurationMs?: boolean
+    totalCostUsd?: boolean
+    totalTokens?: boolean
+    metadata?: boolean
+    reportPath?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["benchmarkHistory"]>
+
+  export type BenchmarkHistorySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    suite?: boolean
+    provider?: boolean
+    model?: boolean
+    totalTasks?: boolean
+    passed?: boolean
+    failed?: boolean
+    timeouts?: boolean
+    passRate?: boolean
+    totalDurationMs?: boolean
+    totalCostUsd?: boolean
+    totalTokens?: boolean
+    metadata?: boolean
+    reportPath?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["benchmarkHistory"]>
+
+  export type BenchmarkHistorySelectScalar = {
+    id?: boolean
+    suite?: boolean
+    provider?: boolean
+    model?: boolean
+    totalTasks?: boolean
+    passed?: boolean
+    failed?: boolean
+    timeouts?: boolean
+    passRate?: boolean
+    totalDurationMs?: boolean
+    totalCostUsd?: boolean
+    totalTokens?: boolean
+    metadata?: boolean
+    reportPath?: boolean
+    createdAt?: boolean
+  }
+
+
+  export type $BenchmarkHistoryPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "BenchmarkHistory"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      suite: string
+      provider: string | null
+      model: string | null
+      totalTasks: number
+      passed: number
+      failed: number
+      timeouts: number
+      passRate: number
+      totalDurationMs: number
+      totalCostUsd: number | null
+      totalTokens: number | null
+      metadata: string | null
+      reportPath: string | null
+      createdAt: Date
+    }, ExtArgs["result"]["benchmarkHistory"]>
+    composites: {}
+  }
+
+  type BenchmarkHistoryGetPayload<S extends boolean | null | undefined | BenchmarkHistoryDefaultArgs> = $Result.GetResult<Prisma.$BenchmarkHistoryPayload, S>
+
+  type BenchmarkHistoryCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<BenchmarkHistoryFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: BenchmarkHistoryCountAggregateInputType | true
+    }
+
+  export interface BenchmarkHistoryDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['BenchmarkHistory'], meta: { name: 'BenchmarkHistory' } }
+    /**
+     * Find zero or one BenchmarkHistory that matches the filter.
+     * @param {BenchmarkHistoryFindUniqueArgs} args - Arguments to find a BenchmarkHistory
+     * @example
+     * // Get one BenchmarkHistory
+     * const benchmarkHistory = await prisma.benchmarkHistory.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends BenchmarkHistoryFindUniqueArgs>(args: SelectSubset<T, BenchmarkHistoryFindUniqueArgs<ExtArgs>>): Prisma__BenchmarkHistoryClient<$Result.GetResult<Prisma.$BenchmarkHistoryPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one BenchmarkHistory that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {BenchmarkHistoryFindUniqueOrThrowArgs} args - Arguments to find a BenchmarkHistory
+     * @example
+     * // Get one BenchmarkHistory
+     * const benchmarkHistory = await prisma.benchmarkHistory.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends BenchmarkHistoryFindUniqueOrThrowArgs>(args: SelectSubset<T, BenchmarkHistoryFindUniqueOrThrowArgs<ExtArgs>>): Prisma__BenchmarkHistoryClient<$Result.GetResult<Prisma.$BenchmarkHistoryPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first BenchmarkHistory that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkHistoryFindFirstArgs} args - Arguments to find a BenchmarkHistory
+     * @example
+     * // Get one BenchmarkHistory
+     * const benchmarkHistory = await prisma.benchmarkHistory.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends BenchmarkHistoryFindFirstArgs>(args?: SelectSubset<T, BenchmarkHistoryFindFirstArgs<ExtArgs>>): Prisma__BenchmarkHistoryClient<$Result.GetResult<Prisma.$BenchmarkHistoryPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first BenchmarkHistory that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkHistoryFindFirstOrThrowArgs} args - Arguments to find a BenchmarkHistory
+     * @example
+     * // Get one BenchmarkHistory
+     * const benchmarkHistory = await prisma.benchmarkHistory.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends BenchmarkHistoryFindFirstOrThrowArgs>(args?: SelectSubset<T, BenchmarkHistoryFindFirstOrThrowArgs<ExtArgs>>): Prisma__BenchmarkHistoryClient<$Result.GetResult<Prisma.$BenchmarkHistoryPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more BenchmarkHistories that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkHistoryFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all BenchmarkHistories
+     * const benchmarkHistories = await prisma.benchmarkHistory.findMany()
+     * 
+     * // Get first 10 BenchmarkHistories
+     * const benchmarkHistories = await prisma.benchmarkHistory.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const benchmarkHistoryWithIdOnly = await prisma.benchmarkHistory.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends BenchmarkHistoryFindManyArgs>(args?: SelectSubset<T, BenchmarkHistoryFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BenchmarkHistoryPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a BenchmarkHistory.
+     * @param {BenchmarkHistoryCreateArgs} args - Arguments to create a BenchmarkHistory.
+     * @example
+     * // Create one BenchmarkHistory
+     * const BenchmarkHistory = await prisma.benchmarkHistory.create({
+     *   data: {
+     *     // ... data to create a BenchmarkHistory
+     *   }
+     * })
+     * 
+     */
+    create<T extends BenchmarkHistoryCreateArgs>(args: SelectSubset<T, BenchmarkHistoryCreateArgs<ExtArgs>>): Prisma__BenchmarkHistoryClient<$Result.GetResult<Prisma.$BenchmarkHistoryPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many BenchmarkHistories.
+     * @param {BenchmarkHistoryCreateManyArgs} args - Arguments to create many BenchmarkHistories.
+     * @example
+     * // Create many BenchmarkHistories
+     * const benchmarkHistory = await prisma.benchmarkHistory.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends BenchmarkHistoryCreateManyArgs>(args?: SelectSubset<T, BenchmarkHistoryCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many BenchmarkHistories and returns the data saved in the database.
+     * @param {BenchmarkHistoryCreateManyAndReturnArgs} args - Arguments to create many BenchmarkHistories.
+     * @example
+     * // Create many BenchmarkHistories
+     * const benchmarkHistory = await prisma.benchmarkHistory.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many BenchmarkHistories and only return the `id`
+     * const benchmarkHistoryWithIdOnly = await prisma.benchmarkHistory.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends BenchmarkHistoryCreateManyAndReturnArgs>(args?: SelectSubset<T, BenchmarkHistoryCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BenchmarkHistoryPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a BenchmarkHistory.
+     * @param {BenchmarkHistoryDeleteArgs} args - Arguments to delete one BenchmarkHistory.
+     * @example
+     * // Delete one BenchmarkHistory
+     * const BenchmarkHistory = await prisma.benchmarkHistory.delete({
+     *   where: {
+     *     // ... filter to delete one BenchmarkHistory
+     *   }
+     * })
+     * 
+     */
+    delete<T extends BenchmarkHistoryDeleteArgs>(args: SelectSubset<T, BenchmarkHistoryDeleteArgs<ExtArgs>>): Prisma__BenchmarkHistoryClient<$Result.GetResult<Prisma.$BenchmarkHistoryPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one BenchmarkHistory.
+     * @param {BenchmarkHistoryUpdateArgs} args - Arguments to update one BenchmarkHistory.
+     * @example
+     * // Update one BenchmarkHistory
+     * const benchmarkHistory = await prisma.benchmarkHistory.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends BenchmarkHistoryUpdateArgs>(args: SelectSubset<T, BenchmarkHistoryUpdateArgs<ExtArgs>>): Prisma__BenchmarkHistoryClient<$Result.GetResult<Prisma.$BenchmarkHistoryPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more BenchmarkHistories.
+     * @param {BenchmarkHistoryDeleteManyArgs} args - Arguments to filter BenchmarkHistories to delete.
+     * @example
+     * // Delete a few BenchmarkHistories
+     * const { count } = await prisma.benchmarkHistory.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends BenchmarkHistoryDeleteManyArgs>(args?: SelectSubset<T, BenchmarkHistoryDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more BenchmarkHistories.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkHistoryUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many BenchmarkHistories
+     * const benchmarkHistory = await prisma.benchmarkHistory.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends BenchmarkHistoryUpdateManyArgs>(args: SelectSubset<T, BenchmarkHistoryUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one BenchmarkHistory.
+     * @param {BenchmarkHistoryUpsertArgs} args - Arguments to update or create a BenchmarkHistory.
+     * @example
+     * // Update or create a BenchmarkHistory
+     * const benchmarkHistory = await prisma.benchmarkHistory.upsert({
+     *   create: {
+     *     // ... data to create a BenchmarkHistory
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the BenchmarkHistory we want to update
+     *   }
+     * })
+     */
+    upsert<T extends BenchmarkHistoryUpsertArgs>(args: SelectSubset<T, BenchmarkHistoryUpsertArgs<ExtArgs>>): Prisma__BenchmarkHistoryClient<$Result.GetResult<Prisma.$BenchmarkHistoryPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of BenchmarkHistories.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkHistoryCountArgs} args - Arguments to filter BenchmarkHistories to count.
+     * @example
+     * // Count the number of BenchmarkHistories
+     * const count = await prisma.benchmarkHistory.count({
+     *   where: {
+     *     // ... the filter for the BenchmarkHistories we want to count
+     *   }
+     * })
+    **/
+    count<T extends BenchmarkHistoryCountArgs>(
+      args?: Subset<T, BenchmarkHistoryCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], BenchmarkHistoryCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a BenchmarkHistory.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkHistoryAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends BenchmarkHistoryAggregateArgs>(args: Subset<T, BenchmarkHistoryAggregateArgs>): Prisma.PrismaPromise<GetBenchmarkHistoryAggregateType<T>>
+
+    /**
+     * Group by BenchmarkHistory.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkHistoryGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends BenchmarkHistoryGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: BenchmarkHistoryGroupByArgs['orderBy'] }
+        : { orderBy?: BenchmarkHistoryGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, BenchmarkHistoryGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetBenchmarkHistoryGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the BenchmarkHistory model
+   */
+  readonly fields: BenchmarkHistoryFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for BenchmarkHistory.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__BenchmarkHistoryClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the BenchmarkHistory model
+   */ 
+  interface BenchmarkHistoryFieldRefs {
+    readonly id: FieldRef<"BenchmarkHistory", 'String'>
+    readonly suite: FieldRef<"BenchmarkHistory", 'String'>
+    readonly provider: FieldRef<"BenchmarkHistory", 'String'>
+    readonly model: FieldRef<"BenchmarkHistory", 'String'>
+    readonly totalTasks: FieldRef<"BenchmarkHistory", 'Int'>
+    readonly passed: FieldRef<"BenchmarkHistory", 'Int'>
+    readonly failed: FieldRef<"BenchmarkHistory", 'Int'>
+    readonly timeouts: FieldRef<"BenchmarkHistory", 'Int'>
+    readonly passRate: FieldRef<"BenchmarkHistory", 'Float'>
+    readonly totalDurationMs: FieldRef<"BenchmarkHistory", 'Int'>
+    readonly totalCostUsd: FieldRef<"BenchmarkHistory", 'Float'>
+    readonly totalTokens: FieldRef<"BenchmarkHistory", 'Int'>
+    readonly metadata: FieldRef<"BenchmarkHistory", 'String'>
+    readonly reportPath: FieldRef<"BenchmarkHistory", 'String'>
+    readonly createdAt: FieldRef<"BenchmarkHistory", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * BenchmarkHistory findUnique
+   */
+  export type BenchmarkHistoryFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkHistory
+     */
+    select?: BenchmarkHistorySelect<ExtArgs> | null
+    /**
+     * Filter, which BenchmarkHistory to fetch.
+     */
+    where: BenchmarkHistoryWhereUniqueInput
+  }
+
+  /**
+   * BenchmarkHistory findUniqueOrThrow
+   */
+  export type BenchmarkHistoryFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkHistory
+     */
+    select?: BenchmarkHistorySelect<ExtArgs> | null
+    /**
+     * Filter, which BenchmarkHistory to fetch.
+     */
+    where: BenchmarkHistoryWhereUniqueInput
+  }
+
+  /**
+   * BenchmarkHistory findFirst
+   */
+  export type BenchmarkHistoryFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkHistory
+     */
+    select?: BenchmarkHistorySelect<ExtArgs> | null
+    /**
+     * Filter, which BenchmarkHistory to fetch.
+     */
+    where?: BenchmarkHistoryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BenchmarkHistories to fetch.
+     */
+    orderBy?: BenchmarkHistoryOrderByWithRelationInput | BenchmarkHistoryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for BenchmarkHistories.
+     */
+    cursor?: BenchmarkHistoryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BenchmarkHistories from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BenchmarkHistories.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of BenchmarkHistories.
+     */
+    distinct?: BenchmarkHistoryScalarFieldEnum | BenchmarkHistoryScalarFieldEnum[]
+  }
+
+  /**
+   * BenchmarkHistory findFirstOrThrow
+   */
+  export type BenchmarkHistoryFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkHistory
+     */
+    select?: BenchmarkHistorySelect<ExtArgs> | null
+    /**
+     * Filter, which BenchmarkHistory to fetch.
+     */
+    where?: BenchmarkHistoryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BenchmarkHistories to fetch.
+     */
+    orderBy?: BenchmarkHistoryOrderByWithRelationInput | BenchmarkHistoryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for BenchmarkHistories.
+     */
+    cursor?: BenchmarkHistoryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BenchmarkHistories from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BenchmarkHistories.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of BenchmarkHistories.
+     */
+    distinct?: BenchmarkHistoryScalarFieldEnum | BenchmarkHistoryScalarFieldEnum[]
+  }
+
+  /**
+   * BenchmarkHistory findMany
+   */
+  export type BenchmarkHistoryFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkHistory
+     */
+    select?: BenchmarkHistorySelect<ExtArgs> | null
+    /**
+     * Filter, which BenchmarkHistories to fetch.
+     */
+    where?: BenchmarkHistoryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BenchmarkHistories to fetch.
+     */
+    orderBy?: BenchmarkHistoryOrderByWithRelationInput | BenchmarkHistoryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing BenchmarkHistories.
+     */
+    cursor?: BenchmarkHistoryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BenchmarkHistories from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BenchmarkHistories.
+     */
+    skip?: number
+    distinct?: BenchmarkHistoryScalarFieldEnum | BenchmarkHistoryScalarFieldEnum[]
+  }
+
+  /**
+   * BenchmarkHistory create
+   */
+  export type BenchmarkHistoryCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkHistory
+     */
+    select?: BenchmarkHistorySelect<ExtArgs> | null
+    /**
+     * The data needed to create a BenchmarkHistory.
+     */
+    data: XOR<BenchmarkHistoryCreateInput, BenchmarkHistoryUncheckedCreateInput>
+  }
+
+  /**
+   * BenchmarkHistory createMany
+   */
+  export type BenchmarkHistoryCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many BenchmarkHistories.
+     */
+    data: BenchmarkHistoryCreateManyInput | BenchmarkHistoryCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * BenchmarkHistory createManyAndReturn
+   */
+  export type BenchmarkHistoryCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkHistory
+     */
+    select?: BenchmarkHistorySelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many BenchmarkHistories.
+     */
+    data: BenchmarkHistoryCreateManyInput | BenchmarkHistoryCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * BenchmarkHistory update
+   */
+  export type BenchmarkHistoryUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkHistory
+     */
+    select?: BenchmarkHistorySelect<ExtArgs> | null
+    /**
+     * The data needed to update a BenchmarkHistory.
+     */
+    data: XOR<BenchmarkHistoryUpdateInput, BenchmarkHistoryUncheckedUpdateInput>
+    /**
+     * Choose, which BenchmarkHistory to update.
+     */
+    where: BenchmarkHistoryWhereUniqueInput
+  }
+
+  /**
+   * BenchmarkHistory updateMany
+   */
+  export type BenchmarkHistoryUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update BenchmarkHistories.
+     */
+    data: XOR<BenchmarkHistoryUpdateManyMutationInput, BenchmarkHistoryUncheckedUpdateManyInput>
+    /**
+     * Filter which BenchmarkHistories to update
+     */
+    where?: BenchmarkHistoryWhereInput
+  }
+
+  /**
+   * BenchmarkHistory upsert
+   */
+  export type BenchmarkHistoryUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkHistory
+     */
+    select?: BenchmarkHistorySelect<ExtArgs> | null
+    /**
+     * The filter to search for the BenchmarkHistory to update in case it exists.
+     */
+    where: BenchmarkHistoryWhereUniqueInput
+    /**
+     * In case the BenchmarkHistory found by the `where` argument doesn't exist, create a new BenchmarkHistory with this data.
+     */
+    create: XOR<BenchmarkHistoryCreateInput, BenchmarkHistoryUncheckedCreateInput>
+    /**
+     * In case the BenchmarkHistory was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<BenchmarkHistoryUpdateInput, BenchmarkHistoryUncheckedUpdateInput>
+  }
+
+  /**
+   * BenchmarkHistory delete
+   */
+  export type BenchmarkHistoryDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkHistory
+     */
+    select?: BenchmarkHistorySelect<ExtArgs> | null
+    /**
+     * Filter which BenchmarkHistory to delete.
+     */
+    where: BenchmarkHistoryWhereUniqueInput
+  }
+
+  /**
+   * BenchmarkHistory deleteMany
+   */
+  export type BenchmarkHistoryDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which BenchmarkHistories to delete
+     */
+    where?: BenchmarkHistoryWhereInput
+  }
+
+  /**
+   * BenchmarkHistory without action
+   */
+  export type BenchmarkHistoryDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkHistory
+     */
+    select?: BenchmarkHistorySelect<ExtArgs> | null
+  }
+
+
+  /**
+   * Model BenchmarkRun
+   */
+
+  export type AggregateBenchmarkRun = {
+    _count: BenchmarkRunCountAggregateOutputType | null
+    _avg: BenchmarkRunAvgAggregateOutputType | null
+    _sum: BenchmarkRunSumAggregateOutputType | null
+    _min: BenchmarkRunMinAggregateOutputType | null
+    _max: BenchmarkRunMaxAggregateOutputType | null
+  }
+
+  export type BenchmarkRunAvgAggregateOutputType = {
+    totalTasks: number | null
+    passed: number | null
+    failed: number | null
+    timeouts: number | null
+    totalDurationMs: number | null
+    totalCostUsd: number | null
+    totalTokens: number | null
+  }
+
+  export type BenchmarkRunSumAggregateOutputType = {
+    totalTasks: number | null
+    passed: number | null
+    failed: number | null
+    timeouts: number | null
+    totalDurationMs: number | null
+    totalCostUsd: number | null
+    totalTokens: number | null
+  }
+
+  export type BenchmarkRunMinAggregateOutputType = {
+    id: string | null
+    suite: string | null
+    status: string | null
+    config: string | null
+    totalTasks: number | null
+    passed: number | null
+    failed: number | null
+    timeouts: number | null
+    totalDurationMs: number | null
+    totalCostUsd: number | null
+    totalTokens: number | null
+    results: string | null
+    error: string | null
+    startedAt: Date | null
+    completedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type BenchmarkRunMaxAggregateOutputType = {
+    id: string | null
+    suite: string | null
+    status: string | null
+    config: string | null
+    totalTasks: number | null
+    passed: number | null
+    failed: number | null
+    timeouts: number | null
+    totalDurationMs: number | null
+    totalCostUsd: number | null
+    totalTokens: number | null
+    results: string | null
+    error: string | null
+    startedAt: Date | null
+    completedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type BenchmarkRunCountAggregateOutputType = {
+    id: number
+    suite: number
+    status: number
+    config: number
+    totalTasks: number
+    passed: number
+    failed: number
+    timeouts: number
+    totalDurationMs: number
+    totalCostUsd: number
+    totalTokens: number
+    results: number
+    error: number
+    startedAt: number
+    completedAt: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type BenchmarkRunAvgAggregateInputType = {
+    totalTasks?: true
+    passed?: true
+    failed?: true
+    timeouts?: true
+    totalDurationMs?: true
+    totalCostUsd?: true
+    totalTokens?: true
+  }
+
+  export type BenchmarkRunSumAggregateInputType = {
+    totalTasks?: true
+    passed?: true
+    failed?: true
+    timeouts?: true
+    totalDurationMs?: true
+    totalCostUsd?: true
+    totalTokens?: true
+  }
+
+  export type BenchmarkRunMinAggregateInputType = {
+    id?: true
+    suite?: true
+    status?: true
+    config?: true
+    totalTasks?: true
+    passed?: true
+    failed?: true
+    timeouts?: true
+    totalDurationMs?: true
+    totalCostUsd?: true
+    totalTokens?: true
+    results?: true
+    error?: true
+    startedAt?: true
+    completedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type BenchmarkRunMaxAggregateInputType = {
+    id?: true
+    suite?: true
+    status?: true
+    config?: true
+    totalTasks?: true
+    passed?: true
+    failed?: true
+    timeouts?: true
+    totalDurationMs?: true
+    totalCostUsd?: true
+    totalTokens?: true
+    results?: true
+    error?: true
+    startedAt?: true
+    completedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type BenchmarkRunCountAggregateInputType = {
+    id?: true
+    suite?: true
+    status?: true
+    config?: true
+    totalTasks?: true
+    passed?: true
+    failed?: true
+    timeouts?: true
+    totalDurationMs?: true
+    totalCostUsd?: true
+    totalTokens?: true
+    results?: true
+    error?: true
+    startedAt?: true
+    completedAt?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type BenchmarkRunAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which BenchmarkRun to aggregate.
+     */
+    where?: BenchmarkRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BenchmarkRuns to fetch.
+     */
+    orderBy?: BenchmarkRunOrderByWithRelationInput | BenchmarkRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: BenchmarkRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BenchmarkRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BenchmarkRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned BenchmarkRuns
+    **/
+    _count?: true | BenchmarkRunCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: BenchmarkRunAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: BenchmarkRunSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: BenchmarkRunMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: BenchmarkRunMaxAggregateInputType
+  }
+
+  export type GetBenchmarkRunAggregateType<T extends BenchmarkRunAggregateArgs> = {
+        [P in keyof T & keyof AggregateBenchmarkRun]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateBenchmarkRun[P]>
+      : GetScalarType<T[P], AggregateBenchmarkRun[P]>
+  }
+
+
+
+
+  export type BenchmarkRunGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: BenchmarkRunWhereInput
+    orderBy?: BenchmarkRunOrderByWithAggregationInput | BenchmarkRunOrderByWithAggregationInput[]
+    by: BenchmarkRunScalarFieldEnum[] | BenchmarkRunScalarFieldEnum
+    having?: BenchmarkRunScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: BenchmarkRunCountAggregateInputType | true
+    _avg?: BenchmarkRunAvgAggregateInputType
+    _sum?: BenchmarkRunSumAggregateInputType
+    _min?: BenchmarkRunMinAggregateInputType
+    _max?: BenchmarkRunMaxAggregateInputType
+  }
+
+  export type BenchmarkRunGroupByOutputType = {
+    id: string
+    suite: string
+    status: string
+    config: string
+    totalTasks: number
+    passed: number
+    failed: number
+    timeouts: number
+    totalDurationMs: number
+    totalCostUsd: number | null
+    totalTokens: number | null
+    results: string | null
+    error: string | null
+    startedAt: Date | null
+    completedAt: Date | null
+    createdAt: Date
+    updatedAt: Date
+    _count: BenchmarkRunCountAggregateOutputType | null
+    _avg: BenchmarkRunAvgAggregateOutputType | null
+    _sum: BenchmarkRunSumAggregateOutputType | null
+    _min: BenchmarkRunMinAggregateOutputType | null
+    _max: BenchmarkRunMaxAggregateOutputType | null
+  }
+
+  type GetBenchmarkRunGroupByPayload<T extends BenchmarkRunGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<BenchmarkRunGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof BenchmarkRunGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], BenchmarkRunGroupByOutputType[P]>
+            : GetScalarType<T[P], BenchmarkRunGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type BenchmarkRunSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    suite?: boolean
+    status?: boolean
+    config?: boolean
+    totalTasks?: boolean
+    passed?: boolean
+    failed?: boolean
+    timeouts?: boolean
+    totalDurationMs?: boolean
+    totalCostUsd?: boolean
+    totalTokens?: boolean
+    results?: boolean
+    error?: boolean
+    startedAt?: boolean
+    completedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["benchmarkRun"]>
+
+  export type BenchmarkRunSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    suite?: boolean
+    status?: boolean
+    config?: boolean
+    totalTasks?: boolean
+    passed?: boolean
+    failed?: boolean
+    timeouts?: boolean
+    totalDurationMs?: boolean
+    totalCostUsd?: boolean
+    totalTokens?: boolean
+    results?: boolean
+    error?: boolean
+    startedAt?: boolean
+    completedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["benchmarkRun"]>
+
+  export type BenchmarkRunSelectScalar = {
+    id?: boolean
+    suite?: boolean
+    status?: boolean
+    config?: boolean
+    totalTasks?: boolean
+    passed?: boolean
+    failed?: boolean
+    timeouts?: boolean
+    totalDurationMs?: boolean
+    totalCostUsd?: boolean
+    totalTokens?: boolean
+    results?: boolean
+    error?: boolean
+    startedAt?: boolean
+    completedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+
+  export type $BenchmarkRunPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "BenchmarkRun"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      suite: string
+      status: string
+      config: string
+      totalTasks: number
+      passed: number
+      failed: number
+      timeouts: number
+      totalDurationMs: number
+      totalCostUsd: number | null
+      totalTokens: number | null
+      results: string | null
+      error: string | null
+      startedAt: Date | null
+      completedAt: Date | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["benchmarkRun"]>
+    composites: {}
+  }
+
+  type BenchmarkRunGetPayload<S extends boolean | null | undefined | BenchmarkRunDefaultArgs> = $Result.GetResult<Prisma.$BenchmarkRunPayload, S>
+
+  type BenchmarkRunCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<BenchmarkRunFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: BenchmarkRunCountAggregateInputType | true
+    }
+
+  export interface BenchmarkRunDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['BenchmarkRun'], meta: { name: 'BenchmarkRun' } }
+    /**
+     * Find zero or one BenchmarkRun that matches the filter.
+     * @param {BenchmarkRunFindUniqueArgs} args - Arguments to find a BenchmarkRun
+     * @example
+     * // Get one BenchmarkRun
+     * const benchmarkRun = await prisma.benchmarkRun.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends BenchmarkRunFindUniqueArgs>(args: SelectSubset<T, BenchmarkRunFindUniqueArgs<ExtArgs>>): Prisma__BenchmarkRunClient<$Result.GetResult<Prisma.$BenchmarkRunPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one BenchmarkRun that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {BenchmarkRunFindUniqueOrThrowArgs} args - Arguments to find a BenchmarkRun
+     * @example
+     * // Get one BenchmarkRun
+     * const benchmarkRun = await prisma.benchmarkRun.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends BenchmarkRunFindUniqueOrThrowArgs>(args: SelectSubset<T, BenchmarkRunFindUniqueOrThrowArgs<ExtArgs>>): Prisma__BenchmarkRunClient<$Result.GetResult<Prisma.$BenchmarkRunPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first BenchmarkRun that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkRunFindFirstArgs} args - Arguments to find a BenchmarkRun
+     * @example
+     * // Get one BenchmarkRun
+     * const benchmarkRun = await prisma.benchmarkRun.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends BenchmarkRunFindFirstArgs>(args?: SelectSubset<T, BenchmarkRunFindFirstArgs<ExtArgs>>): Prisma__BenchmarkRunClient<$Result.GetResult<Prisma.$BenchmarkRunPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first BenchmarkRun that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkRunFindFirstOrThrowArgs} args - Arguments to find a BenchmarkRun
+     * @example
+     * // Get one BenchmarkRun
+     * const benchmarkRun = await prisma.benchmarkRun.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends BenchmarkRunFindFirstOrThrowArgs>(args?: SelectSubset<T, BenchmarkRunFindFirstOrThrowArgs<ExtArgs>>): Prisma__BenchmarkRunClient<$Result.GetResult<Prisma.$BenchmarkRunPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more BenchmarkRuns that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkRunFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all BenchmarkRuns
+     * const benchmarkRuns = await prisma.benchmarkRun.findMany()
+     * 
+     * // Get first 10 BenchmarkRuns
+     * const benchmarkRuns = await prisma.benchmarkRun.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const benchmarkRunWithIdOnly = await prisma.benchmarkRun.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends BenchmarkRunFindManyArgs>(args?: SelectSubset<T, BenchmarkRunFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BenchmarkRunPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a BenchmarkRun.
+     * @param {BenchmarkRunCreateArgs} args - Arguments to create a BenchmarkRun.
+     * @example
+     * // Create one BenchmarkRun
+     * const BenchmarkRun = await prisma.benchmarkRun.create({
+     *   data: {
+     *     // ... data to create a BenchmarkRun
+     *   }
+     * })
+     * 
+     */
+    create<T extends BenchmarkRunCreateArgs>(args: SelectSubset<T, BenchmarkRunCreateArgs<ExtArgs>>): Prisma__BenchmarkRunClient<$Result.GetResult<Prisma.$BenchmarkRunPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many BenchmarkRuns.
+     * @param {BenchmarkRunCreateManyArgs} args - Arguments to create many BenchmarkRuns.
+     * @example
+     * // Create many BenchmarkRuns
+     * const benchmarkRun = await prisma.benchmarkRun.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends BenchmarkRunCreateManyArgs>(args?: SelectSubset<T, BenchmarkRunCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many BenchmarkRuns and returns the data saved in the database.
+     * @param {BenchmarkRunCreateManyAndReturnArgs} args - Arguments to create many BenchmarkRuns.
+     * @example
+     * // Create many BenchmarkRuns
+     * const benchmarkRun = await prisma.benchmarkRun.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many BenchmarkRuns and only return the `id`
+     * const benchmarkRunWithIdOnly = await prisma.benchmarkRun.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends BenchmarkRunCreateManyAndReturnArgs>(args?: SelectSubset<T, BenchmarkRunCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BenchmarkRunPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a BenchmarkRun.
+     * @param {BenchmarkRunDeleteArgs} args - Arguments to delete one BenchmarkRun.
+     * @example
+     * // Delete one BenchmarkRun
+     * const BenchmarkRun = await prisma.benchmarkRun.delete({
+     *   where: {
+     *     // ... filter to delete one BenchmarkRun
+     *   }
+     * })
+     * 
+     */
+    delete<T extends BenchmarkRunDeleteArgs>(args: SelectSubset<T, BenchmarkRunDeleteArgs<ExtArgs>>): Prisma__BenchmarkRunClient<$Result.GetResult<Prisma.$BenchmarkRunPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one BenchmarkRun.
+     * @param {BenchmarkRunUpdateArgs} args - Arguments to update one BenchmarkRun.
+     * @example
+     * // Update one BenchmarkRun
+     * const benchmarkRun = await prisma.benchmarkRun.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends BenchmarkRunUpdateArgs>(args: SelectSubset<T, BenchmarkRunUpdateArgs<ExtArgs>>): Prisma__BenchmarkRunClient<$Result.GetResult<Prisma.$BenchmarkRunPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more BenchmarkRuns.
+     * @param {BenchmarkRunDeleteManyArgs} args - Arguments to filter BenchmarkRuns to delete.
+     * @example
+     * // Delete a few BenchmarkRuns
+     * const { count } = await prisma.benchmarkRun.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends BenchmarkRunDeleteManyArgs>(args?: SelectSubset<T, BenchmarkRunDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more BenchmarkRuns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkRunUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many BenchmarkRuns
+     * const benchmarkRun = await prisma.benchmarkRun.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends BenchmarkRunUpdateManyArgs>(args: SelectSubset<T, BenchmarkRunUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one BenchmarkRun.
+     * @param {BenchmarkRunUpsertArgs} args - Arguments to update or create a BenchmarkRun.
+     * @example
+     * // Update or create a BenchmarkRun
+     * const benchmarkRun = await prisma.benchmarkRun.upsert({
+     *   create: {
+     *     // ... data to create a BenchmarkRun
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the BenchmarkRun we want to update
+     *   }
+     * })
+     */
+    upsert<T extends BenchmarkRunUpsertArgs>(args: SelectSubset<T, BenchmarkRunUpsertArgs<ExtArgs>>): Prisma__BenchmarkRunClient<$Result.GetResult<Prisma.$BenchmarkRunPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of BenchmarkRuns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkRunCountArgs} args - Arguments to filter BenchmarkRuns to count.
+     * @example
+     * // Count the number of BenchmarkRuns
+     * const count = await prisma.benchmarkRun.count({
+     *   where: {
+     *     // ... the filter for the BenchmarkRuns we want to count
+     *   }
+     * })
+    **/
+    count<T extends BenchmarkRunCountArgs>(
+      args?: Subset<T, BenchmarkRunCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], BenchmarkRunCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a BenchmarkRun.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkRunAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends BenchmarkRunAggregateArgs>(args: Subset<T, BenchmarkRunAggregateArgs>): Prisma.PrismaPromise<GetBenchmarkRunAggregateType<T>>
+
+    /**
+     * Group by BenchmarkRun.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {BenchmarkRunGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends BenchmarkRunGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: BenchmarkRunGroupByArgs['orderBy'] }
+        : { orderBy?: BenchmarkRunGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, BenchmarkRunGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetBenchmarkRunGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the BenchmarkRun model
+   */
+  readonly fields: BenchmarkRunFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for BenchmarkRun.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__BenchmarkRunClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the BenchmarkRun model
+   */ 
+  interface BenchmarkRunFieldRefs {
+    readonly id: FieldRef<"BenchmarkRun", 'String'>
+    readonly suite: FieldRef<"BenchmarkRun", 'String'>
+    readonly status: FieldRef<"BenchmarkRun", 'String'>
+    readonly config: FieldRef<"BenchmarkRun", 'String'>
+    readonly totalTasks: FieldRef<"BenchmarkRun", 'Int'>
+    readonly passed: FieldRef<"BenchmarkRun", 'Int'>
+    readonly failed: FieldRef<"BenchmarkRun", 'Int'>
+    readonly timeouts: FieldRef<"BenchmarkRun", 'Int'>
+    readonly totalDurationMs: FieldRef<"BenchmarkRun", 'Int'>
+    readonly totalCostUsd: FieldRef<"BenchmarkRun", 'Float'>
+    readonly totalTokens: FieldRef<"BenchmarkRun", 'Int'>
+    readonly results: FieldRef<"BenchmarkRun", 'String'>
+    readonly error: FieldRef<"BenchmarkRun", 'String'>
+    readonly startedAt: FieldRef<"BenchmarkRun", 'DateTime'>
+    readonly completedAt: FieldRef<"BenchmarkRun", 'DateTime'>
+    readonly createdAt: FieldRef<"BenchmarkRun", 'DateTime'>
+    readonly updatedAt: FieldRef<"BenchmarkRun", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * BenchmarkRun findUnique
+   */
+  export type BenchmarkRunFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkRun
+     */
+    select?: BenchmarkRunSelect<ExtArgs> | null
+    /**
+     * Filter, which BenchmarkRun to fetch.
+     */
+    where: BenchmarkRunWhereUniqueInput
+  }
+
+  /**
+   * BenchmarkRun findUniqueOrThrow
+   */
+  export type BenchmarkRunFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkRun
+     */
+    select?: BenchmarkRunSelect<ExtArgs> | null
+    /**
+     * Filter, which BenchmarkRun to fetch.
+     */
+    where: BenchmarkRunWhereUniqueInput
+  }
+
+  /**
+   * BenchmarkRun findFirst
+   */
+  export type BenchmarkRunFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkRun
+     */
+    select?: BenchmarkRunSelect<ExtArgs> | null
+    /**
+     * Filter, which BenchmarkRun to fetch.
+     */
+    where?: BenchmarkRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BenchmarkRuns to fetch.
+     */
+    orderBy?: BenchmarkRunOrderByWithRelationInput | BenchmarkRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for BenchmarkRuns.
+     */
+    cursor?: BenchmarkRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BenchmarkRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BenchmarkRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of BenchmarkRuns.
+     */
+    distinct?: BenchmarkRunScalarFieldEnum | BenchmarkRunScalarFieldEnum[]
+  }
+
+  /**
+   * BenchmarkRun findFirstOrThrow
+   */
+  export type BenchmarkRunFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkRun
+     */
+    select?: BenchmarkRunSelect<ExtArgs> | null
+    /**
+     * Filter, which BenchmarkRun to fetch.
+     */
+    where?: BenchmarkRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BenchmarkRuns to fetch.
+     */
+    orderBy?: BenchmarkRunOrderByWithRelationInput | BenchmarkRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for BenchmarkRuns.
+     */
+    cursor?: BenchmarkRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BenchmarkRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BenchmarkRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of BenchmarkRuns.
+     */
+    distinct?: BenchmarkRunScalarFieldEnum | BenchmarkRunScalarFieldEnum[]
+  }
+
+  /**
+   * BenchmarkRun findMany
+   */
+  export type BenchmarkRunFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkRun
+     */
+    select?: BenchmarkRunSelect<ExtArgs> | null
+    /**
+     * Filter, which BenchmarkRuns to fetch.
+     */
+    where?: BenchmarkRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of BenchmarkRuns to fetch.
+     */
+    orderBy?: BenchmarkRunOrderByWithRelationInput | BenchmarkRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing BenchmarkRuns.
+     */
+    cursor?: BenchmarkRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` BenchmarkRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` BenchmarkRuns.
+     */
+    skip?: number
+    distinct?: BenchmarkRunScalarFieldEnum | BenchmarkRunScalarFieldEnum[]
+  }
+
+  /**
+   * BenchmarkRun create
+   */
+  export type BenchmarkRunCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkRun
+     */
+    select?: BenchmarkRunSelect<ExtArgs> | null
+    /**
+     * The data needed to create a BenchmarkRun.
+     */
+    data: XOR<BenchmarkRunCreateInput, BenchmarkRunUncheckedCreateInput>
+  }
+
+  /**
+   * BenchmarkRun createMany
+   */
+  export type BenchmarkRunCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many BenchmarkRuns.
+     */
+    data: BenchmarkRunCreateManyInput | BenchmarkRunCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * BenchmarkRun createManyAndReturn
+   */
+  export type BenchmarkRunCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkRun
+     */
+    select?: BenchmarkRunSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many BenchmarkRuns.
+     */
+    data: BenchmarkRunCreateManyInput | BenchmarkRunCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * BenchmarkRun update
+   */
+  export type BenchmarkRunUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkRun
+     */
+    select?: BenchmarkRunSelect<ExtArgs> | null
+    /**
+     * The data needed to update a BenchmarkRun.
+     */
+    data: XOR<BenchmarkRunUpdateInput, BenchmarkRunUncheckedUpdateInput>
+    /**
+     * Choose, which BenchmarkRun to update.
+     */
+    where: BenchmarkRunWhereUniqueInput
+  }
+
+  /**
+   * BenchmarkRun updateMany
+   */
+  export type BenchmarkRunUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update BenchmarkRuns.
+     */
+    data: XOR<BenchmarkRunUpdateManyMutationInput, BenchmarkRunUncheckedUpdateManyInput>
+    /**
+     * Filter which BenchmarkRuns to update
+     */
+    where?: BenchmarkRunWhereInput
+  }
+
+  /**
+   * BenchmarkRun upsert
+   */
+  export type BenchmarkRunUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkRun
+     */
+    select?: BenchmarkRunSelect<ExtArgs> | null
+    /**
+     * The filter to search for the BenchmarkRun to update in case it exists.
+     */
+    where: BenchmarkRunWhereUniqueInput
+    /**
+     * In case the BenchmarkRun found by the `where` argument doesn't exist, create a new BenchmarkRun with this data.
+     */
+    create: XOR<BenchmarkRunCreateInput, BenchmarkRunUncheckedCreateInput>
+    /**
+     * In case the BenchmarkRun was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<BenchmarkRunUpdateInput, BenchmarkRunUncheckedUpdateInput>
+  }
+
+  /**
+   * BenchmarkRun delete
+   */
+  export type BenchmarkRunDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkRun
+     */
+    select?: BenchmarkRunSelect<ExtArgs> | null
+    /**
+     * Filter which BenchmarkRun to delete.
+     */
+    where: BenchmarkRunWhereUniqueInput
+  }
+
+  /**
+   * BenchmarkRun deleteMany
+   */
+  export type BenchmarkRunDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which BenchmarkRuns to delete
+     */
+    where?: BenchmarkRunWhereInput
+  }
+
+  /**
+   * BenchmarkRun without action
+   */
+  export type BenchmarkRunDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the BenchmarkRun
+     */
+    select?: BenchmarkRunSelect<ExtArgs> | null
+  }
+
+
+  /**
+   * Model ProviderCircuitState
+   */
+
+  export type AggregateProviderCircuitState = {
+    _count: ProviderCircuitStateCountAggregateOutputType | null
+    _avg: ProviderCircuitStateAvgAggregateOutputType | null
+    _sum: ProviderCircuitStateSumAggregateOutputType | null
+    _min: ProviderCircuitStateMinAggregateOutputType | null
+    _max: ProviderCircuitStateMaxAggregateOutputType | null
+  }
+
+  export type ProviderCircuitStateAvgAggregateOutputType = {
+    errorRate: number | null
+  }
+
+  export type ProviderCircuitStateSumAggregateOutputType = {
+    errorRate: number | null
+  }
+
+  export type ProviderCircuitStateMinAggregateOutputType = {
+    providerName: string | null
+    state: string | null
+    errorRate: number | null
+    lastFailureAt: Date | null
+    lastSuccessAt: Date | null
+    cooldownUntil: Date | null
+    trialStartedAt: Date | null
+    trialRequestId: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ProviderCircuitStateMaxAggregateOutputType = {
+    providerName: string | null
+    state: string | null
+    errorRate: number | null
+    lastFailureAt: Date | null
+    lastSuccessAt: Date | null
+    cooldownUntil: Date | null
+    trialStartedAt: Date | null
+    trialRequestId: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ProviderCircuitStateCountAggregateOutputType = {
+    providerName: number
+    state: number
+    errorRate: number
+    lastFailureAt: number
+    lastSuccessAt: number
+    cooldownUntil: number
+    trialStartedAt: number
+    trialRequestId: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type ProviderCircuitStateAvgAggregateInputType = {
+    errorRate?: true
+  }
+
+  export type ProviderCircuitStateSumAggregateInputType = {
+    errorRate?: true
+  }
+
+  export type ProviderCircuitStateMinAggregateInputType = {
+    providerName?: true
+    state?: true
+    errorRate?: true
+    lastFailureAt?: true
+    lastSuccessAt?: true
+    cooldownUntil?: true
+    trialStartedAt?: true
+    trialRequestId?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ProviderCircuitStateMaxAggregateInputType = {
+    providerName?: true
+    state?: true
+    errorRate?: true
+    lastFailureAt?: true
+    lastSuccessAt?: true
+    cooldownUntil?: true
+    trialStartedAt?: true
+    trialRequestId?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ProviderCircuitStateCountAggregateInputType = {
+    providerName?: true
+    state?: true
+    errorRate?: true
+    lastFailureAt?: true
+    lastSuccessAt?: true
+    cooldownUntil?: true
+    trialStartedAt?: true
+    trialRequestId?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type ProviderCircuitStateAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ProviderCircuitState to aggregate.
+     */
+    where?: ProviderCircuitStateWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProviderCircuitStates to fetch.
+     */
+    orderBy?: ProviderCircuitStateOrderByWithRelationInput | ProviderCircuitStateOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ProviderCircuitStateWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProviderCircuitStates from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProviderCircuitStates.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ProviderCircuitStates
+    **/
+    _count?: true | ProviderCircuitStateCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: ProviderCircuitStateAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ProviderCircuitStateSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ProviderCircuitStateMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ProviderCircuitStateMaxAggregateInputType
+  }
+
+  export type GetProviderCircuitStateAggregateType<T extends ProviderCircuitStateAggregateArgs> = {
+        [P in keyof T & keyof AggregateProviderCircuitState]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateProviderCircuitState[P]>
+      : GetScalarType<T[P], AggregateProviderCircuitState[P]>
+  }
+
+
+
+
+  export type ProviderCircuitStateGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ProviderCircuitStateWhereInput
+    orderBy?: ProviderCircuitStateOrderByWithAggregationInput | ProviderCircuitStateOrderByWithAggregationInput[]
+    by: ProviderCircuitStateScalarFieldEnum[] | ProviderCircuitStateScalarFieldEnum
+    having?: ProviderCircuitStateScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ProviderCircuitStateCountAggregateInputType | true
+    _avg?: ProviderCircuitStateAvgAggregateInputType
+    _sum?: ProviderCircuitStateSumAggregateInputType
+    _min?: ProviderCircuitStateMinAggregateInputType
+    _max?: ProviderCircuitStateMaxAggregateInputType
+  }
+
+  export type ProviderCircuitStateGroupByOutputType = {
+    providerName: string
+    state: string
+    errorRate: number
+    lastFailureAt: Date | null
+    lastSuccessAt: Date | null
+    cooldownUntil: Date | null
+    trialStartedAt: Date | null
+    trialRequestId: string | null
+    createdAt: Date
+    updatedAt: Date
+    _count: ProviderCircuitStateCountAggregateOutputType | null
+    _avg: ProviderCircuitStateAvgAggregateOutputType | null
+    _sum: ProviderCircuitStateSumAggregateOutputType | null
+    _min: ProviderCircuitStateMinAggregateOutputType | null
+    _max: ProviderCircuitStateMaxAggregateOutputType | null
+  }
+
+  type GetProviderCircuitStateGroupByPayload<T extends ProviderCircuitStateGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ProviderCircuitStateGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ProviderCircuitStateGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ProviderCircuitStateGroupByOutputType[P]>
+            : GetScalarType<T[P], ProviderCircuitStateGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ProviderCircuitStateSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    providerName?: boolean
+    state?: boolean
+    errorRate?: boolean
+    lastFailureAt?: boolean
+    lastSuccessAt?: boolean
+    cooldownUntil?: boolean
+    trialStartedAt?: boolean
+    trialRequestId?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["providerCircuitState"]>
+
+  export type ProviderCircuitStateSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    providerName?: boolean
+    state?: boolean
+    errorRate?: boolean
+    lastFailureAt?: boolean
+    lastSuccessAt?: boolean
+    cooldownUntil?: boolean
+    trialStartedAt?: boolean
+    trialRequestId?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["providerCircuitState"]>
+
+  export type ProviderCircuitStateSelectScalar = {
+    providerName?: boolean
+    state?: boolean
+    errorRate?: boolean
+    lastFailureAt?: boolean
+    lastSuccessAt?: boolean
+    cooldownUntil?: boolean
+    trialStartedAt?: boolean
+    trialRequestId?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+
+  export type $ProviderCircuitStatePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ProviderCircuitState"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      providerName: string
+      state: string
+      errorRate: number
+      lastFailureAt: Date | null
+      lastSuccessAt: Date | null
+      cooldownUntil: Date | null
+      trialStartedAt: Date | null
+      trialRequestId: string | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["providerCircuitState"]>
+    composites: {}
+  }
+
+  type ProviderCircuitStateGetPayload<S extends boolean | null | undefined | ProviderCircuitStateDefaultArgs> = $Result.GetResult<Prisma.$ProviderCircuitStatePayload, S>
+
+  type ProviderCircuitStateCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<ProviderCircuitStateFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: ProviderCircuitStateCountAggregateInputType | true
+    }
+
+  export interface ProviderCircuitStateDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ProviderCircuitState'], meta: { name: 'ProviderCircuitState' } }
+    /**
+     * Find zero or one ProviderCircuitState that matches the filter.
+     * @param {ProviderCircuitStateFindUniqueArgs} args - Arguments to find a ProviderCircuitState
+     * @example
+     * // Get one ProviderCircuitState
+     * const providerCircuitState = await prisma.providerCircuitState.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ProviderCircuitStateFindUniqueArgs>(args: SelectSubset<T, ProviderCircuitStateFindUniqueArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one ProviderCircuitState that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {ProviderCircuitStateFindUniqueOrThrowArgs} args - Arguments to find a ProviderCircuitState
+     * @example
+     * // Get one ProviderCircuitState
+     * const providerCircuitState = await prisma.providerCircuitState.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ProviderCircuitStateFindUniqueOrThrowArgs>(args: SelectSubset<T, ProviderCircuitStateFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first ProviderCircuitState that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateFindFirstArgs} args - Arguments to find a ProviderCircuitState
+     * @example
+     * // Get one ProviderCircuitState
+     * const providerCircuitState = await prisma.providerCircuitState.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ProviderCircuitStateFindFirstArgs>(args?: SelectSubset<T, ProviderCircuitStateFindFirstArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first ProviderCircuitState that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateFindFirstOrThrowArgs} args - Arguments to find a ProviderCircuitState
+     * @example
+     * // Get one ProviderCircuitState
+     * const providerCircuitState = await prisma.providerCircuitState.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ProviderCircuitStateFindFirstOrThrowArgs>(args?: SelectSubset<T, ProviderCircuitStateFindFirstOrThrowArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more ProviderCircuitStates that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ProviderCircuitStates
+     * const providerCircuitStates = await prisma.providerCircuitState.findMany()
+     * 
+     * // Get first 10 ProviderCircuitStates
+     * const providerCircuitStates = await prisma.providerCircuitState.findMany({ take: 10 })
+     * 
+     * // Only select the `providerName`
+     * const providerCircuitStateWithProviderNameOnly = await prisma.providerCircuitState.findMany({ select: { providerName: true } })
+     * 
+     */
+    findMany<T extends ProviderCircuitStateFindManyArgs>(args?: SelectSubset<T, ProviderCircuitStateFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a ProviderCircuitState.
+     * @param {ProviderCircuitStateCreateArgs} args - Arguments to create a ProviderCircuitState.
+     * @example
+     * // Create one ProviderCircuitState
+     * const ProviderCircuitState = await prisma.providerCircuitState.create({
+     *   data: {
+     *     // ... data to create a ProviderCircuitState
+     *   }
+     * })
+     * 
+     */
+    create<T extends ProviderCircuitStateCreateArgs>(args: SelectSubset<T, ProviderCircuitStateCreateArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many ProviderCircuitStates.
+     * @param {ProviderCircuitStateCreateManyArgs} args - Arguments to create many ProviderCircuitStates.
+     * @example
+     * // Create many ProviderCircuitStates
+     * const providerCircuitState = await prisma.providerCircuitState.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ProviderCircuitStateCreateManyArgs>(args?: SelectSubset<T, ProviderCircuitStateCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ProviderCircuitStates and returns the data saved in the database.
+     * @param {ProviderCircuitStateCreateManyAndReturnArgs} args - Arguments to create many ProviderCircuitStates.
+     * @example
+     * // Create many ProviderCircuitStates
+     * const providerCircuitState = await prisma.providerCircuitState.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ProviderCircuitStates and only return the `providerName`
+     * const providerCircuitStateWithProviderNameOnly = await prisma.providerCircuitState.createManyAndReturn({ 
+     *   select: { providerName: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ProviderCircuitStateCreateManyAndReturnArgs>(args?: SelectSubset<T, ProviderCircuitStateCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a ProviderCircuitState.
+     * @param {ProviderCircuitStateDeleteArgs} args - Arguments to delete one ProviderCircuitState.
+     * @example
+     * // Delete one ProviderCircuitState
+     * const ProviderCircuitState = await prisma.providerCircuitState.delete({
+     *   where: {
+     *     // ... filter to delete one ProviderCircuitState
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ProviderCircuitStateDeleteArgs>(args: SelectSubset<T, ProviderCircuitStateDeleteArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one ProviderCircuitState.
+     * @param {ProviderCircuitStateUpdateArgs} args - Arguments to update one ProviderCircuitState.
+     * @example
+     * // Update one ProviderCircuitState
+     * const providerCircuitState = await prisma.providerCircuitState.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ProviderCircuitStateUpdateArgs>(args: SelectSubset<T, ProviderCircuitStateUpdateArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more ProviderCircuitStates.
+     * @param {ProviderCircuitStateDeleteManyArgs} args - Arguments to filter ProviderCircuitStates to delete.
+     * @example
+     * // Delete a few ProviderCircuitStates
+     * const { count } = await prisma.providerCircuitState.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ProviderCircuitStateDeleteManyArgs>(args?: SelectSubset<T, ProviderCircuitStateDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ProviderCircuitStates.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ProviderCircuitStates
+     * const providerCircuitState = await prisma.providerCircuitState.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ProviderCircuitStateUpdateManyArgs>(args: SelectSubset<T, ProviderCircuitStateUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one ProviderCircuitState.
+     * @param {ProviderCircuitStateUpsertArgs} args - Arguments to update or create a ProviderCircuitState.
+     * @example
+     * // Update or create a ProviderCircuitState
+     * const providerCircuitState = await prisma.providerCircuitState.upsert({
+     *   create: {
+     *     // ... data to create a ProviderCircuitState
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ProviderCircuitState we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ProviderCircuitStateUpsertArgs>(args: SelectSubset<T, ProviderCircuitStateUpsertArgs<ExtArgs>>): Prisma__ProviderCircuitStateClient<$Result.GetResult<Prisma.$ProviderCircuitStatePayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of ProviderCircuitStates.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateCountArgs} args - Arguments to filter ProviderCircuitStates to count.
+     * @example
+     * // Count the number of ProviderCircuitStates
+     * const count = await prisma.providerCircuitState.count({
+     *   where: {
+     *     // ... the filter for the ProviderCircuitStates we want to count
+     *   }
+     * })
+    **/
+    count<T extends ProviderCircuitStateCountArgs>(
+      args?: Subset<T, ProviderCircuitStateCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ProviderCircuitStateCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ProviderCircuitState.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ProviderCircuitStateAggregateArgs>(args: Subset<T, ProviderCircuitStateAggregateArgs>): Prisma.PrismaPromise<GetProviderCircuitStateAggregateType<T>>
+
+    /**
+     * Group by ProviderCircuitState.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ProviderCircuitStateGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ProviderCircuitStateGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ProviderCircuitStateGroupByArgs['orderBy'] }
+        : { orderBy?: ProviderCircuitStateGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ProviderCircuitStateGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetProviderCircuitStateGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ProviderCircuitState model
+   */
+  readonly fields: ProviderCircuitStateFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ProviderCircuitState.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ProviderCircuitStateClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ProviderCircuitState model
+   */ 
+  interface ProviderCircuitStateFieldRefs {
+    readonly providerName: FieldRef<"ProviderCircuitState", 'String'>
+    readonly state: FieldRef<"ProviderCircuitState", 'String'>
+    readonly errorRate: FieldRef<"ProviderCircuitState", 'Float'>
+    readonly lastFailureAt: FieldRef<"ProviderCircuitState", 'DateTime'>
+    readonly lastSuccessAt: FieldRef<"ProviderCircuitState", 'DateTime'>
+    readonly cooldownUntil: FieldRef<"ProviderCircuitState", 'DateTime'>
+    readonly trialStartedAt: FieldRef<"ProviderCircuitState", 'DateTime'>
+    readonly trialRequestId: FieldRef<"ProviderCircuitState", 'String'>
+    readonly createdAt: FieldRef<"ProviderCircuitState", 'DateTime'>
+    readonly updatedAt: FieldRef<"ProviderCircuitState", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ProviderCircuitState findUnique
+   */
+  export type ProviderCircuitStateFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * Filter, which ProviderCircuitState to fetch.
+     */
+    where: ProviderCircuitStateWhereUniqueInput
+  }
+
+  /**
+   * ProviderCircuitState findUniqueOrThrow
+   */
+  export type ProviderCircuitStateFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * Filter, which ProviderCircuitState to fetch.
+     */
+    where: ProviderCircuitStateWhereUniqueInput
+  }
+
+  /**
+   * ProviderCircuitState findFirst
+   */
+  export type ProviderCircuitStateFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * Filter, which ProviderCircuitState to fetch.
+     */
+    where?: ProviderCircuitStateWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProviderCircuitStates to fetch.
+     */
+    orderBy?: ProviderCircuitStateOrderByWithRelationInput | ProviderCircuitStateOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ProviderCircuitStates.
+     */
+    cursor?: ProviderCircuitStateWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProviderCircuitStates from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProviderCircuitStates.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ProviderCircuitStates.
+     */
+    distinct?: ProviderCircuitStateScalarFieldEnum | ProviderCircuitStateScalarFieldEnum[]
+  }
+
+  /**
+   * ProviderCircuitState findFirstOrThrow
+   */
+  export type ProviderCircuitStateFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * Filter, which ProviderCircuitState to fetch.
+     */
+    where?: ProviderCircuitStateWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProviderCircuitStates to fetch.
+     */
+    orderBy?: ProviderCircuitStateOrderByWithRelationInput | ProviderCircuitStateOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ProviderCircuitStates.
+     */
+    cursor?: ProviderCircuitStateWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProviderCircuitStates from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProviderCircuitStates.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ProviderCircuitStates.
+     */
+    distinct?: ProviderCircuitStateScalarFieldEnum | ProviderCircuitStateScalarFieldEnum[]
+  }
+
+  /**
+   * ProviderCircuitState findMany
+   */
+  export type ProviderCircuitStateFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * Filter, which ProviderCircuitStates to fetch.
+     */
+    where?: ProviderCircuitStateWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ProviderCircuitStates to fetch.
+     */
+    orderBy?: ProviderCircuitStateOrderByWithRelationInput | ProviderCircuitStateOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ProviderCircuitStates.
+     */
+    cursor?: ProviderCircuitStateWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ProviderCircuitStates from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ProviderCircuitStates.
+     */
+    skip?: number
+    distinct?: ProviderCircuitStateScalarFieldEnum | ProviderCircuitStateScalarFieldEnum[]
+  }
+
+  /**
+   * ProviderCircuitState create
+   */
+  export type ProviderCircuitStateCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * The data needed to create a ProviderCircuitState.
+     */
+    data: XOR<ProviderCircuitStateCreateInput, ProviderCircuitStateUncheckedCreateInput>
+  }
+
+  /**
+   * ProviderCircuitState createMany
+   */
+  export type ProviderCircuitStateCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ProviderCircuitStates.
+     */
+    data: ProviderCircuitStateCreateManyInput | ProviderCircuitStateCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ProviderCircuitState createManyAndReturn
+   */
+  export type ProviderCircuitStateCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many ProviderCircuitStates.
+     */
+    data: ProviderCircuitStateCreateManyInput | ProviderCircuitStateCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ProviderCircuitState update
+   */
+  export type ProviderCircuitStateUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * The data needed to update a ProviderCircuitState.
+     */
+    data: XOR<ProviderCircuitStateUpdateInput, ProviderCircuitStateUncheckedUpdateInput>
+    /**
+     * Choose, which ProviderCircuitState to update.
+     */
+    where: ProviderCircuitStateWhereUniqueInput
+  }
+
+  /**
+   * ProviderCircuitState updateMany
+   */
+  export type ProviderCircuitStateUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ProviderCircuitStates.
+     */
+    data: XOR<ProviderCircuitStateUpdateManyMutationInput, ProviderCircuitStateUncheckedUpdateManyInput>
+    /**
+     * Filter which ProviderCircuitStates to update
+     */
+    where?: ProviderCircuitStateWhereInput
+  }
+
+  /**
+   * ProviderCircuitState upsert
+   */
+  export type ProviderCircuitStateUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * The filter to search for the ProviderCircuitState to update in case it exists.
+     */
+    where: ProviderCircuitStateWhereUniqueInput
+    /**
+     * In case the ProviderCircuitState found by the `where` argument doesn't exist, create a new ProviderCircuitState with this data.
+     */
+    create: XOR<ProviderCircuitStateCreateInput, ProviderCircuitStateUncheckedCreateInput>
+    /**
+     * In case the ProviderCircuitState was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ProviderCircuitStateUpdateInput, ProviderCircuitStateUncheckedUpdateInput>
+  }
+
+  /**
+   * ProviderCircuitState delete
+   */
+  export type ProviderCircuitStateDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+    /**
+     * Filter which ProviderCircuitState to delete.
+     */
+    where: ProviderCircuitStateWhereUniqueInput
+  }
+
+  /**
+   * ProviderCircuitState deleteMany
+   */
+  export type ProviderCircuitStateDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ProviderCircuitStates to delete
+     */
+    where?: ProviderCircuitStateWhereInput
+  }
+
+  /**
+   * ProviderCircuitState without action
+   */
+  export type ProviderCircuitStateDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ProviderCircuitState
+     */
+    select?: ProviderCircuitStateSelect<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -11822,6 +15330,9 @@ export namespace Prisma {
     model: 'model',
     result: 'result',
     error: 'error',
+    retryCount: 'retryCount',
+    lastRetryAt: 'lastRetryAt',
+    retryHistory: 'retryHistory',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -11882,6 +15393,9 @@ export namespace Prisma {
     promptTokens: 'promptTokens',
     completionTokens: 'completionTokens',
     totalTokens: 'totalTokens',
+    costUsd: 'costUsd',
+    turnCount: 'turnCount',
+    toolCalls: 'toolCalls',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -11912,6 +15426,8 @@ export namespace Prisma {
     kind: 'kind',
     baseUrl: 'baseUrl',
     apiKey: 'apiKey',
+    refreshToken: 'refreshToken',
+    tokenExpiresAt: 'tokenExpiresAt',
     defaultModel: 'defaultModel',
     capabilities: 'capabilities',
     enabled: 'enabled',
@@ -11948,6 +15464,66 @@ export namespace Prisma {
   };
 
   export type PromptVersionScalarFieldEnum = (typeof PromptVersionScalarFieldEnum)[keyof typeof PromptVersionScalarFieldEnum]
+
+
+  export const BenchmarkHistoryScalarFieldEnum: {
+    id: 'id',
+    suite: 'suite',
+    provider: 'provider',
+    model: 'model',
+    totalTasks: 'totalTasks',
+    passed: 'passed',
+    failed: 'failed',
+    timeouts: 'timeouts',
+    passRate: 'passRate',
+    totalDurationMs: 'totalDurationMs',
+    totalCostUsd: 'totalCostUsd',
+    totalTokens: 'totalTokens',
+    metadata: 'metadata',
+    reportPath: 'reportPath',
+    createdAt: 'createdAt'
+  };
+
+  export type BenchmarkHistoryScalarFieldEnum = (typeof BenchmarkHistoryScalarFieldEnum)[keyof typeof BenchmarkHistoryScalarFieldEnum]
+
+
+  export const BenchmarkRunScalarFieldEnum: {
+    id: 'id',
+    suite: 'suite',
+    status: 'status',
+    config: 'config',
+    totalTasks: 'totalTasks',
+    passed: 'passed',
+    failed: 'failed',
+    timeouts: 'timeouts',
+    totalDurationMs: 'totalDurationMs',
+    totalCostUsd: 'totalCostUsd',
+    totalTokens: 'totalTokens',
+    results: 'results',
+    error: 'error',
+    startedAt: 'startedAt',
+    completedAt: 'completedAt',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type BenchmarkRunScalarFieldEnum = (typeof BenchmarkRunScalarFieldEnum)[keyof typeof BenchmarkRunScalarFieldEnum]
+
+
+  export const ProviderCircuitStateScalarFieldEnum: {
+    providerName: 'providerName',
+    state: 'state',
+    errorRate: 'errorRate',
+    lastFailureAt: 'lastFailureAt',
+    lastSuccessAt: 'lastSuccessAt',
+    cooldownUntil: 'cooldownUntil',
+    trialStartedAt: 'trialStartedAt',
+    trialRequestId: 'trialRequestId',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type ProviderCircuitStateScalarFieldEnum = (typeof ProviderCircuitStateScalarFieldEnum)[keyof typeof ProviderCircuitStateScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -12022,13 +15598,6 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'Boolean'
-   */
-  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
-    
-
-
-  /**
    * Reference to a field of type 'Float'
    */
   export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -12039,6 +15608,13 @@ export namespace Prisma {
    * Reference to a field of type 'Float[]'
    */
   export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'Boolean'
+   */
+  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
   /**
    * Deep Input Types
@@ -12125,6 +15701,9 @@ export namespace Prisma {
     model?: StringNullableFilter<"Task"> | string | null
     result?: StringNullableFilter<"Task"> | string | null
     error?: StringNullableFilter<"Task"> | string | null
+    retryCount?: IntFilter<"Task"> | number
+    lastRetryAt?: DateTimeNullableFilter<"Task"> | Date | string | null
+    retryHistory?: StringNullableFilter<"Task"> | string | null
     createdAt?: DateTimeFilter<"Task"> | Date | string
     updatedAt?: DateTimeFilter<"Task"> | Date | string
     project?: XOR<ProjectRelationFilter, ProjectWhereInput>
@@ -12147,6 +15726,9 @@ export namespace Prisma {
     model?: SortOrderInput | SortOrder
     result?: SortOrderInput | SortOrder
     error?: SortOrderInput | SortOrder
+    retryCount?: SortOrder
+    lastRetryAt?: SortOrderInput | SortOrder
+    retryHistory?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     project?: ProjectOrderByWithRelationInput
@@ -12172,6 +15754,9 @@ export namespace Prisma {
     model?: StringNullableFilter<"Task"> | string | null
     result?: StringNullableFilter<"Task"> | string | null
     error?: StringNullableFilter<"Task"> | string | null
+    retryCount?: IntFilter<"Task"> | number
+    lastRetryAt?: DateTimeNullableFilter<"Task"> | Date | string | null
+    retryHistory?: StringNullableFilter<"Task"> | string | null
     createdAt?: DateTimeFilter<"Task"> | Date | string
     updatedAt?: DateTimeFilter<"Task"> | Date | string
     project?: XOR<ProjectRelationFilter, ProjectWhereInput>
@@ -12194,11 +15779,16 @@ export namespace Prisma {
     model?: SortOrderInput | SortOrder
     result?: SortOrderInput | SortOrder
     error?: SortOrderInput | SortOrder
+    retryCount?: SortOrder
+    lastRetryAt?: SortOrderInput | SortOrder
+    retryHistory?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: TaskCountOrderByAggregateInput
+    _avg?: TaskAvgOrderByAggregateInput
     _max?: TaskMaxOrderByAggregateInput
     _min?: TaskMinOrderByAggregateInput
+    _sum?: TaskSumOrderByAggregateInput
   }
 
   export type TaskScalarWhereWithAggregatesInput = {
@@ -12216,6 +15806,9 @@ export namespace Prisma {
     model?: StringNullableWithAggregatesFilter<"Task"> | string | null
     result?: StringNullableWithAggregatesFilter<"Task"> | string | null
     error?: StringNullableWithAggregatesFilter<"Task"> | string | null
+    retryCount?: IntWithAggregatesFilter<"Task"> | number
+    lastRetryAt?: DateTimeNullableWithAggregatesFilter<"Task"> | Date | string | null
+    retryHistory?: StringNullableWithAggregatesFilter<"Task"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Task"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Task"> | Date | string
   }
@@ -12442,6 +16035,9 @@ export namespace Prisma {
     promptTokens?: IntNullableFilter<"AgentRun"> | number | null
     completionTokens?: IntNullableFilter<"AgentRun"> | number | null
     totalTokens?: IntNullableFilter<"AgentRun"> | number | null
+    costUsd?: FloatNullableFilter<"AgentRun"> | number | null
+    turnCount?: IntNullableFilter<"AgentRun"> | number | null
+    toolCalls?: StringNullableFilter<"AgentRun"> | string | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -12460,6 +16056,9 @@ export namespace Prisma {
     promptTokens?: SortOrderInput | SortOrder
     completionTokens?: SortOrderInput | SortOrder
     totalTokens?: SortOrderInput | SortOrder
+    costUsd?: SortOrderInput | SortOrder
+    turnCount?: SortOrderInput | SortOrder
+    toolCalls?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     task?: TaskOrderByWithRelationInput
@@ -12481,6 +16080,9 @@ export namespace Prisma {
     promptTokens?: IntNullableFilter<"AgentRun"> | number | null
     completionTokens?: IntNullableFilter<"AgentRun"> | number | null
     totalTokens?: IntNullableFilter<"AgentRun"> | number | null
+    costUsd?: FloatNullableFilter<"AgentRun"> | number | null
+    turnCount?: IntNullableFilter<"AgentRun"> | number | null
+    toolCalls?: StringNullableFilter<"AgentRun"> | string | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -12499,6 +16101,9 @@ export namespace Prisma {
     promptTokens?: SortOrderInput | SortOrder
     completionTokens?: SortOrderInput | SortOrder
     totalTokens?: SortOrderInput | SortOrder
+    costUsd?: SortOrderInput | SortOrder
+    turnCount?: SortOrderInput | SortOrder
+    toolCalls?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: AgentRunCountOrderByAggregateInput
@@ -12523,6 +16128,9 @@ export namespace Prisma {
     promptTokens?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
     completionTokens?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
     totalTokens?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    costUsd?: FloatNullableWithAggregatesFilter<"AgentRun"> | number | null
+    turnCount?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    toolCalls?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
   }
@@ -12621,6 +16229,8 @@ export namespace Prisma {
     kind?: StringFilter<"ProviderConfig"> | string
     baseUrl?: StringNullableFilter<"ProviderConfig"> | string | null
     apiKey?: StringNullableFilter<"ProviderConfig"> | string | null
+    refreshToken?: StringNullableFilter<"ProviderConfig"> | string | null
+    tokenExpiresAt?: DateTimeNullableFilter<"ProviderConfig"> | Date | string | null
     defaultModel?: StringFilter<"ProviderConfig"> | string
     capabilities?: StringFilter<"ProviderConfig"> | string
     enabled?: BoolFilter<"ProviderConfig"> | boolean
@@ -12633,6 +16243,8 @@ export namespace Prisma {
     kind?: SortOrder
     baseUrl?: SortOrderInput | SortOrder
     apiKey?: SortOrderInput | SortOrder
+    refreshToken?: SortOrderInput | SortOrder
+    tokenExpiresAt?: SortOrderInput | SortOrder
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
@@ -12648,6 +16260,8 @@ export namespace Prisma {
     kind?: StringFilter<"ProviderConfig"> | string
     baseUrl?: StringNullableFilter<"ProviderConfig"> | string | null
     apiKey?: StringNullableFilter<"ProviderConfig"> | string | null
+    refreshToken?: StringNullableFilter<"ProviderConfig"> | string | null
+    tokenExpiresAt?: DateTimeNullableFilter<"ProviderConfig"> | Date | string | null
     defaultModel?: StringFilter<"ProviderConfig"> | string
     capabilities?: StringFilter<"ProviderConfig"> | string
     enabled?: BoolFilter<"ProviderConfig"> | boolean
@@ -12660,6 +16274,8 @@ export namespace Prisma {
     kind?: SortOrder
     baseUrl?: SortOrderInput | SortOrder
     apiKey?: SortOrderInput | SortOrder
+    refreshToken?: SortOrderInput | SortOrder
+    tokenExpiresAt?: SortOrderInput | SortOrder
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
@@ -12678,6 +16294,8 @@ export namespace Prisma {
     kind?: StringWithAggregatesFilter<"ProviderConfig"> | string
     baseUrl?: StringNullableWithAggregatesFilter<"ProviderConfig"> | string | null
     apiKey?: StringNullableWithAggregatesFilter<"ProviderConfig"> | string | null
+    refreshToken?: StringNullableWithAggregatesFilter<"ProviderConfig"> | string | null
+    tokenExpiresAt?: DateTimeNullableWithAggregatesFilter<"ProviderConfig"> | Date | string | null
     defaultModel?: StringWithAggregatesFilter<"ProviderConfig"> | string
     capabilities?: StringWithAggregatesFilter<"ProviderConfig"> | string
     enabled?: BoolWithAggregatesFilter<"ProviderConfig"> | boolean
@@ -12828,6 +16446,303 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"PromptVersion"> | Date | string
   }
 
+  export type BenchmarkHistoryWhereInput = {
+    AND?: BenchmarkHistoryWhereInput | BenchmarkHistoryWhereInput[]
+    OR?: BenchmarkHistoryWhereInput[]
+    NOT?: BenchmarkHistoryWhereInput | BenchmarkHistoryWhereInput[]
+    id?: StringFilter<"BenchmarkHistory"> | string
+    suite?: StringFilter<"BenchmarkHistory"> | string
+    provider?: StringNullableFilter<"BenchmarkHistory"> | string | null
+    model?: StringNullableFilter<"BenchmarkHistory"> | string | null
+    totalTasks?: IntFilter<"BenchmarkHistory"> | number
+    passed?: IntFilter<"BenchmarkHistory"> | number
+    failed?: IntFilter<"BenchmarkHistory"> | number
+    timeouts?: IntFilter<"BenchmarkHistory"> | number
+    passRate?: FloatFilter<"BenchmarkHistory"> | number
+    totalDurationMs?: IntFilter<"BenchmarkHistory"> | number
+    totalCostUsd?: FloatNullableFilter<"BenchmarkHistory"> | number | null
+    totalTokens?: IntNullableFilter<"BenchmarkHistory"> | number | null
+    metadata?: StringNullableFilter<"BenchmarkHistory"> | string | null
+    reportPath?: StringNullableFilter<"BenchmarkHistory"> | string | null
+    createdAt?: DateTimeFilter<"BenchmarkHistory"> | Date | string
+  }
+
+  export type BenchmarkHistoryOrderByWithRelationInput = {
+    id?: SortOrder
+    suite?: SortOrder
+    provider?: SortOrderInput | SortOrder
+    model?: SortOrderInput | SortOrder
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    passRate?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrderInput | SortOrder
+    totalTokens?: SortOrderInput | SortOrder
+    metadata?: SortOrderInput | SortOrder
+    reportPath?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type BenchmarkHistoryWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: BenchmarkHistoryWhereInput | BenchmarkHistoryWhereInput[]
+    OR?: BenchmarkHistoryWhereInput[]
+    NOT?: BenchmarkHistoryWhereInput | BenchmarkHistoryWhereInput[]
+    suite?: StringFilter<"BenchmarkHistory"> | string
+    provider?: StringNullableFilter<"BenchmarkHistory"> | string | null
+    model?: StringNullableFilter<"BenchmarkHistory"> | string | null
+    totalTasks?: IntFilter<"BenchmarkHistory"> | number
+    passed?: IntFilter<"BenchmarkHistory"> | number
+    failed?: IntFilter<"BenchmarkHistory"> | number
+    timeouts?: IntFilter<"BenchmarkHistory"> | number
+    passRate?: FloatFilter<"BenchmarkHistory"> | number
+    totalDurationMs?: IntFilter<"BenchmarkHistory"> | number
+    totalCostUsd?: FloatNullableFilter<"BenchmarkHistory"> | number | null
+    totalTokens?: IntNullableFilter<"BenchmarkHistory"> | number | null
+    metadata?: StringNullableFilter<"BenchmarkHistory"> | string | null
+    reportPath?: StringNullableFilter<"BenchmarkHistory"> | string | null
+    createdAt?: DateTimeFilter<"BenchmarkHistory"> | Date | string
+  }, "id">
+
+  export type BenchmarkHistoryOrderByWithAggregationInput = {
+    id?: SortOrder
+    suite?: SortOrder
+    provider?: SortOrderInput | SortOrder
+    model?: SortOrderInput | SortOrder
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    passRate?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrderInput | SortOrder
+    totalTokens?: SortOrderInput | SortOrder
+    metadata?: SortOrderInput | SortOrder
+    reportPath?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    _count?: BenchmarkHistoryCountOrderByAggregateInput
+    _avg?: BenchmarkHistoryAvgOrderByAggregateInput
+    _max?: BenchmarkHistoryMaxOrderByAggregateInput
+    _min?: BenchmarkHistoryMinOrderByAggregateInput
+    _sum?: BenchmarkHistorySumOrderByAggregateInput
+  }
+
+  export type BenchmarkHistoryScalarWhereWithAggregatesInput = {
+    AND?: BenchmarkHistoryScalarWhereWithAggregatesInput | BenchmarkHistoryScalarWhereWithAggregatesInput[]
+    OR?: BenchmarkHistoryScalarWhereWithAggregatesInput[]
+    NOT?: BenchmarkHistoryScalarWhereWithAggregatesInput | BenchmarkHistoryScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"BenchmarkHistory"> | string
+    suite?: StringWithAggregatesFilter<"BenchmarkHistory"> | string
+    provider?: StringNullableWithAggregatesFilter<"BenchmarkHistory"> | string | null
+    model?: StringNullableWithAggregatesFilter<"BenchmarkHistory"> | string | null
+    totalTasks?: IntWithAggregatesFilter<"BenchmarkHistory"> | number
+    passed?: IntWithAggregatesFilter<"BenchmarkHistory"> | number
+    failed?: IntWithAggregatesFilter<"BenchmarkHistory"> | number
+    timeouts?: IntWithAggregatesFilter<"BenchmarkHistory"> | number
+    passRate?: FloatWithAggregatesFilter<"BenchmarkHistory"> | number
+    totalDurationMs?: IntWithAggregatesFilter<"BenchmarkHistory"> | number
+    totalCostUsd?: FloatNullableWithAggregatesFilter<"BenchmarkHistory"> | number | null
+    totalTokens?: IntNullableWithAggregatesFilter<"BenchmarkHistory"> | number | null
+    metadata?: StringNullableWithAggregatesFilter<"BenchmarkHistory"> | string | null
+    reportPath?: StringNullableWithAggregatesFilter<"BenchmarkHistory"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"BenchmarkHistory"> | Date | string
+  }
+
+  export type BenchmarkRunWhereInput = {
+    AND?: BenchmarkRunWhereInput | BenchmarkRunWhereInput[]
+    OR?: BenchmarkRunWhereInput[]
+    NOT?: BenchmarkRunWhereInput | BenchmarkRunWhereInput[]
+    id?: StringFilter<"BenchmarkRun"> | string
+    suite?: StringFilter<"BenchmarkRun"> | string
+    status?: StringFilter<"BenchmarkRun"> | string
+    config?: StringFilter<"BenchmarkRun"> | string
+    totalTasks?: IntFilter<"BenchmarkRun"> | number
+    passed?: IntFilter<"BenchmarkRun"> | number
+    failed?: IntFilter<"BenchmarkRun"> | number
+    timeouts?: IntFilter<"BenchmarkRun"> | number
+    totalDurationMs?: IntFilter<"BenchmarkRun"> | number
+    totalCostUsd?: FloatNullableFilter<"BenchmarkRun"> | number | null
+    totalTokens?: IntNullableFilter<"BenchmarkRun"> | number | null
+    results?: StringNullableFilter<"BenchmarkRun"> | string | null
+    error?: StringNullableFilter<"BenchmarkRun"> | string | null
+    startedAt?: DateTimeNullableFilter<"BenchmarkRun"> | Date | string | null
+    completedAt?: DateTimeNullableFilter<"BenchmarkRun"> | Date | string | null
+    createdAt?: DateTimeFilter<"BenchmarkRun"> | Date | string
+    updatedAt?: DateTimeFilter<"BenchmarkRun"> | Date | string
+  }
+
+  export type BenchmarkRunOrderByWithRelationInput = {
+    id?: SortOrder
+    suite?: SortOrder
+    status?: SortOrder
+    config?: SortOrder
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrderInput | SortOrder
+    totalTokens?: SortOrderInput | SortOrder
+    results?: SortOrderInput | SortOrder
+    error?: SortOrderInput | SortOrder
+    startedAt?: SortOrderInput | SortOrder
+    completedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type BenchmarkRunWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: BenchmarkRunWhereInput | BenchmarkRunWhereInput[]
+    OR?: BenchmarkRunWhereInput[]
+    NOT?: BenchmarkRunWhereInput | BenchmarkRunWhereInput[]
+    suite?: StringFilter<"BenchmarkRun"> | string
+    status?: StringFilter<"BenchmarkRun"> | string
+    config?: StringFilter<"BenchmarkRun"> | string
+    totalTasks?: IntFilter<"BenchmarkRun"> | number
+    passed?: IntFilter<"BenchmarkRun"> | number
+    failed?: IntFilter<"BenchmarkRun"> | number
+    timeouts?: IntFilter<"BenchmarkRun"> | number
+    totalDurationMs?: IntFilter<"BenchmarkRun"> | number
+    totalCostUsd?: FloatNullableFilter<"BenchmarkRun"> | number | null
+    totalTokens?: IntNullableFilter<"BenchmarkRun"> | number | null
+    results?: StringNullableFilter<"BenchmarkRun"> | string | null
+    error?: StringNullableFilter<"BenchmarkRun"> | string | null
+    startedAt?: DateTimeNullableFilter<"BenchmarkRun"> | Date | string | null
+    completedAt?: DateTimeNullableFilter<"BenchmarkRun"> | Date | string | null
+    createdAt?: DateTimeFilter<"BenchmarkRun"> | Date | string
+    updatedAt?: DateTimeFilter<"BenchmarkRun"> | Date | string
+  }, "id">
+
+  export type BenchmarkRunOrderByWithAggregationInput = {
+    id?: SortOrder
+    suite?: SortOrder
+    status?: SortOrder
+    config?: SortOrder
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrderInput | SortOrder
+    totalTokens?: SortOrderInput | SortOrder
+    results?: SortOrderInput | SortOrder
+    error?: SortOrderInput | SortOrder
+    startedAt?: SortOrderInput | SortOrder
+    completedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: BenchmarkRunCountOrderByAggregateInput
+    _avg?: BenchmarkRunAvgOrderByAggregateInput
+    _max?: BenchmarkRunMaxOrderByAggregateInput
+    _min?: BenchmarkRunMinOrderByAggregateInput
+    _sum?: BenchmarkRunSumOrderByAggregateInput
+  }
+
+  export type BenchmarkRunScalarWhereWithAggregatesInput = {
+    AND?: BenchmarkRunScalarWhereWithAggregatesInput | BenchmarkRunScalarWhereWithAggregatesInput[]
+    OR?: BenchmarkRunScalarWhereWithAggregatesInput[]
+    NOT?: BenchmarkRunScalarWhereWithAggregatesInput | BenchmarkRunScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"BenchmarkRun"> | string
+    suite?: StringWithAggregatesFilter<"BenchmarkRun"> | string
+    status?: StringWithAggregatesFilter<"BenchmarkRun"> | string
+    config?: StringWithAggregatesFilter<"BenchmarkRun"> | string
+    totalTasks?: IntWithAggregatesFilter<"BenchmarkRun"> | number
+    passed?: IntWithAggregatesFilter<"BenchmarkRun"> | number
+    failed?: IntWithAggregatesFilter<"BenchmarkRun"> | number
+    timeouts?: IntWithAggregatesFilter<"BenchmarkRun"> | number
+    totalDurationMs?: IntWithAggregatesFilter<"BenchmarkRun"> | number
+    totalCostUsd?: FloatNullableWithAggregatesFilter<"BenchmarkRun"> | number | null
+    totalTokens?: IntNullableWithAggregatesFilter<"BenchmarkRun"> | number | null
+    results?: StringNullableWithAggregatesFilter<"BenchmarkRun"> | string | null
+    error?: StringNullableWithAggregatesFilter<"BenchmarkRun"> | string | null
+    startedAt?: DateTimeNullableWithAggregatesFilter<"BenchmarkRun"> | Date | string | null
+    completedAt?: DateTimeNullableWithAggregatesFilter<"BenchmarkRun"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"BenchmarkRun"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"BenchmarkRun"> | Date | string
+  }
+
+  export type ProviderCircuitStateWhereInput = {
+    AND?: ProviderCircuitStateWhereInput | ProviderCircuitStateWhereInput[]
+    OR?: ProviderCircuitStateWhereInput[]
+    NOT?: ProviderCircuitStateWhereInput | ProviderCircuitStateWhereInput[]
+    providerName?: StringFilter<"ProviderCircuitState"> | string
+    state?: StringFilter<"ProviderCircuitState"> | string
+    errorRate?: FloatFilter<"ProviderCircuitState"> | number
+    lastFailureAt?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    lastSuccessAt?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    cooldownUntil?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    trialStartedAt?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    trialRequestId?: StringNullableFilter<"ProviderCircuitState"> | string | null
+    createdAt?: DateTimeFilter<"ProviderCircuitState"> | Date | string
+    updatedAt?: DateTimeFilter<"ProviderCircuitState"> | Date | string
+  }
+
+  export type ProviderCircuitStateOrderByWithRelationInput = {
+    providerName?: SortOrder
+    state?: SortOrder
+    errorRate?: SortOrder
+    lastFailureAt?: SortOrderInput | SortOrder
+    lastSuccessAt?: SortOrderInput | SortOrder
+    cooldownUntil?: SortOrderInput | SortOrder
+    trialStartedAt?: SortOrderInput | SortOrder
+    trialRequestId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ProviderCircuitStateWhereUniqueInput = Prisma.AtLeast<{
+    providerName?: string
+    AND?: ProviderCircuitStateWhereInput | ProviderCircuitStateWhereInput[]
+    OR?: ProviderCircuitStateWhereInput[]
+    NOT?: ProviderCircuitStateWhereInput | ProviderCircuitStateWhereInput[]
+    state?: StringFilter<"ProviderCircuitState"> | string
+    errorRate?: FloatFilter<"ProviderCircuitState"> | number
+    lastFailureAt?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    lastSuccessAt?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    cooldownUntil?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    trialStartedAt?: DateTimeNullableFilter<"ProviderCircuitState"> | Date | string | null
+    trialRequestId?: StringNullableFilter<"ProviderCircuitState"> | string | null
+    createdAt?: DateTimeFilter<"ProviderCircuitState"> | Date | string
+    updatedAt?: DateTimeFilter<"ProviderCircuitState"> | Date | string
+  }, "providerName">
+
+  export type ProviderCircuitStateOrderByWithAggregationInput = {
+    providerName?: SortOrder
+    state?: SortOrder
+    errorRate?: SortOrder
+    lastFailureAt?: SortOrderInput | SortOrder
+    lastSuccessAt?: SortOrderInput | SortOrder
+    cooldownUntil?: SortOrderInput | SortOrder
+    trialStartedAt?: SortOrderInput | SortOrder
+    trialRequestId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: ProviderCircuitStateCountOrderByAggregateInput
+    _avg?: ProviderCircuitStateAvgOrderByAggregateInput
+    _max?: ProviderCircuitStateMaxOrderByAggregateInput
+    _min?: ProviderCircuitStateMinOrderByAggregateInput
+    _sum?: ProviderCircuitStateSumOrderByAggregateInput
+  }
+
+  export type ProviderCircuitStateScalarWhereWithAggregatesInput = {
+    AND?: ProviderCircuitStateScalarWhereWithAggregatesInput | ProviderCircuitStateScalarWhereWithAggregatesInput[]
+    OR?: ProviderCircuitStateScalarWhereWithAggregatesInput[]
+    NOT?: ProviderCircuitStateScalarWhereWithAggregatesInput | ProviderCircuitStateScalarWhereWithAggregatesInput[]
+    providerName?: StringWithAggregatesFilter<"ProviderCircuitState"> | string
+    state?: StringWithAggregatesFilter<"ProviderCircuitState"> | string
+    errorRate?: FloatWithAggregatesFilter<"ProviderCircuitState"> | number
+    lastFailureAt?: DateTimeNullableWithAggregatesFilter<"ProviderCircuitState"> | Date | string | null
+    lastSuccessAt?: DateTimeNullableWithAggregatesFilter<"ProviderCircuitState"> | Date | string | null
+    cooldownUntil?: DateTimeNullableWithAggregatesFilter<"ProviderCircuitState"> | Date | string | null
+    trialStartedAt?: DateTimeNullableWithAggregatesFilter<"ProviderCircuitState"> | Date | string | null
+    trialRequestId?: StringNullableWithAggregatesFilter<"ProviderCircuitState"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"ProviderCircuitState"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"ProviderCircuitState"> | Date | string
+  }
+
   export type ProjectCreateInput = {
     id?: string
     name: string
@@ -12913,6 +16828,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     project: ProjectCreateNestedOneWithoutTasksInput
@@ -12935,6 +16853,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
@@ -12955,6 +16876,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
@@ -12977,6 +16901,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
@@ -12998,6 +16925,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -13013,6 +16943,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -13029,6 +16962,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -13264,6 +17200,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -13282,6 +17221,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -13296,6 +17238,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -13314,6 +17259,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -13330,6 +17278,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -13344,6 +17295,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -13360,6 +17314,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -13467,6 +17424,8 @@ export namespace Prisma {
     kind: string
     baseUrl?: string | null
     apiKey?: string | null
+    refreshToken?: string | null
+    tokenExpiresAt?: Date | string | null
     defaultModel: string
     capabilities: string
     enabled?: boolean
@@ -13479,6 +17438,8 @@ export namespace Prisma {
     kind: string
     baseUrl?: string | null
     apiKey?: string | null
+    refreshToken?: string | null
+    tokenExpiresAt?: Date | string | null
     defaultModel: string
     capabilities: string
     enabled?: boolean
@@ -13491,6 +17452,8 @@ export namespace Prisma {
     kind?: StringFieldUpdateOperationsInput | string
     baseUrl?: NullableStringFieldUpdateOperationsInput | string | null
     apiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    refreshToken?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     defaultModel?: StringFieldUpdateOperationsInput | string
     capabilities?: StringFieldUpdateOperationsInput | string
     enabled?: BoolFieldUpdateOperationsInput | boolean
@@ -13503,6 +17466,8 @@ export namespace Prisma {
     kind?: StringFieldUpdateOperationsInput | string
     baseUrl?: NullableStringFieldUpdateOperationsInput | string | null
     apiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    refreshToken?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     defaultModel?: StringFieldUpdateOperationsInput | string
     capabilities?: StringFieldUpdateOperationsInput | string
     enabled?: BoolFieldUpdateOperationsInput | boolean
@@ -13515,6 +17480,8 @@ export namespace Prisma {
     kind: string
     baseUrl?: string | null
     apiKey?: string | null
+    refreshToken?: string | null
+    tokenExpiresAt?: Date | string | null
     defaultModel: string
     capabilities: string
     enabled?: boolean
@@ -13527,6 +17494,8 @@ export namespace Prisma {
     kind?: StringFieldUpdateOperationsInput | string
     baseUrl?: NullableStringFieldUpdateOperationsInput | string | null
     apiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    refreshToken?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     defaultModel?: StringFieldUpdateOperationsInput | string
     capabilities?: StringFieldUpdateOperationsInput | string
     enabled?: BoolFieldUpdateOperationsInput | boolean
@@ -13539,6 +17508,8 @@ export namespace Prisma {
     kind?: StringFieldUpdateOperationsInput | string
     baseUrl?: NullableStringFieldUpdateOperationsInput | string | null
     apiKey?: NullableStringFieldUpdateOperationsInput | string | null
+    refreshToken?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenExpiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     defaultModel?: StringFieldUpdateOperationsInput | string
     capabilities?: StringFieldUpdateOperationsInput | string
     enabled?: BoolFieldUpdateOperationsInput | boolean
@@ -13710,6 +17681,363 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type BenchmarkHistoryCreateInput = {
+    id?: string
+    suite: string
+    provider?: string | null
+    model?: string | null
+    totalTasks: number
+    passed: number
+    failed: number
+    timeouts: number
+    passRate: number
+    totalDurationMs: number
+    totalCostUsd?: number | null
+    totalTokens?: number | null
+    metadata?: string | null
+    reportPath?: string | null
+    createdAt?: Date | string
+  }
+
+  export type BenchmarkHistoryUncheckedCreateInput = {
+    id?: string
+    suite: string
+    provider?: string | null
+    model?: string | null
+    totalTasks: number
+    passed: number
+    failed: number
+    timeouts: number
+    passRate: number
+    totalDurationMs: number
+    totalCostUsd?: number | null
+    totalTokens?: number | null
+    metadata?: string | null
+    reportPath?: string | null
+    createdAt?: Date | string
+  }
+
+  export type BenchmarkHistoryUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    suite?: StringFieldUpdateOperationsInput | string
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    totalTasks?: IntFieldUpdateOperationsInput | number
+    passed?: IntFieldUpdateOperationsInput | number
+    failed?: IntFieldUpdateOperationsInput | number
+    timeouts?: IntFieldUpdateOperationsInput | number
+    passRate?: FloatFieldUpdateOperationsInput | number
+    totalDurationMs?: IntFieldUpdateOperationsInput | number
+    totalCostUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    metadata?: NullableStringFieldUpdateOperationsInput | string | null
+    reportPath?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BenchmarkHistoryUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    suite?: StringFieldUpdateOperationsInput | string
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    totalTasks?: IntFieldUpdateOperationsInput | number
+    passed?: IntFieldUpdateOperationsInput | number
+    failed?: IntFieldUpdateOperationsInput | number
+    timeouts?: IntFieldUpdateOperationsInput | number
+    passRate?: FloatFieldUpdateOperationsInput | number
+    totalDurationMs?: IntFieldUpdateOperationsInput | number
+    totalCostUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    metadata?: NullableStringFieldUpdateOperationsInput | string | null
+    reportPath?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BenchmarkHistoryCreateManyInput = {
+    id?: string
+    suite: string
+    provider?: string | null
+    model?: string | null
+    totalTasks: number
+    passed: number
+    failed: number
+    timeouts: number
+    passRate: number
+    totalDurationMs: number
+    totalCostUsd?: number | null
+    totalTokens?: number | null
+    metadata?: string | null
+    reportPath?: string | null
+    createdAt?: Date | string
+  }
+
+  export type BenchmarkHistoryUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    suite?: StringFieldUpdateOperationsInput | string
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    totalTasks?: IntFieldUpdateOperationsInput | number
+    passed?: IntFieldUpdateOperationsInput | number
+    failed?: IntFieldUpdateOperationsInput | number
+    timeouts?: IntFieldUpdateOperationsInput | number
+    passRate?: FloatFieldUpdateOperationsInput | number
+    totalDurationMs?: IntFieldUpdateOperationsInput | number
+    totalCostUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    metadata?: NullableStringFieldUpdateOperationsInput | string | null
+    reportPath?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BenchmarkHistoryUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    suite?: StringFieldUpdateOperationsInput | string
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    totalTasks?: IntFieldUpdateOperationsInput | number
+    passed?: IntFieldUpdateOperationsInput | number
+    failed?: IntFieldUpdateOperationsInput | number
+    timeouts?: IntFieldUpdateOperationsInput | number
+    passRate?: FloatFieldUpdateOperationsInput | number
+    totalDurationMs?: IntFieldUpdateOperationsInput | number
+    totalCostUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    metadata?: NullableStringFieldUpdateOperationsInput | string | null
+    reportPath?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BenchmarkRunCreateInput = {
+    id?: string
+    suite: string
+    status?: string
+    config: string
+    totalTasks?: number
+    passed?: number
+    failed?: number
+    timeouts?: number
+    totalDurationMs?: number
+    totalCostUsd?: number | null
+    totalTokens?: number | null
+    results?: string | null
+    error?: string | null
+    startedAt?: Date | string | null
+    completedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type BenchmarkRunUncheckedCreateInput = {
+    id?: string
+    suite: string
+    status?: string
+    config: string
+    totalTasks?: number
+    passed?: number
+    failed?: number
+    timeouts?: number
+    totalDurationMs?: number
+    totalCostUsd?: number | null
+    totalTokens?: number | null
+    results?: string | null
+    error?: string | null
+    startedAt?: Date | string | null
+    completedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type BenchmarkRunUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    suite?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    config?: StringFieldUpdateOperationsInput | string
+    totalTasks?: IntFieldUpdateOperationsInput | number
+    passed?: IntFieldUpdateOperationsInput | number
+    failed?: IntFieldUpdateOperationsInput | number
+    timeouts?: IntFieldUpdateOperationsInput | number
+    totalDurationMs?: IntFieldUpdateOperationsInput | number
+    totalCostUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    results?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BenchmarkRunUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    suite?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    config?: StringFieldUpdateOperationsInput | string
+    totalTasks?: IntFieldUpdateOperationsInput | number
+    passed?: IntFieldUpdateOperationsInput | number
+    failed?: IntFieldUpdateOperationsInput | number
+    timeouts?: IntFieldUpdateOperationsInput | number
+    totalDurationMs?: IntFieldUpdateOperationsInput | number
+    totalCostUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    results?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BenchmarkRunCreateManyInput = {
+    id?: string
+    suite: string
+    status?: string
+    config: string
+    totalTasks?: number
+    passed?: number
+    failed?: number
+    timeouts?: number
+    totalDurationMs?: number
+    totalCostUsd?: number | null
+    totalTokens?: number | null
+    results?: string | null
+    error?: string | null
+    startedAt?: Date | string | null
+    completedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type BenchmarkRunUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    suite?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    config?: StringFieldUpdateOperationsInput | string
+    totalTasks?: IntFieldUpdateOperationsInput | number
+    passed?: IntFieldUpdateOperationsInput | number
+    failed?: IntFieldUpdateOperationsInput | number
+    timeouts?: IntFieldUpdateOperationsInput | number
+    totalDurationMs?: IntFieldUpdateOperationsInput | number
+    totalCostUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    results?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type BenchmarkRunUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    suite?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    config?: StringFieldUpdateOperationsInput | string
+    totalTasks?: IntFieldUpdateOperationsInput | number
+    passed?: IntFieldUpdateOperationsInput | number
+    failed?: IntFieldUpdateOperationsInput | number
+    timeouts?: IntFieldUpdateOperationsInput | number
+    totalDurationMs?: IntFieldUpdateOperationsInput | number
+    totalCostUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    results?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    startedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProviderCircuitStateCreateInput = {
+    providerName: string
+    state?: string
+    errorRate?: number
+    lastFailureAt?: Date | string | null
+    lastSuccessAt?: Date | string | null
+    cooldownUntil?: Date | string | null
+    trialStartedAt?: Date | string | null
+    trialRequestId?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ProviderCircuitStateUncheckedCreateInput = {
+    providerName: string
+    state?: string
+    errorRate?: number
+    lastFailureAt?: Date | string | null
+    lastSuccessAt?: Date | string | null
+    cooldownUntil?: Date | string | null
+    trialStartedAt?: Date | string | null
+    trialRequestId?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ProviderCircuitStateUpdateInput = {
+    providerName?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    errorRate?: FloatFieldUpdateOperationsInput | number
+    lastFailureAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastSuccessAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    cooldownUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialRequestId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProviderCircuitStateUncheckedUpdateInput = {
+    providerName?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    errorRate?: FloatFieldUpdateOperationsInput | number
+    lastFailureAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastSuccessAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    cooldownUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialRequestId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProviderCircuitStateCreateManyInput = {
+    providerName: string
+    state?: string
+    errorRate?: number
+    lastFailureAt?: Date | string | null
+    lastSuccessAt?: Date | string | null
+    cooldownUntil?: Date | string | null
+    trialStartedAt?: Date | string | null
+    trialRequestId?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ProviderCircuitStateUpdateManyMutationInput = {
+    providerName?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    errorRate?: FloatFieldUpdateOperationsInput | number
+    lastFailureAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastSuccessAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    cooldownUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialRequestId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ProviderCircuitStateUncheckedUpdateManyInput = {
+    providerName?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    errorRate?: FloatFieldUpdateOperationsInput | number
+    lastFailureAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastSuccessAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    cooldownUntil?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    trialRequestId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -13846,6 +18174,28 @@ export namespace Prisma {
     _max?: NestedDateTimeFilter<$PrismaModel>
   }
 
+  export type IntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
+  export type DateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
   export type ProjectRelationFilter = {
     is?: ProjectWhereInput
     isNot?: ProjectWhereInput
@@ -13913,8 +18263,15 @@ export namespace Prisma {
     model?: SortOrder
     result?: SortOrder
     error?: SortOrder
+    retryCount?: SortOrder
+    lastRetryAt?: SortOrder
+    retryHistory?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type TaskAvgOrderByAggregateInput = {
+    retryCount?: SortOrder
   }
 
   export type TaskMaxOrderByAggregateInput = {
@@ -13929,6 +18286,9 @@ export namespace Prisma {
     model?: SortOrder
     result?: SortOrder
     error?: SortOrder
+    retryCount?: SortOrder
+    lastRetryAt?: SortOrder
+    retryHistory?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -13945,11 +18305,18 @@ export namespace Prisma {
     model?: SortOrder
     result?: SortOrder
     error?: SortOrder
+    retryCount?: SortOrder
+    lastRetryAt?: SortOrder
+    retryHistory?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
 
-  export type IntFilter<$PrismaModel = never> = {
+  export type TaskSumOrderByAggregateInput = {
+    retryCount?: SortOrder
+  }
+
+  export type IntWithAggregatesFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
     notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -13957,7 +18324,26 @@ export namespace Prisma {
     lte?: number | IntFieldRefInput<$PrismaModel>
     gt?: number | IntFieldRefInput<$PrismaModel>
     gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntFilter<$PrismaModel> | number
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
   export type TaskRelationFilter = {
@@ -14010,22 +18396,6 @@ export namespace Prisma {
 
   export type TaskStepSumOrderByAggregateInput = {
     idx?: SortOrder
-  }
-
-  export type IntWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
-    _count?: NestedIntFilter<$PrismaModel>
-    _avg?: NestedFloatFilter<$PrismaModel>
-    _sum?: NestedIntFilter<$PrismaModel>
-    _min?: NestedIntFilter<$PrismaModel>
-    _max?: NestedIntFilter<$PrismaModel>
   }
 
   export type TaskTraceCountOrderByAggregateInput = {
@@ -14096,6 +18466,17 @@ export namespace Prisma {
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
+  export type FloatNullableFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+  }
+
   export type PromptVersionNullableRelationFilter = {
     is?: PromptVersionWhereInput | null
     isNot?: PromptVersionWhereInput | null
@@ -14113,6 +18494,9 @@ export namespace Prisma {
     promptTokens?: SortOrder
     completionTokens?: SortOrder
     totalTokens?: SortOrder
+    costUsd?: SortOrder
+    turnCount?: SortOrder
+    toolCalls?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -14121,6 +18505,8 @@ export namespace Prisma {
     promptTokens?: SortOrder
     completionTokens?: SortOrder
     totalTokens?: SortOrder
+    costUsd?: SortOrder
+    turnCount?: SortOrder
   }
 
   export type AgentRunMaxOrderByAggregateInput = {
@@ -14135,6 +18521,9 @@ export namespace Prisma {
     promptTokens?: SortOrder
     completionTokens?: SortOrder
     totalTokens?: SortOrder
+    costUsd?: SortOrder
+    turnCount?: SortOrder
+    toolCalls?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -14151,6 +18540,9 @@ export namespace Prisma {
     promptTokens?: SortOrder
     completionTokens?: SortOrder
     totalTokens?: SortOrder
+    costUsd?: SortOrder
+    turnCount?: SortOrder
+    toolCalls?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -14159,6 +18551,8 @@ export namespace Prisma {
     promptTokens?: SortOrder
     completionTokens?: SortOrder
     totalTokens?: SortOrder
+    costUsd?: SortOrder
+    turnCount?: SortOrder
   }
 
   export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -14177,15 +18571,20 @@ export namespace Prisma {
     _max?: NestedIntNullableFilter<$PrismaModel>
   }
 
-  export type DateTimeNullableFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  export type FloatNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedFloatNullableFilter<$PrismaModel>
+    _min?: NestedFloatNullableFilter<$PrismaModel>
+    _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
   export type TaskNullableRelationFilter = {
@@ -14235,20 +18634,6 @@ export namespace Prisma {
     events?: SortOrder
   }
 
-  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedDateTimeNullableFilter<$PrismaModel>
-    _max?: NestedDateTimeNullableFilter<$PrismaModel>
-  }
-
   export type BoolFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolFilter<$PrismaModel> | boolean
@@ -14260,6 +18645,8 @@ export namespace Prisma {
     kind?: SortOrder
     baseUrl?: SortOrder
     apiKey?: SortOrder
+    refreshToken?: SortOrder
+    tokenExpiresAt?: SortOrder
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
@@ -14272,6 +18659,8 @@ export namespace Prisma {
     kind?: SortOrder
     baseUrl?: SortOrder
     apiKey?: SortOrder
+    refreshToken?: SortOrder
+    tokenExpiresAt?: SortOrder
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
@@ -14284,6 +18673,8 @@ export namespace Prisma {
     kind?: SortOrder
     baseUrl?: SortOrder
     apiKey?: SortOrder
+    refreshToken?: SortOrder
+    tokenExpiresAt?: SortOrder
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
@@ -14323,17 +18714,6 @@ export namespace Prisma {
     generatedPath?: SortOrder
     manifest?: SortOrder
     registeredAt?: SortOrder
-  }
-
-  export type FloatNullableFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
   }
 
   export type PromptVersionCountOrderByAggregateInput = {
@@ -14386,20 +18766,234 @@ export namespace Prisma {
     benchmarkScore?: SortOrder
   }
 
-  export type FloatNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+  export type FloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
     lt?: number | FloatFieldRefInput<$PrismaModel>
     lte?: number | FloatFieldRefInput<$PrismaModel>
     gt?: number | FloatFieldRefInput<$PrismaModel>
     gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatNullableWithAggregatesFilter<$PrismaModel> | number | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _avg?: NestedFloatNullableFilter<$PrismaModel>
-    _sum?: NestedFloatNullableFilter<$PrismaModel>
-    _min?: NestedFloatNullableFilter<$PrismaModel>
-    _max?: NestedFloatNullableFilter<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
+  export type BenchmarkHistoryCountOrderByAggregateInput = {
+    id?: SortOrder
+    suite?: SortOrder
+    provider?: SortOrder
+    model?: SortOrder
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    passRate?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrder
+    totalTokens?: SortOrder
+    metadata?: SortOrder
+    reportPath?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type BenchmarkHistoryAvgOrderByAggregateInput = {
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    passRate?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrder
+    totalTokens?: SortOrder
+  }
+
+  export type BenchmarkHistoryMaxOrderByAggregateInput = {
+    id?: SortOrder
+    suite?: SortOrder
+    provider?: SortOrder
+    model?: SortOrder
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    passRate?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrder
+    totalTokens?: SortOrder
+    metadata?: SortOrder
+    reportPath?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type BenchmarkHistoryMinOrderByAggregateInput = {
+    id?: SortOrder
+    suite?: SortOrder
+    provider?: SortOrder
+    model?: SortOrder
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    passRate?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrder
+    totalTokens?: SortOrder
+    metadata?: SortOrder
+    reportPath?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type BenchmarkHistorySumOrderByAggregateInput = {
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    passRate?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrder
+    totalTokens?: SortOrder
+  }
+
+  export type FloatWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedFloatFilter<$PrismaModel>
+    _min?: NestedFloatFilter<$PrismaModel>
+    _max?: NestedFloatFilter<$PrismaModel>
+  }
+
+  export type BenchmarkRunCountOrderByAggregateInput = {
+    id?: SortOrder
+    suite?: SortOrder
+    status?: SortOrder
+    config?: SortOrder
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrder
+    totalTokens?: SortOrder
+    results?: SortOrder
+    error?: SortOrder
+    startedAt?: SortOrder
+    completedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type BenchmarkRunAvgOrderByAggregateInput = {
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrder
+    totalTokens?: SortOrder
+  }
+
+  export type BenchmarkRunMaxOrderByAggregateInput = {
+    id?: SortOrder
+    suite?: SortOrder
+    status?: SortOrder
+    config?: SortOrder
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrder
+    totalTokens?: SortOrder
+    results?: SortOrder
+    error?: SortOrder
+    startedAt?: SortOrder
+    completedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type BenchmarkRunMinOrderByAggregateInput = {
+    id?: SortOrder
+    suite?: SortOrder
+    status?: SortOrder
+    config?: SortOrder
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrder
+    totalTokens?: SortOrder
+    results?: SortOrder
+    error?: SortOrder
+    startedAt?: SortOrder
+    completedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type BenchmarkRunSumOrderByAggregateInput = {
+    totalTasks?: SortOrder
+    passed?: SortOrder
+    failed?: SortOrder
+    timeouts?: SortOrder
+    totalDurationMs?: SortOrder
+    totalCostUsd?: SortOrder
+    totalTokens?: SortOrder
+  }
+
+  export type ProviderCircuitStateCountOrderByAggregateInput = {
+    providerName?: SortOrder
+    state?: SortOrder
+    errorRate?: SortOrder
+    lastFailureAt?: SortOrder
+    lastSuccessAt?: SortOrder
+    cooldownUntil?: SortOrder
+    trialStartedAt?: SortOrder
+    trialRequestId?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ProviderCircuitStateAvgOrderByAggregateInput = {
+    errorRate?: SortOrder
+  }
+
+  export type ProviderCircuitStateMaxOrderByAggregateInput = {
+    providerName?: SortOrder
+    state?: SortOrder
+    errorRate?: SortOrder
+    lastFailureAt?: SortOrder
+    lastSuccessAt?: SortOrder
+    cooldownUntil?: SortOrder
+    trialStartedAt?: SortOrder
+    trialRequestId?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ProviderCircuitStateMinOrderByAggregateInput = {
+    providerName?: SortOrder
+    state?: SortOrder
+    errorRate?: SortOrder
+    lastFailureAt?: SortOrder
+    lastSuccessAt?: SortOrder
+    cooldownUntil?: SortOrder
+    trialStartedAt?: SortOrder
+    trialRequestId?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ProviderCircuitStateSumOrderByAggregateInput = {
+    errorRate?: SortOrder
   }
 
   export type TaskCreateNestedManyWithoutProjectInput = {
@@ -14530,6 +19124,18 @@ export namespace Prisma {
     connectOrCreate?: TraceSpanCreateOrConnectWithoutTaskInput | TraceSpanCreateOrConnectWithoutTaskInput[]
     createMany?: TraceSpanCreateManyTaskInputEnvelope
     connect?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
+  }
+
+  export type IntFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
+  export type NullableDateTimeFieldUpdateOperationsInput = {
+    set?: Date | string | null
   }
 
   export type ProjectUpdateOneRequiredWithoutTasksNestedInput = {
@@ -14686,14 +19292,6 @@ export namespace Prisma {
     connect?: TaskWhereUniqueInput
   }
 
-  export type IntFieldUpdateOperationsInput = {
-    set?: number
-    increment?: number
-    decrement?: number
-    multiply?: number
-    divide?: number
-  }
-
   export type TaskUpdateOneRequiredWithoutStepsNestedInput = {
     create?: XOR<TaskCreateWithoutStepsInput, TaskUncheckedCreateWithoutStepsInput>
     connectOrCreate?: TaskCreateOrConnectWithoutStepsInput
@@ -14750,6 +19348,14 @@ export namespace Prisma {
     divide?: number
   }
 
+  export type NullableFloatFieldUpdateOperationsInput = {
+    set?: number | null
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
   export type TaskUpdateOneRequiredWithoutAgentRunsNestedInput = {
     create?: XOR<TaskCreateWithoutAgentRunsInput, TaskUncheckedCreateWithoutAgentRunsInput>
     connectOrCreate?: TaskCreateOrConnectWithoutAgentRunsInput
@@ -14772,10 +19378,6 @@ export namespace Prisma {
     create?: XOR<TaskCreateWithoutTraceSpansInput, TaskUncheckedCreateWithoutTraceSpansInput>
     connectOrCreate?: TaskCreateOrConnectWithoutTraceSpansInput
     connect?: TaskWhereUniqueInput
-  }
-
-  export type NullableDateTimeFieldUpdateOperationsInput = {
-    set?: Date | string | null
   }
 
   export type TaskUpdateOneWithoutTraceSpansNestedInput = {
@@ -14806,14 +19408,6 @@ export namespace Prisma {
     connect?: AgentRunWhereUniqueInput | AgentRunWhereUniqueInput[]
   }
 
-  export type NullableFloatFieldUpdateOperationsInput = {
-    set?: number | null
-    increment?: number
-    decrement?: number
-    multiply?: number
-    divide?: number
-  }
-
   export type AgentRunUpdateManyWithoutPromptVersionNestedInput = {
     create?: XOR<AgentRunCreateWithoutPromptVersionInput, AgentRunUncheckedCreateWithoutPromptVersionInput> | AgentRunCreateWithoutPromptVersionInput[] | AgentRunUncheckedCreateWithoutPromptVersionInput[]
     connectOrCreate?: AgentRunCreateOrConnectWithoutPromptVersionInput | AgentRunCreateOrConnectWithoutPromptVersionInput[]
@@ -14840,6 +19434,14 @@ export namespace Prisma {
     update?: AgentRunUpdateWithWhereUniqueWithoutPromptVersionInput | AgentRunUpdateWithWhereUniqueWithoutPromptVersionInput[]
     updateMany?: AgentRunUpdateManyWithWhereWithoutPromptVersionInput | AgentRunUpdateManyWithWhereWithoutPromptVersionInput[]
     deleteMany?: AgentRunScalarWhereInput | AgentRunScalarWhereInput[]
+  }
+
+  export type FloatFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -14951,6 +19553,17 @@ export namespace Prisma {
     _max?: NestedDateTimeFilter<$PrismaModel>
   }
 
+  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
   export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -14978,44 +19591,6 @@ export namespace Prisma {
     not?: NestedFloatFilter<$PrismaModel> | number
   }
 
-  export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _avg?: NestedFloatNullableFilter<$PrismaModel>
-    _sum?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedIntNullableFilter<$PrismaModel>
-    _max?: NestedIntNullableFilter<$PrismaModel>
-  }
-
-  export type NestedFloatNullableFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
-  }
-
-  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
-  }
-
   export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
@@ -15030,17 +19605,31 @@ export namespace Prisma {
     _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
-  export type NestedBoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
+  export type NestedFloatNullableFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
   }
 
-  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
+  export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedIntNullableFilter<$PrismaModel>
+    _max?: NestedIntNullableFilter<$PrismaModel>
   }
 
   export type NestedFloatNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -15059,6 +19648,35 @@ export namespace Prisma {
     _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
+
+  export type NestedFloatWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedFloatFilter<$PrismaModel>
+    _min?: NestedFloatFilter<$PrismaModel>
+    _max?: NestedFloatFilter<$PrismaModel>
+  }
+
   export type TaskCreateWithoutProjectInput = {
     id?: string
     title: string
@@ -15070,6 +19688,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepCreateNestedManyWithoutTaskInput
@@ -15090,6 +19711,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
@@ -15140,6 +19764,9 @@ export namespace Prisma {
     model?: StringNullableFilter<"Task"> | string | null
     result?: StringNullableFilter<"Task"> | string | null
     error?: StringNullableFilter<"Task"> | string | null
+    retryCount?: IntFilter<"Task"> | number
+    lastRetryAt?: DateTimeNullableFilter<"Task"> | Date | string | null
+    retryHistory?: StringNullableFilter<"Task"> | string | null
     createdAt?: DateTimeFilter<"Task"> | Date | string
     updatedAt?: DateTimeFilter<"Task"> | Date | string
   }
@@ -15267,6 +19894,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     promptVersion?: PromptVersionCreateNestedOneWithoutAgentRunsInput
@@ -15283,6 +19913,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -15484,6 +20117,9 @@ export namespace Prisma {
     promptTokens?: IntNullableFilter<"AgentRun"> | number | null
     completionTokens?: IntNullableFilter<"AgentRun"> | number | null
     totalTokens?: IntNullableFilter<"AgentRun"> | number | null
+    costUsd?: FloatNullableFilter<"AgentRun"> | number | null
+    turnCount?: IntNullableFilter<"AgentRun"> | number | null
+    toolCalls?: StringNullableFilter<"AgentRun"> | string | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
   }
@@ -15532,6 +20168,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     project: ProjectCreateNestedOneWithoutTasksInput
@@ -15553,6 +20192,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     traces?: TaskTraceUncheckedCreateNestedManyWithoutTaskInput
@@ -15588,6 +20230,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
@@ -15609,6 +20254,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     traces?: TaskTraceUncheckedUpdateManyWithoutTaskNestedInput
@@ -15628,6 +20276,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     project: ProjectCreateNestedOneWithoutTasksInput
@@ -15649,6 +20300,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
@@ -15684,6 +20338,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
@@ -15705,6 +20362,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
@@ -15724,6 +20384,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     project: ProjectCreateNestedOneWithoutTasksInput
@@ -15745,6 +20408,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
@@ -15780,6 +20446,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
@@ -15801,6 +20470,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
@@ -15820,6 +20492,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     project: ProjectCreateNestedOneWithoutTasksInput
@@ -15841,6 +20516,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
@@ -15909,6 +20587,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
@@ -15930,6 +20611,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
@@ -15988,6 +20672,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     project: ProjectCreateNestedOneWithoutTasksInput
@@ -16009,6 +20696,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
@@ -16044,6 +20734,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
@@ -16065,6 +20758,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
@@ -16083,6 +20779,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -16099,6 +20798,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -16140,6 +20842,9 @@ export namespace Prisma {
     model?: string | null
     result?: string | null
     error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -16155,6 +20860,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUpdateManyWithoutTaskNestedInput
@@ -16175,6 +20883,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
@@ -16195,6 +20906,9 @@ export namespace Prisma {
     model?: NullableStringFieldUpdateOperationsInput | string | null
     result?: NullableStringFieldUpdateOperationsInput | string | null
     error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -16239,6 +20953,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -16353,6 +21070,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     promptVersion?: PromptVersionUpdateOneWithoutAgentRunsNestedInput
@@ -16369,6 +21089,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -16384,6 +21107,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -16438,6 +21164,9 @@ export namespace Prisma {
     promptTokens?: number | null
     completionTokens?: number | null
     totalTokens?: number | null
+    costUsd?: number | null
+    turnCount?: number | null
+    toolCalls?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -16452,6 +21181,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -16468,6 +21200,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -16483,6 +21218,9 @@ export namespace Prisma {
     promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
     completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
     totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    turnCount?: NullableIntFieldUpdateOperationsInput | number | null
+    toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -16544,6 +21282,18 @@ export namespace Prisma {
      * @deprecated Use PromptVersionDefaultArgs instead
      */
     export type PromptVersionArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = PromptVersionDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use BenchmarkHistoryDefaultArgs instead
+     */
+    export type BenchmarkHistoryArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = BenchmarkHistoryDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use BenchmarkRunDefaultArgs instead
+     */
+    export type BenchmarkRunArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = BenchmarkRunDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use ProviderCircuitStateDefaultArgs instead
+     */
+    export type ProviderCircuitStateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ProviderCircuitStateDefaultArgs<ExtArgs>
 
   /**
    * Batch Payload for updateMany & deleteMany & createMany

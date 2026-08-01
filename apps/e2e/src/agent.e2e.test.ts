@@ -66,7 +66,7 @@ function startMockLlmServer(): Promise<{ server: http.Server; port: number; requ
             toolCalls.push({
               id: 'call-3',
               type: 'function',
-              function: { name: 'run_command', arguments: JSON.stringify({ command: 'cat agent-output.md' }) },
+              function: { name: 'run_command', arguments: JSON.stringify({ command: 'echo verified' }) },
             });
           } else {
             toolCalls.push({
@@ -116,6 +116,7 @@ describe('harness agent loop', () => {
     PORT: '4003',
     GRPC_PORT: '50053',
     KIMI_API_KEY: '',
+    GLM_API_KEY: '',
   };
 
   beforeAll(async () => {
@@ -181,13 +182,32 @@ describe('harness agent loop', () => {
     expect(taskRes.status).toBe(201);
     const task = (await taskRes.json()) as { id: string };
 
+    const patchRes = await fetch(`${API}/tasks/${task.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'agent-mock', model: 'moonshot-v1-8k' }),
+    });
+    expect(patchRes.status).toBe(200);
+
     const runRes = await fetch(`${API}/tasks/${task.id}/run`, { method: 'POST' });
     if (!runRes.ok) {
       const errBody = await runRes.text();
       console.error('Run failed:', runRes.status, errBody);
     }
-    expect(runRes.status).toBe(200);
-    const ran = (await runRes.json()) as { status: string; result?: string; error?: string };
+    expect(runRes.status).toBe(202);
+
+    async function waitForTask(taskId: string, maxMs = 60000): Promise<{ status: string; result?: string; error?: string }> {
+      const deadline = Date.now() + maxMs;
+      while (Date.now() < deadline) {
+        const res = await fetch(`${API}/tasks/${taskId}`);
+        const body = (await res.json()) as { status: string; result?: string; error?: string };
+        if (body.status === 'done' || body.status === 'failed') return body;
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      throw new Error('Task did not complete in time');
+    }
+
+    const ran = await waitForTask(task.id);
 
     if (ran.status !== 'done') {
       console.error('Agent task failed:', ran.error);

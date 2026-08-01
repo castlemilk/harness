@@ -2,7 +2,7 @@ import type { Provider, ProviderConfig, SendOptions, ToolDefinition } from '@ome
 import { OpenAIProvider } from './openai.js';
 
 export class KimiProvider extends OpenAIProvider implements Provider {
-  constructor(public readonly config: ProviderConfig) {
+  constructor(config: ProviderConfig) {
     super({
       ...config,
       baseUrl: config.baseUrl ?? 'https://api.kimi.com/coding/v1',

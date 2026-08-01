@@ -9,14 +9,18 @@ export interface Project {
   _count?: { tasks: number };
 }
 
+export type View = 'tasks' | 'benchmarks' | 'costs' | 'router' | 'errors' | 'traces' | 'compare';
+
 interface Props {
   projects: Project[];
   selectedId?: string;
   onSelect: (id: string) => void;
   onChange: () => void;
+  view?: View;
+  onViewChange?: (view: View) => void;
 }
 
-export function ProjectSidebar({ projects, selectedId, onSelect, onChange }: Props) {
+export function ProjectSidebar({ projects, selectedId, onSelect, onChange, view = 'tasks', onViewChange }: Props) {
   const [form, setForm] = useState({ name: '', path: '', repoUrl: '', description: '' });
   const [open, setOpen] = useState(false);
 
@@ -35,8 +39,26 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onChange }: Pro
         <p className="text-xs text-gray-500">Projects</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
-        {projects.map((p) => (
+      {onViewChange && (
+        <div className="flex gap-1 p-2 border-b border-gray-200">
+          {(['tasks', 'benchmarks', 'costs', 'router'] as View[]).map((v) => (
+            <button
+              key={v}
+              onClick={() => { onViewChange(v); }}
+              className={`flex-1 px-3 py-1.5 rounded-md text-xs capitalize ${
+                view === v ? 'bg-blue-600 text-white font-medium' : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {view === 'tasks' && (
+        <>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {projects.map((p) => (
           <button
             key={p.id}
             onClick={() => { onSelect(p.id); }}
@@ -97,6 +119,31 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onChange }: Pro
             </div>
           </form>
         )}
+      </div>
+      </>
+      )}
+
+      <div className="border-t border-gray-200 p-2 space-y-0.5">
+        <p className="text-[10px] font-medium text-gray-400 uppercase px-2 pt-1">Views</p>
+        {([
+          ['tasks', 'Tasks'],
+          ['benchmarks', 'Benchmarks'],
+          ['costs', 'Costs'],
+          ['router', 'Router'],
+          ['errors', 'Errors'],
+          ['traces', 'Traces'],
+          ['compare', 'Compare'],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => { onViewChange?.(key); }}
+            className={`w-full text-left px-3 py-1.5 rounded text-xs ${
+              view === key ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-100 text-gray-600'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
     </aside>
   );

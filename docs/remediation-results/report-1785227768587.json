@@ -1,0 +1,138 @@
+{
+  "backlog": "/tmp/quick-backlog.json",
+  "executedAt": "2026-07-28T08:36:08.586Z",
+  "summary": {
+    "totalTasks": 2,
+    "totalProviders": 4,
+    "totalRuns": 8,
+    "completed": 0,
+    "failed": 1
+  },
+  "results": [
+    {
+      "runId": "REM-006__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "in_progress",
+      "error": null,
+      "duration": 9
+    },
+    {
+      "runId": "REM-006__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "failed",
+      "result": "Validation failed",
+      "error": "Validation failed",
+      "duration": 1163048
+    },
+    {
+      "runId": "REM-006__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "in_progress",
+      "error": null,
+      "duration": 11
+    },
+    {
+      "runId": "REM-006__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "in_progress",
+      "error": null,
+      "duration": 1163038
+    },
+    {
+      "runId": "REM-007__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "in_progress",
+      "error": null,
+      "duration": 13
+    },
+    {
+      "runId": "REM-007__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "in_progress",
+      "error": null,
+      "duration": 6
+    },
+    {
+      "runId": "REM-007__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "in_progress",
+      "error": null,
+      "duration": 6
+    },
+    {
+      "runId": "REM-007__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "in_progress",
+      "error": null,
+      "duration": 5
+    }
+  ],
+  "diffs": {
+    "REM-006": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0
+    },
+    "REM-007": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0
+    }
+  },
+  "byProvider": {
+    "deepseek": {
+      "total": 2,
+      "completed": 0,
+      "failed": 0,
+      "avgDuration": 11
+    },
+    "kimi": {
+      "total": 2,
+      "completed": 0,
+      "failed": 1,
+      "avgDuration": 581527
+    },
+    "qwen": {
+      "total": 2,
+      "completed": 0,
+      "failed": 0,
+      "avgDuration": 8.5
+    },
+    "minimax": {
+      "total": 2,
+      "completed": 0,
+      "failed": 0,
+      "avgDuration": 581521.5
+    }
+  },
+  "byTask": {
+    "REM-006": {
+      "title": "Add mutex to task-queue.ts",
+      "priority": "high",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0
+      }
+    },
+    "REM-007": {
+      "title": "Fix abort signal in retry sleep",
+      "priority": "medium",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0
+      }
+    }
+  }
+}

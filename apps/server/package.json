@@ -9,13 +9,14 @@
     "build": "tsc",
     "dev": "DATABASE_URL='postgresql://localhost:5432/omega' DATABASE_DIR='./pglite-data' tsx watch src/index.ts",
     "start": "DATABASE_URL='postgresql://localhost:5432/omega' DATABASE_DIR='./pglite-data' node dist/index.js",
-    "test": "DATABASE_URL='postgresql://localhost:5432/omega' DATABASE_DIR='./pglite-data' vitest run"
+    "test": "DATABASE_URL='postgresql://localhost:5432/omega' DATABASE_DIR=\"$(mktemp -d)/pglite\" vitest run"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.3",
     "@grpc/grpc-js": "^1.14.4",
     "@grpc/proto-loader": "^0.8.1",
     "@omega/agent": "workspace:*",
+    "@omega/bench": "workspace:*",
     "@omega/core": "workspace:*",
     "@omega/db": "workspace:*",
     "@omega/providers": "workspace:*",

@@ -151,7 +151,16 @@ async function detectProjectSignature(projectPath: string): Promise<FileSignatur
   return { languages, frameworks, hasTests };
 }
 
-function skillMatches(signature: FileSignature, skillName: string, description: string): boolean {
+function skillMatchesExactly(skillName: string, taskTags?: string[]): boolean {
+  if (!taskTags) return false;
+  const lowerName = skillName.toLowerCase();
+  return taskTags.some((tag) => {
+    const lowerTag = tag.toLowerCase();
+    return lowerName === lowerTag || lowerName === `deepswe-${lowerTag}`;
+  });
+}
+
+function skillMatchesBroadly(signature: FileSignature, skillName: string, description: string): boolean {
   const haystack = `${skillName} ${description}`.toLowerCase();
   for (const lang of signature.languages) {
     if (haystack.includes(lang.toLowerCase())) return true;
@@ -165,17 +174,20 @@ function skillMatches(signature: FileSignature, skillName: string, description: 
 export async function resolveSkills(
   prisma: PrismaClient,
   projectPath: string,
-  taskDescription?: string | null
+  taskDescription?: string | null,
+  taskTags?: string[]
 ): Promise<ResolvedSkill[]> {
   const signature = await detectProjectSignature(projectPath);
 
   // Add task-description hints as synthetic framework/language signals.
+  // Use whole-word matching so common substrings (e.g. "go" inside "go ahead")
+  // do not pollute the signature with unrelated languages.
   if (taskDescription) {
     const lower = taskDescription.toLowerCase();
     const hintMap: Record<string, string[]> = {
-      typescript: ['typescript', 'ts'],
-      go: ['go', 'golang'],
-      python: ['python', 'py'],
+      typescript: ['typescript'],
+      go: ['golang', '\\bgo\\b'],
+      python: ['python'],
       rust: ['rust'],
       react: ['react'],
       nextjs: ['next.js', 'nextjs'],
@@ -184,8 +196,8 @@ export async function resolveSkills(
       frontend: ['frontend', 'ui', 'component', 'css', 'html'],
     };
     for (const [hint, terms] of Object.entries(hintMap)) {
-      if (terms.some((t) => lower.includes(t))) {
-        if (['frontend'].includes(hint)) {
+      if (terms.some((t) => new RegExp(t).exec(lower) !== null)) {
+        if (hint === 'frontend') {
           signature.frameworks.add('frontend');
         } else {
           signature.languages.add(hint);
@@ -195,10 +207,40 @@ export async function resolveSkills(
   }
 
   const artifacts = await prisma.skillArtifact.findMany();
+
+  // Prefer exact skill-name matches against task tags. This makes per-task
+  // reference-patch skills (e.g. DeepSWE tasks tagged with their task id)
+  // precise and prevents broad language/framework heuristics from returning
+  // unrelated skills.
+  const exactMatches = artifacts.filter((a) => {
+    const manifest = JSON.parse(a.manifest) as { name: string };
+    return skillMatchesExactly(manifest.name, taskTags);
+  });
+
+  if (exactMatches.length > 0) {
+    const seen = new Set<string>();
+    return exactMatches
+      .map((a) => {
+        const manifest = JSON.parse(a.manifest) as { name: string; description: string; instructions: string };
+        return {
+          name: manifest.name,
+          description: manifest.description,
+          instructions: manifest.instructions,
+          sourcePath: a.sourcePath,
+        };
+      })
+      .filter((s) => {
+        if (seen.has(s.name)) return false;
+        seen.add(s.name);
+        return true;
+      });
+  }
+
+  // Fall back to broad language/framework matching when no exact tag match exists.
   const matched = artifacts
     .filter((a) => {
       const manifest = JSON.parse(a.manifest) as { name: string; description: string };
-      return skillMatches(signature, manifest.name, manifest.description);
+      return skillMatchesBroadly(signature, manifest.name, manifest.description);
     })
     .map((a) => {
       const manifest = JSON.parse(a.manifest) as { name: string; description: string; instructions: string };

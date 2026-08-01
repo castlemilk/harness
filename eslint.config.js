@@ -11,6 +11,7 @@ export default ts.config(
       '**/.git/**',
       'packages/db/prisma/generated/**',
       'packages/db/generated/**',
+      'apps/server/web/assets/**',
     ],
   },
   js.configs.recommended,

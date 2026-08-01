@@ -22,6 +22,8 @@ A local-first, model-agnostic harness for scheduling work across projects, routi
 - **Git worktree isolation** – server-side agent runs execute inside `.omega/worktrees/<project>-<task>/` so the main repo is never polluted.
 - **Prompt-version benchmarking** – every agent run is tagged with the prompt version/hash; the web UI compares pass rates across versions.
 - **Token usage tracking** – provider responses record prompt/completion/total tokens and store them on each `AgentRun`.
+- **Multi-agent orchestration** – tasks tagged `orchestrate` are decomposed by a high-tier planner model, implemented by smaller-model sub-agents, and closed by a review/feedback loop. See [docs/orchestration.md](docs/orchestration.md), the [roadmap](docs/roadmap.md), and the [reference corpus](docs/references.md).
+- **External agent harnesses** – control Codex, Claude Code, Gemini CLI, OpenCode, Cursor CLI, or Aider by tagging a task `external:<cli>`. See [docs/external-agents.md](docs/external-agents.md).
 
 ## Architecture
 
@@ -61,6 +63,40 @@ npx @castlemilk/omega ui --no-tui
 ```
 
 > The npm package name is `@castlemilk/omega`, but the command it installs is `harness`.
+
+### Multi-agent orchestration
+
+Run a task through the high-tier planner + smaller sub-agent orchestrator:
+
+```bash
+harness task create --project <project-id> --title "Add a greet util and test" \
+  --description "Create src/greet.js and a test" --orchestrate \
+  --max-subtasks 3 --max-iterations 2 --concurrency 1 --run
+
+# or on an existing task
+harness task orchestrate <task-id> --max-subtasks 3 --max-iterations 2
+```
+
+The task detail in the web UI shows sub-agents (model/status/diff) and the orchestrator trace.
+
+### Benchmarks and model evals
+
+Run a quick eval suite across multiple models and compare pass rate, duration, and tokens:
+
+```bash
+harness bench eval --suite deep \
+  --models "kimi/moonshot-v1-128k,kimi/moonshot-v1-32k,kimi/moonshot-v1-8k"
+
+# deeper 10-task suite, or subsets
+harness bench eval --suite deep --task-id deep-lru-cache --task-id deep-debug-off-by-one \
+  --models "kimi/moonshot-v1-32k,kimi/moonshot-v1-8k"
+
+# external coding-agent harnesses (Codex, Claude Code, Gemini CLI, OpenCode, Cursor CLI, Aider)
+harness bench eval --suite deep \
+  --harnesses "claude-code,opencode" --task-id deep-lru-cache --task-id deep-debug-off-by-one
+```
+
+Reports are written to `~/.omega/reports/model-eval-*.json` (and `.md`).
 
 ## Install from source
 
@@ -252,7 +288,7 @@ git clone https://github.com/datacurve-ai/deep-swe.git
 harness bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 10 --sample-seed 0
 ```
 
-Reports are written to `.omega/reports/benchmark-<timestamp>.json` and `.md`. The latest report is surfaced in the web UI metrics panel.
+Reports are written to `${OMEGA_STORAGE_ROOT:-~/.omega}/reports/benchmark-<timestamp>.json` and `.md`. The latest report is surfaced in the web UI metrics panel.
 
 `harness bench optimise` reads the latest report and the trace-flow of a failed task, then creates a `self-improve` task you can run to edit `packages/agent/src/prompts.ts` based on the observed failures.
 
@@ -262,7 +298,7 @@ Tasks that mention public API requirements (e.g., "expose `logic.selectorHealth(
 
 ## Git worktree isolation
 
-Server-side agent runs are executed inside a dedicated git worktree at `.omega/worktrees/<project>-<task>/`. The worktree is created from the project's current commit, the agent makes changes there, and the worktree is removed after the run. This keeps the main working directory clean and allows multiple agent tasks to run without interfering with each other. If worktree creation fails, the runner falls back to the previous in-repo branch behavior.
+Server-side agent runs are executed inside a dedicated git worktree at `${OMEGA_STORAGE_ROOT:-~/.omega}/work/worktrees/<project>-<task>/`. The worktree is created from the project's current commit, the agent makes changes there, and the worktree is removed after the run. This keeps the main working directory clean and allows multiple agent tasks to run without interfering with each other. If worktree creation fails, the runner falls back to the previous in-repo branch behavior.
 
 ## Trace-driven prompts
 

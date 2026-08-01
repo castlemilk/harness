@@ -111,7 +111,7 @@ const TASKS: BenchmarkTask[] = [
     name: 'Run validation on a clean project',
     title: 'Confirm the project already passes validation',
     description:
-      'This project already passes lint, test and build. Use the publish tool to confirm validation passes and finish.',
+      'This project already passes all validation scripts. Use the publish tool to confirm validation passes and finish.',
     complexity: 'simple',
     setup: async (projectPath) => {
       await writeJson(projectPath, 'package.json', basePackage());

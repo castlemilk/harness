@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    participant U as User/CLI/UI
+    participant S as Server (run-task)
+    participant O as Orchestrator
+    participant P as Planner (high-tier LLM)
+    participant A as Sub-agent (medium/low LLM)
+    participant G as Git/Project
+    participant D as DB
+
+    U->>S: POST /tasks {tags:["orchestrate"]} + /run
+    S->>O: runOrchestratedTask(taskId)
+    O->>D: mark task in_progress, create AgentRun
+    O->>P: plan(task, maxSubtasks)
+    P-->>O: JSON subtask list
+    O->>D: create subtask Task rows
+
+    loop until done or maxIterations
+        O->>A: runAgentTask(subtask, isolated:false)
+        A->>G: edit + commit in project
+        A-->>O: status/result
+        O->>P: review(subtasks, cumulative git diff)
+        P-->>O: done? or nextSubtasks
+    end
+
+    O->>G: final git diff
+    O->>D: TaskDiff + mark task done
+    O-->>S: OrchestratorResult
+    S-->>U: task status/result

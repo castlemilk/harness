@@ -1,0 +1,105 @@
+name: Benchmark
+
+on:
+  schedule:
+    # Run daily at 06:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Benchmark suite to run'
+        required: false
+        default: 'fast'
+        type: choice
+        options:
+          - fast
+          - hard
+      fail_on_regression:
+        description: 'Fail if pass rate drops'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  OMEGA_STORAGE_ROOT: ${{ github.workspace }}/.omega
+  DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/omega'
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: omega
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: corepack pnpm@10.18.0 install --frozen-lockfile
+
+      - run: pnpm db:migrate
+
+      - name: Run benchmark
+        id: bench
+        run: |
+          SUITE="${{ inputs.suite || 'fast' }}"
+          npx omega bench run --suite "$SUITE" --output-dir .omega/reports 2>&1 | tee bench-output.txt
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Compare against baseline
+        if: hashFiles('.omega/reports/baseline.json') != ''
+        run: |
+          LATEST=$(ls -t .omega/reports/benchmark-*.json 2>/dev/null | head -1)
+          if [ -n "$LATEST" ]; then
+            npx omega bench compare --baseline .omega/reports/baseline.json --candidate "$LATEST" | tee compare-output.txt
+          fi
+
+      - name: Check for regression
+        if: inputs.fail_on_regression == 'true' || inputs.fail_on_regression == true
+        run: |
+          LATEST=$(ls -t .omega/reports/benchmark-*.json 2>/dev/null | head -1)
+          if [ -n "$LATEST" ] && [ -f .omega/reports/baseline.json ]; then
+            npx omega bench run --suite "${{ inputs.suite || 'fast' }}" --baseline .omega/reports/baseline.json --fail-on-regression --output-dir .omega/reports
+          fi
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-report
+          path: |
+            .omega/reports/benchmark-*.json
+            .omega/reports/benchmark-*.md
+            bench-output.txt
+            compare-output.txt
+          retention-days: 30
+
+      - name: Post summary
+        if: always()
+        run: |
+          LATEST=$(ls -t .omega/reports/benchmark-*.json 2>/dev/null | head -1)
+          if [ -n "$LATEST" ]; then
+            echo "## Benchmark Report" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            cat "${LATEST%.json}.md" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "See artifact for details" >> "$GITHUB_STEP_SUMMARY"
+          fi

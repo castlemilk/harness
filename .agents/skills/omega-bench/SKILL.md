@@ -1,3 +1,8 @@
+---
+name: omega-bench
+description: Run Omega harness benchmarks, process reports, and drive self-improvement loops.
+---
+
 # omega-bench
 
 Run Omega harness benchmarks, process reports, and drive self-improvement loops.

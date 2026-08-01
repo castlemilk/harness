@@ -1,4 +1,5 @@
 import type { Provider, ProviderConfig, SendOptions, UsageInfo } from '@omega/core';
+import { fetchWithRetry } from './fetch-retry.js';
 
 const DEFAULT_BASE_URL = 'https://api.anthropic.com/v1';
 
@@ -14,8 +15,8 @@ export class AnthropicProvider implements Provider {
   }
 
   async listModels(): Promise<string[]> {
-    const res = await fetch(`${this.baseUrl}/models`, {
-      headers: this.headers(),
+    const res = await fetchWithRetry(`${this.baseUrl}/models`, { headers: this.headers() }, 'Anthropic models', {
+      maxRetries: 1,
     });
     if (!res.ok) return [this.config.defaultModel];
     const data = (await res.json()) as { data?: { id: string }[] };
@@ -31,14 +32,18 @@ export class AnthropicProvider implements Provider {
     if (opts?.system) body.system = opts.system;
     if (opts?.temperature !== undefined) body.temperature = opts.temperature;
 
-    const res = await fetch(`${this.baseUrl}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.headers(),
+    const res = await fetchWithRetry(
+      `${this.baseUrl}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.headers(),
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    });
+      'Anthropic messages',
+    );
     if (!res.ok) {
       throw new Error(`Anthropic request failed: ${res.status.toString()} ${res.statusText}`);
     }

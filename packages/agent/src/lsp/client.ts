@@ -59,17 +59,20 @@ export class LspClient extends EventEmitter {
       const cleanup = (err?: Error): void => {
         if (settled) return;
         settled = true;
-        if (this.process) {
-          this.process.removeAllListeners();
-          try {
-            this.process.kill();
-          } catch {
-            // ignore
+        if (err) {
+          if (this.process) {
+            this.process.removeAllListeners();
+            try {
+              this.process.kill();
+            } catch {
+              // ignore
+            }
+            this.process = null;
           }
-          this.process = null;
+          reject(err);
+        } else {
+          resolve();
         }
-        if (err) reject(err);
-        else resolve();
       };
 
       try {
@@ -80,7 +83,9 @@ export class LspClient extends EventEmitter {
       }
 
       this.process.on('error', (err) => {
-        this.emit('error', err);
+        if (this.listenerCount('error') > 0) {
+          this.emit('error', err);
+        }
         cleanup(err);
       });
       this.process.on('exit', (code) => {

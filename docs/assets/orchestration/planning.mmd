@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant O as Orchestrator
+    participant R as TierRouter
+    participant P as Planner (high-tier)
+    participant D as DB
+
+    O->>R: pickModelForTier('high')
+    R-->>O: {provider, model} (e.g. moonshot-v1-128k)
+    O->>P: buildPlanPrompt(title, description, maxSubtasks)
+    P-->>O: JSON [{title, description, complexity, tier, dependsOn?}]
+    alt valid JSON
+        O->>D: create subtask rows (provider/model per tier)
+    else parse/call failure
+        O->>O: fallback: single subtask = whole task
+    end

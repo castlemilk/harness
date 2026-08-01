@@ -123,6 +123,7 @@ describe('harness benchmark runner', () => {
     PORT: '4005',
     GRPC_PORT: '50055',
     KIMI_API_KEY: '',
+    GLM_API_KEY: '',
   };
 
   beforeAll(async () => {
@@ -160,7 +161,7 @@ describe('harness benchmark runner', () => {
       id: 'noop-bench',
       name: 'noop-bench',
       title: 'Run validation on a clean project',
-      description: 'This project already passes lint, test and build. Use publish and finish.',
+      description: 'This project already passes all validation scripts. Use publish and finish.',
       complexity: 'simple',
       setup: async (projectPath) => {
         const pkg = {

@@ -1,0 +1,378 @@
+{
+  "backlog": "/Users/benebsworth/projects/omega/harness/scripts/remediation-backlog.json",
+  "executedAt": "2026-07-28T14:31:15.048Z",
+  "summary": {
+    "totalTasks": 6,
+    "totalProviders": 4,
+    "totalRuns": 24,
+    "completed": 17,
+    "failed": 7
+  },
+  "results": [
+    {
+      "runId": "REM-006__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "done",
+      "result": "Fixed the abort signal in retry sleep in packages/agent/src/executor.ts. In the withProviderRetry function: (1) added an optional `signal?: AbortSignal` parameter to the function signature, and (2) replaced the bare `setTimeout(resolve, waitMs)` sleep with an abort-aware Promise that clears the timer and rejects with `new DOMException('Aborted', 'AbortError')` when the signal fires. The packages/agent test suite passes. Pre-existing failures in apps/server and apps/e2e are due to an unrelated @o",
+      "error": null,
+      "duration": 449033
+    },
+    {
+      "runId": "REM-006__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "done",
+      "result": "Fixed the abort signal in retry sleep within `withProviderRetry` in `packages/agent/src/executor.ts`:\n\n1. Added an optional `signal?: AbortSignal` parameter to `withProviderRetry`.\n2. Replaced the bare `setTimeout` sleep with an abort-aware `Promise` that:\n   - Stores the timer reference from `setTimeout`\n   - Listens for the `'abort'` event on the signal with `{ once: true }`\n   - Clears the timeout on abort to prevent leaks\n   - Rejects with `DOMException('Aborted', 'AbortError')` when aborted",
+      "error": null,
+      "duration": 340304
+    },
+    {
+      "runId": "REM-006__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "done",
+      "result": "Made the required edit to packages/agent/src/executor.ts: withProviderRetry now accepts an optional AbortSignal and its exponential-backoff sleep is abort-aware — the setTimeout timer is cleared and the promise rejects with DOMException('Aborted', 'AbortError') when the signal aborts. Patch validated cleanly. Ran the workspace test suite: the relevant packages/agent package passes (no test files, exit 0). The only failing suites (apps/server, apps/e2e) fail on a pre-existing unrelated '@omega/db",
+      "error": null,
+      "duration": 402412
+    },
+    {
+      "runId": "REM-006__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "failed",
+      "error": "OpenAI tools request failed: 402 Payment Required — {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+      "duration": 601486
+    },
+    {
+      "runId": "REM-008__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "done",
+      "result": "Expanded the isReadOnlyShellCommand regex in packages/agent/src/executor.ts (line 105) from /(?:&&|\\|\\||;)/ to /(?:&&|\\|\\||\\|&|;)/, adding support for the |& (pipe-with-stderr) bash operator. Test suite passes (no test files, exit code 0). Patch validated cleanly.",
+      "error": null,
+      "duration": 515418
+    },
+    {
+      "runId": "REM-008__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "failed",
+      "error": "OpenAI tools request failed: 402 Payment Required — {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+      "duration": 660325
+    },
+    {
+      "runId": "REM-008__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "done",
+      "result": "Expanded the isReadOnlyShellCommand regex in packages/agent/src/executor.ts from /(?:&&|\\|\\||;)/ to /(?:&&|\\|\\||\\|&|;)/, adding support for bash's |& (pipe-with-stderr) operator. Patch validated and test suite passed (exit code 0).",
+      "error": null,
+      "duration": 679961
+    },
+    {
+      "runId": "REM-008__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "failed",
+      "error": "OpenAI tools request failed: 402 Payment Required — {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+      "duration": 905627
+    },
+    {
+      "runId": "REM-009__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "done",
+      "result": "Added a Promise-based Mutex class after the imports in apps/server/src/lib/task-queue.ts, a module-level `const mutex = new Mutex()`, and wrapped the queue-state mutations in `processQueue` (now async) and `enqueue` (now returning Promise<QueueResult>) with `await mutex.acquire()` and `try { ... } finally { mutex.release(); }`. Per task instructions I did not run install/build; I ran `pnpm test` as required by the harness — all packages pass except apps/server's app.test.ts, which fails on a pre",
+      "error": null,
+      "duration": 865295
+    },
+    {
+      "runId": "REM-009__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "failed",
+      "error": "OpenAI tools request failed: 402 Payment Required — {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+      "duration": 928618
+    },
+    {
+      "runId": "REM-009__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "done",
+      "result": "Added a Promise-based Mutex class and module-level `mutex` instance to apps/server/src/lib/task-queue.ts. Wrapped queue-state mutations in both `processQueue` (now async) and `enqueue` (now returns `Promise<QueueResult>`) with `await mutex.acquire()` / `try { ... } finally { mutex.release(); }`. The test suite has a pre-existing failure unrelated to this change: `@omega/db` package entry cannot be resolved because the dependency hasn't been built in this worktree. The task explicitly instructed ",
+      "error": null,
+      "duration": 1075345
+    },
+    {
+      "runId": "REM-009__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "failed",
+      "error": "OpenAI tools request failed: 402 Payment Required — {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+      "duration": 1109500
+    },
+    {
+      "runId": "REM-010__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "done",
+      "result": "Extracted ProviderHealthRegistry class from packages/router/src/intelligent.ts into a new file packages/router/src/health-registry.ts. The class, its HealthSample interface, and the ProviderHealth interface were moved to the new file. In intelligent.ts, the class definition was replaced with an import from './health-registry.js' and a re-export for backward compatibility. The package index.ts was updated to also export ProviderHealthRegistry from the new module. All 8 tests in packages/router pa",
+      "error": null,
+      "duration": 1180137
+    },
+    {
+      "runId": "REM-010__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "failed",
+      "error": "OpenAI tools request failed: 402 Payment Required — {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+      "duration": 1282164
+    },
+    {
+      "runId": "REM-010__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "done",
+      "result": "Extracted ProviderHealthRegistry from packages/router/src/intelligent.ts into a new file packages/router/src/health-registry.ts. The new module contains the ProviderHealthRegistry class, its HealthSample interface, the HEALTH_WINDOW_MS/HEALTH_DECAY constants, and the ProviderHealth interface. In intelligent.ts the class definition was replaced with `import { ProviderHealthRegistry } from './health-registry'` plus re-exports (`export { ProviderHealthRegistry }` and `export type { ProviderHealth }",
+      "error": null,
+      "duration": 1304031
+    },
+    {
+      "runId": "REM-010__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "failed",
+      "error": "OpenAI tools request failed: 402 Payment Required — {\"error\":{\"message\":\"Insufficient Balance\",\"type\":\"unknown_error\",\"param\":null,\"code\":\"invalid_request_error\"}}",
+      "duration": 1385846
+    },
+    {
+      "runId": "REM-011__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "done",
+      "result": "Extracted PerformanceCache class from packages/router/src/intelligent.ts into a new file packages/router/src/performance-cache.ts. The new file contains the exported PerfEntry interface, the PerformanceCache class (with update, loadFromRows, getScore, getAllScores methods), and the exported PerfScore interface. In intelligent.ts, the class definition was replaced with an import and re-exports: `import { PerformanceCache, type PerfEntry, type PerfScore } from './performance-cache.js'` plus `expor",
+      "error": null,
+      "duration": 1590576
+    },
+    {
+      "runId": "REM-011__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "done",
+      "result": "Extracted PerformanceCache class from packages/router/src/intelligent.ts into packages/router/src/performance-cache.ts. The new file contains the PerformanceCache class, PerfEntry interface, and PerfScore interface. In intelligent.ts, replaced the class definition with an import and re-export so external imports continue to work. All 8 tests pass.",
+      "error": null,
+      "duration": 1440686
+    },
+    {
+      "runId": "REM-011__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "done",
+      "result": "Extracted the PerformanceCache class (along with its PerfEntry and PerfScore types) from packages/router/src/intelligent.ts into a new file packages/router/src/performance-cache.ts. In intelligent.ts, the original class definition was replaced with re-exports (`export { PerformanceCache } from './performance-cache';` and `export type { PerfScore } from './performance-cache';`) so external imports continue to work. The patch validated cleanly and the @omega/router test suite passes (8/8 tests). T",
+      "error": null,
+      "duration": 1760975
+    },
+    {
+      "runId": "REM-011__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "done",
+      "result": "Extracted PerformanceCache from intelligent.ts into a new file performance-cache.ts:\n\n1. Created `packages/router/src/performance-cache.ts` containing the `PerfEntry` interface, `PerformanceCache` class, and `PerfScore` interface (all exported).\n\n2. In `packages/router/src/intelligent.ts`:\n   - Added import: `import { PerformanceCache, type PerfScore } from './performance-cache';`\n   - Replaced the ~98-line class definition with a re-export: `export { PerformanceCache, type PerfScore };` so exis",
+      "error": null,
+      "duration": 1643698
+    },
+    {
+      "runId": "REM-012__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "done",
+      "result": "Extracted StrategyLearner from intelligent.ts into a new file packages/router/src/strategy-learner.ts. The new file contains the StrategyScore interface and StrategyLearner class, importing TaskDomain and RoutingStrategy types from intelligent.ts. In intelligent.ts, the old class definition was removed and replaced with `import { StrategyLearner } from './strategy-learner'` plus a re-export `export { StrategyLearner }` so external imports continue to work. All 8 router tests pass.",
+      "error": null,
+      "duration": 1752488
+    },
+    {
+      "runId": "REM-012__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "done",
+      "result": "Extracted StrategyLearner from packages/router/src/intelligent.ts into a new file packages/router/src/strategy-learner.ts. The new file contains the StrategyScore interface and StrategyLearner class, with type-only imports for TaskDomain and RoutingStrategy from intelligent.ts and Complexity from @omega/core. In intelligent.ts, the class definition was replaced with `export { StrategyLearner } from './strategy-learner';` so external imports continue to work. All 8 router tests pass.",
+      "error": null,
+      "duration": 1800638
+    },
+    {
+      "runId": "REM-012__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "done",
+      "result": "Successfully split StrategyLearner from intelligent.ts:\n\n1. **Created** `packages/router/src/strategy-learner.ts` containing:\n   - The `StrategyScore` interface\n   - The `StrategyLearner` class (with `recordOutcome`, `recommend`, and `getStats` methods)\n   - Imports for `Complexity` from `@omega/core` and `TaskDomain`/`RoutingStrategy` from `./intelligent`\n\n2. **Updated** `packages/router/src/intelligent.ts`:\n   - Added `import { StrategyLearner } from './strategy-learner';` near the top (so the",
+      "error": null,
+      "duration": 2017392
+    },
+    {
+      "runId": "REM-012__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "done",
+      "result": "Successfully split StrategyLearner from intelligent.ts:\n\n1. **Created `packages/router/src/strategy-learner.ts`** — contains the `StrategyLearner` class and its `StrategyScore` interface, with type-only imports of `Complexity` from `@omega/core` and `TaskDomain`/`RoutingStrategy` from `./intelligent`.\n\n2. **Updated `packages/router/src/intelligent.ts`**:\n   - Added `import { StrategyLearner } from './strategy-learner';` and `export { StrategyLearner };` so external consumers still get the class ",
+      "error": null,
+      "duration": 2006410
+    }
+  ],
+  "diffs": {
+    "REM-006": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0,
+      "agentWorktrees": 0,
+      "bestProvider": "none",
+      "meaningful": false
+    },
+    "REM-008": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0,
+      "agentWorktrees": 0,
+      "bestProvider": "none",
+      "meaningful": false
+    },
+    "REM-009": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0,
+      "agentWorktrees": 0,
+      "bestProvider": "none",
+      "meaningful": false
+    },
+    "REM-010": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0,
+      "agentWorktrees": 0,
+      "bestProvider": "none",
+      "meaningful": false
+    },
+    "REM-011": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0,
+      "agentWorktrees": 0,
+      "bestProvider": "none",
+      "meaningful": false
+    },
+    "REM-012": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0,
+      "agentWorktrees": 0,
+      "bestProvider": "none",
+      "meaningful": false
+    }
+  },
+  "byProvider": {
+    "deepseek": {
+      "total": 6,
+      "completed": 6,
+      "failed": 0,
+      "avgDuration": 1058824.5
+    },
+    "kimi": {
+      "total": 6,
+      "completed": 3,
+      "failed": 3,
+      "avgDuration": 1075455.8333333333
+    },
+    "qwen": {
+      "total": 6,
+      "completed": 6,
+      "failed": 0,
+      "avgDuration": 1206686
+    },
+    "minimax": {
+      "total": 6,
+      "completed": 2,
+      "failed": 4,
+      "avgDuration": 1275427.8333333333
+    }
+  },
+  "byTask": {
+    "REM-006": {
+      "title": "Fix abort signal in retry sleep (executor.ts)",
+      "priority": "medium",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0,
+        "agentWorktrees": 0,
+        "bestProvider": "none",
+        "meaningful": false
+      }
+    },
+    "REM-008": {
+      "title": "Expand isReadOnlyShellCommand regex (executor.ts)",
+      "priority": "medium",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0,
+        "agentWorktrees": 0,
+        "bestProvider": "none",
+        "meaningful": false
+      }
+    },
+    "REM-009": {
+      "title": "Add mutex to task-queue.ts",
+      "priority": "high",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0,
+        "agentWorktrees": 0,
+        "bestProvider": "none",
+        "meaningful": false
+      }
+    },
+    "REM-010": {
+      "title": "Split ProviderHealthRegistry from intelligent.ts",
+      "priority": "critical",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0,
+        "agentWorktrees": 0,
+        "bestProvider": "none",
+        "meaningful": false
+      }
+    },
+    "REM-011": {
+      "title": "Split PerformanceCache from intelligent.ts",
+      "priority": "critical",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0,
+        "agentWorktrees": 0,
+        "bestProvider": "none",
+        "meaningful": false
+      }
+    },
+    "REM-012": {
+      "title": "Split StrategyLearner from intelligent.ts",
+      "priority": "critical",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0,
+        "agentWorktrees": 0,
+        "bestProvider": "none",
+        "meaningful": false
+      }
+    }
+  }
+}

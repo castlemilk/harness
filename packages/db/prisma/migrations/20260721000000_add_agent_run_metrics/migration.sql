@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "AgentRun" ADD COLUMN "costUsd" DOUBLE PRECISION;
+ALTER TABLE "AgentRun" ADD COLUMN "turnCount" INTEGER;
+ALTER TABLE "AgentRun" ADD COLUMN "toolCalls" TEXT;

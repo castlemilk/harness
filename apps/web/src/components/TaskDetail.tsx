@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { TraceFlow } from './TraceFlow.js';
 import { TraceAnalysisPanel } from './TraceAnalysisPanel.js';
+import { LiveTaskConsole } from './LiveTaskConsole.js';
+import { DiffViewer } from './DiffViewer.js';
+import { ErrorBadge } from './ErrorBadge.js';
+import { OrchestrationView } from './OrchestrationView.js';
 
 interface Step {
   id: string;
@@ -38,6 +42,11 @@ interface AgentRun {
 
 interface Props {
   taskId: string;
+  taskStatus?: string;
+  taskError?: string | null;
+  failureCategory?: string | null;
+  projectId?: string;
+  tags?: string[];
 }
 
 function statusColor(status: string) {
@@ -47,13 +56,15 @@ function statusColor(status: string) {
   return 'text-gray-500';
 }
 
-export function TaskDetail({ taskId }: Props) {
+export function TaskDetail({ taskId, taskStatus, taskError, failureCategory, projectId, tags }: Props) {
   const [steps, setSteps] = useState<Step[]>([]);
   const [traces, setTraces] = useState<Trace[]>([]);
   const [diffs, setDiffs] = useState<Diff[]>([]);
   const [agentRun, setAgentRun] = useState<AgentRun | null>(null);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<'steps' | 'traces' | 'diff' | 'trace' | 'analysis'>('steps');
+  const [tab, setTab] = useState<'steps' | 'traces' | 'diff' | 'trace' | 'analysis' | 'live' | 'orchestration'>('steps');
+  const isRunning = taskStatus === 'in_progress';
+  const isOrchestrated = (tags ?? []).includes('orchestrate');
 
   async function load() {
     setLoading(true);
@@ -74,8 +85,20 @@ export function TaskDetail({ taskId }: Props) {
     void load();
   }, [taskId]);
 
+  useEffect(() => {
+    if (taskStatus === 'in_progress') setTab('live');
+  }, [taskId, taskStatus]);
+
   return (
     <div className="mt-3 border-t border-gray-200 pt-3 text-xs">
+      {(failureCategory ?? taskError) && (
+        <div className="mb-2 flex items-center gap-2">
+          {failureCategory && <ErrorBadge category={failureCategory} />}
+          {taskError && (
+            <span className="text-red-600 truncate" title={taskError}>{taskError}</span>
+          )}
+        </div>
+      )}
       {agentRun && (
         <div className="mb-3 bg-gray-50 p-2 rounded space-y-1">
           <div className="flex justify-between">
@@ -123,6 +146,23 @@ export function TaskDetail({ taskId }: Props) {
           className={`px-2 py-1 rounded ${tab === 'analysis' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}
         >
           Analysis
+        </button>
+        {isOrchestrated && projectId && (
+          <button
+            onClick={() => { setTab('orchestration'); }}
+            className={`px-2 py-1 rounded ${tab === 'orchestration' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}
+          >
+            Orchestration
+          </button>
+        )}
+        <button
+          onClick={() => { setTab('live'); }}
+          className={`px-2 py-1 rounded flex items-center gap-1 ${tab === 'live' ? 'bg-green-100 text-green-700' : 'bg-gray-100'}`}
+        >
+          <span
+            className={`inline-block w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}
+          />
+          Live
         </button>
         <button onClick={() => { void load(); }} className="ml-auto px-2 py-1 bg-gray-100 rounded">
           Refresh
@@ -175,7 +215,14 @@ export function TaskDetail({ taskId }: Props) {
       {tab === 'diff' && (
         <div className="max-h-64 overflow-auto">
           {diffs.length > 0 ? (
-            <pre className="text-[10px] bg-gray-900 text-green-400 p-2 rounded overflow-auto">{diffs[0]?.patch}</pre>
+            <div className="space-y-3">
+              {diffs.map((diff) => (
+                <div key={diff.id}>
+                  <div className="text-[10px] text-gray-500 font-mono mb-1">{diff.branch}</div>
+                  <DiffViewer patch={diff.patch} />
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="text-gray-400">No diff recorded.</div>
           )}
@@ -184,6 +231,8 @@ export function TaskDetail({ taskId }: Props) {
 
       {tab === 'trace' && <TraceFlow taskId={taskId} />}
       {tab === 'analysis' && <TraceAnalysisPanel taskId={taskId} />}
+      {tab === 'live' && <LiveTaskConsole taskId={taskId} />}
+      {tab === 'orchestration' && projectId && <OrchestrationView taskId={taskId} projectId={projectId} />}
     </div>
   );
 }

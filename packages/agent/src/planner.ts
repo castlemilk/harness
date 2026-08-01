@@ -43,7 +43,9 @@ ${toolDescriptions}
 
 If a step does not need a tool, omit tool/input. Use edit_file for small file changes. When planning run_command steps, use only simple single commands without pipes (|), &&, ;, redirects, unquoted globs, or $(). Quote literal globs in arguments if needed, e.g., find . -name "*.ts".
 
-When the task involves a test suite or failing tests, the first steps must be: (1) run the focused test command to identify failures, (2) read the failing test files, and only then (3) implement the smallest fix. For Kea / signal / selector tasks, the plan must include explicit steps to: (a) read the relevant selector tests, (b) implement the exact selector signature and memoization, (c) wire the feature into the existing framework by modifying src/kea/build.ts, src/core/selectors.ts, src/kea/context.ts, and src/index.ts as needed, and (d) verify the public API surface with verify_api_surface before finishing. Do not finish until the wiring is complete and tested.`;
+When the task involves a test suite or failing tests, the first steps must be: (1) run the focused test command to identify failures, (2) read the failing test files, and only then (3) implement the smallest fix. Detect the language from the build files (go.mod/Cargo.toml/pyproject.toml/package.json) and use the matching build and test command. The plan MUST end with a verification step that runs the project's build/compile command and existing-test command and confirms both pass before finish — a broken build scores zero. If the task adds new behavior, the verification step must also run the new feature tests (f2p) and fix every failure; passing existing tests (p2p) alone is insufficient. If the task adds a public API to an existing framework, include a step to wire it into the existing entry point/builder and a verify_api_surface check.
+
+If the project context contains a detailed skill with exact edit_file/write_file blocks and verification commands, base the plan on that skill. Treat the skill as the reference implementation: perform the exact edits in order, run the skill's verification commands, and do not invent alternative approaches unless a skill step fails.`;
 
 export async function createPlan(
   provider: Provider,
@@ -55,8 +57,10 @@ export async function createPlan(
   const contextBlock = context ? `\n\nProject context:\n${context}` : '';
   const prompt = `${PLAN_PROMPT}${contextBlock}\n\nTask: ${taskTitle}\n${taskDescription ? `Description: ${taskDescription}\n` : ''}`;
   // Try tool-aware path first, fall back to plain send.
+  // Skips sendWithTools for providers known to 429 on tool endpoints (GLM/Z.AI).
   let raw: string;
-  if ('sendWithTools' in provider && typeof provider.sendWithTools === 'function') {
+  const providerConfig = 'config' in provider ? (provider as { config: { name: string } }).config : undefined;
+  if (providerConfig?.name !== 'glm' && 'sendWithTools' in provider && typeof provider.sendWithTools === 'function') {
     raw = await provider.sendWithTools(prompt, PLANNING_TOOLS, {
       system: PLAN_PROMPT,
       temperature: 0.2,
@@ -78,10 +82,10 @@ export async function createPlan(
       reasoning: raw,
       plan: [
         { name: 'Explore package and entry files', tool: 'read_file', input: { path: 'package.json' } },
-        { name: 'Explore source layout', tool: 'run_command', input: { command: 'find . -maxdepth 2 -type f' } },
+        { name: 'Explore source layout', tool: 'list_files', input: { path: '.', recursive: true } },
         { name: 'Read relevant source files', tool: 'think', input: { thought: 'Read the source files most relevant to the task.' } },
         { name: 'Implement change', tool: 'think', input: { thought: 'Make the smallest edits that satisfy the task requirements.' } },
-        { name: 'Validate', tool: 'run_command', input: { command: 'pnpm lint' } },
+        { name: 'Validate', tool: 'run_command', input: { command: 'npm test' } },
         { name: 'Finish', tool: 'finish', input: { summary: 'Task complete.', success: true } },
       ],
     };

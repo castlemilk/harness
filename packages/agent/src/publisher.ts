@@ -6,6 +6,12 @@ import { createTag, push } from './git.js';
 
 const execFileAsync = promisify(execFile);
 
+const COREPACK_ENV: NodeJS.ProcessEnv = {
+  ...process.env,
+  COREPACK_INTEGRITY_KEYS: '0',
+  COREPACK_ENABLE_AUTO_PIN: '0',
+};
+
 export interface PublishResult {
   success: boolean;
   version?: string;
@@ -45,12 +51,12 @@ export async function publishOmega(projectPath: string, versionOverride?: string
     bundlePackage.version = newVersion;
     await fs.writeFile(bundlePackagePath, JSON.stringify(bundlePackage, null, 2) + '\n', 'utf-8');
 
-    await execFileAsync('pnpm', ['install'], { cwd: projectPath, timeout: 120_000 });
-    await execFileAsync('pnpm', ['build'], { cwd: projectPath, timeout: 300_000 });
+    await execFileAsync('corepack', ['pnpm@10.18.0', 'install'], { cwd: projectPath, timeout: 120_000, env: COREPACK_ENV });
+    await execFileAsync('corepack', ['pnpm@10.18.0', 'build'], { cwd: projectPath, timeout: 300_000, env: COREPACK_ENV });
     await execFileAsync(
-      'pnpm',
-      ['--filter', '@castlemilk/omega', 'publish', '--no-git-checks'],
-      { cwd: projectPath, timeout: 120_000 }
+      'corepack',
+      ['pnpm@10.18.0', '--filter', '@castlemilk/omega', 'publish', '--no-git-checks'],
+      { cwd: projectPath, timeout: 120_000, env: COREPACK_ENV }
     );
 
     const tag = `v${newVersion}`;

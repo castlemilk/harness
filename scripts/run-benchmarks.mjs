@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import http from 'node:http';
 import net from 'node:net';
 import { spawn } from 'node:child_process';
@@ -10,7 +11,8 @@ import * as protoLoader from '@grpc/proto-loader';
 
 const __filename = fileURLToPath(import.meta.url);
 const root = path.resolve(__filename, '..', '..');
-const reportsDir = path.join(root, '.omega', 'reports');
+const storageRoot = process.env.OMEGA_STORAGE_ROOT ?? path.join(os.homedir(), '.omega');
+const reportsDir = path.join(storageRoot, 'reports');
 const PROTO_PATH = path.join(root, 'proto', 'tasks.proto');
 
 function nowIso() {
@@ -178,7 +180,7 @@ async function main() {
   await fs.mkdir(reportsDir, { recursive: true });
   const ts = nowIso();
   const reportFile = path.join(reportsDir, `benchmark-${ts}.json`);
-  const dbDir = path.join('/tmp', `omega-bench-${Date.now()}`);
+  const dbDir = path.join(storageRoot, 'work', 'bench', String(Date.now()));
 
   const httpPort = await findPort(4000);
   const grpcPort = await findPort(50051);

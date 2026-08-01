@@ -4,6 +4,7 @@ export interface BenchmarkTask {
   title: string;
   description?: string;
   complexity?: 'simple' | 'medium' | 'complex';
+  tags?: string[];
   setup?: (projectPath: string) => Promise<void>;
   evaluate: (ctx: EvaluationContext) => BenchmarkEvaluation | Promise<BenchmarkEvaluation>;
 }
@@ -16,6 +17,7 @@ export interface EvaluationContext {
   agentRun?: AgentRunInfo;
   diffs: DiffInfo[];
   traceFlow?: TraceFlowInfo;
+  traceSummary?: TraceSummary;
 }
 
 export interface BenchmarkEvaluation {
@@ -33,6 +35,9 @@ export interface AgentRunInfo {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  costUsd?: number;
+  turnCount?: number;
+  toolCalls?: string;
   promptVersionId?: string;
   createdAt: string;
   updatedAt: string;
@@ -58,6 +63,28 @@ export interface TraceSpanNode {
   children: TraceSpanNode[];
 }
 
+export interface TraceSummary {
+  taskId: string;
+  agentRunId?: string;
+  totalSpans: number;
+  totalDurationMs: number;
+  promptTokens?: number | null;
+  completionTokens?: number | null;
+  totalTokens?: number | null;
+  toolSummary: ToolSummaryEntry[];
+  topErrors: { tool: string; message: string; time: string }[];
+  phaseDurations: Record<string, number>;
+}
+
+export interface ToolSummaryEntry {
+  tool: string;
+  total: number;
+  success: number;
+  failure: number;
+  successRate: number;
+  sampleErrors: string[];
+}
+
 export interface UsageInfo {
   promptTokens?: number;
   completionTokens?: number;
@@ -71,7 +98,9 @@ export interface BenchmarkResult {
   status: 'done' | 'failed' | 'timeout';
   evaluation: BenchmarkEvaluation;
   agentRun?: AgentRunInfo;
+  diffs?: DiffInfo[];
   spanCount: number;
+  traceSummary?: TraceSummary;
   failureAnalysis?: FailureAnalysis;
   usage?: UsageInfo;
   promptVersionId?: string;
@@ -93,6 +122,14 @@ export interface BenchmarkReport {
 }
 
 export type FailureCategory =
+  | 'install_failure'
+  | 'dependency_error'
+  | 'build_failure'
+  | 'compile_error'
+  | 'test_failure'
+  | 'verifier_timeout'
+  | 'patch_apply_failed'
+  | 'model_error'
   | 'timeout'
   | 'validation_failure'
   | 'tool_misuse'
@@ -104,4 +141,5 @@ export interface FailureAnalysis {
   category: FailureCategory;
   rootCause: string;
   evidence: string[];
+  verifierLogFile?: string;
 }

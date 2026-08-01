@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { omegaWorkDir } from '@omega/core';
 import type { BenchmarkReport, BenchmarkResult, BenchmarkTask, BenchmarkEvaluation, TraceFlowInfo } from './types.js';
+import { classifyFailure } from './analyse.js';
 import {
   ensureProject,
   createTask,
@@ -9,10 +10,13 @@ import {
   waitForTask,
   getAgentRun,
   getDiffs,
+  pollForDiffs,
   getTraceFlow,
+  getTraceSummary,
   getPromptVersion,
   countSpans,
 } from './api-client.js';
+import { ensureGitRepo } from './git-utils.js';
 
 export interface RunnerOptions {
   apiUrl: string;
@@ -21,6 +25,9 @@ export interface RunnerOptions {
   projectPrefix?: string;
   provider?: string;
   model?: string;
+  tokenBudget?: number;
+  /** Run tasks via an external coding-agent CLI (e.g. codex, claude-code) instead of an internal model. */
+  externalCli?: string;
   onProgress?: (result: BenchmarkResult) => void;
 }
 
@@ -29,25 +36,11 @@ function countAllSpans(traceFlow?: TraceFlowInfo): number {
   return traceFlow.spans.reduce((acc, span) => acc + countSpans(span), 0);
 }
 
-function ensureGitRepo(repoPath: string): void {
-  try {
-    execSync('git rev-parse --git-dir', { cwd: repoPath, stdio: 'ignore' });
-    return;
-  } catch {
-    // not a git repo; initialise one.
-  }
-  execSync('git init', { cwd: repoPath, stdio: 'ignore' });
-  execSync('git config user.email "bench@omega.local"', { cwd: repoPath, stdio: 'ignore' });
-  execSync('git config user.name "Omega Bench"', { cwd: repoPath, stdio: 'ignore' });
-  execSync('git add .', { cwd: repoPath, stdio: 'ignore' });
-  execSync('git commit -m "bench init"', { cwd: repoPath, stdio: 'ignore' });
-}
-
 export async function runBenchmark(
   tasks: BenchmarkTask[],
   options: RunnerOptions
 ): Promise<BenchmarkReport> {
-  const { apiUrl, suiteName, timeoutMs = 120000, projectPrefix = 'bench' } = options;
+  const { apiUrl, suiteName, timeoutMs = 1800000, projectPrefix = 'bench' } = options;
   const report: BenchmarkReport = {
     timestamp: new Date().toISOString(),
     suite: suiteName,
@@ -59,7 +52,7 @@ export async function runBenchmark(
     results: [],
   };
 
-  const baseDir = path.join('/tmp', `omega-bench-${String(Date.now())}`);
+  const baseDir = path.join(omegaWorkDir(), 'bench', String(Date.now()));
   await fs.mkdir(baseDir, { recursive: true });
 
   for (const task of tasks) {
@@ -69,6 +62,7 @@ export async function runBenchmark(
     let agentRun;
     let diffs: Awaited<ReturnType<typeof getDiffs>> = [];
     let traceFlow;
+    let traceSummary;
     let evaluation: BenchmarkEvaluation = { passed: false, message: 'Task did not complete' };
     let projectId = '';
     let projectPath = '';
@@ -87,11 +81,13 @@ export async function runBenchmark(
       const harnessTask = await createTask(apiUrl, project.id, task.title, {
         description: task.description,
         complexity: task.complexity ?? 'simple',
-        tags: ['benchmark', 'agent'],
+        tags: options.externalCli
+          ? ['benchmark', `external:${options.externalCli}`, task.name, ...(task.tags ?? [])]
+          : ['benchmark', 'agent', task.name, ...(task.tags ?? [])],
       });
       harnessTaskId = harnessTask.id;
 
-      if (options.provider || options.model) {
+      if (!options.externalCli && (options.provider || options.model)) {
         await fetch(`${apiUrl}/tasks/${harnessTaskId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -99,14 +95,23 @@ export async function runBenchmark(
         });
       }
 
-      await runTask(apiUrl, harnessTask.id);
+      await runTask(apiUrl, harnessTask.id, options.tokenBudget);
       const finished = await waitForTask(apiUrl, harnessTask.id, timeoutMs);
       status = finished.status === 'timeout' ? 'timeout' : (finished.status as BenchmarkResult['status']);
 
-      [agentRun, diffs, traceFlow] = await Promise.all([
+      // On timeout, give the agent up to 3 more minutes to finish and commit
+      // its model.patch to the DB before we read the diffs. Without this, the
+      // bench reports 0 patches on every timed-out complex task.
+      const diffsPromise =
+        finished.status === 'timeout'
+          ? pollForDiffs(apiUrl, harnessTask.id)
+          : getDiffs(apiUrl, harnessTask.id);
+
+      [agentRun, diffs, traceFlow, traceSummary] = await Promise.all([
         getAgentRun(apiUrl, harnessTask.id),
-        getDiffs(apiUrl, harnessTask.id),
+        diffsPromise,
         getTraceFlow(apiUrl, harnessTask.id),
+        getTraceSummary(apiUrl, harnessTask.id),
       ]);
 
       if (agentRun?.promptVersionId) {
@@ -121,6 +126,7 @@ export async function runBenchmark(
         agentRun,
         diffs,
         traceFlow,
+        traceSummary,
       });
     } catch (err) {
       evaluation = {
@@ -137,10 +143,16 @@ export async function runBenchmark(
       status,
       evaluation,
       agentRun,
+      diffs,
       spanCount: countAllSpans(traceFlow),
+      traceSummary,
       promptVersionId: agentRun?.promptVersionId,
       promptHash: promptVersion?.hash,
     };
+
+    if (!evaluation.passed) {
+      result.failureAnalysis = classifyFailure(result, traceFlow);
+    }
 
     if (status === 'timeout') report.timeouts++;
     else if (evaluation.passed) report.passed++;

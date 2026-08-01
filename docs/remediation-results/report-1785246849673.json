@@ -1,0 +1,385 @@
+{
+  "backlog": "/Users/benebsworth/projects/omega/harness/scripts/remediation-backlog.json",
+  "executedAt": "2026-07-28T13:54:09.672Z",
+  "summary": {
+    "totalTasks": 6,
+    "totalProviders": 4,
+    "totalRuns": 24,
+    "completed": 24,
+    "failed": 0
+  },
+  "results": [
+    {
+      "runId": "REM-006__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "done",
+      "result": "Made the retry sleep in withProviderRetry (packages/agent/src/executor.ts) abort-aware: replaced the bare setTimeout-based sleep with a Promise that clears the timer and rejects with a DOMException('Aborted','AbortError') when the abort signal fires. Threaded an AbortSignal parameter through withProviderRetry's signature and updated its two call sites (planner and reflection) to pass ctx.signal. Patch validated cleanly and the package test command passes (no test files, exit 0).",
+      "error": null,
+      "duration": 248392
+    },
+    {
+      "runId": "REM-006__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "done",
+      "result": "Replaced the bare setTimeout-based sleep in `withProviderRetry` with an abort-aware version that accepts an optional `AbortSignal`, clears the timeout on abort, and rejects with a `DOMException('Aborted', 'AbortError')`. Tests pass (pnpm test exits cleanly with code 0).",
+      "error": null,
+      "duration": 120035
+    },
+    {
+      "runId": "REM-006__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "done",
+      "result": "Made the retry backoff sleep in withProviderRetry (packages/agent/src/executor.ts) abort-aware: added an optional `signal?: AbortSignal` parameter, replaced the bare `setTimeout` sleep with a promise that clears the timer and rejects with `new DOMException('Aborted', 'AbortError')` when the signal aborts (listener registered with `{ once: true }`), and threaded `ctx.signal` through the planner and reflection call sites. Ran `pnpm test`: agent/providers/skills suites pass; the only failure is a p",
+      "error": null,
+      "duration": 209623
+    },
+    {
+      "runId": "REM-006__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "done",
+      "result": "Replaced the bare `setTimeout`-based sleep in `withProviderRetry` with an abort-aware version. The function now accepts an optional `AbortSignal` parameter. During the backoff wait, if the signal fires, the timer is cleared and the promise rejects with an `AbortError`, making the retry sleep properly cancellable. The agent package tests pass (no test files, --passWithNoTests).",
+      "error": null,
+      "duration": 355563
+    },
+    {
+      "runId": "REM-008__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "done",
+      "result": "Expanded the isReadOnlyShellCommand regex in packages/agent/src/executor.ts from /(?:&&|\\|\\||;)/ to /(?:&&|\\|\\||\\|&|;)/, adding support for bash's |& (pipe-with-stderr) operator. Test suite ran successfully (no test files, passed with --passWithNoTests).",
+      "error": null,
+      "duration": 310540
+    },
+    {
+      "runId": "REM-008__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "done",
+      "result": "Expanded the `isReadOnlyShellCommand` regex in `packages/agent/src/executor.ts` from `/(?:&&|\\|\\||;)/` to `/(?:&&|\\|\\||\\|&|;)/`, adding support for the bash `|&` (pipe with stderr) operator. Tests pass (no test files found, exit code 0).",
+      "error": null,
+      "duration": 312666
+    },
+    {
+      "runId": "REM-008__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "done",
+      "result": "Expanded the isReadOnlyShellCommand split regex in packages/agent/src/executor.ts from /(?:&&|\\|\\||;)/ to /(?:&&|\\|\\||\\|&|;)/, adding support for bash's |& pipe-with-stderr operator. Patch validated cleanly and the agent package test suite passes (no test files, exit 0).",
+      "error": null,
+      "duration": 471651
+    },
+    {
+      "runId": "REM-008__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "done",
+      "result": "Changed the regex in `isReadOnlyShellCommand` (packages/agent/src/executor.ts line 105) from `/(?:&&|\\|\\||;)/` to `/(?:&&|\\|\\||\\|&|;)/` to also handle the `|&` (pipe with stderr) bash operator.",
+      "error": null,
+      "duration": 690818
+    },
+    {
+      "runId": "REM-009__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "done",
+      "result": "Added the Promise-based Mutex class after the imports in apps/server/src/lib/task-queue.ts, created a module-level `const mutex = new Mutex()`, and wrapped the queue-state mutations in `processQueue` (now async) and `enqueue` (now async, returning Promise<QueueResult>) with `await mutex.acquire()` / `try { ... } finally { mutex.release(); }`.\n\nI ran `pnpm test` as required. All packages pass except apps/server, which fails during test collection with \"Failed to resolve entry for package @omega/d",
+      "error": null,
+      "duration": 581422
+    },
+    {
+      "runId": "REM-009__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "done",
+      "result": "Added a Promise-based Mutex class to apps/server/src/lib/task-queue.ts after the imports. Created a module-level mutex instance. Wrapped the `enqueue` method (now async) and `processQueue` method (now async) with `await mutex.acquire()` / `try { ... } finally { mutex.release() }`. Updated the two call sites in run-task.ts to await the now-async `enqueue` method.",
+      "error": null,
+      "duration": 635612
+    },
+    {
+      "runId": "REM-009__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "done",
+      "result": "Added a Promise-based Mutex class and module-level mutex instance to apps/server/src/lib/task-queue.ts. Wrapped queue state mutations in processQueue() and enqueue() with mutex.acquire()/release() in try/finally blocks. Made both methods async. The test suite failure is pre-existing (unresolved @omega/db package entry due to missing @omega/core build) and unrelated to this change.",
+      "error": null,
+      "duration": 923555
+    },
+    {
+      "runId": "REM-009__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "done",
+      "result": "Added a Promise-based Mutex class to task-queue.ts. Created a module-level mutex instance and wrapped both `processQueue()` and `enqueue()` methods with `mutex.acquire()` / `mutex.release()` to serialize queue state mutations and prevent race conditions.",
+      "error": null,
+      "duration": 846564
+    },
+    {
+      "runId": "REM-010__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "done",
+      "result": "Extracted ProviderHealthRegistry class and ProviderHealth interface from packages/router/src/intelligent.ts into new file packages/router/src/health-registry.ts. In intelligent.ts, replaced the class definition with an import and re-export (`import { ProviderHealthRegistry, type ProviderHealth } from './health-registry.js'; export { ProviderHealthRegistry, type ProviderHealth };`) so external imports continue to work. Router test suite passes (8/8 tests). Patch validated cleanly.",
+      "error": null,
+      "duration": 911365
+    },
+    {
+      "runId": "REM-010__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "done",
+      "result": "Task was already completed by a prior agent run. The ProviderHealthRegistry class has been extracted to packages/router/src/health-registry.ts with all its types (HealthSample, ProviderHealth) and constants (HEALTH_WINDOW_MS, HEALTH_DECAY). intelligent.ts re-exports it on line 62: export { ProviderHealthRegistry, type ProviderHealth } from './health-registry'.",
+      "error": null,
+      "duration": 1358525
+    },
+    {
+      "runId": "REM-010__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "done",
+      "result": "Extracted the ProviderHealthRegistry class from packages/router/src/intelligent.ts into a new file packages/router/src/health-registry.ts (containing the HealthSample interface, ProviderHealth interface, and the full ProviderHealthRegistry class). In intelligent.ts the class definition was replaced with an import and re-export (`import { ProviderHealthRegistry, type ProviderHealth } from './health-registry.js'; export { ... } from './health-registry.js';`) so external imports keep working. valid",
+      "error": null,
+      "duration": 1453744
+    },
+    {
+      "runId": "REM-010__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "done",
+      "result": "Split ProviderHealthRegistry from intelligent.ts into a new health-registry.ts file:\n\n1. Created packages/router/src/health-registry.ts containing:\n   - HealthSample interface\n   - HEALTH_WINDOW_MS and HEALTH_DECAY constants\n   - ProviderHealthRegistry class with all methods (record, getHealth, isCircuitBroken, getCircuitState, checkRateLimit, rateLimitWaitMs, getEntries)\n   - ProviderHealth interface\n\n2. Modified packages/router/src/intelligent.ts:\n   - Replaced the full class definition and Pr",
+      "error": null,
+      "duration": 1400982
+    },
+    {
+      "runId": "REM-011__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "done",
+      "result": "Extracted PerformanceCache from packages/router/src/intelligent.ts into packages/router/src/performance-cache.ts. The new file contains the PerformanceCache class, the exported PerfEntry interface, and the exported PerfScore interface. In intelligent.ts, the class was replaced with imports using the .js extension (required by nodenext module resolution), plus re-exports of PerformanceCache, PerfScore, and PerfEntry so external imports continue to work. All 8 router tests pass. The only failing t",
+      "error": null,
+      "duration": 2506175
+    },
+    {
+      "runId": "REM-011__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "done",
+      "result": "Extracted the PerformanceCache class from packages/router/src/intelligent.ts into a new file packages/router/src/performance-cache.ts. The new file contains the PerfEntry interface (now exported), the PerformanceCache class, and the PerfScore interface. In intelligent.ts, the original class definition was replaced with imports and re-exports using `.js` extensions (required by node16 module resolution): `import { PerformanceCache } from './performance-cache.js'`, `import type { PerfEntry, PerfSc",
+      "error": null,
+      "duration": 2249410
+    },
+    {
+      "runId": "REM-011__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "done",
+      "result": "Extracted PerformanceCache class and PerfScore interface from packages/router/src/intelligent.ts into a new file packages/router/src/performance-cache.ts. In intelligent.ts, the class definition was replaced with an import and re-export at the top of the file (`import { PerformanceCache } from './performance-cache'; export { PerformanceCache }; export type { PerfScore } from './performance-cache';`), so external imports from intelligent.ts continue to work. Router tests pass (8/8) and the patch ",
+      "error": null,
+      "duration": 2147311
+    },
+    {
+      "runId": "REM-011__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "done",
+      "result": "PerformanceCache class has been successfully extracted from packages/router/src/intelligent.ts into packages/router/src/performance-cache.ts. The intelligent.ts file imports it via `import { PerformanceCache } from './performance-cache'` and re-exports it via `export { PerformanceCache }` so external consumers continue to work. All 8 tests in packages/router pass (vitest run: 1 test file, 8 tests passed).",
+      "error": null,
+      "duration": 2874287
+    },
+    {
+      "runId": "REM-012__deepseek",
+      "provider": "deepseek",
+      "model": "deepseek-v4-pro",
+      "status": "done",
+      "result": "Extracted StrategyLearner class from packages/router/src/intelligent.ts into a new file packages/router/src/strategy-learner.ts. The new file imports TaskDomain and RoutingStrategy types from intelligent.ts and Complexity from @omega/core. In intelligent.ts, the class definition and StrategyScore interface were replaced with a re-export: `export { StrategyLearner } from './strategy-learner'`, ensuring external imports continue to work. All 8 router tests pass.",
+      "error": null,
+      "duration": 2856213
+    },
+    {
+      "runId": "REM-012__kimi",
+      "provider": "kimi",
+      "model": "k3",
+      "status": "done",
+      "result": "Extracted the StrategyLearner class from packages/router/src/intelligent.ts into a new file packages/router/src/strategy-learner.ts (including the private StrategyScore interface and recordOutcome/recommend/getStats methods). intelligent.ts now imports StrategyLearner from './strategy-learner' and re-exports it so external consumers (index.ts) are unaffected. Patch validated cleanly and the router test suite passes (8/8 tests). The only failing suite in the monorepo is apps/server due to a pre-e",
+      "error": null,
+      "duration": 2974879
+    },
+    {
+      "runId": "REM-012__qwen",
+      "provider": "qwen",
+      "model": "qwen3.8-max-preview",
+      "status": "done",
+      "result": "Extracted the StrategyLearner class from packages/router/src/intelligent.ts into a new file packages/router/src/strategy-learner.ts. The new file contains the StrategyScore interface and StrategyLearner class with its imports from @omega/core and type imports from intelligent.ts. In intelligent.ts, the class definition was removed and replaced with an import from './strategy-learner' plus a re-export so external consumers still work. All 8 router tests pass.",
+      "error": null,
+      "duration": 3264552
+    },
+    {
+      "runId": "REM-012__minimax",
+      "provider": "minimax",
+      "model": "MiniMax-M3",
+      "status": "done",
+      "result": "Extracted the StrategyLearner class (and its private StrategyScore interface) from packages/router/src/intelligent.ts into a new packages/router/src/strategy-learner.ts. intelligent.ts now re-exports StrategyLearner from './strategy-learner' so external imports still work. Router tests pass (8/8).",
+      "error": null,
+      "duration": 3180157
+    }
+  ],
+  "diffs": {
+    "REM-006": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0,
+      "agentWorktrees": 0,
+      "bestProvider": "none",
+      "meaningful": false
+    },
+    "REM-008": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0,
+      "agentWorktrees": 0,
+      "bestProvider": "none",
+      "meaningful": false
+    },
+    "REM-009": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0,
+      "agentWorktrees": 0,
+      "bestProvider": "none",
+      "meaningful": false
+    },
+    "REM-010": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0,
+      "agentWorktrees": 0,
+      "bestProvider": "none",
+      "meaningful": false
+    },
+    "REM-011": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0,
+      "agentWorktrees": 0,
+      "bestProvider": "none",
+      "meaningful": false
+    },
+    "REM-012": {
+      "diff": "",
+      "files": [],
+      "diffLen": 0,
+      "agentWorktrees": 0,
+      "bestProvider": "none",
+      "meaningful": false
+    }
+  },
+  "byProvider": {
+    "deepseek": {
+      "total": 6,
+      "completed": 6,
+      "failed": 0,
+      "avgDuration": 1235684.5
+    },
+    "kimi": {
+      "total": 6,
+      "completed": 6,
+      "failed": 0,
+      "avgDuration": 1275187.8333333333
+    },
+    "qwen": {
+      "total": 6,
+      "completed": 6,
+      "failed": 0,
+      "avgDuration": 1411739.3333333333
+    },
+    "minimax": {
+      "total": 6,
+      "completed": 6,
+      "failed": 0,
+      "avgDuration": 1558061.8333333333
+    }
+  },
+  "byTask": {
+    "REM-006": {
+      "title": "Fix abort signal in retry sleep (executor.ts)",
+      "priority": "medium",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0,
+        "agentWorktrees": 0,
+        "bestProvider": "none",
+        "meaningful": false
+      }
+    },
+    "REM-008": {
+      "title": "Expand isReadOnlyShellCommand regex (executor.ts)",
+      "priority": "medium",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0,
+        "agentWorktrees": 0,
+        "bestProvider": "none",
+        "meaningful": false
+      }
+    },
+    "REM-009": {
+      "title": "Add mutex to task-queue.ts",
+      "priority": "high",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0,
+        "agentWorktrees": 0,
+        "bestProvider": "none",
+        "meaningful": false
+      }
+    },
+    "REM-010": {
+      "title": "Split ProviderHealthRegistry from intelligent.ts",
+      "priority": "critical",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0,
+        "agentWorktrees": 0,
+        "bestProvider": "none",
+        "meaningful": false
+      }
+    },
+    "REM-011": {
+      "title": "Split PerformanceCache from intelligent.ts",
+      "priority": "critical",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0,
+        "agentWorktrees": 0,
+        "bestProvider": "none",
+        "meaningful": false
+      }
+    },
+    "REM-012": {
+      "title": "Split StrategyLearner from intelligent.ts",
+      "priority": "critical",
+      "runs": [],
+      "diff": {
+        "diff": "",
+        "files": [],
+        "diffLen": 0,
+        "agentWorktrees": 0,
+        "bestProvider": "none",
+        "meaningful": false
+      }
+    }
+  }
+}

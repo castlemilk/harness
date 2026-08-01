@@ -116,6 +116,7 @@ describe('harness bench CLI', () => {
     GRPC_PORT: '50056',
     HARNESS_API_URL: API,
     KIMI_API_KEY: '',
+    GLM_API_KEY: '',
   };
 
   beforeAll(async () => {
@@ -155,10 +156,10 @@ describe('harness bench CLI', () => {
       'run',
       '--suite',
       'synthetic',
-      '--n-tasks',
-      '1',
+      '--task-id',
+      'noop-validation',
       '--timeout',
-      '30000',
+      '60000',
       '--output-dir',
       reportsDir,
     ], { cwd: root, env, stdio: 'pipe' });

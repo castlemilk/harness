@@ -176,7 +176,7 @@ async function watchTask(taskId: string): Promise<void> {
             const elapsed = startedAt
               ? Math.max(0, Math.round((Date.now() - Date.parse(startedAt)) / 1000))
               : null;
-            parts.push(elapsed !== null ? `${phasePart}(${elapsed}s)` : phasePart);
+            parts.push(elapsed !== null ? `${phasePart}(${String(elapsed)}s)` : phasePart);
           }
           if (typeof agentRun.totalTokens === 'number') parts.push(`tokens=${agentRun.totalTokens}`);
           if (typeof agentRun.branch === 'string') parts.push(`branch=${agentRun.branch}`);

@@ -385,8 +385,21 @@ export async function runExternalAgentTask(
             effort: options.effort,
             onProgress: (message, phase) => {
               runSpan.addEvent('codex.progress', { message, phase: phase ?? undefined });
+              const prev = timingTracker.activePhase?.name;
               recordCodexPhaseTransition(timingTracker, phase, Date.now());
               logger.debug(`codex: ${message}`, { taskId, phase: phase ?? undefined });
+
+              if (isCodexPhase(phase) && prev !== phase) {
+                void prisma.agentRun.update({
+                  where: { id: agentRun.id },
+                  data: { currentPhase: phase, currentPhaseStartedAt: new Date() },
+                }).catch((err: unknown) => {
+                  logger.warn(
+                    `Failed to record codex phase: ${err instanceof Error ? err.message : String(err)}`,
+                    { taskId },
+                  );
+                });
+              }
             },
           });
         } finally {

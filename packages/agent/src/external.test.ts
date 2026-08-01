@@ -169,6 +169,14 @@ describe('runExternalAgentTask', () => {
       }),
     });
 
+    expect(agentRunUpdate).toHaveBeenCalledWith({
+      where: { id: 'run-1' },
+      data: expect.objectContaining({
+        currentPhase: 'verifying',
+        currentPhaseStartedAt: expect.any(Date),
+      }),
+    });
+
     const codexSpan = traceSpanCreate.mock.calls
       .map(([call]) => call as { data?: { name?: string; attributes?: string; events?: string } })
       .find((call) => call.data?.name === 'external.codex');
@@ -259,6 +267,43 @@ describe('runExternalAgentTask', () => {
         turnCount: 1,
         toolCalls: JSON.stringify({ command: 1, fileChange: 1 }),
       }),
+    });
+  });
+
+  it('initializes currentTurn=1 at agentRun creation', async () => {
+    const agentRunCreate = vi.fn().mockResolvedValue({ id: 'run-1' });
+    const agentRunUpdate = vi.fn().mockResolvedValue({});
+    const prisma = {
+      task: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          title: 'Test task',
+          description: 'Test description',
+          tags: null,
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      agentRun: {
+        create: agentRunCreate,
+        update: agentRunUpdate,
+      },
+      taskDiff: {
+        create: vi.fn().mockResolvedValue({}),
+      },
+      traceSpan: {
+        create: vi.fn().mockResolvedValue({}),
+      },
+    } as unknown as PrismaClient;
+
+    await runExternalAgentTask(prisma, 'task-1', {
+      cli: 'codex',
+      projectPath: '/tmp/project',
+      projectName: 'project',
+      timeoutMs: 1_000,
+    });
+
+    expect(agentRunCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ currentTurn: 1 }),
     });
   });
 });

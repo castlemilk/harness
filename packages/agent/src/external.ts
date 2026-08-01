@@ -328,6 +328,7 @@ export async function runExternalAgentTask(
       branch,
       baseCommit: baseCommitSha,
       resultStatus: 'running',
+      currentTurn: 1,
     },
   });
 

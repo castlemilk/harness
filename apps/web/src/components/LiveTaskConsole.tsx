@@ -179,6 +179,17 @@ function PhaseTimings({ timings }: { timings: string }) {
   );
 }
 
+function phaseDotColor(phase: string): string {
+  switch (phase) {
+    case 'investigating': return 'bg-blue-500';
+    case 'editing': return 'bg-purple-500';
+    case 'running': return 'bg-orange-500';
+    case 'verifying': return 'bg-yellow-500';
+    case 'finalizing': return 'bg-green-500';
+    default: return 'bg-gray-400';
+  }
+}
+
 export function LiveTaskConsole({ taskId }: { taskId: string }) {
   const [task, setTask] = useState<LiveTask | null>(null);
   const [agentRun, setAgentRun] = useState<LiveAgentRun | null>(null);
@@ -314,13 +325,11 @@ export function LiveTaskConsole({ taskId }: { taskId: string }) {
                 <span>{formatDuration(agentRun.turnDurationMs)}</span>
               </div>
             )}
-            {agentRun.currentPhase && !ended && (
+            {agentRun.currentPhase && agentRun.resultStatus === 'running' && (
               <div className="flex justify-between items-center">
                 <span className="text-gray-500">Current phase</span>
                 <span className="flex items-center gap-1.5">
-                  {agentRun.resultStatus === 'running' && (
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
-                  )}
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${phaseDotColor(agentRun.currentPhase)} animate-pulse`} />
                   <span>
                     phase={agentRun.currentPhase}
                     {agentRun.currentPhaseStartedAt && (

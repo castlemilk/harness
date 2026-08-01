@@ -154,7 +154,7 @@ export function taskRoutes(prisma: PrismaClient): Router {
     const seenDiffs = new Set<string>(diffs.map((d) => d.id));
     let lastTaskUpdated = task.updatedAt.getTime();
     let lastRunKey = agentRun
-      ? `${agentRun.resultStatus}:${String(agentRun.totalTokens ?? '')}:${String(agentRun.updatedAt.getTime())}`
+      ? `${agentRun.resultStatus}:${String(agentRun.totalTokens ?? '')}:${String(agentRun.updatedAt.getTime())}:${String(agentRun.currentPhase ?? '')}:${String(agentRun.currentPhaseStartedAt?.getTime() ?? '')}:${String(agentRun.currentTurn ?? '')}`
       : '';
 
     send('init', {
@@ -236,7 +236,7 @@ export function taskRoutes(prisma: PrismaClient): Router {
         }
 
         if (run) {
-          const key = `${run.resultStatus}:${String(run.totalTokens ?? '')}:${String(run.updatedAt.getTime())}`;
+          const key = `${run.resultStatus}:${String(run.totalTokens ?? '')}:${String(run.updatedAt.getTime())}:${String(run.currentPhase ?? '')}:${String(run.currentPhaseStartedAt?.getTime() ?? '')}:${String(run.currentTurn ?? '')}`;
           if (key !== lastRunKey) {
             lastRunKey = key;
             send('agent-run', {
@@ -248,6 +248,9 @@ export function taskRoutes(prisma: PrismaClient): Router {
               completionTokens: run.completionTokens ?? undefined,
               totalTokens: run.totalTokens ?? undefined,
               promptVersionId: run.promptVersionId ?? undefined,
+              currentPhase: run.currentPhase ?? undefined,
+              currentPhaseStartedAt: run.currentPhaseStartedAt?.toISOString() ?? undefined,
+              currentTurn: run.currentTurn ?? undefined,
             });
           }
         }

@@ -154,7 +154,7 @@ export function taskRoutes(prisma: PrismaClient): Router {
     const seenDiffs = new Set<string>(diffs.map((d) => d.id));
     let lastTaskUpdated = task.updatedAt.getTime();
     let lastRunKey = agentRun
-      ? `${agentRun.resultStatus}:${String(agentRun.totalTokens ?? '')}:${String(agentRun.updatedAt.getTime())}:${String(agentRun.currentPhase ?? '')}:${String(agentRun.currentPhaseStartedAt?.getTime() ?? '')}:${String(agentRun.currentTurn ?? '')}`
+      ? `${agentRun.resultStatus}:${String(agentRun.totalTokens ?? '')}:${String(agentRun.updatedAt.getTime())}:${agentRun.currentPhase ?? ''}:${String(agentRun.currentPhaseStartedAt?.getTime() ?? '')}:${String(agentRun.currentTurn ?? '')}`
       : '';
 
     send('init', {
@@ -236,7 +236,7 @@ export function taskRoutes(prisma: PrismaClient): Router {
         }
 
         if (run) {
-          const key = `${run.resultStatus}:${String(run.totalTokens ?? '')}:${String(run.updatedAt.getTime())}:${String(run.currentPhase ?? '')}:${String(run.currentPhaseStartedAt?.getTime() ?? '')}:${String(run.currentTurn ?? '')}`;
+          const key = `${run.resultStatus}:${String(run.totalTokens ?? '')}:${String(run.updatedAt.getTime())}:${run.currentPhase ?? ''}:${String(run.currentPhaseStartedAt?.getTime() ?? '')}:${String(run.currentTurn ?? '')}`;
           if (key !== lastRunKey) {
             lastRunKey = key;
             send('agent-run', {

@@ -51,6 +51,9 @@ interface LiveAgentRun {
   promptVersionId?: string;
   turnDurationMs?: number;
   phaseTimings?: string;
+  currentPhase?: string;
+  currentPhaseStartedAt?: string;
+  currentTurn?: number;
 }
 
 interface InitPayload {
@@ -185,6 +188,13 @@ export function LiveTaskConsole({ taskId }: { taskId: string }) {
   const [connected, setConnected] = useState(false);
   const [ended, setEnded] = useState(false);
   const traceBoxRef = useRef<HTMLDivElement | null>(null);
+  const [now, setNow] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    if (ended) return undefined;
+    const id = setInterval(() => { setNow(Date.now()); }, 1000);
+    return () => { clearInterval(id); };
+  }, [ended]);
 
   useEffect(() => {
     setTask(null);
@@ -302,6 +312,25 @@ export function LiveTaskConsole({ taskId }: { taskId: string }) {
               <div className="flex justify-between">
                 <span className="text-gray-500">Turn duration</span>
                 <span>{formatDuration(agentRun.turnDurationMs)}</span>
+              </div>
+            )}
+            {agentRun.currentPhase && !ended && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500">Current phase</span>
+                <span className="flex items-center gap-1.5">
+                  {agentRun.resultStatus === 'running' && (
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                  )}
+                  <span>
+                    phase={agentRun.currentPhase}
+                    {agentRun.currentPhaseStartedAt && (
+                      <>
+                        {' '}
+                        ({formatDuration(now - new Date(agentRun.currentPhaseStartedAt).getTime())})
+                      </>
+                    )}
+                  </span>
+                </span>
               </div>
             )}
             {agentRun.phaseTimings && <PhaseTimings timings={agentRun.phaseTimings} />}

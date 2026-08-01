@@ -201,6 +201,16 @@ async function watchTask(taskId: string): Promise<void> {
         const parts: string[] = [];
         if (typeof parsed.resultStatus === 'string') parts.push(`status=${parsed.resultStatus}`);
         if (typeof parsed.totalTokens === 'number') parts.push(`tokens=${parsed.totalTokens}`);
+        if (typeof parsed.currentPhase === 'string') {
+          const phasePart = `phase=${parsed.currentPhase}`;
+          const startedAt = typeof parsed.currentPhaseStartedAt === 'string'
+            ? parsed.currentPhaseStartedAt
+            : null;
+          const elapsed = startedAt
+            ? Math.max(0, Math.round((Date.now() - Date.parse(startedAt)) / 1000))
+            : null;
+          parts.push(elapsed !== null ? `${phasePart}(${String(elapsed)}s)` : phasePart);
+        }
         if (parts.length > 0) console.log(`[${ts}] agentRun update: ${parts.join('  ')}`);
         break;
       }

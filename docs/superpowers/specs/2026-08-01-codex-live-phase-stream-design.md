@@ -71,13 +71,13 @@ onProgress: (message, phase) => {
 }
 ```
 
-The fire-and-forget `.catch` pattern keeps a telemetry write from failing the run. `prev !== phase` ensures we only write on actual transitions, not on every progress message (which fires dozens of times per turn).
+The `isCodexPhase(phase) && prev !== phase` guard means we only write when the new value is a **known phase** (`investigating`/`editing`/`running`/`verifying`/`finalizing`) and is **different** from the current one. Intermediate values like `'starting'` or `'failed'` emitted by the codex driver (see `codex-driver.ts:587, 691, 709`) are filtered out — they remain on the span event but don't pollute `currentPhase`.
 
-`currentTurn` is set once per turn (default `1`). Multi-turn Codex support isn't built yet, but the field is in place for when it lands.
+`currentTurn` is set to `1` at agentRun creation time (the `prisma.agentRun.create` call in `external.ts` around line 325), in the same code change that introduces the new columns. This guarantees the field is populated on every run even before the codex driver ever emits a phase event. Multi-turn support (incrementing on each turn) is out of scope for this change; the field is in place for when it lands.
 
 ### 3. SSE `agent-run` event payload
 
-`apps/server/src/routes/tasks.ts` — the existing `agent-run` event (line ~227-236) sends a subset of agentRun fields. We extend the payload and the dedup key:
+`apps/server/src/routes/tasks.ts` — the existing `agent-run` event (line ~238-253) sends a subset of agentRun fields. We extend the payload and the dedup key:
 
 ```ts
 send('agent-run', {
@@ -107,6 +107,8 @@ The `init` event's `agentRun` payload (line ~160) already serializes the full ag
 - Render a "Current phase" line in the agent-run summary block (just below `resultStatus`):
   - Text: `phase=verifying (2m14s)` where the elapsed counter is a live-updating relative time (re-render every 1 s via a `useEffect` interval that calls `setNow(Date.now())` while the task is running).
   - When `resultStatus === 'running'` and `currentPhase` is set, show a pulsing dot in the phase's color.
+  - When `ended` is true (the SSE `end` event has fired), hide the live phase indicator and stop the interval — the final `phaseTimings` block (already shipped) still shows cumulative breakdown at end.
+- The `useEffect` for the interval must clear on unmount and on `ended` to avoid React-Strict-Mode double-mount leaks.
 - On phase-change events from the SSE stream, the existing `agent-run` listener updates the `agentRun` state, triggering re-render.
 
 ### 5. CLI `task watch`
@@ -115,13 +117,15 @@ The `init` event's `agentRun` payload (line ~160) already serializes the full ag
 
 - Extend the `init` snapshot's agentRun summary to print `phase=verifying (2m14s)` when `currentPhase` is present.
 - Extend the `agent-run` event handler to print `agentRun: phase=verifying (2m14s)` on updates.
+- The elapsed time in the CLI is computed at the moment the SSE event fires (not a live counter) — `Math.round((Date.now() - Date(currentPhaseStartedAt)) / 1000)`. The CLI is print-only per event; no timer is needed.
 - The liveness dot in `task watch` already ticks every 15 s; the phase transition lines will appear interleaved with it.
+- The CLI prints the final `currentPhase` value (e.g. `finalizing`) on init even for finished tasks — that's intentional, it confirms where Codex ended up. The web UI hides it instead.
 
 ### 6. Tests
 
-**Unit (`packages/agent/src/external.test.ts`):** Extend the existing fake-codex test to assert that when the fake codex emits a `phase=verifying` progress event, the resulting agentRun has `currentPhase: 'verifying'` and `currentPhaseStartedAt` set.
+**Unit (`packages/agent/src/external.test.ts`):** The existing first test already fires `onProgress` for all five phases via a mocked `runCodexTurn`. Extend it to assert that on a phase transition the corresponding `agentRun.update` is called with `{ currentPhase: <phase>, currentPhaseStartedAt: <Date> }`. The fake-codex JSON-RPC fixture (`packages/agent/src/test-fixtures/fake-codex.mjs`) is for `codex-driver.test.ts` and is NOT touched here.
 
-**E2E (`/tmp/omega-e2e.mjs`):** Add a Section 9 check: while a live codex task is running, `GET /tasks/:id/agent-run` returns `currentPhase` populated (one of the known phases) and `currentPhaseStartedAt` within the last few minutes. This validates the DB write path under a real Codex run.
+**E2E (`/tmp/omega-e2e.mjs`):** Extend Section 8 (which already creates a live codex task and races for 45 s) — after the run launches and while the stream is open, periodically poll `GET /tasks/:id/agent-run` and assert that within 30 s `currentPhase` becomes one of the known phase strings. Reuses Section 8's `liveId` so we don't spawn a second Codex run.
 
 ## Data flow
 
@@ -158,12 +162,12 @@ CLI task watch prints phase=verifying 2m14s
 
 - `packages/db/prisma/schema.prisma` — 3 new AgentRun fields.
 - `packages/db/prisma/migrations/20260801000000_add_agent_run_current_phase/migration.sql` — new migration.
-- `packages/agent/src/external.ts` — extend `onProgress` callback (~10 lines).
-- `packages/agent/src/external.test.ts` — extend fake-codex test (~20 lines).
+- `packages/agent/src/external.ts` — extend `onProgress` callback + write `currentTurn: 1` at agentRun creation (~12 lines).
+- `packages/agent/src/external.test.ts` — extend the existing mocked `runCodexTurn` test (~5 lines).
 - `apps/server/src/routes/tasks.ts` — extend `agent-run` event payload + dedup key (~8 lines).
-- `apps/web/src/components/LiveTaskConsole.tsx` — render phase + live counter (~40 lines).
+- `apps/web/src/components/LiveTaskConsole.tsx` — render phase + live counter + cleanup (~40 lines).
 - `apps/cli/src/commands/task.ts` — print phase in init + agent-run handlers (~6 lines).
-- `/tmp/omega-e2e.mjs` — add Section 9 (~20 lines).
+- `/tmp/omega-e2e.mjs` — extend Section 8 with a currentPhase poll (~10 lines).
 
 ## Acceptance criteria
 

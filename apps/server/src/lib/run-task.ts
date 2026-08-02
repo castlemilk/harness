@@ -13,7 +13,7 @@ async function tryAutoRetry(
   prisma: PrismaClient,
   taskId: string,
 ): Promise<void> {
-  if (process.env.OMEGA_AUTO_RETRY !== 'true') return;
+  if ((process.env.OMEGA_AUTO_RETRY ?? 'true').toLowerCase() === 'false') return;
   const task = await prisma.task.findUnique({ where: { id: taskId }, include: { project: true } });
   if (task?.status !== 'failed') return;
 

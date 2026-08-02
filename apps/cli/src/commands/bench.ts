@@ -15,7 +15,6 @@ import {
   harderSuite,
   loadDeepSWESuite,
   loadSWebenchLiteSuite,
-  harderV2Suite,
   runPierBenchmark,
   writeReport,
   printSummary,
@@ -32,11 +31,15 @@ import {
   runHarnessEval,
   writeModelEvalReport,
   parseModelList,
+  loadSuiteTasks,
   runVarianceEval,
   printVarianceSummary,
   saveBenchmarkHistory,
   getCostPerPassRate,
   getPassRateTrend,
+  type BenchmarkTask,
+  STRATEGY_PROMPTS,
+  type StrategyName,
 } from '@omega/bench';
 import { getApiUrl } from '../api.js';
 
@@ -60,9 +63,204 @@ function currentProject(apiUrl: string): Promise<{ id: string }> {
   return ensureProject(apiUrl, `bench-${name}`, cwd);
 }
 
+/** Run the consensus path (best-of-N across models) + persist. Shared by runCmd --strategy consensus and consensusCmd. */
+async function runConsensusCli(opts: {
+  apiUrl: string;
+  suiteName: string;
+  tasks: BenchmarkTask[];
+  models: string;
+  timeoutMs: number;
+  tokenBudget?: number;
+  projectPrefix: string;
+  baseline?: string;
+}): Promise<void> {
+  const models = opts.models.split(',').map((m) => m.trim()).filter(Boolean).map((m) => {
+    // Accepted formats:
+    //   provider/model      → e.g. "minimax/MiniMax-M3", "deepseek/deepseek-v4-pro"
+    //   external:<cli>      → e.g. "external:agy", "external:claude-code"
+    //   <cli> alone         → assumed external, e.g. "agy", "opencode"
+    if (m.startsWith('external:')) {
+      return { provider: 'external', model: m.slice('external:'.length) };
+    }
+    if (m.includes('/')) {
+      const [provider, ...rest] = m.split('/');
+      return { provider, model: rest.join('/') };
+    }
+    return { provider: 'external', model: m };
+  });
+  if (models.length === 0) {
+    throw new Error('--models is required for consensus (e.g. "external:agy,minimax/MiniMax-M3")');
+  }
+
+  console.log(
+    `Running ${String(opts.tasks.length)} tasks across ${String(models.length)} agents in parallel: ${models.map((m) => `${m.provider}/${m.model}`).join(', ')}`,
+  );
+
+  const results = await runConsensusEval(opts.tasks, {
+    apiUrl: opts.apiUrl,
+    models,
+    timeoutMs: opts.timeoutMs,
+    tokenBudget: opts.tokenBudget,
+    projectPrefix: opts.projectPrefix,
+    suiteName: opts.suiteName,
+    onTaskProgress: (taskId, report) => {
+      const winner = report.winner
+        ? `winner: ${report.winner.provider}/${report.winner.model}`
+        : 'no winner';
+      console.log(
+        `  ${report.passed ? '✓' : '✗'} ${taskId} (${String(report.candidates.length)} candidates, ${winner})`,
+      );
+    },
+  });
+
+  if (opts.baseline) {
+    console.log('--baseline comparison only applies to single mode; skipping.');
+  }
+
+  const reportFile = await writeModelEvalReport(results, opts.suiteName);
+  const consensus = results[0];
+  if (consensus.report.consensus) {
+    const c = consensus.report.consensus;
+    console.log(
+      `\nConsensus: ${String(c.passed)}/${String(c.total)} passed (${(c.passRate * 100).toFixed(0)}%)`,
+    );
+    console.log(`  total cost: $${c.totalCostUsd.toFixed(2)}  total tokens: ${c.totalTokens.toLocaleString()}`);
+    console.log(`  wins by model:`, c.winsByModel);
+    console.log(`\nReport written to ${reportFile}`);
+  }
+
+  // Persist consensus results to benchmark history.
+  try {
+    const { PrismaClient } = await import('@omega/db');
+    const prisma = new PrismaClient();
+    await saveBenchmarkHistory(prisma, consensus.report, {
+      provider: 'consensus',
+      model: models.map((m) => m.model).join('+'),
+      reportPath: reportFile,
+      metadata: { winsByModel: consensus.report.consensus?.winsByModel },
+    });
+    await prisma.$disconnect();
+  } catch {
+    // history persistence is best-effort
+  }
+}
+
+/** Run the strategy path (prompt variants) + persist. Shared by runCmd --strategy strategy and strategyCmd. */
+async function runStrategyCli(opts: {
+  apiUrl: string;
+  suiteName: string;
+  tasks: BenchmarkTask[];
+  strategies: string;
+  timeoutMs: number;
+  tokenBudget?: number;
+  projectPrefix: string;
+  provider?: string;
+  model?: string;
+  auto?: boolean;
+  baseline?: string;
+}): Promise<void> {
+  const raw = opts.strategies ?? 'default,verify-before-finish,research-first';
+  const strategies = raw.split(',').map((s) => s.trim()).filter(Boolean) as StrategyName[];
+  const validStrategies = Object.keys(STRATEGY_PROMPTS) as string[];
+  const unknown = strategies.filter((s) => !validStrategies.includes(s));
+  if (unknown.length > 0) {
+    throw new Error(`Unknown strategy: ${unknown.join(', ')}. Allowed: ${validStrategies.join(' | ')}`);
+  }
+  const autoStrategies = opts.auto ?? false;
+
+  console.log(
+    autoStrategies
+      ? `Running ${String(opts.tasks.length)} tasks with auto-selected strategies`
+      : `Running ${String(opts.tasks.length)} tasks across ${String(strategies.length)} strategies: ${strategies.join(', ')}`,
+  );
+
+  const result = await runStrategyEval(opts.tasks, {
+    apiUrl: opts.apiUrl,
+    strategies,
+    timeoutMs: opts.timeoutMs,
+    tokenBudget: opts.tokenBudget,
+    projectPrefix: opts.projectPrefix,
+    provider: opts.provider,
+    model: opts.model,
+    suiteName: opts.suiteName,
+    autoStrategies,
+    onProgress: (taskId, report) => {
+      const w = report.winner ?? 'none';
+      console.log(
+        `  ${report.passed ? '✓' : '✗'} ${taskId} (${String(report.candidates.length)} strategies, winner: ${w})`,
+      );
+    },
+  });
+
+  if (opts.baseline) {
+    console.log('--baseline comparison only applies to single mode; skipping.');
+  }
+
+  console.log(
+    `\nUnion pass rate: ${result.summary.unionPassRate.toFixed(0)}% (${String(result.tasks.filter((r) => r.passed).length)}/${String(result.tasks.length)})`,
+  );
+  console.log(`\nPer-strategy pass rate:`);
+  for (const [name, s] of Object.entries(result.summary.perStrategy)) {
+    console.log(
+      `  ${name.padEnd(24)} ${String(s.passes)}/${String(s.runs)} (${(s.passRate * 100).toFixed(0)}%)  avg ${String(Math.round(s.avgDurationMs / 1000))}s`,
+    );
+  }
+  console.log(`\nWins by strategy:`, result.summary.winsByStrategy);
+
+  // Analyze failures from traces.
+  const insights = analyseFailures(result.tasks);
+  if (insights.length > 0) {
+    console.log(`\n--- Failure Analysis (${String(insights.length)} tasks failed across all strategies) ---`);
+    for (const insight of insights) {
+      console.log(`\n  ${insight.taskName}:`);
+      console.log(`    Reason: ${insight.reason}`);
+      if (insight.toolAnomalies.length > 0) {
+        console.log(`    Tool anomalies: ${insight.toolAnomalies.join('; ')}`);
+      }
+      if (insight.topErrors.length > 0) {
+        console.log(`    Top errors:`);
+        for (const err of insight.topErrors.slice(0, 3)) {
+          console.log(`      ${err}`);
+        }
+      }
+      console.log(`    Suggestion: ${insight.suggestion}`);
+    }
+  }
+
+  // Persist a JSON report for later analysis.
+  const reportPath = `${omegaReportsDir()}/strategy-${opts.suiteName}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+  const fs = await import('node:fs/promises');
+  await fs.mkdir(omegaReportsDir(), { recursive: true });
+  await fs.writeFile(
+    reportPath,
+    JSON.stringify(
+      {
+        timestamp: new Date().toISOString(),
+        suite: opts.suiteName,
+        strategies,
+        summary: result.summary,
+        failureInsights: insights,
+        tasks: result.tasks.map((t) => ({
+          taskId: t.task.id,
+          passed: t.passed,
+          winner: t.winner,
+          durationMs: t.durationMs,
+          totalTokens: t.totalTokens,
+          totalCostUsd: t.totalCostUsd,
+          candidates: t.candidates,
+        })),
+      },
+      null,
+      2,
+    ),
+    'utf-8',
+  );
+  console.log(`\nReport written to ${reportPath}`);
+}
+
 const runCmd = new Command('run')
   .description('Run a benchmark suite')
-  .option('--suite <name>', 'suite name: synthetic | fast | hard | harder | harder-v2 | hard-targeting | deep-swe | swebench-lite | pier', 'synthetic')
+  .option('--suite <name>', 'suite name: synthetic | fast | deep | hard | harder | harder-v2 | hard-targeting | deep-swe | swebench-lite | pier', 'synthetic')
   .option('--path <dir>', 'path to DeepSWE tasks directory (for deep-swe/pier) or SWE-bench JSON file (for swebench-lite)')
   .option('--n-tasks <n>', 'limit number of tasks (for deep-swe/pier/swebench-lite)', parseInt)
   .option('--sample-seed <n>', 'seed for deterministic sampling (for deep-swe/pier/swebench-lite)', parseInt)
@@ -82,6 +280,10 @@ const runCmd = new Command('run')
   .option('--pier-extra <arg>', 'extra Pier CLI arg (repeatable)', collectTaskIds, [])
   .option('--baseline <file>', 'compare against a baseline report after run; exit non-zero on regression')
   .option('--fail-on-regression', 'exit with code 1 if pass rate drops vs baseline (used with --baseline)')
+  .option('--strategy <mode>', 'eval mode: single | consensus | strategy (default: single)', 'single')
+  .option('--models <list>', 'comma-separated provider/model list (required for --strategy consensus, e.g. "external:agy,minimax/MiniMax-M3")')
+  .option('--strategies <list>', 'comma-separated strategies for --strategy strategy (default: default,verify-before-finish,research-first)')
+  .option('--auto', 'auto-select strategies via classifyTask (strategy mode only)')
   .action(async (opts: {
     suite: string;
     path?: string;
@@ -103,7 +305,21 @@ const runCmd = new Command('run')
     pierExtra: string[];
     baseline?: string;
     failOnRegression?: boolean;
+    strategy: string;
+    models?: string;
+    strategies?: string;
+    auto?: boolean;
   }) => {
+    if (opts.strategy !== 'single' && opts.suite === 'pier') {
+      throw new Error('--strategy only applies to the harness suites, not pier');
+    }
+    if (!['single', 'consensus', 'strategy'].includes(opts.strategy)) {
+      throw new Error(`Unknown --strategy value: ${opts.strategy}. Allowed: single | consensus | strategy`);
+    }
+    if (opts.strategy === 'consensus' && !opts.models) {
+      throw new Error('--models is required for --strategy consensus (e.g. "external:agy,minimax/MiniMax-M3")');
+    }
+
     const timeoutMs = Number(opts.timeout);
     const outputDir = opts.outputDir ?? omegaReportsDir();
 
@@ -139,78 +355,50 @@ const runCmd = new Command('run')
     const apiUrl = getApiUrl();
     await waitForApi(apiUrl);
 
-    let tasks;
-    let suiteName: string;
-
-    if (opts.suite === 'deep-swe') {
-      if (!opts.path) {
-        throw new Error('--path is required for the deep-swe suite');
-      }
-      tasks = await loadDeepSWESuite({
-        tasksDir: opts.path,
-        nTasks: opts.nTasks,
-        sampleSeed: opts.sampleSeed,
-        taskIds: opts.taskId.length > 0 ? opts.taskId : undefined,
-        useDocker: opts.docker,
-      });
-      suiteName = 'deep-swe';
-    } else if (opts.suite === 'synthetic') {
-      tasks = syntheticSuite();
-      if (opts.taskId.length > 0) {
-        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
-      }
-      suiteName = 'synthetic';
-    } else if (opts.suite === 'fast') {
-      tasks = fastSuite();
-      if (opts.taskId.length > 0) {
-        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
-      }
-      suiteName = 'fast';
-    } else if (opts.suite === 'hard') {
-      if (!opts.path) {
-        throw new Error('--path is required for the hard suite');
-      }
-      tasks = await hardSuite(opts.path);
-      if (opts.taskId.length > 0) {
-        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
-      }
-      suiteName = 'hard';
-    } else if (opts.suite === 'harder') {
-      tasks = harderSuite();
-      if (opts.taskId.length > 0) {
-        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
-      }
-      suiteName = 'harder';
-    } else if (opts.suite === 'harder-v2') {
-      tasks = harderV2Suite();
-      if (opts.taskId.length > 0) {
-        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
-      }
-      suiteName = 'harder-v2';
-    } else if (opts.suite === 'hard-targeting') {
-      tasks = hardTargetedSuite();
-      if (opts.taskId.length > 0) {
-        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
-      }
-      suiteName = 'hard-targeting';
-    } else if (opts.suite === 'swebench-lite') {
-      if (!opts.path) {
-        throw new Error('--path is required for the swebench-lite suite (path to JSON file)');
-      }
-      tasks = await loadSWebenchLiteSuite({
-        datasetPath: path.resolve(opts.path),
-        nTasks: opts.nTasks,
-        sampleSeed: opts.sampleSeed,
-        taskIds: opts.taskId.length > 0 ? opts.taskId : undefined,
-        repos: opts.repo.length > 0 ? opts.repo : undefined,
-      });
-      suiteName = 'swebench-lite';
-    } else {
-      throw new Error(`Unknown suite: ${opts.suite}`);
-    }
+    const { tasks, suiteName } = await loadSuiteTasks({
+      suite: opts.suite,
+      path: opts.path,
+      nTasks: opts.nTasks,
+      sampleSeed: opts.sampleSeed,
+      taskIds: opts.taskId,
+      repos: opts.repo,
+      useDocker: opts.docker,
+      mode: opts.strategy === 'single' ? 'run' : (opts.strategy as 'consensus' | 'strategy'),
+    });
 
     if (tasks.length === 0) {
       console.log('No benchmark tasks to run.');
+      return;
+    }
+
+    if (opts.strategy === 'consensus') {
+      await runConsensusCli({
+        apiUrl,
+        suiteName,
+        tasks,
+        models: opts.models ?? '',
+        timeoutMs,
+        tokenBudget: opts.tokenBudget,
+        projectPrefix: opts.projectPrefix,
+        baseline: opts.baseline,
+      });
+      return;
+    }
+
+    if (opts.strategy === 'strategy') {
+      await runStrategyCli({
+        apiUrl,
+        suiteName,
+        tasks,
+        strategies: opts.strategies ?? 'default,verify-before-finish,research-first',
+        timeoutMs,
+        tokenBudget: opts.tokenBudget,
+        projectPrefix: opts.projectPrefix,
+        provider: opts.provider,
+        model: opts.model,
+        auto: opts.auto,
+        baseline: opts.baseline,
+      });
       return;
     }
 
@@ -463,7 +651,7 @@ const consensusCmd = new Command('consensus')
       'Pass rate = fraction of tasks where ANY agent succeeded. ' +
       'Cost = sum across all agents.',
   )
-  .option('--suite <name>', 'suite name: fast | deep | harder | hard-targeting | hard', 'harder')
+  .option('--suite <name>', 'suite name: fast | deep | harder | harder-v2 | hard-targeting | hard', 'harder')
   .option(
     '--models <list>',
     'comma-separated models as provider/model (e.g. "external:agy,minimax/MiniMax-M3,deepseek/deepseek-v4-pro")',
@@ -489,89 +677,24 @@ const consensusCmd = new Command('consensus')
       const apiUrl = getApiUrl();
       await waitForApi(apiUrl);
 
-      let tasks;
-      if (opts.suite === 'fast') {
-        tasks = fastSuite();
-      } else if (opts.suite === 'deep') {
-        tasks = deepSuite();
-      } else if (opts.suite === 'harder') {
-        tasks = harderSuite();
-      } else if (opts.suite === 'hard-targeting') {
-        tasks = hardTargetedSuite();
-      } else if (opts.suite === 'hard') {
-        if (!opts.path) throw new Error('--path is required for the hard suite');
-        tasks = await hardSuite(opts.path);
-      } else {
-        throw new Error(`Unknown suite: ${opts.suite}`);
-      }
-      if (opts.taskId.length > 0) {
-        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
-      }
-
-      const models = opts.models.split(',').map((m) => m.trim()).filter(Boolean).map((m) => {
-        // Accepted formats:
-        //   provider/model      → e.g. "minimax/MiniMax-M3", "deepseek/deepseek-v4-pro"
-        //   external:<cli>      → e.g. "external:agy", "external:claude-code"
-        //   <cli> alone         → assumed external, e.g. "agy", "opencode"
-        if (m.startsWith('external:')) {
-          return { provider: 'external', model: m.slice('external:'.length) };
-        }
-        if (m.includes('/')) {
-          const [provider, ...rest] = m.split('/');
-          return { provider, model: rest.join('/') };
-        }
-        return { provider: 'external', model: m };
+      const { tasks, suiteName } = await loadSuiteTasks({
+        suite: opts.suite,
+        path: opts.path,
+        taskIds: opts.taskId,
+        mode: 'consensus',
       });
 
       const timeoutMs = Number(opts.timeout);
 
-      console.log(
-        `Running ${String(tasks.length)} tasks across ${String(models.length)} agents in parallel: ${models.map((m) => `${m.provider}/${m.model}`).join(', ')}`,
-      );
-
-      const results = await runConsensusEval(tasks, {
+      await runConsensusCli({
         apiUrl,
-        models,
+        suiteName,
+        tasks,
+        models: opts.models,
         timeoutMs,
         tokenBudget: opts.tokenBudget,
         projectPrefix: opts.projectPrefix,
-        suiteName: opts.suite,
-        onTaskProgress: (taskId, report) => {
-          const winner = report.winner
-            ? `winner: ${report.winner.provider}/${report.winner.model}`
-            : 'no winner';
-          console.log(
-            `  ${report.passed ? '✓' : '✗'} ${taskId} (${String(report.candidates.length)} candidates, ${winner})`,
-          );
-        },
       });
-
-      const reportFile = await writeModelEvalReport(results, opts.suite);
-      const consensus = results[0];
-      if (consensus.report.consensus) {
-        const c = consensus.report.consensus;
-        console.log(
-          `\nConsensus: ${String(c.passed)}/${String(c.total)} passed (${(c.passRate * 100).toFixed(0)}%)`,
-        );
-        console.log(`  total cost: $${c.totalCostUsd.toFixed(2)}  total tokens: ${c.totalTokens.toLocaleString()}`);
-        console.log(`  wins by model:`, c.winsByModel);
-        console.log(`\nReport written to ${reportFile}`);
-      }
-
-      // Persist consensus results to benchmark history.
-      try {
-        const { PrismaClient } = await import('@omega/db');
-        const prisma = new PrismaClient();
-        await saveBenchmarkHistory(prisma, consensus.report, {
-          provider: 'consensus',
-          model: models.map((m) => m.model).join('+'),
-          reportPath: reportFile,
-          metadata: { winsByModel: consensus.report.consensus?.winsByModel },
-        });
-        await prisma.$disconnect();
-      } catch {
-        // history persistence is best-effort
-      }
     },
   );
 
@@ -582,7 +705,7 @@ const strategyCmd = new Command('strategy')
       'Output: per-(task, strategy) pass/fail plus a per-strategy summary showing ' +
       'which strategies are most useful for which capability categories.',
   )
-  .option('--suite <name>', 'suite name: fast | deep | harder | hard-targeting', 'hard-targeting')
+  .option('--suite <name>', 'suite name: fast | deep | harder | harder-v2 | hard-targeting', 'hard-targeting')
   .option(
     '--strategies <list>',
     'comma-separated strategies: default,verify-before-finish,research-first,concise,plan-then-execute',
@@ -610,110 +733,26 @@ const strategyCmd = new Command('strategy')
       const apiUrl = getApiUrl();
       await waitForApi(apiUrl);
 
-      let tasks;
-      if (opts.suite === 'fast') {
-        tasks = fastSuite();
-      } else if (opts.suite === 'deep') {
-        tasks = deepSuite();
-      } else if (opts.suite === 'harder') {
-        tasks = harderSuite();
-      } else if (opts.suite === 'hard-targeting') {
-        tasks = hardTargetedSuite();
-      } else {
-        throw new Error(`Unknown suite: ${opts.suite}`);
-      }
-      if (opts.taskId.length > 0) {
-        tasks = tasks.filter((t) => opts.taskId.includes(t.id));
-      }
+      const { tasks, suiteName } = await loadSuiteTasks({
+        suite: opts.suite,
+        taskIds: opts.taskId,
+        mode: 'strategy',
+      });
 
-      const strategies = opts.strategies.split(',').map((s) => s.trim()).filter(Boolean) as ('default' | 'verify-before-finish' | 'research-first' | 'concise' | 'plan-then-execute')[];
       const timeoutMs = Number(opts.timeout);
-      const autoStrategies = opts.auto ?? false;
 
-      console.log(
-        autoStrategies
-          ? `Running ${String(tasks.length)} tasks with auto-selected strategies`
-          : `Running ${String(tasks.length)} tasks across ${String(strategies.length)} strategies: ${strategies.join(', ')}`,
-      );
-
-      const result = await runStrategyEval(tasks, {
+      await runStrategyCli({
         apiUrl,
-        strategies,
+        suiteName,
+        tasks,
+        strategies: opts.strategies,
         timeoutMs,
         tokenBudget: opts.tokenBudget,
         projectPrefix: opts.projectPrefix,
         provider: opts.provider,
         model: opts.model,
-        suiteName: opts.suite,
-        autoStrategies,
-        onProgress: (taskId, report) => {
-          const w = report.winner ?? 'none';
-          console.log(
-            `  ${report.passed ? '✓' : '✗'} ${taskId} (${String(report.candidates.length)} strategies, winner: ${w})`,
-          );
-        },
+        auto: opts.auto,
       });
-
-      console.log(
-        `\nUnion pass rate: ${result.summary.unionPassRate.toFixed(0)}% (${String(result.tasks.filter((r) => r.passed).length)}/${String(result.tasks.length)})`,
-      );
-      console.log(`\nPer-strategy pass rate:`);
-      for (const [name, s] of Object.entries(result.summary.perStrategy)) {
-        console.log(
-          `  ${name.padEnd(24)} ${String(s.passes)}/${String(s.runs)} (${(s.passRate * 100).toFixed(0)}%)  avg ${String(Math.round(s.avgDurationMs / 1000))}s`,
-        );
-      }
-      console.log(`\nWins by strategy:`, result.summary.winsByStrategy);
-
-      // Analyze failures from traces.
-      const insights = analyseFailures(result.tasks);
-      if (insights.length > 0) {
-        console.log(`\n--- Failure Analysis (${String(insights.length)} tasks failed across all strategies) ---`);
-        for (const insight of insights) {
-          console.log(`\n  ${insight.taskName}:`);
-          console.log(`    Reason: ${insight.reason}`);
-          if (insight.toolAnomalies.length > 0) {
-            console.log(`    Tool anomalies: ${insight.toolAnomalies.join('; ')}`);
-          }
-          if (insight.topErrors.length > 0) {
-            console.log(`    Top errors:`);
-            for (const err of insight.topErrors.slice(0, 3)) {
-              console.log(`      ${err}`);
-            }
-          }
-          console.log(`    Suggestion: ${insight.suggestion}`);
-        }
-      }
-
-      // Persist a JSON report for later analysis.
-      const reportPath = `${omegaReportsDir()}/strategy-${opts.suite}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-      const fs = await import('node:fs/promises');
-      await fs.mkdir(omegaReportsDir(), { recursive: true });
-      await fs.writeFile(
-        reportPath,
-        JSON.stringify(
-          {
-            timestamp: new Date().toISOString(),
-            suite: opts.suite,
-            strategies,
-            summary: result.summary,
-            failureInsights: insights,
-            tasks: result.tasks.map((t) => ({
-              taskId: t.task.id,
-              passed: t.passed,
-              winner: t.winner,
-              durationMs: t.durationMs,
-              totalTokens: t.totalTokens,
-              totalCostUsd: t.totalCostUsd,
-              candidates: t.candidates,
-            })),
-          },
-          null,
-          2,
-        ),
-        'utf-8',
-      );
-      console.log(`\nReport written to ${reportPath}`);
     },
   );
 

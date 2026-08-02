@@ -371,7 +371,7 @@ export function taskRoutes(prisma: PrismaClient): Router {
       error: task.error ?? '',
     };
 
-    const attempt = getNextStrategy(ctx);
+    const attempt = await getNextStrategy(ctx);
     if (!attempt) {
       res.status(400).json({ error: 'No more retry strategies available', retryCount: task.retryCount });
       return;

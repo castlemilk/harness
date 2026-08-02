@@ -32,6 +32,7 @@ export interface RetryAttempt {
   strategy: string;
   provider?: string;
   model?: string;
+  effort?: string;
   cli?: ExternalCli;
   tokenBudget?: number;
 }
@@ -159,6 +160,10 @@ const RETRY_STRATEGIES: RetryStrategy[] = [
   },
 ];
 
+export const STRATEGIES_BY_NAME: Record<string, RetryStrategy> = Object.fromEntries(
+  RETRY_STRATEGIES.map((s) => [s.name, s]),
+);
+
 export async function getNextStrategy(ctx: RetryContext): Promise<RetryAttempt | undefined> {
   if (ctx.task.retryCount >= MAX_RETRIES) return undefined;
   for (const strategy of RETRY_STRATEGIES) {
@@ -174,31 +179,48 @@ export async function executeRetry(
   attempt: RetryAttempt,
   options: { projectPath: string; projectName: string; autoPublish: boolean },
 ): Promise<void> {
-  const record: RetryRecord = {
-    strategy: attempt.strategy,
-    provider: attempt.provider,
-    model: attempt.model,
-    error: '',
-    timestamp: new Date().toISOString(),
-  };
+  // 1. Pre-run task row update: persist the active provider/model on the task row.
+  //    This is the path that executor.ts / orchestrator.ts already honor via
+  //    task.assignedModel (a { provider, model } record).
+  const taskUpdate: Record<string, unknown> = {};
+  if (attempt.provider) taskUpdate.provider = attempt.provider;
+  if (attempt.model) taskUpdate.model = attempt.model;
+  if (Object.keys(taskUpdate).length > 0) {
+    await prisma.task.update({ where: { id: taskId }, data: taskUpdate });
+  }
 
+  // 2. Pre-run audit: append to retryHistory BEFORE the run so successful retries leave a record.
+  const task = await prisma.task.findUnique({ where: { id: taskId } });
+  if (task) {
+    const existing = safeJsonParse<RetryRecord[]>(task.retryHistory, []);
+    const record: RetryRecord = {
+      strategy: attempt.strategy,
+      provider: attempt.provider,
+      model: attempt.model,
+      error: '', // populated on failure below
+      timestamp: new Date().toISOString(),
+    };
+    existing.push(record);
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { retryHistory: JSON.stringify(existing) },
+    });
+  }
+
+  // Hoist the intelligent router for health-aware provider selection (used in two branches below).
+  const { getRouter } = await import('./intelligent-router.js');
+  const router = await getRouter(prisma);
+
+  // 3. Run the retry.
   try {
-    const tags: string[] = [];
-    if (attempt.cli) {
-      tags.push(`external:${attempt.cli}`);
-    }
-    tags.push('agent', 'retry');
-
-    // Get the intelligent router for health-aware provider selection
-    const { getRouter } = await import('./intelligent-router.js');
-    const router = await getRouter(prisma);
-
     if (attempt.cli) {
       await runExternalAgentTask(prisma, taskId, {
         projectPath: options.projectPath,
         projectName: options.projectName,
         autoPublish: options.autoPublish,
         cli: attempt.cli,
+        model: attempt.model,    // NEW: pass attempt.model
+        effort: attempt.effort,  // NEW: pass attempt.effort
       });
     } else if (attempt.strategy === 'orchestrated-fallback') {
       const { runOrchestratedTask } = await import('@omega/agent');
@@ -210,6 +232,7 @@ export async function executeRetry(
         intelligentRouter: router,
       });
     } else {
+      // internal task — task row already updated with provider/model; the runner honors it.
       await runAgentTask(prisma, taskId, {
         projectPath: options.projectPath,
         projectName: options.projectName,
@@ -218,26 +241,29 @@ export async function executeRetry(
       }, router);
     }
   } catch (err) {
-    record.error = err instanceof Error ? err.message : String(err);
+    const message = err instanceof Error ? err.message : String(err);
+    const provider = attempt.provider ?? attempt.cli ?? undefined;
     void notifyFailure(prisma, {
       taskId,
-      title: '',
-      provider: attempt.provider ?? attempt.cli,
-      model: attempt.model,
-      error: record.error,
+      title: task?.title ?? '',
+      provider,
+      model: attempt.model ?? undefined,
+      error: message,
       tags: ['retry', attempt.strategy],
-      timestamp: record.timestamp,
+      timestamp: new Date().toISOString(),
     });
   }
 
-  const task = await prisma.task.findUnique({ where: { id: taskId } });
-  if (!task) return;
-  const existing = safeJsonParse<RetryRecord[]>(task.retryHistory, []);
-  existing.push(record);
-
-  // Only increment retry count if the task is still failed
-  const isStillFailed = task.status === 'failed' || task.status === 'in_progress';
-
+  // 4. After the run: keep the existing retryCount + lastRetryAt + retryHistory update behavior.
+  const after = await prisma.task.findUnique({ where: { id: taskId } });
+  if (!after) return;
+  const existing = safeJsonParse<RetryRecord[]>(after.retryHistory, []);
+  // Update the latest record with the actual error if any
+  const lastRecord = existing[existing.length - 1];
+  if (lastRecord && lastRecord.error === '') {
+    lastRecord.error = after.error ?? '';
+  }
+  const isStillFailed = after.status === 'failed' || after.status === 'in_progress';
   await prisma.task.update({
     where: { id: taskId },
     data: {
@@ -250,7 +276,7 @@ export async function executeRetry(
   console.log('Retry executed', {
     taskId,
     strategy: attempt.strategy,
-    retryCount: task.retryCount + 1,
-    error: record.error || undefined,
+    retryCount: after.retryCount + 1,
+    error: after.error || undefined,
   });
 }

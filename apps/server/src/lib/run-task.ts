@@ -37,7 +37,7 @@ async function tryAutoRetry(
     error: task.error ?? '',
   };
 
-  const attempt = getNextStrategy(ctx);
+  const attempt = await getNextStrategy(ctx);
   if (!attempt) return;
 
   await prisma.task.update({

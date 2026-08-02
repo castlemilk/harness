@@ -23,7 +23,7 @@ function makePrismaMock(opts: {
 
 function makeCtx(
   overrides: Partial<RetryContext['task']> = {},
-  prisma?: PrismaClient,
+  prisma: PrismaClient = makePrismaMock({}),
 ): RetryContext {
   return {
     task: {

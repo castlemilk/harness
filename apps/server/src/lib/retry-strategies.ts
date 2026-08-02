@@ -25,7 +25,7 @@ export interface RetryContext {
   projectPath: string;
   projectName: string;
   error: string;
-  prisma?: PrismaClient;
+  prisma: PrismaClient;
 }
 
 export interface RetryAttempt {
@@ -103,7 +103,7 @@ const RETRY_STRATEGIES: RetryStrategy[] = [
       const tags = ctx.task.tags;
       if (tags.find((t) => t.startsWith('external:'))) return undefined;
       if (tags.includes('orchestrate')) return undefined;
-      const next = await nextInternalTier(ctx.prisma!, ctx);
+      const next = await nextInternalTier(ctx.prisma, ctx);
       if (!next) return undefined;
       return { strategy: 'tier-escalation', provider: next.provider, model: next.model };
     },
@@ -116,7 +116,7 @@ const RETRY_STRATEGIES: RetryStrategy[] = [
       const tags = ctx.task.tags;
       if (tags.find((t) => t.startsWith('external:'))) return undefined;
       if (tags.includes('orchestrate')) return undefined;
-      const next = await pickDifferentProvider(ctx.prisma!, ctx.task.provider);
+      const next = await pickDifferentProvider(ctx.prisma, ctx.task.provider);
       if (!next) return undefined;
       return { strategy: 'different-provider', provider: next.provider, model: next.model };
     },
@@ -191,6 +191,7 @@ export async function executeRetry(
 
   // 2. Pre-run audit: append to retryHistory BEFORE the run so successful retries leave a record.
   const task = await prisma.task.findUnique({ where: { id: taskId } });
+  const snapshotRetryCount = task?.retryCount ?? 0;
   if (task) {
     const existing = safeJsonParse<RetryRecord[]>(task.retryHistory, []);
     const record: RetryRecord = {
@@ -206,10 +207,6 @@ export async function executeRetry(
       data: { retryHistory: JSON.stringify(existing) },
     });
   }
-
-  // Hoist the intelligent router for health-aware provider selection (used in two branches below).
-  const { getRouter } = await import('./intelligent-router.js');
-  const router = await getRouter(prisma);
 
   // Webhook: notify that a retry is starting (NOT after, so the user is informed of the attempt).
   void notifyRetry(prisma, {
@@ -236,6 +233,8 @@ export async function executeRetry(
         effort: attempt.effort,  // NEW: pass attempt.effort
       });
     } else if (attempt.strategy === 'orchestrated-fallback') {
+      const { getRouter } = await import('./intelligent-router.js');
+      const router = await getRouter(prisma);
       const { runOrchestratedTask } = await import('@omega/agent');
       await runOrchestratedTask(prisma, taskId, {
         projectPath: options.projectPath,
@@ -245,6 +244,8 @@ export async function executeRetry(
         intelligentRouter: router,
       });
     } else {
+      const { getRouter } = await import('./intelligent-router.js');
+      const router = await getRouter(prisma);
       // internal task — task row already updated with provider/model; the runner honors it.
       await runAgentTask(prisma, taskId, {
         projectPath: options.projectPath,
@@ -277,14 +278,40 @@ export async function executeRetry(
     lastRecord.error = after.error ?? '';
   }
   const isStillFailed = after.status === 'failed' || after.status === 'in_progress';
-  await prisma.task.update({
-    where: { id: taskId },
-    data: {
-      retryCount: isStillFailed ? { increment: 1 } : undefined,
-      lastRetryAt: new Date(),
-      retryHistory: JSON.stringify(existing),
-    },
-  });
+  if (isStillFailed) {
+    try {
+      await prisma.task.update({
+        where: { id: taskId, retryCount: snapshotRetryCount },
+        data: {
+          retryCount: { increment: 1 },
+          lastRetryAt: new Date(),
+          retryHistory: JSON.stringify(existing),
+        },
+      });
+    } catch (err) {
+      // Optimistic-concurrency guard: another concurrent retry already
+      // incremented retryCount. Skip the increment but still record the audit
+      // trail + lastRetryAt for this attempt.
+      const code = (err as { code?: string }).code;
+      if (code !== 'P2025') throw err;
+      await prisma.task.update({
+        where: { id: taskId },
+        data: {
+          lastRetryAt: new Date(),
+          retryHistory: JSON.stringify(existing),
+        },
+      });
+      console.warn('Retry concurrent-update race detected, skipping increment', { taskId, snapshotRetryCount });
+    }
+  } else {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        lastRetryAt: new Date(),
+        retryHistory: JSON.stringify(existing),
+      },
+    });
+  }
 
   console.log('Retry executed', {
     taskId,

@@ -398,7 +398,7 @@ export function taskRoutes(prisma: PrismaClient): Router {
     res.status(202).json({
       status: 'in_progress',
       strategy: attempt.strategy,
-      retryCount: task.retryCount + 1,
+      retryCount: task.retryCount,
     });
   }));
 

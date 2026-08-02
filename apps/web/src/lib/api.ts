@@ -78,11 +78,14 @@ export const api = {
   }) => request<Task>('/tasks', { method: 'POST', body: JSON.stringify(body) }),
   runTask: (id: string) => request<Task>(`/tasks/${id}/run`, { method: 'POST' }),
   retryTask: (id: string, strategy?: string) =>
-    request<Task>(`/tasks/${id}/retry`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(strategy ? { strategy } : {}),
-    }),
+    request<{ status: string; strategy: string; retryCount: number }>(
+      `/tasks/${id}/retry`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(strategy ? { strategy } : {}),
+      }
+    ),
   updateTask: (id: string, body: Record<string, unknown>) =>
     request<Task>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
 

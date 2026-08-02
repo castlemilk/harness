@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@omega/db';
 import { runAgentTask, runExternalAgentTask, type ExternalCli } from '@omega/agent';
-import { notifyFailure } from './webhook-alerts.js';
+import { notifyFailure, notifyRetry } from './webhook-alerts.js';
 import { envInt, safeJsonParse } from './utils.js';
 
 export interface RetryStrategy {
@@ -210,6 +210,19 @@ export async function executeRetry(
   // Hoist the intelligent router for health-aware provider selection (used in two branches below).
   const { getRouter } = await import('./intelligent-router.js');
   const router = await getRouter(prisma);
+
+  // Webhook: notify that a retry is starting (NOT after, so the user is informed of the attempt).
+  void notifyRetry(prisma, {
+    taskId,
+    title: task?.title ?? '',
+    provider: attempt.provider ?? attempt.cli ?? null,
+    model: attempt.model ?? null,
+    strategy: attempt.strategy,
+    retryCount: (task?.retryCount ?? 0) + 1,
+    previousError: task?.error ?? '',
+    tags: ['retry', attempt.strategy],
+    timestamp: new Date().toISOString(),
+  });
 
   // 3. Run the retry.
   try {

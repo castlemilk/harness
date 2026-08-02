@@ -18,6 +18,18 @@ export interface FailureAlert {
   severity?: AlertSeverity;
 }
 
+export interface RetryAlert {
+  taskId: string;
+  title: string;
+  provider: string | null;
+  model: string | null;
+  strategy: string;
+  retryCount: number;
+  previousError: string;
+  tags: string[];
+  timestamp: string;
+}
+
 export interface ProviderHealthAlert {
   provider: string;
   event: 'error_rate_threshold' | 'latency_degradation' | 'credential_failure' | 'rate_limit_surge' | 'circuit_open';
@@ -154,6 +166,24 @@ export async function notifyFailure(prisma: PrismaClient, alert: FailureAlert): 
       provider: alert.provider,
       model: alert.model,
       error: alert.error,
+      tags: alert.tags,
+    },
+    timestamp: alert.timestamp,
+  });
+}
+
+export async function notifyRetry(prisma: PrismaClient, alert: RetryAlert): Promise<void> {
+  void prisma; // reserved for future per-task routing
+  await postWebhook('task.retry', {
+    severity: 'info',
+    task: {
+      id: alert.taskId,
+      title: alert.title,
+      provider: alert.provider,
+      model: alert.model,
+      strategy: alert.strategy,
+      retryCount: alert.retryCount,
+      previousError: alert.previousError,
       tags: alert.tags,
     },
     timestamp: alert.timestamp,

@@ -108,8 +108,8 @@ export async function createTask(
 ```
 
 - `runTask`: wrap the `apiFetch` call similarly.
-- **DO NOT wrap `getTask` here** — its only caller is `waitForTask`, which wraps it in `withRetry` already (Step 3). Wrapping both would nest `withRetry(withRetry(fetch))` → 9 attempts per counter increment, destroying the intended "3 failed polls ≈ 10.5s" semantics.
-- Add a note in a comment near the retries: `createTask`/`runTask` are not strictly idempotent but the retry window is small (transport-level failures only) and the server queue dedups `runTask` by task id — a duplicate POST /run for an already-running task is a no-op.
+- **DO NOT wrap `getTask` here** — its only caller is `waitForTask`, which wraps it in `withRetry` already (Step 3). Wrapping both would nest `withRetry(withRetry(fetch))` → 9 attempts per counter increment, destroying the intended "3 failed polls ≈ 5.1s" semantics.
+- Add a note in a comment near the retries (be HONEST about the idempotency, per review): `createTask`/`runTask` are not strictly idempotent. If a transport failure hides a SUCCESSFUL start (server accepted, task → in_progress), the retried `POST /run` hits the server's already-running check (run-task.ts throws `Task ... is already in progress`, route returns 500), burns the backoff attempts, then throws `POST ... -> 500`. The task keeps running server-side; the bench reports a failure for this run. Acceptable + documented — the recovery is to re-run the bench task. Do NOT special-case this in code for now.
 
 - [ ] **Step 3: `waitForTask` — consecutive-failure counter**
 
@@ -471,7 +471,7 @@ describe('withRetry retry policy', () => {
     let calls = 0;
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => {
       calls++;
-      return { ok: false, status: 400, json: async () => ({}) };
+      throw new ApiError(400, 'GET http://x -> 400');
     }));
     await expect(withRetry(() => fetch('http://x'))).rejects.toThrow();
     expect(calls).toBe(1);
@@ -481,7 +481,7 @@ describe('withRetry retry policy', () => {
     let calls = 0;
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => {
       calls++;
-      if (calls < 3) return { ok: false, status: 429, json: async () => ({}) };
+      if (calls < 3) throw new ApiError(429, 'GET http://x -> 429');
       return { ok: true, status: 200, json: async () => ({ ok: true }) };
     }));
     const result = await withRetry(() => fetch('http://x'), { attempts: 3, baseDelayMs: 1 });
@@ -538,6 +538,11 @@ const makeTask = (): BenchmarkTask => ({
   description: 'desc',
   complexity: 'simple',
   tags: [],
+  // Must write a file so ensureGitRepo's 'git add . && git commit' has
+  // something to stage — an empty dir makes git commit exit 1.
+  setup: async (p: string) => {
+    await fs.writeFile(path.join(p, 'README.md'), 'x');
+  },
   evaluate: vi.fn().mockResolvedValue({ passed: false, message: '' }),
 });
 
@@ -610,7 +615,7 @@ Expected: all exit 0. (The `@omega/bench` package is a dependency of `@omega/ser
 timeout 120 pnpm --filter @omega/bench test 2>&1 | tail -15
 ```
 
-Expected: the 9 new tests (6 api-client + 3 runner) pass. Note: this runs the FULL bench test suite (including any existing tests in `consensus.ts`/`strategy-eval.ts` — verify the `waitForTask` behavior-change didn't break them).
+Expected: the 9 new tests (6 api-client + 3 runner) pass. Note: the bench package currently has NO other test files (the `consensus.ts`/`strategy-eval.ts` callers of `waitForTask` are untested — the behavior-change note in Task 1.6's preamble is about the runtime contract, not a regression surface).
 
 - [ ] **Step 3: Agent + server tests still pass**
 

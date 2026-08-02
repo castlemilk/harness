@@ -96,6 +96,7 @@ export interface BenchmarkResult {
   harnessTaskId: string;
   durationMs: number;
   status: 'done' | 'failed' | 'timeout';
+  taskError?: string;
   evaluation: BenchmarkEvaluation;
   agentRun?: AgentRunInfo;
   diffs?: DiffInfo[];
@@ -130,6 +131,8 @@ export type FailureCategory =
   | 'verifier_timeout'
   | 'patch_apply_failed'
   | 'model_error'
+  | 'rate_limit'
+  | 'provider_error'
   | 'timeout'
   | 'validation_failure'
   | 'tool_misuse'

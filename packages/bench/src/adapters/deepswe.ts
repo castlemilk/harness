@@ -854,7 +854,7 @@ async function runCommand(
   command: string,
   args: string[],
   options: { cwd?: string; env?: NodeJS.ProcessEnv; timeout?: number }
-): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+): Promise<{ stdout: string; stderr: string; exitCode: number; timedOut: boolean }> {
   try {
     const { stdout, stderr } = await execFileAsync(command, args, {
       cwd: options.cwd,
@@ -872,13 +872,14 @@ async function runCommand(
       // them and misclassifies successful builds as failures.
       maxBuffer: 32 * 1024 * 1024,
     });
-    return { stdout, stderr, exitCode: 0 };
+    return { stdout, stderr, exitCode: 0, timedOut: false };
   } catch (err) {
-    const e = err as { stdout?: string; stderr?: string; code?: number; message?: string };
+    const e = err as { stdout?: string; stderr?: string; code?: number; message?: string; killed?: boolean; signal?: string };
     return {
       stdout: e.stdout ?? '',
       stderr: e.stderr ?? e.message ?? '',
       exitCode: e.code ?? 1,
+      timedOut: e.killed === true || e.signal === 'SIGTERM',
     };
   }
 }
@@ -1203,7 +1204,7 @@ async function runDeepSWEVerifierDocker(
   baseCommit: string,
   taskName: string,
   modelPatchArg?: string
-): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number }> {
+): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }> {
   const absoluteTaskDir = path.resolve(taskDir);
   const testsDir = path.join(absoluteTaskDir, 'tests');
   const workDir = path.join(omegaWorkDir(), 'deepswe', `${path.basename(taskDir)}-${String(Date.now())}`);
@@ -1259,7 +1260,7 @@ async function runDeepSWEVerifierDocker(
     // ignore write errors
   });
 
-  return { reward, logs, logFile, exitCode: testRun.exitCode };
+  return { reward, logs, logFile, exitCode: testRun.exitCode, timedOut: testRun.timedOut };
 }
 
 async function runDeepSWEVerifier(
@@ -1269,7 +1270,7 @@ async function runDeepSWEVerifier(
   useDocker: boolean,
   taskName: string,
   modelPatchArg?: string
-): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number }> {
+): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }> {
   if (useDocker && (await dockerAvailable())) {
     try {
       const dockerResult = await runDeepSWEVerifierDocker(
@@ -1281,12 +1282,18 @@ async function runDeepSWEVerifier(
       );
       // If Docker ran but produced no usable reward (e.g. build/infra failure),
       // fall back to the local verifier so a correct patch is not punished for
-      // environment issues.
+      // environment issues. A docker timeout → exitCode 1 → docker-validity
+      // check fails → falls back to a fresh local run; verifier_timed_out only
+      // surfaces on the local path.
       if (dockerResult.exitCode === 0 && (dockerResult.reward.reward === 1 || dockerResult.reward.partial !== undefined)) {
         return dockerResult;
       }
+      // A docker timeout surfaces as exitCode 1 → the validity check above fails →
+      // fall back to a fresh local run (verifier_timed_out only surfaces on the
+      // local path). Preserve the docker-side evidence so the timeout is diagnosable.
+      const fallbackLogs = `[Docker verifier ${dockerResult.timedOut ? 'timed out' : 'failed'}, falling back to local]\n${dockerResult.logs}\n\n`;
       const fallback = await runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, taskName, modelPatchArg);
-      return fallback;
+      return { ...fallback, logs: fallbackLogs + fallback.logs };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       // Docker build or runtime failure: try local verifier as fallback.
@@ -1307,7 +1314,7 @@ async function runDeepSWEVerifierLocal(
   baseCommit: string,
   taskName: string,
   modelPatchArg?: string
-): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number }> {
+): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }> {
   const testsDir = path.join(taskDir, 'tests');
   const workDir = path.join(omegaWorkDir(), 'deepswe', `${path.basename(taskDir)}-${String(Date.now())}`);
   const verifierDir = path.join(workDir, 'logs', 'verifier');
@@ -1450,7 +1457,7 @@ async function runDeepSWEVerifierLocal(
     // ignore write errors
   });
 
-  return { reward, logs, logFile, exitCode: testRun.exitCode };
+  return { reward, logs, logFile, exitCode: testRun.exitCode, timedOut: testRun.timedOut };
 }
 
 export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<BenchmarkTask[]> {
@@ -1514,7 +1521,7 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
           .slice()
           .reverse()
           .find((d) => typeof d.patch === 'string' && d.patch.length > 0)?.patch;
-        const { reward, logs, logFile, exitCode } = await runDeepSWEVerifier(
+        const { reward, logs, logFile, exitCode, timedOut } = await runDeepSWEVerifier(
           ctx.projectPath,
           dir,
           commit,
@@ -1531,6 +1538,7 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
           partial: reward.partial ?? 0,
           verifier_exit_code: exitCode,
           verifier_log_file: logFile,
+          ...(timedOut ? { verifier_timed_out: 1 } : {}),
         };
         if (reward.apply_failed) {
           metrics.apply_failed = 1;
@@ -1539,9 +1547,11 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
         return {
           passed,
           score: reward.partial,
-          message: passed
-            ? `DeepSWE verifier passed (f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`
-            : `DeepSWE verifier failed (reward=${String(reward.reward ?? 'missing')}, f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`,
+          message: timedOut
+            ? `DeepSWE verifier timeout (reward=${String(reward.reward ?? 'missing')})`
+            : passed
+              ? `DeepSWE verifier passed (f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`
+              : `DeepSWE verifier failed (reward=${String(reward.reward ?? 'missing')}, f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`,
           metrics,
         };
       },

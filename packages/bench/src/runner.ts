@@ -15,6 +15,7 @@ import {
   getTraceSummary,
   getPromptVersion,
   countSpans,
+  withRetry,
 } from './api-client.js';
 import { ensureGitRepo } from './git-utils.js';
 
@@ -64,6 +65,7 @@ export async function runBenchmark(
     let traceFlow;
     let traceSummary;
     let evaluation: BenchmarkEvaluation = { passed: false, message: 'Task did not complete' };
+    let taskError: string | undefined;
     let projectId = '';
     let projectPath = '';
     let promptVersion: Awaited<ReturnType<typeof getPromptVersion>> = undefined;
@@ -88,15 +90,18 @@ export async function runBenchmark(
       harnessTaskId = harnessTask.id;
 
       if (!options.externalCli && (options.provider || options.model)) {
-        await fetch(`${apiUrl}/tasks/${harnessTaskId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ provider: options.provider, model: options.model }),
-        });
+        await withRetry(() =>
+          fetch(`${apiUrl}/tasks/${harnessTaskId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ provider: options.provider, model: options.model }),
+          }),
+        );
       }
 
       await runTask(apiUrl, harnessTask.id, options.tokenBudget);
       const finished = await waitForTask(apiUrl, harnessTask.id, timeoutMs);
+      taskError = finished.error;
       status = finished.status === 'timeout' ? 'timeout' : (finished.status as BenchmarkResult['status']);
 
       // On timeout, give the agent up to 3 more minutes to finish and commit
@@ -129,10 +134,15 @@ export async function runBenchmark(
         traceSummary,
       });
     } catch (err) {
+      const thrownMessage = err instanceof Error ? err.message : String(err);
       evaluation = {
         passed: false,
-        message: err instanceof Error ? err.message : String(err),
+        message: taskError && !taskError.startsWith('fetch failed') ? taskError : thrownMessage,
       };
+    }
+
+    if (!evaluation.message && taskError) {
+      evaluation = { ...evaluation, message: taskError };
     }
 
     const durationMs = Date.now() - start;
@@ -141,6 +151,7 @@ export async function runBenchmark(
       harnessTaskId,
       durationMs,
       status,
+      taskError,
       evaluation,
       agentRun,
       diffs,

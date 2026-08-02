@@ -143,6 +143,24 @@ function withLog(result: BenchmarkResult, analysis: FailureAnalysis): FailureAna
 export function classifyFailure(result: BenchmarkResult, traceFlow?: TraceFlowInfo): FailureAnalysis {
   const evidence: string[] = [];
 
+  // Infra/provider/rate-limit failures surface in taskError (the server-side
+  // task.error field) even when evaluation never produced a message.
+  if (result.taskError) {
+    const err = result.taskError;
+    // Rate-limit evidence: require a rate/quota/429 signal, not a bare "limit".
+    if (/\brate\b|quota|429/i.test(err)) {
+      return withLog(result, { category: 'rate_limit', rootCause: 'Provider rate limit or quota exceeded.', evidence: [err.slice(0, 300)] });
+    }
+    // Provider/infra evidence: connection-level failures + server 5xx, with
+    // failure context (not a bare "infra" substring that could be a module path).
+    const infraFailure =
+      /fetch failed|unreachable|ECONNRESET|ECONNREFUSED|ETIMEDOUT|socket hang up|UND_ERR|provider.*error|\b5\d\d\b/i.test(err) ||
+      /\binfra(?:structure)?\b.*(?:fail|error|unreachable|unavailable|timeout)/i.test(err);
+    if (infraFailure) {
+      return withLog(result, { category: 'provider_error', rootCause: 'Provider or infra failure.', evidence: [err.slice(0, 300)] });
+    }
+  }
+
   if (result.status === 'timeout') {
     const verifierTimeout = matchEvidence(result, ['verifier_timeout']);
     if (verifierTimeout) {

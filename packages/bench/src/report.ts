@@ -16,7 +16,8 @@ function resultLine(r: BenchmarkResult, idx: number): string {
   const symbol = r.evaluation.passed ? '✓' : '✗';
   const status = r.status === 'timeout' ? 'timeout' : r.status;
   const score = r.evaluation.score !== undefined ? ` (score ${String(r.evaluation.score)})` : '';
-  const msg = r.evaluation.message ? ` — ${r.evaluation.message}` : '';
+  const errText = r.evaluation.message || r.taskError;
+  const msg = errText ? ` — ${errText}` : '';
   return `${String(idx + 1)}. ${symbol} ${r.task.name} [${status}] ${formatDuration(r.durationMs)}${score}${msg}`;
 }
 

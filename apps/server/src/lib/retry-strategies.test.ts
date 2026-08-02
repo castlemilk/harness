@@ -13,7 +13,8 @@ function makePrismaMock(opts: {
       findMany: vi.fn().mockImplementation(async ({ where }: { where?: { enabled?: boolean; kind?: { not?: string } } }) => {
         let result = opts.providers ?? [];
         if (where?.enabled === true) result = result.filter((p) => p.enabled);
-        if (where?.kind?.not) result = result.filter((p) => p.kind !== where.kind.not);
+        const excluded = where?.kind?.not;
+        if (excluded != null) result = result.filter((p) => p.kind !== excluded);
         return result;
       }),
     },
@@ -46,7 +47,9 @@ function makeCtx(
 }
 
 describe('getNextStrategy', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('tier-escalation returns a concrete model from the configured ladder', async () => {
     const prisma = makePrismaMock({

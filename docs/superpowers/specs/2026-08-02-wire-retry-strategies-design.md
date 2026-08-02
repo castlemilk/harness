@@ -58,7 +58,7 @@ For external tasks, `tier-escalation`'s existing guard `if (externalTag) return 
 Today (`retry-strategies.ts:160-183`) it ignores these fields entirely when calling the runner. Fix: since Section 3 will update `task.provider` + `task.model` BEFORE the retry runs (which is the path `executor.ts` already honors via `task.assignedModel`), `executeRetry` only needs to:
 
 1. Pass `attempt.model` + `attempt.effort` to `runExternalAgentTask` (these are NOT on the task row — they're per-call run parameters).
-2. For the internal / orchestrated paths, the task-row update from Section 3 is sufficient — `runAgentTask` / `runOrchestratedTask` already look at `task.assignedProvider` + `task.assignedModel`.
+2. For the internal / orchestrated paths, the task-row update from Section 3 is sufficient — `runAgentTask` / `runOrchestratedTask` already look at `assignedModel` (a `{provider, model}` record) — the router honors this as an explicit pin.
 
 ```ts
 if (attempt.cli) {
@@ -84,7 +84,7 @@ No `runAgentTask` signature change. The overrides flow through the existing task
 
 Per the Q-answer to "When a retry swaps model or provider, where do we record the active values?" — **update task row on retry**.
 
-After `getNextStrategy` returns an attempt, BEFORE kicking off the retry, update the task row with the new provider/model (so `executor.ts`'s existing `task.assignedProvider` + `task.assignedModel` lookup honors the new values via the normal flow — no new overrides needed):
+After `getNextStrategy` returns an attempt, BEFORE kicking off the retry, update the task row with the new provider/model (so `executor.ts`'s existing `assignedModel` (a `{provider, model}` record) — the router honors this as an explicit pin lookup honors the new values via the normal flow — no new overrides needed):
 
 ```ts
 const taskUpdate: Record<string, unknown> = {};
@@ -207,7 +207,7 @@ export interface RetryAlert {
   model: string | null;
   strategy: string;
   retryCount: number;
-  error: string;       // the prior failure's error
+  previousError: string;
   tags: string[];      // includes 'retry' + the strategy name
   timestamp: string;
 }

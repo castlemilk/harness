@@ -93,14 +93,20 @@ export async function waitForTask(
 ### 2. Surface task error into the result
 
 - Add `taskError?: string` to `BenchmarkResult` (types.ts:94).
-- `runner.ts`: after `waitForTask`, capture `finished.error` into the result:
+- `runner.ts`: declare `taskError` at the function level alongside `status` (the existing `let` block at runner.ts:61-69), assign it inside the try after `waitForTask`:
 
 ```ts
+// runner.ts:61-69 — the existing let-block gains one more:
+let status: BenchmarkResult['status'] = 'failed';
+let taskError: string | undefined;   // NEW: capture the server-side task error
+// ... (agentRun, diffs, etc. unchanged)
+
+// inside the try, after waitForTask:
 status = finished.status === 'timeout' ? 'timeout' : (finished.status as BenchmarkResult['status']);
-const taskError = finished.error;
+taskError = finished.error;   // NEW: never drop the server's reason
 ```
 
-Then in the `BenchmarkResult` construction, add `taskError`. Also — when the evaluation message is empty but `taskError` is present, use the taskError as the message fallback so the report never shows a blank error:
+Then in the `BenchmarkResult` construction (runner.ts:139), add `taskError`. Also — when the evaluation message is empty but `taskError` is present, use the taskError as the message fallback so the report never shows a blank error:
 
 ```ts
 if (!evaluation.message && taskError) {
@@ -108,7 +114,44 @@ if (!evaluation.message && taskError) {
 }
 ```
 
-- `classifyFailure` (analyse.ts:143): add a branch at the top — if `result.taskError` is present and matches infra patterns (`rate|limit|quota|429|provider.*error|fetch failed|unreachable`), classify as `rate_limit` / `provider_error` / `infra` instead of falling through to `unknown`. Reuse the existing `matchEvidence` + `withLog` helpers.
+And in the catch block (runner.ts:131-136) — prefer `taskError` as the message when `evaluate()` itself threw after `waitForTask` returned a failed task with an error (so the real server-side reason isn't clobbered by the downstream exception):
+
+```ts
+} catch (err) {
+  const thrownMessage = err instanceof Error ? err.message : String(err);
+  evaluation = {
+    passed: false,
+    message: taskError && !taskError.startsWith('fetch failed') ? taskError : thrownMessage,
+  };
+}
+```
+
+(Use `taskError` when it carries a real server-side reason; fall back to the thrown message when taskError is missing or itself just an infra fetch failure.)
+
+- `classifyFailure` (analyse.ts:143): add a branch at the top — if `result.taskError` is present and matches infra patterns (`rate|limit|quota|429|provider.*error|fetch failed|unreachable|ECONNRESET`), classify as a real category instead of falling through to `unknown`. `FailureCategory` (types.ts:124-138) currently has NO `rate_limit`/`provider_error`/`infra` members — add them to the union (cheap, honest taxonomy; `model_error` already exists but is agent-focused):
+
+```ts
+export type FailureCategory =
+  | 'install_failure'
+  | 'dependency_error'
+  | 'build_failure'
+  | 'compile_error'
+  | 'test_failure'
+  | 'verifier_timeout'
+  | 'patch_apply_failed'
+  | 'model_error'
+  | 'rate_limit'      // NEW: quota/429/rate-limit task errors
+  | 'provider_error'  // NEW: provider crash / fetch failed / ECONNRESET / unreachable
+  | 'infra'           // NEW: generic runner↔server infra failures
+  | 'timeout'
+  | 'validation_failure'
+  | 'tool_misuse'
+  | 'parse_error'
+  | 'plan_error'
+  | 'unknown';
+```
+
+The new branch in `classifyFailure` maps: `rate|limit|quota|429` → `rate_limit`; `fetch failed|unreachable|ECONNRESET|provider.*error` → `provider_error`; anything else infra-shaped → `infra`. Reuse `withLog` for the evidence format; add the pattern rules to the `EVIDENCE_RULES`/`matchEvidence` machinery (analyse.ts:58-99) OR use a dedicated regex — whichever is cleaner given the existing structure.
 
 - `report.ts:19`: change `const msg = r.evaluation.message ? ... : '';` to always render something — `r.taskError` when the evaluation message is empty:
 
@@ -133,26 +176,48 @@ export async function getAgentRun(apiUrl: string, taskId: string): Promise<Agent
 
 ### 3. DeepSWE verifier timeout diagnostics
 
-`packages/bench/src/adapters/deepswe.ts` — `runDeepSWEVerifierLocal` (and the Docker path): wrap the `runCommand('bash', [localTestSh], ...)` in try/catch. On timeout (the throw), still write the log file and return a structured result so `evaluate` reports the timeout with a log tail:
+**Critical correction from review:** `runCommand` (deepswe.ts:853-884) does NOT throw on timeout — it swallows ALL errors and returns `{ stdout, stderr, exitCode: e.code ?? 1 }`. For a Node timeout-kill, the error has `code: null, killed: true, signal: 'SIGTERM'`, so a timeout today looks identical to a real verifier failure (exitCode 1, no `timedOut` flag). A try/catch around `runCommand` would be dead code. The fix must be **inside** `runCommand` — expose a `timedOut` flag on its return.
+
+**Step 1: Extend `runCommand`'s return type + capture the timeout condition** (deepswe.ts:853-884):
 
 ```ts
-let testRun: { stdout: string; stderr: string; exitCode: number } | null = null;
-let timedOut = false;
-try {
-  testRun = await runCommand('bash', [localTestSh], { cwd: projectPath, env, timeout: 1_800_000 });
-} catch (err) {
-  timedOut = true;
-  const message = err instanceof Error ? err.message : String(err);
-  log(`=== test.sh FAILED ===\n${message}`);
-  // runCommand may include partial stdout/stderr in the error; capture if available.
-  const partial = err as { stdout?: string; stderr?: string } | null;
-  if (partial?.stdout) log(`=== test.sh partial stdout ===\n${partial.stdout}`);
-  if (partial?.stderr) log(`=== test.sh partial stderr ===\n${partial.stderr}`);
+async function runCommand(
+  command: string,
+  args: string[],
+  options: { cwd?: string; env?: NodeJS.ProcessEnv; timeout?: number }
+): Promise<{ stdout: string; stderr: string; exitCode: number; timedOut: boolean }> {
+  try {
+    const { stdout, stderr } = await execFileAsync(command, args, {
+      cwd: options.cwd,
+      env: { ...process.env, COREPACK_INTEGRITY_KEYS: '0', COREPACK_ENABLE_AUTO_PIN: '0', ...options.env },
+      timeout: options.timeout ?? 600000,
+      maxBuffer: 32 * 1024 * 1024,
+    });
+    return { stdout, stderr, exitCode: 0, timedOut: false };
+  } catch (err) {
+    const e = err as { stdout?: string; stderr?: string; code?: number; message?: string; killed?: boolean; signal?: string };
+    return {
+      stdout: e.stdout ?? '',
+      stderr: e.stderr ?? e.message ?? '',
+      exitCode: e.code ?? 1,
+      timedOut: Boolean(e.killed || e.signal === 'SIGTERM'),
+    };
+  }
 }
-if (testRun) {
-  log(`=== test.sh stdout ===\n${testRun.stdout}`);
-  log(`=== test.sh stderr ===\n${testRun.stderr}`);
-}
+```
+
+`runCommand` is file-local with ~40 call sites; adding an optional `timedOut` field to the return is safe (existing callers destructure only what they need). Existing callers see `timedOut: false` on success.
+
+**Step 2: Key the verifier off `timedOut`** — `runDeepSWEVerifierLocal` (deepswe.ts:1433-1448):
+
+```ts
+const testRun = await runCommand('bash', [localTestSh], {
+  cwd: projectPath,
+  env,
+  timeout: 1_800_000,
+});
+log(`=== test.sh stdout ===\n${testRun.stdout}`);
+log(`=== test.sh stderr ===\n${testRun.stderr}`);
 
 let reward: Reward = {};
 try {
@@ -167,26 +232,35 @@ await fs.writeFile(logFile, logs, 'utf-8').catch(() => {
   // ignore write errors
 });
 
-return {
-  reward,
-  logs,
-  logFile,
-  exitCode: testRun?.exitCode ?? (timedOut ? -1 : 0),
-  timedOut,
-};
+return { reward, logs, logFile, exitCode: testRun.exitCode, timedOut: testRun.timedOut };
 ```
 
-Update the `Reward`-returning type + `evaluate` in the task to include `timedOut` in metrics + message:
+Update the verifier return type (`Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }>`) for both the Docker + local paths, and `evaluate` (deepswe.ts:1519-1547) to surface it:
 
 ```ts
 const passed = reward.reward === 1;
-// ... metrics ...
-if (timedOut) metrics.verifier_timed_out = 1;
-message: passed
-  ? `DeepSWE verifier passed (...)`
-  : timedOut
-    ? `DeepSWE verifier timeout (reward=${String(reward.reward ?? 'missing')})`
-    : `DeepSWE verifier failed (reward=${String(reward.reward ?? 'missing')}, ...)`,
+const metrics: Record<string, number | string> = {
+  f2p_passed: reward.f2p_passed ?? 0,
+  f2p_total: reward.f2p_total ?? 0,
+  p2p_passed: reward.p2p_passed ?? 0,
+  p2p_total: reward.p2p_total ?? 0,
+  partial: reward.partial ?? 0,
+  verifier_exit_code: exitCode,
+  verifier_log_file: logFile,
+  ...(timedOut ? { verifier_timed_out: 1 } : {}),
+};
+if (reward.apply_failed) metrics.apply_failed = 1;
+metrics.verifier_logs = logs.slice(-4096);
+return {
+  passed,
+  score: reward.partial,
+  message: passed
+    ? `DeepSWE verifier passed (f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`
+    : timedOut
+      ? `DeepSWE verifier timeout (reward=${String(reward.reward ?? 'missing')})`
+      : `DeepSWE verifier failed (reward=${String(reward.reward ?? 'missing')}, f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`,
+  metrics,
+};
 ```
 
 ## Data flow
@@ -210,20 +284,20 @@ message: passed
 ## Risks
 
 - **Retrying non-idempotent calls**: `createTask` and `runTask` are not strictly idempotent (a retry after the server received the request could create a duplicate task or double-run). The window is small (retry only on transport-level failures, not on 4xx). For `createTask`, a 409 already handles the existing-project case. For `runTask`, the server's own queue dedups by task id — a duplicate POST /run for an already-running task is a no-op (the queue is keyed by taskId). Acceptable; document in the code comment.
-- **`withRetry` masks real server-down conditions longer**: 3 attempts × (0.5+1+2)s ≈ 3.5s added latency per failing call. Acceptable for a bench runner (tasks run 30s-5min).
+- **`withRetry` masks real server-down conditions longer**: 3 attempts × (0.5+1+2)s ≈ 3.5s added latency per failing call. Combined with the consecutive-failure counter (3 polls), `waitForTask` declares "server unreachable" after ~10.5s of real downtime. Acceptable for a bench runner (tasks run 30s-5min). Documented here so nobody "fixes" it later.
 - **`taskError` may duplicate evaluation.message** when both are set: the report prefers `evaluation.message`, falling back to `taskError` only when the former is empty. No duplication.
-- **DeepSWE verifier partial-stdout capture**: `runCommand` may not attach stdout/stderr to its thrown error (depends on implementation). We best-effort capture; the log tail from `test.sh`'s own progress (written by the verifier script) is the primary diagnostic.
+- **`runCommand` return-type change**: adding `timedOut` to ~40 call sites' return shape is safe (they destructure selectively), but the file-local type must be updated once. Existing callers see `timedOut: false` on success — no behavior change for them.
 
 ## Files touched
 
 | File | Change | LOC |
 |---|---|---|
 | `packages/bench/src/api-client.ts` | `withRetry` helper + retry on critical calls + warn on swallowed accessors | +40 |
-| `packages/bench/src/runner.ts` | capture `finished.error` → `taskError` + message fallback | +8 |
-| `packages/bench/src/types.ts` | `taskError?: string` on `BenchmarkResult` | +1 |
+| `packages/bench/src/runner.ts` | `let taskError` + capture `finished.error` + message fallback in catch | +10 |
+| `packages/bench/src/types.ts` | `taskError?: string` on `BenchmarkResult` + 3 new `FailureCategory` members | +4 |
 | `packages/bench/src/report.ts` | render `taskError` fallback in resultLine | +2 |
-| `packages/bench/src/analyse.ts` | infra-pattern classification branch using `taskError` | +12 |
-| `packages/bench/src/adapters/deepswe.ts` | verifier try/catch + `timedOut` + metrics + message | +25 |
+| `packages/bench/src/analyse.ts` | infra-pattern classification branch using `taskError` | +15 |
+| `packages/bench/src/adapters/deepswe.ts` | `runCommand` `timedOut` flag + verifier keys off it + metrics + message | +20 |
 | `packages/bench/src/__tests__/api-client.test.ts` (new) | retry + waitForTask transient-failure tests | +60 |
 | `packages/bench/src/__tests__/runner.test.ts` (new) | taskError capture test (mock API) | +50 |
 

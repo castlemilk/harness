@@ -40,7 +40,7 @@
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 const RETRYABLE_ERR = /fetch failed|ECONNRESET|ECONNREFUSED|ETIMEDOUT|socket hang up|UND_ERR/i;
 
-async function withRetry<T>(
+export async function withRetry<T>(
   fn: () => Promise<T>,
   opts: { attempts?: number; baseDelayMs?: number } = {},
 ): Promise<T> {
@@ -108,7 +108,7 @@ export async function createTask(
 ```
 
 - `runTask`: wrap the `apiFetch` call similarly.
-- `getTask`: wrap the `apiFetch` call.
+- **DO NOT wrap `getTask` here** — its only caller is `waitForTask`, which wraps it in `withRetry` already (Step 3). Wrapping both would nest `withRetry(withRetry(fetch))` → 9 attempts per counter increment, destroying the intended "3 failed polls ≈ 10.5s" semantics.
 - Add a note in a comment near the retries: `createTask`/`runTask` are not strictly idempotent but the retry window is small (transport-level failures only) and the server queue dedups `runTask` by task id — a duplicate POST /run for an already-running task is a no-op.
 
 - [ ] **Step 3: `waitForTask` — consecutive-failure counter**
@@ -430,7 +430,7 @@ Add a code comment in the docker wrapper noting: "a docker timeout → exitCode 
 
 ```ts
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { waitForTask, ApiError } from '../api-client.js';
+import { waitForTask, withRetry, ApiError } from '../api-client.js';
 
 describe('waitForTask transient-failure resilience', () => {
   beforeEach(() => vi.restoreAllMocks());
@@ -455,7 +455,7 @@ describe('waitForTask transient-failure resilience', () => {
     const result = await waitForTask('http://x', 't1', 5000, 3);
     expect(result.status).toBe('failed');
     expect(result.error).toMatch(/Server unreachable/);
-  });
+  }, 20000);
 
   it('returns timeout when the task never finishes', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => ({
@@ -464,15 +464,29 @@ describe('waitForTask transient-failure resilience', () => {
     const result = await waitForTask('http://x', 't1', 1000);
     expect(result.status).toBe('timeout');
   });
+});
 
-  it('does not retry non-retryable 4xx errors', async () => {
+describe('withRetry retry policy', () => {
+  it('does not retry non-retryable 4xx errors (throws immediately, 1 call)', async () => {
     let calls = 0;
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => {
       calls++;
       return { ok: false, status: 400, json: async () => ({}) };
     }));
-    await expect(waitForTask('http://x', 't1', 5000, 3)).rejects.toThrow();
+    await expect(withRetry(() => fetch('http://x'))).rejects.toThrow();
     expect(calls).toBe(1);
+  });
+
+  it('retries retryable 429 errors up to attempts', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => {
+      calls++;
+      if (calls < 3) return { ok: false, status: 429, json: async () => ({}) };
+      return { ok: true, status: 200, json: async () => ({ ok: true }) };
+    }));
+    const result = await withRetry(() => fetch('http://x'), { attempts: 3, baseDelayMs: 1 });
+    expect(calls).toBe(3);
+    expect(result).toBeDefined();
   });
 });
 ```
@@ -481,6 +495,9 @@ describe('waitForTask transient-failure resilience', () => {
 
 ```ts
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { runBenchmark } from '../runner.js';
 import type { BenchmarkTask } from '../types.js';
 
@@ -496,6 +513,7 @@ const mocks = vi.hoisted(() => ({
   getTraceSummary: vi.fn(),
   getPromptVersion: vi.fn(),
   withRetry: vi.fn(),
+  countSpans: vi.fn(() => 0),
 }));
 
 vi.mock('../api-client.js', () => ({
@@ -510,6 +528,7 @@ vi.mock('../api-client.js', () => ({
   getTraceSummary: mocks.getTraceSummary,
   getPromptVersion: mocks.getPromptVersion,
   withRetry: mocks.withRetry,
+  countSpans: mocks.countSpans,
 }));
 
 const makeTask = (): BenchmarkTask => ({
@@ -525,6 +544,9 @@ const makeTask = (): BenchmarkTask => ({
 describe('runBenchmark taskError capture', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Route runtime dirs to a temp dir so tests don't pollute ~/.omega
+    // (runBenchmark calls omegaWorkDir() + ensureGitRepo which create real dirs).
+    process.env.OMEGA_STORAGE_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'bench-test-'));
     mocks.ensureProject.mockResolvedValue({ id: 'p1' });
     mocks.createTask.mockResolvedValue({ id: 'ht1', status: 'todo' });
     mocks.runTask.mockResolvedValue(undefined);
@@ -568,6 +590,8 @@ describe('runBenchmark taskError capture', () => {
 
 ### Task 1.6: Verify Chunk 1 builds + all tests pass
 
+**Behavior-change note for downstream callers:** `waitForTask` no longer rejects on a transient fetch failure — it resolves `{ status: 'failed', error: 'Server unreachable...' }` after 3 consecutive failed polls. `consensus.ts:283` and `strategy-eval.ts:293` previously relied on `Promise.all` rejecting on fetch failure; they now see a `failed` status instead. Both already map `failed` (consensus.ts:284), so this is compatible — but verify their tests still pass in Task 1.6 Step 2 (run the full bench suite, not just the new test files).
+
 - [ ] **Step 1: All package builds pass**
 
 ```bash
@@ -586,16 +610,16 @@ Expected: all exit 0. (The `@omega/bench` package is a dependency of `@omega/ser
 timeout 120 pnpm --filter @omega/bench test 2>&1 | tail -15
 ```
 
-Expected: the 7 new tests (4 api-client + 3 runner) pass.
+Expected: the 9 new tests (6 api-client + 3 runner) pass. Note: this runs the FULL bench test suite (including any existing tests in `consensus.ts`/`strategy-eval.ts` — verify the `waitForTask` behavior-change didn't break them).
 
 - [ ] **Step 3: Agent + server tests still pass**
 
 ```bash
 timeout 90 pnpm --filter @omega/agent test 2>&1 | tail -5
-timeout 60 pnpm --filter @omega/server test src/lib/retry-strategies.test.ts 2>&1 | tail -5
+timeout 90 pnpm --filter @omega/server test 2>&1 | tail -8
 ```
 
-Expected: 14 agent tests + 2 retry-strategies tests pass.
+Expected: agent tests pass (all files — external.test.ts, codex-driver.test.ts, etc.) + server tests pass (app.test.ts + retry-strategies.test.ts).
 
 - [ ] **Step 4: Smoke test the server still serves** — `lsof -nP -iTCP:4000 -sTCP:LISTEN | tail -1` shows the running server; `curl -s http://127.0.0.1:4000/ | head -1` returns the HTML.
 

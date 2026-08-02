@@ -14,6 +14,9 @@ export interface Task {
   model?: string | null;
   result?: string | null;
   error?: string | null;
+  retryCount: number;
+  retryHistory: string | null;
+  lastRetryAt: string | null;
   createdAt: string;
 }
 

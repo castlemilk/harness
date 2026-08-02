@@ -145,6 +145,7 @@ async function watchTask(taskId: string): Promise<void> {
     const historyRaw = typeof task.retryHistory === 'string' ? task.retryHistory : null;
     let lastStrategy = '';
     let lastModel = '';
+    let lastProvider = '';
     if (historyRaw) {
       try {
         const arr = JSON.parse(historyRaw) as { strategy: string; provider?: string | null; model?: string | null }[];
@@ -152,11 +153,13 @@ async function watchTask(taskId: string): Promise<void> {
         if (last) {
           lastStrategy = last.strategy;
           lastModel = typeof last.model === 'string' ? last.model : '';
+          lastProvider = typeof last.provider === 'string' ? last.provider : '';
         }
       } catch { /* ignore malformed history */ }
     }
+    const providerPart = lastProvider ? `${lastProvider}/` : '';
     const modelPart = lastModel ? `, ${lastModel}` : '';
-    console.log(`  ↻ retried ${String(task.retryCount)}× (last: ${lastStrategy}${modelPart})`);
+    console.log(`  ↻ retried ${String(task.retryCount)}× (last: ${providerPart}${lastStrategy}${modelPart})`);
   }
   console.log(`  Ctrl+C detaches (task keeps running). Re-attach: harness task watch ${taskId}\n`);
 

@@ -57,7 +57,7 @@ async function withRetry<T>(
 }
 ```
 
-Apply it to the critical-path calls: `ensureProject`, `createTask`, `runTask`, and the inner `getTask` used by `waitForTask`. These are the calls that, if they fail transiently, currently kill the entire task.
+Apply it to the critical-path calls: `ensureProject` (wrap ONLY the raw fetch, not the bespoke 409-handling body at api-client.ts:22-36), `createTask`, `runTask`, the inner `getTask` used by `waitForTask`, and the PATCH provider/model override at runner.ts:91-95 (currently a bare fetch — a transient failure there throws out of the try and kills the task, the exact `fetch failed` class this spec targets). These are the calls that, if they fail transiently, currently kill the entire task.
 
 `waitForTask` itself: wrap the poll body so a transient failure does NOT abort the loop. Track consecutive failures; only give up after N consecutive (default 3) failed polls — proving the server is down, not just flaky:
 
@@ -235,7 +235,9 @@ await fs.writeFile(logFile, logs, 'utf-8').catch(() => {
 return { reward, logs, logFile, exitCode: testRun.exitCode, timedOut: testRun.timedOut };
 ```
 
-Update the verifier return type (`Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }>`) for both the Docker + local paths, and `evaluate` (deepswe.ts:1519-1547) to surface it:
+Update the verifier return type (`Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }>`) for both the Docker + local paths, and `evaluate` (deepswe.ts:1519-1547) to surface it.
+
+Note on the Docker path: a docker verifier timeout → `exitCode: 1` → the wrapper's docker-validity check (deepswe.ts:1285) fails → the verifier falls back to a fresh 30-min LOCAL run (deepswe.ts:1288-1293). So a docker timeout is absorbed by the local fallback and NEVER surfaces as `verifier_timed_out` — that's graceful (docker flake doesn't lose the run) but means `verifier_timed_out` only materializes on the local path. Document this in the code comment; no behavior change.
 
 ```ts
 const passed = reward.reward === 1;

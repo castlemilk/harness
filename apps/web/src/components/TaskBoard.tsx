@@ -344,21 +344,24 @@ export function TaskBoard({ projectId }: Props) {
 function RetryBadge({ task }: { task: Task }) {
   let lastStrategy = '';
   let lastModel = '';
+  let lastProvider = '';
   if (task.retryHistory) {
     try {
-      const arr = JSON.parse(task.retryHistory) as { strategy: string; model?: string | null }[];
+      const arr = JSON.parse(task.retryHistory) as { strategy: string; model?: string | null; provider?: string | null }[];
       const last = arr.at(-1);
       if (last) {
         lastStrategy = last.strategy;
         lastModel = typeof last.model === 'string' ? last.model : '';
+        lastProvider = typeof last.provider === 'string' ? last.provider : '';
       }
     } catch { /* ignore malformed history */ }
   }
+  const providerPart = lastProvider ? `${lastProvider}/` : '';
   const modelPart = lastModel ? ` (${lastModel})` : '';
   return (
     <span
       className="px-1.5 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs"
-      title={`Retried ${String(task.retryCount)}× — last: ${lastStrategy}${modelPart}`}
+      title={`Retried ${String(task.retryCount)}× — last: ${providerPart}${lastStrategy}${modelPart}`}
     >
       ↻ {task.retryCount}×
     </span>

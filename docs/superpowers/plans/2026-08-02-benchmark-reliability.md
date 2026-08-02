@@ -615,7 +615,7 @@ Expected: all exit 0. (The `@omega/bench` package is a dependency of `@omega/ser
 timeout 120 pnpm --filter @omega/bench test 2>&1 | tail -15
 ```
 
-Expected: the 9 new tests (6 api-client + 3 runner) pass. Note: the bench package currently has NO other test files (the `consensus.ts`/`strategy-eval.ts` callers of `waitForTask` are untested — the behavior-change note in Task 1.6's preamble is about the runtime contract, not a regression surface).
+Expected: the 8 new tests (5 api-client + 3 runner) pass. Note: the bench package currently has NO other test files (the `consensus.ts`/`strategy-eval.ts` callers of `waitForTask` are untested — the behavior-change note in Task 1.6's preamble is about the runtime contract, not a regression surface).
 
 - [ ] **Step 3: Agent + server tests still pass**
 

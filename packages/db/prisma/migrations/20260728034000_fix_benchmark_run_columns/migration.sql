@@ -43,6 +43,7 @@ ALTER TABLE "BenchmarkHistory" ADD COLUMN IF NOT EXISTS "totalDurationMs" INTEGE
 ALTER TABLE "BenchmarkHistory" ADD COLUMN IF NOT EXISTS "totalTokens" INTEGER;
 ALTER TABLE "BenchmarkHistory" ADD COLUMN IF NOT EXISTS "reportPath" TEXT;
 ALTER TABLE "BenchmarkHistory" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE "BenchmarkHistory" ADD COLUMN IF NOT EXISTS "passed" INTEGER NOT NULL DEFAULT 0;
 
 -- Drop stale columns if they still exist
 DO $$

@@ -140,6 +140,24 @@ async function watchTask(taskId: string): Promise<void> {
   console.log(`  status=${status}  model=${model}  elapsed=${elapsed}${complexity ? `  complexity=${complexity}` : ''}`);
   if (typeof task.result === 'string') console.log(`  result: ${task.result.slice(0, 300)}`);
   if (typeof task.error === 'string') console.log(`  error: ${task.error.slice(0, 300)}`);
+  let lastTurn = 0;
+  if (typeof task.retryCount === 'number' && task.retryCount > 0) {
+    const historyRaw = typeof task.retryHistory === 'string' ? task.retryHistory : null;
+    let lastStrategy = '';
+    let lastModel = '';
+    if (historyRaw) {
+      try {
+        const arr = JSON.parse(historyRaw) as { strategy: string; provider?: string | null; model?: string | null }[];
+        const last = arr.at(-1);
+        if (last) {
+          lastStrategy = last.strategy;
+          lastModel = typeof last.model === 'string' ? last.model : '';
+        }
+      } catch { /* ignore malformed history */ }
+    }
+    const modelPart = lastModel ? `, ${lastModel}` : '';
+    console.log(`  ↻ retried ${String(task.retryCount)}× (last: ${lastStrategy}${modelPart})`);
+  }
   console.log(`  Ctrl+C detaches (task keeps running). Re-attach: harness task watch ${taskId}\n`);
 
   let finished = false;
@@ -211,6 +229,11 @@ async function watchTask(taskId: string): Promise<void> {
             : null;
           parts.push(elapsed !== null ? `${phasePart}(${String(elapsed)}s)` : phasePart);
         }
+        if (typeof parsed.currentTurn === 'number' && parsed.currentTurn === 1 && lastTurn > 1) {
+          const phasePart = typeof parsed.currentPhase === 'string' ? ` (phase: ${parsed.currentPhase})` : '';
+          console.log(`[${ts}] ↻ retry attempt starting${phasePart}`);
+        }
+        if (typeof parsed.currentTurn === 'number') lastTurn = parsed.currentTurn;
         if (parts.length > 0) console.log(`[${ts}] agentRun update: ${parts.join('  ')}`);
         break;
       }

@@ -656,3 +656,524 @@ Expected: `HTTP 202` (the request is accepted; the task moves to `in_progress` a
 For a known historical failed task id (if available from earlier E2E runs — the plan does NOT depend on this being present), use `c19a6ece-341c-4630-a89b-8e02e67f4e8f` (the failed codex task from the live phase stream demo).
 
 - [ ] **Step 5: No commit — verification only.**
+
+---
+
+## Chunk 2: CLI — `task retry` + Watch Retry Line + API Hook
+
+### Task 2.1: Add `retryTask` helper to the CLI api
+
+**Files:**
+- Modify: `apps/cli/src/api.ts`
+
+- [ ] **Step 1: Add an exported `retryTask` helper that wraps `apiFetch`**
+
+Open `apps/cli/src/api.ts`. The file currently exports `getApiUrl()` and `apiFetch(path, init?)`. Add a new top-level export `retryTask(id, strategy?)` that calls `apiFetch` directly (matching the file's existing style — no new `api = { … }` namespace):
+
+```ts
+export async function retryTask(id: string, strategy?: string): Promise<Record<string, unknown>> {
+  return apiFetch(`/tasks/${id}/retry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(strategy ? { strategy } : {}),
+  }) as Promise<Record<string, unknown>>;
+}
+```
+
+Place it near the bottom of the file, after the existing `apiFetch` definition. Note: the CLI's task payload is `Record<string, unknown>` (matches how `taskCmd` subcommands already consume API responses — see `runTask` at `apps/cli/src/commands/task.ts:540`).
+
+- [ ] **Step 2: Verify it typechecks**
+
+Run: `timeout 120 pnpm --filter @omega/cli build 2>&1 | tail -3`
+Expected: exit 0.
+
+(If pnpm hangs, fall back to `timeout 180 node node_modules/typescript/bin/tsc -p apps/cli 2>&1 | tail -3`.)
+
+- [ ] **Step 3: No commit — continue to Task 2.2.**
+
+### Task 2.2: Add `task retry <id> [--strategy]` subcommand
+
+**Files:**
+- Modify: `apps/cli/src/commands/task.ts` (add new subcommand near the end, after `orchestrate`)
+- Modify: `apps/cli/src/commands/task.ts` (add import for `retryTask`)
+
+- [ ] **Step 1: Add the import**
+
+In `apps/cli/src/commands/task.ts`, find the existing import line that pulls from `../api.js` (it currently imports `apiFetch` and `getApiUrl`). Add `retryTask`:
+
+```ts
+import { apiFetch, getApiUrl, retryTask } from '../api.js';
+```
+
+- [ ] **Step 2: Append the subcommand**
+
+In `apps/cli/src/commands/task.ts`, after the `.command('orchestrate')` block (ending around line 587), add:
+
+```ts
+taskCmd
+  .command('retry')
+  .description('Retry a failed task, optionally with a specific strategy')
+  .argument('<id>', 'task id')
+  .option('--strategy <name>', 'specific strategy: clean-retry | tier-escalation | different-provider | orchestrated-fallback | different-cli')
+  .action(async (id: string, opts: { strategy?: string }) => {
+    const result = await retryTask(id, opts.strategy);
+    console.log(JSON.stringify(result, null, 2));
+  });
+```
+
+This goes after `orchestrate` so it sits with the other run/orchestrate/retry family of commands.
+
+- [ ] **Step 3: Verify it typechecks + lints clean**
+
+Run: `timeout 120 pnpm --filter @omega/cli build 2>&1 | tail -3`
+Expected: exit 0.
+
+Run: `timeout 30 node node_modules/eslint/bin/eslint.js apps/cli/src/commands/task.ts 2>&1 | tail -15`
+Expected: shows only pre-existing errors (no new ones near the new subcommand).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add apps/cli/src/commands/task.ts
+git commit -m "feat(cli): task retry subcommand with --strategy"
+```
+
+### Task 2.3: Surface retry line in `task watch` (snapshot header + live retry detection)
+
+**Files:**
+- Modify: `apps/cli/src/commands/task.ts:75-124` (the `watchTask` function, particularly the header print at ~line 78-92 and the `onFrame` agent-run handler at ~line 195-225)
+
+- [ ] **Step 1: Add retry header to `watchTask` snapshot**
+
+In `apps/cli/src/commands/task.ts`, inside `watchTask`, find the header print block that appears right after fetching the task (around line 78-92, the block with `attaching to ${taskId.slice(0, 8)} — ${sanitizeTitle(title)}`).
+
+Immediately after that block, add:
+
+```ts
+  // If the task has been retried before, surface that in the attach header.
+  let lastTurn = 0;
+  if (typeof task.retryCount === 'number' && task.retryCount > 0) {
+    const historyRaw = typeof task.retryHistory === 'string' ? task.retryHistory : null;
+    let lastStrategy = '';
+    let lastModel = '';
+    if (historyRaw) {
+      try {
+        const arr = JSON.parse(historyRaw) as Array<{ strategy: string; provider?: string | null; model?: string | null }>;
+        const last = arr[arr.length - 1];
+        if (last) {
+          lastStrategy = last.strategy;
+          lastModel = typeof last.model === 'string' ? last.model : '';
+        }
+      } catch { /* ignore malformed history */ }
+    }
+    const modelPart = lastModel ? `, ${lastModel}` : '';
+    console.log(`  ↻ retried ${String(task.retryCount)}× (last: ${lastStrategy}${modelPart})`);
+  }
+```
+
+This requires extending the `task` type in `watchTask` to include `retryCount` + `retryHistory` (currently it's typed as the API's task row which DOES include those fields as `retryHistory: string | null` per spec §5.4).
+
+- [ ] **Step 2: Track `lastTurn` and detect retry-via-turn-reset in the live `agent-run` handler**
+
+In the same file, in `watchTask`, find the live `agent-run` event handler (around line 195-225). The `lastTurn` variable declared in Step 1 is in scope (closure of `onFrame`).
+
+In the `case 'agent-run':` block, immediately after the `parts.push(...)` calls, add:
+
+```ts
+          // Detect a retry attempt by a currentTurn reset (previous run ended at a higher turn).
+          if (typeof parsed.currentTurn === 'number' && parsed.currentTurn === 1 && lastTurn > 1) {
+            const phasePart = typeof parsed.currentPhase === 'string' ? ` (phase: ${parsed.currentPhase})` : '';
+            console.log(`[${ts}] ↻ retry attempt starting${phasePart}`);
+          }
+          if (typeof parsed.currentTurn === 'number') lastTurn = parsed.currentTurn;
+```
+
+Note: the `agent-run` SSE frame does NOT carry `provider`/`model` — those live on the initial snapshot or the `task` event. We surface the phase (which IS on `agent-run` via the codex phase stream feature) rather than guessing provider/model. If a future enhancement adds provider/model to the agent-run event, extend the line accordingly.
+
+- [ ] **Step 3: Verify typecheck + lint clean**
+
+Run: `timeout 120 pnpm --filter @omega/cli build 2>&1 | tail -3`
+Expected: exit 0.
+
+Run: `timeout 30 node node_modules/eslint/bin/eslint.js apps/cli/src/commands/task.ts 2>&1 | tail -15`
+Expected: shows only pre-existing errors (no new ones near the new code).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add apps/cli/src/commands/task.ts
+git commit -m "feat(cli): surface retry count in task watch + detect live retry"
+```
+
+### Task 2.4: Verify Chunk 2 builds + CLI smoke
+
+- [ ] **Step 1: Full CLI build**
+
+Run: `timeout 120 pnpm --filter @omega/cli build 2>&1 | tail -3`
+Expected: exit 0.
+
+- [ ] **Step 2: Restart server with new bundle (so the `task retry` endpoint exists)**
+
+```bash
+pkill -f 'apps/server/dist/index.js' 2>/dev/null
+sleep 2
+rm -f ~/.omega/pglite-data/postmaster.pid
+OMEGA_AUDIT_OUTPUT_DIR=/Volumes/gamma-systems-2/omega-victoria-data CODEX_MODEL=gpt-5.6-luna CODEX_EFFORT=max nohup node apps/server/dist/index.js > /tmp/omega-server.log 2>&1 &
+sleep 6
+lsof -nP -iTCP:4000 -sTCP:LISTEN | tail -1
+```
+Expected: server boots, listening on 4000.
+
+- [ ] **Step 3: Smoke — `task retry <id> --strategy clean-retry`**
+
+```bash
+FAILED_ID=$(curl -s "http://127.0.0.1:4000/tasks?status=failed&limit=5" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{console.log(JSON.parse(d).tasks?.[0]?.id ?? '')})")
+if [ -z "$FAILED_ID" ]; then
+  echo "no failed task found — cannot verify retry path; manually trigger a failure and re-run"
+  exit 1
+fi
+echo "FAILED_ID=$FAILED_ID"
+timeout 10 node apps/cli/dist/index.js task retry "$FAILED_ID" --strategy clean-retry 2>&1 | grep -v Warning | grep -v trace-warnings
+```
+
+Expected: the command prints the retry response (`status: 'in_progress'`, `strategy: 'clean-retry'`, `retryCount: N+1`). The check is non-trivial — if no failed task exists, the smoke test FAILS loudly rather than silently passing.
+
+- [ ] **Step 4: Verify `task watch <id>` header shows retry line**
+
+Re-discover a failed task (don't rely on `$FAILED_ID` from Step 3 — each bash invocation is a separate shell):
+
+```bash
+FAILED_ID=$(curl -s "http://127.0.0.1:4000/tasks?status=failed&limit=5" | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{console.log(JSON.parse(d).tasks?.[0]?.id ?? '')})")
+if [ -z "$FAILED_ID" ]; then
+  echo "no failed task found — cannot verify task watch retry line"
+  exit 1
+fi
+timeout -s INT 8 node apps/cli/dist/index.js task watch "$FAILED_ID" 2>&1 | grep -v Warning | grep -v trace-warnings
+```
+
+Expected: if `retryCount > 0`, the header line `↻ retried N× (last: <strategy>, <model>)` is printed.
+
+- [ ] **Step 5: No commit — verification only.**
+
+---
+
+## Chunk 3: Web UI — `Task` Interface, Retry Button, Retry Badge, Verification
+
+### Task 3.1: Expand the `Task` interface in `TaskBoard.tsx`
+
+**Files:**
+- Modify: `apps/web/src/components/TaskBoard.tsx:5-18` (`Task` interface)
+
+- [ ] **Step 1: Add the three retry fields to the `Task` interface**
+
+In `apps/web/src/components/TaskBoard.tsx`, extend the `Task` interface (currently lines 5-18) by adding:
+
+```ts
+  retryCount: number;
+  retryHistory: string | null;  // JSON string (parse at consumer)
+  lastRetryAt: string | null;
+```
+
+Place these fields after the existing `error?: string | null;` line (line 16). The full interface becomes:
+
+```ts
+export interface Task {
+  id: string;
+  projectId: string;
+  title: string;
+  description?: string;
+  status: string;
+  complexity: string;
+  tags?: string;
+  provider?: string | null;
+  model?: string | null;
+  result?: string | null;
+  error?: string | null;
+  retryCount: number;
+  retryHistory: string | null;
+  lastRetryAt: string | null;
+  createdAt: string;
+}
+```
+
+- [ ] **Step 2: Verify it typechecks**
+
+Run: `timeout 120 pnpm --filter @omega/web build 2>&1 | tail -5`
+Expected: exit 0. (The new fields are populated by `GET /tasks/:id` which already returns the full Prisma row, so no consumer changes are needed.)
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/web/src/components/TaskBoard.tsx
+git commit -m "feat(web): add retryCount/retryHistory/lastRetryAt to Task interface"
+```
+
+### Task 3.2: Add `retryTask(id, strategy?)` to the web `api`
+
+**Files:**
+- Modify: `apps/web/src/lib/api.ts`
+
+- [ ] **Step 1: Add `retryTask` next to the existing `runTask`**
+
+In `apps/web/src/lib/api.ts`, find the existing `runTask` definition (line 79), and add immediately after:
+
+```ts
+  retryTask: (id: string, strategy?: string) =>
+    request<Task>(`/tasks/${id}/retry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(strategy ? { strategy } : {}),
+    }),
+```
+
+- [ ] **Step 2: Verify it typechecks**
+
+Run: `timeout 120 pnpm --filter @omega/web build 2>&1 | tail -5`
+Expected: exit 0.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/web/src/lib/api.ts
+git commit -m "feat(web): retryTask api for POST /tasks/:id/retry"
+```
+
+### Task 3.3: Add Retry button + strategy picker to TaskBoard task cards (spec deviation acknowledged)
+
+**Files:**
+- Modify: `apps/web/src/components/TaskBoard.tsx` (add Retry UI inline next to the existing Run button)
+
+**Spec deviation (acknowledged):** The spec §5.2 places the Retry button + picker inside `TaskDetail.tsx` and uses a "click to open" picker interaction. This plan implements the Retry button INLINE in `TaskBoard.tsx` with an always-visible strategy dropdown — same functional outcome, simpler implementation, avoids prop drilling. If a future revision wants the click-to-open affordance, split this into a separate `RetryButton` component.
+
+- [ ] **Step 1: Add state + `handleRetry` function + the Retry group button**
+
+In `apps/web/src/components/TaskBoard.tsx`, find:
+
+- `const [, setForm] = useState<...>` (the existing form state near the top of the function) — add a sibling `retryingId` state right after it:
+
+```tsx
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+```
+
+- `async function handleRun(id: string) { ... }` — add a sibling `handleRetry` right after:
+
+```tsx
+  async function handleRetry(taskId: string, strategy?: string) {
+    setRetryingId(taskId);
+    try {
+      await api.retryTask(taskId, strategy);
+      await load();
+    } finally {
+      setRetryingId(null);
+    }
+  }
+```
+
+- The button row inside each task card — find the existing `<div className="flex gap-2">` block containing the "Details" / "Run" buttons (search for `className="flex gap-2"` and the literal text "Run"). Add this Retry group immediately after the Run `<button>...</button>`:
+
+```tsx
+                        {status === 'failed' && (
+                          <div className="flex gap-1">
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (v) void handleRetry(t.id, v);
+                                e.currentTarget.value = '';
+                              }}
+                              className="text-[10px] border rounded px-1"
+                              disabled={retryingId === t.id}
+                            >
+                              <option value="" disabled>↻ strategy…</option>
+                              <option value="clean-retry">clean-retry</option>
+                              <option value="tier-escalation">tier-escalation</option>
+                              <option value="different-provider">different-provider</option>
+                              <option value="orchestrated-fallback">orchestrated-fallback</option>
+                              <option value="different-cli">different-cli</option>
+                            </select>
+                            <button
+                              onClick={() => { void handleRetry(t.id); }}
+                              disabled={retryingId === t.id}
+                              className="px-2 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700 disabled:opacity-50"
+                            >
+                              {retryingId === t.id ? '↻…' : '↻ Retry'}
+                            </button>
+                          </div>
+                        )}
+```
+
+(Note: no `defaultValue` — the input is controlled via `value=""`. After dispatching the change, we reset `e.currentTarget.value` directly so the placeholder stays selected without needing React state.)
+
+- [ ] **Step 2: Verify it typechecks + lints**
+
+Run: `timeout 120 pnpm --filter @omega/web build 2>&1 | tail -5`
+Expected: exit 0.
+
+Run: `timeout 30 node node_modules/eslint/bin/eslint.js apps/web/src/components/TaskBoard.tsx 2>&1 | tail -10`
+Expected: shows only pre-existing errors (no new ones near the new code).
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/web/src/components/TaskBoard.tsx
+git commit -m "feat(web): Retry button + strategy picker on failed task cards"
+```
+
+### Task 3.4: Add `↻ N×` retry badge to task cards in TaskBoard
+
+**Files:**
+- Modify: `apps/web/src/components/TaskBoard.tsx` (the task card render, near where status + tags are displayed)
+
+- [ ] **Step 1: Add the retry badge next to the existing complexity tag**
+
+In `apps/web/src/components/TaskBoard.tsx`, find the tag block inside the task card render (search for the text `className="flex flex-wrap gap-1 mb-2"` — the block that holds complexity + external:* + tag pills). After the existing tag pills (after the `.map((tag) => ...)` for tags), add the retry badge:
+
+```tsx
+                      {t.retryCount > 0 && (
+                        <RetryBadge task={t} />
+                      )}
+```
+
+Where `<RetryBadge task={t} />` is the same component:
+
+```tsx
+function RetryBadge({ task }: { task: Task }) {
+  let lastStrategy = '';
+  let lastModel = '';
+  if (task.retryHistory) {
+    try {
+      const arr = JSON.parse(task.retryHistory) as Array<{ strategy: string; model?: string | null }>;
+      const last = arr[arr.length - 1];
+      if (last) {
+        lastStrategy = last.strategy;
+        lastModel = typeof last.model === 'string' ? last.model : '';
+      }
+    } catch { /* ignore malformed history */ }
+  }
+  const modelPart = lastModel ? ` (${lastModel})` : '';
+  return (
+    <span
+      className="px-1.5 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs"
+      title={`Retried ${String(task.retryCount)}× — last: ${lastStrategy}${modelPart}`}
+    >
+      ↻ {task.retryCount}×
+    </span>
+  );
+}
+```
+
+Define `RetryBadge` at the bottom of the file (next to the existing helper functions like `tagsList` and `externalCli`).
+
+(TODO: the spec §5.3 calls for a "compact list" of all attempts. For now we surface only the last; expand to a multi-line tooltip later if needed.)
+
+- [ ] **Step 2: Verify it typechecks + lints**
+
+Run: `timeout 120 pnpm --filter @omega/web build 2>&1 | tail -5`
+Expected: exit 0.
+
+Run: `timeout 30 node node_modules/eslint/bin/eslint.js apps/web/src/components/TaskBoard.tsx 2>&1 | tail -10`
+Expected: shows only pre-existing errors (no new ones near the new code).
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add apps/web/src/components/TaskBoard.tsx
+git commit -m "feat(web): ↻ N× retry badge on task cards with retry history"
+```
+
+### Task 3.5: Rebuild + redeploy web bundle
+
+- [ ] **Step 1: Clear Vite cache and rebuild**
+
+```bash
+rm -rf apps/web/node_modules/.vite apps/web/dist
+timeout 120 pnpm --filter @omega/web build 2>&1 | tail -5
+```
+Expected: exit 0; new bundle hash (e.g. `index-XYZ.js`).
+
+- [ ] **Step 2: Wipe stale hashed assets in the server web dir, copy fresh ones**
+
+```bash
+mkdir -p apps/server/web/assets
+rm -f apps/server/web/assets/index-*.js apps/server/web/assets/index-*.css
+cp apps/web/dist/index.html apps/server/web/index.html
+cp apps/web/dist/assets/index-*.js apps/server/web/assets/
+cp apps/web/dist/assets/index-*.css apps/server/web/assets/
+ls apps/server/web/assets/
+```
+
+Expected: only the new `index-*.js` + `index-*.css` files (no stale hashed assets).
+
+- [ ] **Step 3: Restart the server**
+
+```bash
+pkill -f 'apps/server/dist/index.js' 2>/dev/null
+sleep 2
+rm -f ~/.omega/pglite-data/postmaster.pid
+OMEGA_AUDIT_OUTPUT_DIR=/Volumes/gamma-systems-2/omega-victoria-data CODEX_MODEL=gpt-5.6-luna CODEX_EFFORT=max nohup node apps/server/dist/index.js > /tmp/omega-server.log 2>&1 &
+sleep 6
+lsof -nP -iTCP:4000 -sTCP:LISTEN | tail -1
+```
+
+Expected: server boots cleanly, listening on 4000.
+
+- [ ] **Step 4: Verify the new bundle is served**
+
+```bash
+curl -s http://127.0.0.1:4000/ | grep -oE 'index-[A-Za-z0-9_-]+\.(js|css)'
+```
+
+Expected: prints the new hash.
+
+- [ ] **Step 5: Verify the new strings are bundled**
+
+```bash
+curl -s "http://127.0.0.1:4000/assets/index-$(curl -s http://127.0.0.1:4000/ | grep -oE 'index-[A-Za-z0-9_-]+\.js' | head -1 | sed 's/index-//;s/\.js//').js" | grep -oE '"(Retried|strategy|↻)"'
+```
+
+Expected: at least one of the new strings (`Retried`, `↻`) appears.
+
+- [ ] **Step 6: No commit — verification only.**
+
+### Task 3.6: Final smoke verification — full repo build, tests, E2E
+
+- [ ] **Step 1: All package builds pass**
+
+Run:
+```bash
+timeout 90 pnpm --filter @omega/agent build 2>&1 | tail -3
+timeout 90 pnpm --filter @omega/server build 2>&1 | tail -3
+timeout 90 pnpm --filter @omega/cli build 2>&1 | tail -3
+timeout 90 pnpm --filter @omega/web build 2>&1 | tail -5
+```
+Expected: all four exit 0.
+
+- [ ] **Step 2: Agent tests pass**
+
+Run: `timeout 90 pnpm --filter @omega/agent test 2>&1 | tail -10`
+Expected: exit 0, all 14 tests pass.
+
+- [ ] **Step 3: Server tests pass**
+
+Run: `timeout 90 pnpm --filter @omega/server test 2>&1 | tail -10`
+Expected: exit 0, the new 2 retry tests pass + any existing tests stay green.
+
+- [ ] **Step 4: Restart server with new bundle**
+
+```bash
+pkill -f 'apps/server/dist/index.js' 2>/dev/null
+sleep 2
+rm -f ~/.omega/pglite-data/postmaster.pid
+OMEGA_AUDIT_OUTPUT_DIR=/Volumes/gamma-systems-2/omega-victoria-data CODEX_MODEL=gpt-5.6-luna CODEX_EFFORT=max nohup node apps/server/dist/index.js > /tmp/omega-server.log 2>&1 &
+sleep 6
+lsof -nP -iTCP:4000 -sTCP:LISTEN | tail -1
+```
+
+Expected: server boots cleanly, listening on 4000.
+
+- [ ] **Step 5: Run the E2E**
+
+Run: `timeout 300 node /tmp/omega-e2e.mjs 2>&1 | tail -8`
+Expected: `Summary  …passed, 0 failed`, exit 0 (the E2E exercises the API surface; it may not exercise retry directly, but it should still pass).
+
+- [ ] **Step 6: No commit — verification only.**

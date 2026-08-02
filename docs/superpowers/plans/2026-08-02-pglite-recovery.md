@@ -23,7 +23,7 @@
 | `apps/server/src/index.ts` | Modify | Move the `@omega/db` import to a dynamic `await import(...)` so the snapshot runs first. |
 | `.env.example` | Modify | Document the recovery procedure. |
 
-No schema, no test, no migration. Single round of work.
+5 source files + 1 config + 1 doc. No schema, no test, no migration. Single round of work.
 
 ---
 
@@ -31,7 +31,53 @@ No schema, no test, no migration. Single round of work.
 
 ### Task 1.1: Create `packages/db/src/snapshot.ts`
 
-- [ ] **Step 1: Create the file** at `packages/db/src/snapshot.ts`:
+- [ ] **Step 1: Create the file** at `packages/db/src/snapshot.ts`. Ensure the dir is recreated after rename so the next PGlite init has somewhere to write:
+
+```ts
+import fs from 'node:fs';
+import path from 'node:path';
+import { omegaDatabaseDir } from '@omega/core';
+
+/**
+ * Detect a stale PGlite data dir (postmaster.pid with an mtime older than
+ * `maxAgeMs`) and rename it aside to preserve user data before the next init
+ * tries to construct a PGlite over potentially-corrupted state.
+ *
+ * Safe to call at server startup BEFORE `new PGlite(...)`. If no stale lock is
+ * present, this is a no-op. Best-effort: if rename fails (open file handles),
+ * falls back to copy+remove.
+ *
+ * After renaming, the helper RECREATES an empty dir at the original path so
+ * the next PGlite init has somewhere to write — PGlite's `new PGlite(dir)`
+ * will use the existing dir if it exists, but won't create a missing one
+ * after a rename.
+ *
+ * @returns the snapshot path on success, `null` if no snapshot was needed.
+ */
+export function snapshotStalePgliteDir(maxAgeMs = 5000): string | null {
+  const dir = omegaDatabaseDir();
+  const pidPath = `${dir}/postmaster.pid`;
+  if (!fs.existsSync(pidPath)) return null;
+  const mtimeMs = fs.statSync(pidPath).mtimeMs;
+  if (Date.now() - mtimeMs < maxAgeMs) return null;
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const target = `${dir}.corrupt-${stamp}`;
+  try {
+    fs.renameSync(dir, target);
+  } catch {
+    // rename can fail if PGlite left open handles; fall back to copy+remove.
+    try {
+      fs.cpSync(dir, target, { recursive: true, errorOnExist: false });
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch {
+      return null;
+    }
+  }
+  // Recreate the original dir as empty so the next PGlite init can populate it.
+  fs.mkdirSync(dir, { recursive: true });
+  return target;
+}
+```
 
 ```ts
 import fs from 'node:fs';
@@ -206,14 +252,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { snapshotStalePgliteDir } from '@omega/db/snapshot';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PORT = Number(process.env.PORT ?? 4000);
-const GRPC_PORT = Number(process.env.GRPC_PORT ?? 50051);
-const HOST = process.env.HOST ?? '127.0.0.1';
-const WEB_DIST_DIR = process.env.WEB_DIST_DIR ?? path.resolve(__dirname, '../web');
-process.env.SKILLS_DIR = process.env.SKILLS_DIR ?? path.resolve(__dirname, '../skills');
-
+// Load .env FIRST so PORT / HOST / etc. can pick up the .env values.
 dotenvConfig();
 
 process.on('unhandledRejection', (reason) => {
@@ -222,6 +261,14 @@ process.on('unhandledRejection', (reason) => {
 process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err);
 });
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PORT = Number(process.env.PORT ?? 4000);
+const GRPC_PORT = Number(process.env.GRPC_PORT ?? 50051);
+const HOST = process.env.HOST ?? '127.0.0.1';
+const WEB_DIST_DIR = process.env.WEB_DIST_DIR ?? path.resolve(__dirname, '../web');
+process.env.SKILLS_DIR = process.env.SKILLS_DIR ?? path.resolve(__dirname, '../skills');
 
 // Snapshot any stale PGlite data dir BEFORE loading @omega/db. This function
 // depends only on @omega/core (no PGlite), so it's safe to call here. Without
@@ -234,8 +281,13 @@ if (snapshotTarget) {
 
 // DYNAMIC import — runs after the snapshot. Static imports would have been
 // hoisted by V8's ESM loader, defeating the purpose of the snapshot.
+//
+// Ordering note: apps/server/src/app.ts (line 3) has a STATIC import of
+// @omega/db. That's fine — `await import('./app.js')` is evaluated only
+// after `await import('@omega/db')` resolves, so @omega/db's PGlite init
+// has already happened by the time app.ts loads.
 const dbModule = await import('@omega/db');
-const { prisma, applyMigrations, seedDefaults } = dbModule;
+const { prisma, applyMigrations } = dbModule;
 const { app } = await import('./app.js');
 const { seedSkills } = await import('./seed-skills.js');
 const { startGrpcServer } = await import('./grpc.js');
@@ -243,21 +295,20 @@ const { queue } = await import('./lib/task-queue.js');
 const { getRouter, shutdownRouter } = await import('./lib/intelligent-router.js');
 const { checkThresholds } = await import('./lib/webhook-alerts.js');
 
-(async () => {
-  try {
-    await applyMigrations();
-    await seedDefaults(prisma);
-    await seedSkills();
-  } catch (err) {
-    console.error('Failed to bootstrap DB:', err);
-    process.exit(1);
-  }
-
-  // ... rest of file unchanged — bind to PORT/HOST, set up SSE streams, etc.
-})();
+// Rest of the file is the EXISTING bootstrap() function (from
+// apps/server/src/index.ts lines 31-91) unchanged. It uses the destructured
+// prisma, app, etc. and calls:
+//   await applyMigrations();
+//   await seedDefaults();   // no args
+//   await seedSkills();
+//   ... rest of original body ...
+// followed by:
+//   bootstrap().catch((err: unknown) => { console.error(err); process.exit(1); });
+// at the bottom. Keep that structure verbatim — only the imports + dotenvConfig
+// order + snapshot call need to change.
 ```
 
-The pattern: the dynamic imports give us the values; the `(async () => { ... })()` IIFE consumes them.
+The pattern: dynamic imports give us the values; the existing `bootstrap()` IIFE consumes them with the same error coverage the file had before. No new `try/catch` or IIFE — just replace the top-of-file imports + the `dotenvConfig()` call order + insert the `snapshotStalePgliteDir()` block. The bottom of the file (the bootstrap function + its catch + the SIGTERM/SIGINT handlers) is unchanged.
 
 - [ ] **Step 3: Verify it typechecks** — `timeout 120 pnpm --filter @omega/server build 2>&1 | tail -3` exits 0.
 
@@ -306,19 +357,21 @@ timeout 90 pnpm --filter @omega/agent test 2>&1 | tail -10
 
 Expected: 14 tests pass.
 
-- [ ] **Step 3: Restart the server** to validate the new startup sequence
+- [ ] **Step 3: Restart the server** to validate the new startup sequence — without removing the existing postmaster.pid (the stale lock is the test case for the snapshot path):
 
 ```bash
 pkill -f 'apps/server/dist/index.js' 2>/dev/null
 sleep 2
-rm -f ~/.omega/pglite-data/postmaster.pid
+# DO NOT remove postmaster.pid — the snapshot path is exercised when it's stale (>5s old).
+# If you have a fresh postmaster.pid (within 5s), wait 6s first.
+sleep 6
 OMEGA_AUDIT_OUTPUT_DIR=/Volumes/gamma-systems-2/omega-victoria-data CODEX_MODEL=gpt-5.6-luna CODEX_EFFORT=max nohup node apps/server/dist/index.js > /tmp/omega-server.log 2>&1 &
 sleep 10
 lsof -nP -iTCP:4000 -sTCP:LISTEN 2>/dev/null | tail -1
 tail -8 /tmp/omega-server.log
 ```
 
-Expected: server starts OR fails with the PGlite WASM abort but the snapshot diagnostic is logged. Either is a valid result — the point is that the new code doesn't make things worse.
+Expected: the log contains `[PGlite recovery] Snapshot of stale data dir created at: <path>` if the existing `postmaster.pid` is stale. Then the server either starts (PGlite init succeeds against the empty dir) or fails with the existing WASM abort. Either result validates the new code path.
 
 - [ ] **Step 4: Commit all 5 source files + the config + the doc** in one or two commits:
 
@@ -331,7 +384,18 @@ git commit -m "feat(server): pre-init PGlite snapshot via dynamic import + env d
 
 (Or one combined commit — your call.)
 
-- [ ] **Step 5: No commit further — verification only.**
+- [ ] **Step 4: Commit (DO NOT auto-commit — per AGENTS.md rule 1, request explicit user approval before `git commit`).** If approved, run:
+
+```bash
+git add packages/db/src/snapshot.ts packages/db/src/client.ts packages/db/src/cli-reset.ts packages/db/package.json
+git commit -m "feat(db): PGlite WASM recovery — snapshot helper + cli-reset + subpath exports"
+git add apps/server/src/index.ts .env.example
+git commit -m "feat(server): pre-init PGlite snapshot via dynamic import + env doc"
+```
+
+(Or one combined commit — your call.)
+
+If the user has not approved committing, leave the changes uncommitted. The user can review + commit manually.
 
 ---
 

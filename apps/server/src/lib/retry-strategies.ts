@@ -6,7 +6,7 @@ import { envInt, safeJsonParse } from './utils.js';
 export interface RetryStrategy {
   name: string;
   description: string;
-  apply: (ctx: RetryContext) => RetryAttempt | undefined;
+  apply: (ctx: RetryContext) => RetryAttempt | undefined | Promise<RetryAttempt | undefined>;
 }
 
 export interface RetryContext {
@@ -25,6 +25,7 @@ export interface RetryContext {
   projectPath: string;
   projectName: string;
   error: string;
+  prisma?: PrismaClient;
 }
 
 export interface RetryAttempt {
@@ -45,6 +46,41 @@ export interface RetryRecord {
 
 const MAX_RETRIES = envInt('OMEGA_MAX_RETRIES', 3);
 
+async function nextInternalTier(
+  prisma: PrismaClient,
+  ctx: RetryContext,
+): Promise<{ provider: string; model: string } | null> {
+  if (!ctx.task.provider || !ctx.task.model) return null;
+  const provider = await prisma.providerConfig.findFirst({
+    where: { kind: ctx.task.provider },
+  });
+  if (!provider) return null;
+  const caps = provider.capabilities as { modelTiers?: Record<string, string> } | null;
+  const ladder = caps?.modelTiers;
+  if (ladder && ladder[ctx.task.model]) {
+    const nextModel = ladder[ctx.task.model];
+    if (nextModel) return { provider: ctx.task.provider, model: nextModel };
+  }
+  return null;
+}
+
+async function pickDifferentProvider(
+  prisma: PrismaClient,
+  current: string | null,
+): Promise<{ provider: string; model: string } | null> {
+  const candidates = await prisma.providerConfig.findMany({
+    where: {
+      enabled: true,
+      ...(current ? { kind: { not: current } } : {}),
+    },
+    take: 5,
+  });
+  if (candidates.length === 0) return null;
+  const pick = candidates[0];
+  if (!pick) return null;
+  return { provider: pick.kind, model: pick.defaultModel };
+}
+
 const RETRY_STRATEGIES: RetryStrategy[] = [
   {
     name: 'clean-retry',
@@ -60,28 +96,28 @@ const RETRY_STRATEGIES: RetryStrategy[] = [
   },
   {
     name: 'tier-escalation',
-    description: 'Escalate to a higher model tier',
-    apply: (ctx) => {
+    description: 'Escalate to a higher model tier (internal tasks only)',
+    apply: async (ctx) => {
       if (ctx.task.retryCount > 1) return undefined;
       const tags = ctx.task.tags;
-      const externalTag = tags.find((t) => t.startsWith('external:'));
-      if (externalTag) return undefined;
-      return {
-        strategy: 'tier-escalation',
-      };
+      if (tags.find((t) => t.startsWith('external:'))) return undefined;
+      if (tags.includes('orchestrate')) return undefined;
+      const next = await nextInternalTier(ctx.prisma!, ctx);
+      if (!next) return undefined;
+      return { strategy: 'tier-escalation', provider: next.provider, model: next.model };
     },
   },
   {
     name: 'different-provider',
-    description: 'Try a different provider entirely',
-    apply: (ctx) => {
+    description: 'Swap to a different provider (internal tasks only)',
+    apply: async (ctx) => {
       if (ctx.task.retryCount > 2) return undefined;
       const tags = ctx.task.tags;
-      const externalTag = tags.find((t) => t.startsWith('external:'));
-      if (externalTag) return undefined;
-      return {
-        strategy: 'different-provider',
-      };
+      if (tags.find((t) => t.startsWith('external:'))) return undefined;
+      if (tags.includes('orchestrate')) return undefined;
+      const next = await pickDifferentProvider(ctx.prisma!, ctx.task.provider);
+      if (!next) return undefined;
+      return { strategy: 'different-provider', provider: next.provider, model: next.model };
     },
   },
   {
@@ -123,10 +159,10 @@ const RETRY_STRATEGIES: RetryStrategy[] = [
   },
 ];
 
-export function getNextStrategy(ctx: RetryContext): RetryAttempt | undefined {
+export async function getNextStrategy(ctx: RetryContext): Promise<RetryAttempt | undefined> {
   if (ctx.task.retryCount >= MAX_RETRIES) return undefined;
   for (const strategy of RETRY_STRATEGIES) {
-    const attempt = strategy.apply(ctx);
+    const attempt = await strategy.apply(ctx);
     if (attempt) return attempt;
   }
   return undefined;

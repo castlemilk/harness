@@ -29,6 +29,7 @@
 - [ ] **Step 1: Create the file** with the suite switch (the union of run/consensus/strategy suites) + mode allow-list:
 
 ```ts
+import path from 'node:path';
 import type { BenchmarkTask } from '../types.js';
 import { syntheticSuite } from './synthetic.js';
 import { fastSuite } from './fast.js';
@@ -54,7 +55,7 @@ export interface SuiteLoadOptions {
 }
 
 export const SUITES_BY_MODE: Record<SuiteMode, string[]> = {
-  run: ['synthetic', 'fast', 'hard', 'harder', 'harder-v2', 'hard-targeting', 'deep-swe', 'swebench-lite'],
+  run: ['synthetic', 'fast', 'deep', 'hard', 'harder', 'harder-v2', 'hard-targeting', 'deep-swe', 'swebench-lite'],
   consensus: ['fast', 'deep', 'harder', 'harder-v2', 'hard-targeting', 'hard'],
   strategy: ['fast', 'deep', 'harder', 'harder-v2', 'hard-targeting'],
 };
@@ -113,7 +114,7 @@ export async function loadSuiteTasks(options: SuiteLoadOptions): Promise<{ tasks
   } else if (suite === 'swebench-lite') {
     if (!options.path) throw new Error('--path is required for the swebench-lite suite (path to JSON file)');
     tasks = await loadSWebenchLiteSuite({
-      datasetPath: options.path,
+      datasetPath: path.resolve(options.path),  // match runCmd's behavior (bench.ts:201)
       nTasks: options.nTasks,
       sampleSeed: options.sampleSeed,
       taskIds: options.taskIds,
@@ -159,6 +160,38 @@ export * from './suites/loader.js';
   .option('--auto', 'auto-select strategies via classifyTask (strategy mode only)')
 ```
 
+Also update the `--suite` help text (bench.ts:65) to include `deep` in the suite list.
+
+**IMPORTANT — Step 1 also extends the action's opts TYPE ANNOTATION** (bench.ts:85-106). The new options need fields in the annotation or every access is a TS error:
+
+```ts
+  .action(async (opts: {
+    suite: string;
+    path?: string;
+    nTasks?: number;
+    sampleSeed?: number;
+    taskId: string[];
+    repo: string[];
+    timeout: string;
+    outputDir?: string;
+    projectPrefix: string;
+    provider?: string;
+    model?: string;
+    docker?: boolean;
+    tokenBudget?: number;
+    agent?: string;
+    envFile?: string;
+    jobsDir?: string;
+    nConcurrent?: number;
+    pierExtra: string[];
+    baseline?: string;
+    failOnRegression?: boolean;
+    strategy: string;         // NEW
+    models?: string;          // NEW
+    strategies?: string;      // NEW
+    auto?: boolean;           // NEW
+  }) => {
+
 - [ ] **Step 2: Add the pier guard** at the TOP of the action (BEFORE the `if (opts.suite === 'pier')` block, so it fires before the --path check):
 
 ```ts
@@ -185,7 +218,7 @@ export * from './suites/loader.js';
     });
 ```
 
-(Note: `mode: 'run'` for single keeps the runCmd's original suite set — synthetic/fast/hard/harder/harder-v2/hard-targeting/deep-swe/swebench-lite — plus deep is NOT in run's allow-list, preserving the pre-change behavior. Wait — the runCmd's original switch had NO deep. Correct: `SUITES_BY_MODE.run` excludes deep. Verified in the spec.)
+(Note: `mode: 'run'` for single uses `SUITES_BY_MODE.run` which INCLUDES `deep` — runCmd gains a suite it didn't have. This matches the spec §1 prose ("runCmd gains deep"); `deepSuite()` is arg-less and already runs single-agent via evalCmd/varianceCmd. The help-text update in Step 1 covers it.)
 
 - [ ] **Step 4: Replace the `runBenchmark` call with the dispatch:**
 
@@ -215,6 +248,9 @@ export * from './suites/loader.js';
           console.log(`  ${report.passed ? '✓' : '✗'} ${taskId} (${String(report.candidates.length)} agents, winner: ${w})`);
         },
       });
+      if (opts.baseline) {
+        console.log('--baseline comparison only applies to single mode; skipping.');
+      }
       // Copy the consensus summary + writeModelEvalReport + saveBenchmarkHistory
       // blocks VERBATIM from consensusCmd (bench.ts:549-574).
       return;
@@ -242,6 +278,9 @@ export * from './suites/loader.js';
           console.log(`  ${report.passed ? '✓' : '✗'} ${taskId} (${String(report.candidates.length)} strategies, winner: ${w})`);
         },
       });
+      if (opts.baseline) {
+        console.log('--baseline comparison only applies to single mode; skipping.');
+      }
       // Copy the union/per-strategy/winsByStrategy/failure-insights/report
       // blocks VERBATIM from strategyCmd (bench.ts:655-714).
       return;
@@ -276,11 +315,12 @@ export * from './suites/loader.js';
 ```ts
       const { tasks } = await loadSuiteTasks({
         suite: opts.suite,
-        path: opts.path,
         taskIds: opts.taskId,
         mode: 'strategy',
       });
 ```
+
+(**NO `path` line** — strategyCmd's opts type has no `path` field and no `--path` option; the strategy allow-list has no path-requiring suites. Including it would be a TS error.)
 
 - [ ] **Step 3: Update both help texts** (consensusCmd line 464: add `harder-v2`; strategyCmd line 579: add `harder-v2`). Also verify the defaults (`harder` / `hard-targeting`) are still in the allow-lists (they are).
 
@@ -315,8 +355,10 @@ node apps/cli/dist/index.js bench run --suite fast --strategy bogus 2>&1 | tail 
 # expect the "Unknown --strategy value" error
 node apps/cli/dist/index.js bench run --suite fast --strategy consensus 2>&1 | tail -2
 # expect the "--models is required" error
-node apps/cli/dist/index.js bench run --suite fast --strategy strategy --strategies default --n-tasks 2 2>&1 | tail -4
-# expect the strategy header + per-task progress (runs 2 fast tasks across 1 strategy)
+node apps/cli/dist/index.js bench run --suite fast --strategy strategy --strategies default --task-id fast-string-utility 2>&1 | tail -4
+# expect the strategy header + per-task progress.
+# NOTE: --n-tasks only applies to the deep-swe/swebench-lite adapters; use --task-id
+# to filter the fast suite (find a valid id from packages/bench/src/suites/fast.ts first).
 ```
 
 - [ ] **Step 4: Commit (request user approval first).** If approved:
@@ -336,11 +378,13 @@ Makes bench run the single entry point for all three eval modes:
   * bench run (default single) — unchanged behavior.
 
 Shared suite-loading extracted to packages/bench/src/suites/loader.ts:
-loadSuiteTasks with a per-mode allow-list (SUITES_BY_MODE), so
-consensus/strategy don't silently gain synthetic/deep-swe/swebench-lite
-(they lack --docker/--n-tasks) and run doesn't gain deep. consensusCmd/
-strategyCmd now use the loader (less duplication, same behavior).
+loadSuiteTasks with a per-mode allow-list (SUITES_BY_MODE). run gains
+deep; consensus/strategy stay restricted to their flags (they lack
+--docker/--n-tasks so deep-swe/swebench-lite/synthetic don't route
+through them). consensusCmd/strategyCmd now use the loader (less
+duplication, same behavior).
 
 Guards: pier rejects --strategy; unknown --strategy values error;
-consensus without --models errors."
+consensus without --models errors; --baseline noted single-only in
+consensus/strategy modes."
 ```

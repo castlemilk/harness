@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import { z } from 'zod';
 import { runTask } from '../lib/run-task.js';
-import { getNextStrategy, executeRetry, type RetryContext, type RetryRecord } from '../lib/retry-strategies.js';
+import { getNextStrategy, executeRetry, STRATEGIES_BY_NAME, type RetryAttempt, type RetryContext, type RetryRecord } from '../lib/retry-strategies.js';
 import { asyncHandler } from '../lib/async-handler.js';
 import { safeJsonParse } from '../lib/utils.js';
 
@@ -372,7 +372,13 @@ export function taskRoutes(prisma: PrismaClient): Router {
       error: task.error ?? '',
     };
 
-    const attempt = await getNextStrategy(ctx);
+    const { strategy: strategyName } = req.body ?? {};
+    let attempt: RetryAttempt | undefined;
+    if (typeof strategyName === 'string' && STRATEGIES_BY_NAME[strategyName]) {
+      attempt = await STRATEGIES_BY_NAME[strategyName].apply(ctx);
+    } else {
+      attempt = await getNextStrategy(ctx);
+    }
     if (!attempt) {
       res.status(400).json({ error: 'No more retry strategies available', retryCount: task.retryCount });
       return;

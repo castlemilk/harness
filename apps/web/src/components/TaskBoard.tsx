@@ -267,6 +267,9 @@ export function TaskBoard({ projectId }: Props) {
                                 {tag}
                               </span>
                             ))}
+                          {t.retryCount > 0 && (
+                            <RetryBadge task={t} />
+                          )}
                         </div>
                         {t.provider && (
                           <div className="text-xs text-gray-400 mb-2">
@@ -335,5 +338,29 @@ export function TaskBoard({ projectId }: Props) {
         )}
       </div>
     </main>
+  );
+}
+
+function RetryBadge({ task }: { task: Task }) {
+  let lastStrategy = '';
+  let lastModel = '';
+  if (task.retryHistory) {
+    try {
+      const arr = JSON.parse(task.retryHistory) as { strategy: string; model?: string | null }[];
+      const last = arr.at(-1);
+      if (last) {
+        lastStrategy = last.strategy;
+        lastModel = typeof last.model === 'string' ? last.model : '';
+      }
+    } catch { /* ignore malformed history */ }
+  }
+  const modelPart = lastModel ? ` (${lastModel})` : '';
+  return (
+    <span
+      className="px-1.5 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs"
+      title={`Retried ${String(task.retryCount)}× — last: ${lastStrategy}${modelPart}`}
+    >
+      ↻ {task.retryCount}×
+    </span>
   );
 }

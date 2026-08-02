@@ -48,6 +48,7 @@ interface Reward {
 // environment-drift packages that are not declared in the project's own
 // install metadata but are required for the DeepSWE verifier to pass.
 const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
+  'gql-incremental-graphql-delivery': { pip: ['pytest-asyncio'] },
   'mobly-grouped-test-barriers': { pip: ['pytz'] },
   'dateutil-rfc5545-timezone-interop': { pip: ['pytest<8'] },
   'bandit-incremental-cache-control': { pip: ['GitPython', 'sarif-om', 'jschema_to_python'] },
@@ -452,6 +453,17 @@ async function installProjectDependencies(
         continue;
       }
 
+      // Many DeepSWE test.sh scripts call `python` (not `python3`), and the
+      // venv only creates `python3` on macOS. Create a `python` symlink so
+      // those verifiers resolve instead of failing with "python: command
+      // not found" (e.g. httpx-deterministic-cookie-store).
+      const venvBin = path.join(venvPath, 'bin');
+      const hasVenvPython = await fs.access(path.join(venvBin, 'python')).then(() => true, () => false);
+      if (!hasVenvPython) {
+        const hasPy3 = await fs.access(path.join(venvBin, 'python3')).then(() => true, () => false);
+        await runCommand('ln', ['-sf', hasPy3 ? 'python3' : 'python', path.join(venvBin, 'python')], { cwd: projectPath, timeout: 10_000 });
+      }
+
       const fail = (stage: string, stderr: string): boolean => {
         errors.push(`${pythonBin} ${stage}: ${stderr}`);
         return true;
@@ -558,6 +570,7 @@ async function installProjectDependencies(
         if (testShText.includes('pytest-socket') || /\bpytest-socket\b/.test(testShText)) pytestExtras.push('pytest-socket');
         if (testShText.includes('pytest-codspeed') || /\bpytest-codspeed\b/.test(testShText)) pytestExtras.push('pytest-codspeed');
         if (testShText.includes('pytest-subtests') || /\bpytest-subtests\b/.test(testShText)) pytestExtras.push('pytest-subtests');
+        if (/\bstestr\b/.test(testShText)) pytestExtras.push('stestr', 'subunit', 'junitxml');
         if (pytestExtras.length > 0) {
           const install = await runCommand(pipBin, ['install', ...pytestExtras], { cwd: projectPath, timeout: 300_000 });
           if (install.exitCode !== 0) failed = fail('pytest extras install', install.stderr);

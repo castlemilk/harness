@@ -142,7 +142,6 @@ export type FailureCategory =
   | 'model_error'
   | 'rate_limit'      // NEW: quota/429/rate-limit task errors
   | 'provider_error'  // NEW: provider crash / fetch failed / ECONNRESET / unreachable
-  | 'infra'           // NEW: generic runner↔server infra failures
   | 'timeout'
   | 'validation_failure'
   | 'tool_misuse'

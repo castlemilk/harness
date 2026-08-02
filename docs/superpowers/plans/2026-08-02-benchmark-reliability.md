@@ -199,7 +199,6 @@ export type FailureCategory =
   | 'model_error'
   | 'rate_limit'
   | 'provider_error'
-  | 'infra'
   | 'timeout'
   | 'validation_failure'
   | 'tool_misuse'

@@ -36,6 +36,7 @@ export function TaskBoard({ projectId }: Props) {
     tags: '',
   });
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [kindFilter, setKindFilter] = useState<'all' | 'agent' | 'orchestrate' | 'external'>('all');
 
   async function load() {
@@ -123,6 +124,16 @@ export function TaskBoard({ projectId }: Props) {
   async function handleRun(id: string) {
     await api.runTask(id);
     await load();
+  }
+
+  async function handleRetry(taskId: string, strategy?: string) {
+    setRetryingId(taskId);
+    try {
+      await api.retryTask(taskId, strategy);
+      await load();
+    } finally {
+      setRetryingId(null);
+    }
   }
 
   function tagsList(t: Task): string[] {
@@ -272,6 +283,34 @@ export function TaskBoard({ projectId }: Props) {
                             >
                               Run
                             </button>
+                          )}
+                          {status === 'failed' && (
+                            <div className="flex gap-1">
+                              <select
+                                value=""
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  if (v) void handleRetry(t.id, v);
+                                  e.currentTarget.value = '';
+                                }}
+                                className="text-[10px] border rounded px-1"
+                                disabled={retryingId === t.id}
+                              >
+                                <option value="" disabled>↻ strategy…</option>
+                                <option value="clean-retry">clean-retry</option>
+                                <option value="tier-escalation">tier-escalation</option>
+                                <option value="different-provider">different-provider</option>
+                                <option value="orchestrated-fallback">orchestrated-fallback</option>
+                                <option value="different-cli">different-cli</option>
+                              </select>
+                              <button
+                                onClick={() => { void handleRetry(t.id); }}
+                                disabled={retryingId === t.id}
+                                className="px-2 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700 disabled:opacity-50"
+                              >
+                                {retryingId === t.id ? '↻…' : '↻ Retry'}
+                              </button>
+                            </div>
                           )}
                         </div>
                         {expandedTaskId === t.id && (

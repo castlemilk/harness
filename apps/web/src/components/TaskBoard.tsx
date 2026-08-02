@@ -36,7 +36,7 @@ export function TaskBoard({ projectId }: Props) {
     tags: '',
   });
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
-  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
   const [kindFilter, setKindFilter] = useState<'all' | 'agent' | 'orchestrate' | 'external'>('all');
 
   async function load() {
@@ -127,12 +127,22 @@ export function TaskBoard({ projectId }: Props) {
   }
 
   async function handleRetry(taskId: string, strategy?: string) {
-    setRetryingId(taskId);
+    setRetryingIds((s) => {
+      const n = new Set(s);
+      n.add(taskId);
+      return n;
+    });
     try {
       await api.retryTask(taskId, strategy);
       await load();
+    } catch (err) {
+      console.error('retry failed', taskId, err);
     } finally {
-      setRetryingId(null);
+      setRetryingIds((s) => {
+        const n = new Set(s);
+        n.delete(taskId);
+        return n;
+      });
     }
   }
 
@@ -294,7 +304,7 @@ export function TaskBoard({ projectId }: Props) {
                                   e.currentTarget.value = '';
                                 }}
                                 className="text-[10px] border rounded px-1"
-                                disabled={retryingId === t.id}
+                                disabled={retryingIds.has(t.id)}
                               >
                                 <option value="" disabled>↻ strategy…</option>
                                 <option value="clean-retry">clean-retry</option>
@@ -305,10 +315,10 @@ export function TaskBoard({ projectId }: Props) {
                               </select>
                               <button
                                 onClick={() => { void handleRetry(t.id); }}
-                                disabled={retryingId === t.id}
+                                disabled={retryingIds.has(t.id)}
                                 className="px-2 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700 disabled:opacity-50"
                               >
-                                {retryingId === t.id ? '↻…' : '↻ Retry'}
+                                {retryingIds.has(t.id) ? '↻…' : '↻ Retry'}
                               </button>
                             </div>
                           )}

@@ -32,6 +32,7 @@ async function tryAutoRetry(
       retryCount: task.retryCount,
       retryHistory,
     },
+    prisma,
     projectPath: task.project.path,
     projectName: task.project.name,
     error: task.error ?? '',

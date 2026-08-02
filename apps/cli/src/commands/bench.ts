@@ -74,6 +74,11 @@ async function runConsensusCli(opts: {
   projectPrefix: string;
   baseline?: string;
 }): Promise<void> {
+  if (opts.tasks.length === 0) {
+    console.log('No benchmark tasks to run.');
+    return;
+  }
+
   const models = opts.models.split(',').map((m) => m.trim()).filter(Boolean).map((m) => {
     // Accepted formats:
     //   provider/model      → e.g. "minimax/MiniMax-M3", "deepseek/deepseek-v4-pro"
@@ -89,7 +94,7 @@ async function runConsensusCli(opts: {
     return { provider: 'external', model: m };
   });
   if (models.length === 0) {
-    throw new Error('--models is required for consensus (e.g. "external:agy,minimax/MiniMax-M3")');
+    throw new Error('--models is required for --strategy consensus (e.g. "external:agy,minimax/MiniMax-M3")');
   }
 
   console.log(
@@ -159,6 +164,11 @@ async function runStrategyCli(opts: {
   auto?: boolean;
   baseline?: string;
 }): Promise<void> {
+  if (opts.tasks.length === 0) {
+    console.log('No benchmark tasks to run.');
+    return;
+  }
+
   const raw = opts.strategies ?? 'default,verify-before-finish,research-first';
   const strategies = raw.split(',').map((s) => s.trim()).filter(Boolean) as StrategyName[];
   const validStrategies = Object.keys(STRATEGY_PROMPTS) as string[];
@@ -267,7 +277,7 @@ const runCmd = new Command('run')
   .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
   .option('--repo <repo>', 'filter to specific repo (for swebench-lite, repeatable)', collectTaskIds, [])
   .option('--timeout <ms>', 'per-task timeout in ms', '1800000')
-  .option('--output-dir <dir>', 'report output directory')
+  .option('--output-dir <dir>', 'report output directory (single mode only; consensus/strategy write to omegaReportsDir())')
   .option('--project-prefix <prefix>', 'project name prefix for created harness projects', 'bench')
   .option('--provider <name>', 'provider to use for benchmark tasks')
   .option('--model <model>', 'model to use for benchmark tasks')
@@ -278,7 +288,7 @@ const runCmd = new Command('run')
   .option('--jobs-dir <dir>', 'Pier jobs directory')
   .option('--n-concurrent <n>', 'Pier concurrent trials', parseInt)
   .option('--pier-extra <arg>', 'extra Pier CLI arg (repeatable)', collectTaskIds, [])
-  .option('--baseline <file>', 'compare against a baseline report after run; exit non-zero on regression')
+  .option('--baseline <file>', 'compare against a baseline report after run (single mode only); exit non-zero on regression')
   .option('--fail-on-regression', 'exit with code 1 if pass rate drops vs baseline (used with --baseline)')
   .option('--strategy <mode>', 'eval mode: single | consensus | strategy (default: single)', 'single')
   .option('--models <list>', 'comma-separated provider/model list (required for --strategy consensus, e.g. "external:agy,minimax/MiniMax-M3")')

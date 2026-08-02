@@ -372,9 +372,9 @@ export function taskRoutes(prisma: PrismaClient): Router {
       error: task.error ?? '',
     };
 
-    const { strategy: strategyName } = req.body ?? {};
+    const { strategy: strategyName } = (req.body ?? {}) as { strategy?: unknown };
     let attempt: RetryAttempt | undefined;
-    if (typeof strategyName === 'string' && STRATEGIES_BY_NAME[strategyName]) {
+    if (typeof strategyName === 'string' && Object.hasOwn(STRATEGIES_BY_NAME, strategyName)) {
       attempt = await STRATEGIES_BY_NAME[strategyName].apply(ctx);
     } else {
       attempt = await getNextStrategy(ctx);

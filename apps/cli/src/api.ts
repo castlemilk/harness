@@ -21,3 +21,11 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<unknow
   }
   return data;
 }
+
+export async function retryTask(id: string, strategy?: string): Promise<Record<string, unknown>> {
+  return apiFetch(`/tasks/${id}/retry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(strategy ? { strategy } : {}),
+  }) as Promise<Record<string, unknown>>;
+}

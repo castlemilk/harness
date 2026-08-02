@@ -487,7 +487,16 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       const budgetAdvisory =
         !forcedEditMode && (explorationBudgetExhausted || wanderingAfterEdits || stuckWithoutEdits || wanderingTooLong);
 
-      const allowedInForcedMode = new Set(['edit_file', 'write_file', 'edit_lines', 'apply_patch', 'read_file', 'search', 'think']);
+      // In forced-edit mode, reads stay allowed briefly (the model may need to
+      // locate the file it was told to edit), but once it has burned half the
+      // forced budget still reading, drop reads too — only edits advance.
+      const forcedBudget = ctx.explorationBudget.beforeFirstEdit;
+      const editOnlyInForcedMode = forcedEditMode && forcedEditModeSteps > Math.max(2, Math.floor(forcedBudget / 2));
+      const allowedInForcedMode = new Set(
+        editOnlyInForcedMode
+          ? ['edit_file', 'write_file', 'edit_lines', 'apply_patch']
+          : ['edit_file', 'write_file', 'edit_lines', 'apply_patch', 'read_file', 'search', 'think'],
+      );
       if (stuckWithoutEdits && !forcedEditMode) {
         const solved = await tryStuckSolve(ctx);
         if (solved) {
@@ -666,15 +675,18 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       stuckTurnCount = 0;
       forcedEditMode = true;
       forcedEditModeSteps = 0;
-      messages.length = 0;
-      messages.push({ role: 'system', content: ctx.systemPrompt });
-      messages.push({ role: 'user', content: buildTaskPrompt(ctx.task.title, ctx.task.description ?? undefined) });
+      // Preserve the conversation history — wiping it (the previous behavior)
+      // blinded the model to the repo knowledge + tool results it had built up,
+      // which made cheap models "refuse to edit" because they no longer knew
+      // where the relevant file was. Forced mode already rejects exploration
+      // tools via the allowed-set; keeping context lets the model pick a target.
       messages.push({
         role: 'user',
         content:
           `[ACTION REQUIRED] You have explored long enough without editing. ` +
           `You are now in FORCED EDIT MODE. Only read_file, search, and edit_file are accepted. ` +
           `All other tools (write_file, run_command, list_files, code_overview, think, lsp_*) will be rejected until you make a concrete edit. ` +
+          `You still have the full conversation above (repo exploration, tool results, and any partial analysis). ` +
           `Choose the most relevant source file, read the exact lines you need, and make the smallest edit_file change that advances the task. ` +
           `Do not explain. Do not ask for clarification. Edit now.`,
       });

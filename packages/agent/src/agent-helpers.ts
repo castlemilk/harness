@@ -77,16 +77,26 @@ export async function tryStuckSolve(ctx: AgentContext): Promise<boolean> {
     const tmp = path.join(ctx.projectPath, '.stuck-solve.patch');
     await fs.writeFile(tmp, patch, 'utf-8');
     try {
+      // Try strict apply first (fast, catches real conflicts).
       await execFileAsync('git', ['-C', ctx.projectPath, 'apply', '--whitespace=nowarn', tmp]);
       logger.info('Stuck-solver applied a draft patch', { taskId: ctx.task.id, agentRunId: ctx.agentRunId });
       return true;
-    } catch (err) {
-      logger.warn('Stuck-solver patch failed to apply', {
-        taskId: ctx.task.id,
-        agentRunId: ctx.agentRunId,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      return false;
+    } catch {
+      // Fallback: --3way uses merge-based application which is more forgiving
+      // when the working tree has drifted from the patch context — mirrors the
+      // bench evaluator's applyLatestPatch pattern.
+      try {
+        await execFileAsync('git', ['-C', ctx.projectPath, 'apply', '--3way', '--whitespace=nowarn', tmp]);
+        logger.info('Stuck-solver applied a draft patch (3way)', { taskId: ctx.task.id, agentRunId: ctx.agentRunId });
+        return true;
+      } catch (err) {
+        logger.warn('Stuck-solver patch failed to apply', {
+          taskId: ctx.task.id,
+          agentRunId: ctx.agentRunId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return false;
+      }
     } finally {
       await fs.rm(tmp, { force: true }).catch(() => undefined);
     }

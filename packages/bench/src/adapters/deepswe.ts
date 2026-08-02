@@ -1521,6 +1521,25 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
           .slice()
           .reverse()
           .find((d) => typeof d.patch === 'string' && d.patch.length > 0)?.patch;
+        if (!storedPatch) {
+          // No agent patch → the task already failed. Running the full
+          // verifier with an empty patch burns up to 30 min per no-patch
+          // failure (all fail-to-pass tests fail + the whole suite runs).
+          // Report immediately instead.
+          return {
+            passed: false,
+            score: 0,
+            message: 'DeepSWE verifier skipped (no patch produced by agent)',
+            metrics: {
+              f2p_passed: 0,
+              f2p_total: 0,
+              p2p_passed: 0,
+              p2p_total: 0,
+              partial: 0,
+              verifier_skipped: 1,
+            },
+          };
+        }
         const { reward, logs, logFile, exitCode, timedOut } = await runDeepSWEVerifier(
           ctx.projectPath,
           dir,

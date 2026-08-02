@@ -43,6 +43,8 @@ import { hardSuite } from './hard.js';
 import { loadDeepSWESuite } from '../adapters/deepswe.js';
 import { loadSWebenchLiteSuite } from '../adapters/swebench.js';
 
+export type SuiteMode = 'run' | 'consensus' | 'strategy';
+
 export interface SuiteLoadOptions {
   suite: string;
   path?: string;
@@ -51,23 +53,33 @@ export interface SuiteLoadOptions {
   taskIds?: string[];
   repos?: string[];
   useDocker?: boolean;
+  /** Restrict which suites are allowed (see allowed-suites table below). */
+  mode?: SuiteMode;
 }
+
+export const SUITES_BY_MODE: Record<SuiteMode, string[]> = {
+  run: ['synthetic', 'fast', 'hard', 'harder', 'harder-v2', 'hard-targeting', 'deep-swe', 'swebench-lite'],
+  consensus: ['fast', 'deep', 'harder', 'harder-v2', 'hard-targeting', 'hard'],
+  strategy: ['fast', 'deep', 'harder', 'harder-v2', 'hard-targeting'],
+};
 
 /**
  * Load the task list for a suite, applying the common filters
- * (taskIds, nTasks, sampleSeed). Shared by bench run / consensus /
- * strategy so the suite->tasks mapping is in one place.
+ * (taskIds, nTasks, sampleSeed) + the mode's suite allow-list.
+ * Shared by bench run / consensus / strategy so the suite->tasks
+ * mapping is in one place.
  */
 export async function loadSuiteTasks(options: SuiteLoadOptions): Promise<{ tasks: BenchmarkTask[]; suiteName: string }> {
-  // ... the switch, covering the UNION of run/consensus/strategy suites:
-  // synthetic, fast, deep, hard, harder, harder-v2, hard-targeting,
-  // deep-swe, swebench-lite. runCmd's switch is the base; ADD the `deep`
-  // branch that consensus/strategy support (runCmd gains a suite it
-  // didn't have — fine). Unknown suite throws.
+  // The switch covers the runCmd base (bench.ts:130-213) + the `deep`
+  // branch consensus/strategy support. The mode allow-list keeps each
+  // command from silently gaining suites it has no flags for (e.g.
+  // consensus has no --docker/--n-tasks, so deep-swe/swebench-lite
+  // must NOT route through it). Unknown suite OR suite-not-in-mode
+  // throws.
 }
 ```
 
-The `runCmd`'s existing switch (bench.ts:130-213) is the base behavior — move it, add the `deep` branch, keep the `throw new Error('Unknown suite')` + the `tasks.filter((t) => taskIds.includes(t.id))` post-filter. Update `consensusCmd`/`strategyCmd` help texts (their suite sets gain harder-v2; defaults `harder`/`hard-targeting` unchanged).
+The `runCmd`'s existing switch (bench.ts:130-213) is the base behavior — move it, add the `deep` branch, keep the `throw new Error('Unknown suite')` + the `tasks.filter((t) => taskIds.includes(t.id))` post-filter, and gate on `SUITES_BY_MODE[mode]`. Update ALL THREE help texts (`runCmd` gains `deep`; `consensusCmd`/`strategyCmd` gain `harder-v2`; defaults `harder`/`hard-targeting` unchanged). The `--strategy <mode>` option value is validated (single|consensus|strategy; unknown → error, not silent fallback to single).
 
 ### 2. `bench run` gains `--strategy` + passthrough flags
 
@@ -98,7 +110,7 @@ After `loadSuiteTasks` + the existing `apiUrl`/`waitForApi` setup, replace the s
         }
         return { provider: 'external', model: m };
       });
-      console.log(`Running ${String(tasks.length)} benchmark tasks across ${String(models.length)} agents (consensus)`);
+      console.log(`Running ${String(tasks.length)} tasks across ${String(models.length)} agents in parallel: ${models.map((m) => `${m.provider}/${m.model}`).join(', ')}`);
       const results = await runConsensusEval(tasks, {
         apiUrl,
         models,
@@ -116,13 +128,19 @@ After `loadSuiteTasks` + the existing `apiUrl`/`waitForApi` setup, replace the s
       //  - writeModelEvalReport(results, suiteName) — writes ONE model-eval-<ts>.json
       //    + .md containing all per-model reports PLUS the consensus pseudo-model
       //    (results[0]); NOT multiple files
-      //  - saveBenchmarkHistory(prisma, report, {...}) per model, best-effort
+      //  - saveBenchmarkHistory(prisma, report, {...}) with ONE entry: the
+      //    consensus pseudo-model (provider: 'consensus', model: models.join('+')),
+      //    best-effort
       return;
     }
 
     if (opts.strategy === 'strategy') {
       const strategies = (opts.strategies ?? 'default,verify-before-finish,research-first').split(',').map((s) => s.trim()).filter(Boolean) as StrategyName[];
-      console.log(`Running ${String(tasks.length)} benchmark tasks across ${String(strategies.length)} strategies: ${strategies.join(', ')}`);
+      if (opts.auto) {
+        console.log(`Running ${String(tasks.length)} tasks with auto-selected strategies`);
+      } else {
+        console.log(`Running ${String(tasks.length)} tasks across ${String(strategies.length)} strategies: ${strategies.join(', ')}`);
+      }
       const result = await runStrategyEval(tasks, {
         apiUrl,
         strategies,
@@ -148,6 +166,8 @@ After `loadSuiteTasks` + the existing `apiUrl`/`waitForApi` setup, replace the s
 ```
 
 The consensus/strategy output blocks are copied VERBATIM from `consensusCmd`/`strategyCmd` (header, onTaskProgress, summary, report persistence, history persistence — ~40-50 lines each) so `bench run --strategy consensus` produces the same output as `bench consensus` today. The duplicate suite-loading in `consensusCmd`/`strategyCmd` is REPLACED with `loadSuiteTasks` (same behavior, less code). `--output-dir` does NOT apply to consensus/strategy mode (the existing commands hardcode `omegaReportsDir()`) — document the limitation next to the `--baseline` note.
+
+Note on defaults: the standalone commands use different defaults (`--timeout`: run 1800000 vs consensus 600000 vs strategy 300000; `--project-prefix`: bench vs consensus vs strategy). `bench run --strategy consensus` inherits runCmd's defaults (1800000/bench) — acceptable (explicit flags override), but documented so users don't expect byte-identical standalone-command behavior with zero flags.
 
 ### 4. Baseline comparison compatibility
 
@@ -199,6 +219,8 @@ Total: 3 files, ~190 LOC.
 3. `bench run --strategy strategy --strategies default,verify-before-finish --suite fast` runs the strategy path and prints header + per-task progress + union + per-strategy pass rates + failure insights.
 4. `bench run --strategy consensus` without `--models` errors with a clear message.
 5. `--baseline` in consensus/strategy mode logs the "single-only" note and skips comparison (no crash).
-6. `bench consensus`/`bench strategy` (the standalone commands) still work after the `loadSuiteTasks` extraction — same output as before, INCLUDING their `deep` suite support (the loader covers the union).
-7. `bench run --strategy consensus --suite pier` errors with a clear message (pier guard).
-8. Build clean: `pnpm --filter @omega/bench build` + `pnpm --filter @omega/cli build` exit 0. Tests still pass (bench 8/8).
+6. `bench consensus`/`bench strategy` (the standalone commands) still work after the `loadSuiteTasks` extraction — same output as before, INCLUDING their `deep` suite support (the loader covers it) AND their mode allow-lists (consensus/strategy do NOT gain synthetic/deep-swe/swebench-lite).
+7. `bench run --strategy consensus --suite pier` errors with a clear message (pier guard fires BEFORE the --path check).
+8. `bench run --strategy bogus` errors with a clear message (value validation).
+9. `bench run --strategy consensus --suite deep` works (deep is in the consensus allow-list).
+10. Build clean: `pnpm --filter @omega/bench build` + `pnpm --filter @omega/cli build` exit 0. Tests still pass (bench 8/8).

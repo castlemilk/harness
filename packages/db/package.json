@@ -8,6 +8,13 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./snapshot": {
+      "import": "./dist/snapshot.js",
+      "types": "./dist/snapshot.d.ts"
+    },
+    "./cli-reset": {
+      "import": "./dist/cli-reset.js"
     }
   },
   "scripts": {

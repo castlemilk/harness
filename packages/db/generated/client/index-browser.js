@@ -198,6 +198,11 @@ exports.Prisma.AgentRunScalarFieldEnum = {
   costUsd: 'costUsd',
   turnCount: 'turnCount',
   toolCalls: 'toolCalls',
+  turnDurationMs: 'turnDurationMs',
+  phaseTimings: 'phaseTimings',
+  currentPhase: 'currentPhase',
+  currentPhaseStartedAt: 'currentPhaseStartedAt',
+  currentTurn: 'currentTurn',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

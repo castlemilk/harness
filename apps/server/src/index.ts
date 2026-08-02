@@ -2,13 +2,7 @@ import { config as dotenvConfig } from 'dotenv';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { app } from './app.js';
-import { prisma, applyMigrations, seedDefaults } from '@omega/db';
-import { seedSkills } from './seed-skills.js';
-import { startGrpcServer } from './grpc.js';
-import { queue } from './lib/task-queue.js';
-import { getRouter, shutdownRouter } from './lib/intelligent-router.js';
-import { checkThresholds } from './lib/webhook-alerts.js';
+import { snapshotStalePgliteDir } from '@omega/db/snapshot';
 
 // Load .env before any provider/database config is read.
 dotenvConfig();
@@ -28,7 +22,25 @@ const HOST = process.env.HOST ?? '127.0.0.1';
 const WEB_DIST_DIR = process.env.WEB_DIST_DIR ?? path.resolve(__dirname, '../web');
 process.env.SKILLS_DIR = process.env.SKILLS_DIR ?? path.resolve(__dirname, '../skills');
 
+// Run BEFORE any @omega/db import — a static import of @omega/db would hoist
+// the PGlite constructor above this line and defeat the snapshot.
+const snapshotPath = snapshotStalePgliteDir();
+if (snapshotPath !== null) {
+  console.log(`[PGlite recovery] Snapshot of stale data dir created at: ${snapshotPath}`);
+}
+
 async function bootstrap(): Promise<void> {
+  // Dynamic imports keep the @omega/db (and its transitive PGlite) module
+  // graph out of the static import graph so snapshotStalePgliteDir() above is
+  // guaranteed to run before PGlite construction.
+  const { prisma, applyMigrations, seedDefaults } = await import('@omega/db');
+  const { app } = await import('./app.js');
+  const { seedSkills } = await import('./seed-skills.js');
+  const { startGrpcServer } = await import('./grpc.js');
+  const { getRouter, shutdownRouter } = await import('./lib/intelligent-router.js');
+  const { checkThresholds } = await import('./lib/webhook-alerts.js');
+  const { queue } = await import('./lib/task-queue.js');
+
   await applyMigrations();
   await seedDefaults();
   await seedSkills();
@@ -89,7 +101,6 @@ async function bootstrap(): Promise<void> {
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   process.on('SIGINT', () => void shutdown('SIGINT'));
 }
-
 bootstrap().catch((err: unknown) => {
   console.error(err);
   process.exit(1);

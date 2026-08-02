@@ -7147,6 +7147,8 @@ export namespace Prisma {
     totalTokens: number | null
     costUsd: number | null
     turnCount: number | null
+    turnDurationMs: number | null
+    currentTurn: number | null
   }
 
   export type AgentRunSumAggregateOutputType = {
@@ -7155,6 +7157,8 @@ export namespace Prisma {
     totalTokens: number | null
     costUsd: number | null
     turnCount: number | null
+    turnDurationMs: number | null
+    currentTurn: number | null
   }
 
   export type AgentRunMinAggregateOutputType = {
@@ -7172,6 +7176,11 @@ export namespace Prisma {
     costUsd: number | null
     turnCount: number | null
     toolCalls: string | null
+    turnDurationMs: number | null
+    phaseTimings: string | null
+    currentPhase: string | null
+    currentPhaseStartedAt: Date | null
+    currentTurn: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -7191,6 +7200,11 @@ export namespace Prisma {
     costUsd: number | null
     turnCount: number | null
     toolCalls: string | null
+    turnDurationMs: number | null
+    phaseTimings: string | null
+    currentPhase: string | null
+    currentPhaseStartedAt: Date | null
+    currentTurn: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -7210,6 +7224,11 @@ export namespace Prisma {
     costUsd: number
     turnCount: number
     toolCalls: number
+    turnDurationMs: number
+    phaseTimings: number
+    currentPhase: number
+    currentPhaseStartedAt: number
+    currentTurn: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -7222,6 +7241,8 @@ export namespace Prisma {
     totalTokens?: true
     costUsd?: true
     turnCount?: true
+    turnDurationMs?: true
+    currentTurn?: true
   }
 
   export type AgentRunSumAggregateInputType = {
@@ -7230,6 +7251,8 @@ export namespace Prisma {
     totalTokens?: true
     costUsd?: true
     turnCount?: true
+    turnDurationMs?: true
+    currentTurn?: true
   }
 
   export type AgentRunMinAggregateInputType = {
@@ -7247,6 +7270,11 @@ export namespace Prisma {
     costUsd?: true
     turnCount?: true
     toolCalls?: true
+    turnDurationMs?: true
+    phaseTimings?: true
+    currentPhase?: true
+    currentPhaseStartedAt?: true
+    currentTurn?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -7266,6 +7294,11 @@ export namespace Prisma {
     costUsd?: true
     turnCount?: true
     toolCalls?: true
+    turnDurationMs?: true
+    phaseTimings?: true
+    currentPhase?: true
+    currentPhaseStartedAt?: true
+    currentTurn?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -7285,6 +7318,11 @@ export namespace Prisma {
     costUsd?: true
     turnCount?: true
     toolCalls?: true
+    turnDurationMs?: true
+    phaseTimings?: true
+    currentPhase?: true
+    currentPhaseStartedAt?: true
+    currentTurn?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -7391,6 +7429,11 @@ export namespace Prisma {
     costUsd: number | null
     turnCount: number | null
     toolCalls: string | null
+    turnDurationMs: number | null
+    phaseTimings: string | null
+    currentPhase: string | null
+    currentPhaseStartedAt: Date | null
+    currentTurn: number | null
     createdAt: Date
     updatedAt: Date
     _count: AgentRunCountAggregateOutputType | null
@@ -7429,6 +7472,11 @@ export namespace Prisma {
     costUsd?: boolean
     turnCount?: boolean
     toolCalls?: boolean
+    turnDurationMs?: boolean
+    phaseTimings?: boolean
+    currentPhase?: boolean
+    currentPhaseStartedAt?: boolean
+    currentTurn?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -7450,6 +7498,11 @@ export namespace Prisma {
     costUsd?: boolean
     turnCount?: boolean
     toolCalls?: boolean
+    turnDurationMs?: boolean
+    phaseTimings?: boolean
+    currentPhase?: boolean
+    currentPhaseStartedAt?: boolean
+    currentTurn?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -7471,6 +7524,11 @@ export namespace Prisma {
     costUsd?: boolean
     turnCount?: boolean
     toolCalls?: boolean
+    turnDurationMs?: boolean
+    phaseTimings?: boolean
+    currentPhase?: boolean
+    currentPhaseStartedAt?: boolean
+    currentTurn?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -7505,6 +7563,11 @@ export namespace Prisma {
       costUsd: number | null
       turnCount: number | null
       toolCalls: string | null
+      turnDurationMs: number | null
+      phaseTimings: string | null
+      currentPhase: string | null
+      currentPhaseStartedAt: Date | null
+      currentTurn: number | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["agentRun"]>
@@ -7916,6 +7979,11 @@ export namespace Prisma {
     readonly costUsd: FieldRef<"AgentRun", 'Float'>
     readonly turnCount: FieldRef<"AgentRun", 'Int'>
     readonly toolCalls: FieldRef<"AgentRun", 'String'>
+    readonly turnDurationMs: FieldRef<"AgentRun", 'Int'>
+    readonly phaseTimings: FieldRef<"AgentRun", 'String'>
+    readonly currentPhase: FieldRef<"AgentRun", 'String'>
+    readonly currentPhaseStartedAt: FieldRef<"AgentRun", 'DateTime'>
+    readonly currentTurn: FieldRef<"AgentRun", 'Int'>
     readonly createdAt: FieldRef<"AgentRun", 'DateTime'>
     readonly updatedAt: FieldRef<"AgentRun", 'DateTime'>
   }
@@ -15396,6 +15464,11 @@ export namespace Prisma {
     costUsd: 'costUsd',
     turnCount: 'turnCount',
     toolCalls: 'toolCalls',
+    turnDurationMs: 'turnDurationMs',
+    phaseTimings: 'phaseTimings',
+    currentPhase: 'currentPhase',
+    currentPhaseStartedAt: 'currentPhaseStartedAt',
+    currentTurn: 'currentTurn',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -16038,6 +16111,11 @@ export namespace Prisma {
     costUsd?: FloatNullableFilter<"AgentRun"> | number | null
     turnCount?: IntNullableFilter<"AgentRun"> | number | null
     toolCalls?: StringNullableFilter<"AgentRun"> | string | null
+    turnDurationMs?: IntNullableFilter<"AgentRun"> | number | null
+    phaseTimings?: StringNullableFilter<"AgentRun"> | string | null
+    currentPhase?: StringNullableFilter<"AgentRun"> | string | null
+    currentPhaseStartedAt?: DateTimeNullableFilter<"AgentRun"> | Date | string | null
+    currentTurn?: IntNullableFilter<"AgentRun"> | number | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -16059,6 +16137,11 @@ export namespace Prisma {
     costUsd?: SortOrderInput | SortOrder
     turnCount?: SortOrderInput | SortOrder
     toolCalls?: SortOrderInput | SortOrder
+    turnDurationMs?: SortOrderInput | SortOrder
+    phaseTimings?: SortOrderInput | SortOrder
+    currentPhase?: SortOrderInput | SortOrder
+    currentPhaseStartedAt?: SortOrderInput | SortOrder
+    currentTurn?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     task?: TaskOrderByWithRelationInput
@@ -16083,6 +16166,11 @@ export namespace Prisma {
     costUsd?: FloatNullableFilter<"AgentRun"> | number | null
     turnCount?: IntNullableFilter<"AgentRun"> | number | null
     toolCalls?: StringNullableFilter<"AgentRun"> | string | null
+    turnDurationMs?: IntNullableFilter<"AgentRun"> | number | null
+    phaseTimings?: StringNullableFilter<"AgentRun"> | string | null
+    currentPhase?: StringNullableFilter<"AgentRun"> | string | null
+    currentPhaseStartedAt?: DateTimeNullableFilter<"AgentRun"> | Date | string | null
+    currentTurn?: IntNullableFilter<"AgentRun"> | number | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -16104,6 +16192,11 @@ export namespace Prisma {
     costUsd?: SortOrderInput | SortOrder
     turnCount?: SortOrderInput | SortOrder
     toolCalls?: SortOrderInput | SortOrder
+    turnDurationMs?: SortOrderInput | SortOrder
+    phaseTimings?: SortOrderInput | SortOrder
+    currentPhase?: SortOrderInput | SortOrder
+    currentPhaseStartedAt?: SortOrderInput | SortOrder
+    currentTurn?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: AgentRunCountOrderByAggregateInput
@@ -16131,6 +16224,11 @@ export namespace Prisma {
     costUsd?: FloatNullableWithAggregatesFilter<"AgentRun"> | number | null
     turnCount?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
     toolCalls?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
+    turnDurationMs?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    phaseTimings?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
+    currentPhase?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
+    currentPhaseStartedAt?: DateTimeNullableWithAggregatesFilter<"AgentRun"> | Date | string | null
+    currentTurn?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
     createdAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
   }
@@ -17203,6 +17301,11 @@ export namespace Prisma {
     costUsd?: number | null
     turnCount?: number | null
     toolCalls?: string | null
+    turnDurationMs?: number | null
+    phaseTimings?: string | null
+    currentPhase?: string | null
+    currentPhaseStartedAt?: Date | string | null
+    currentTurn?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -17224,6 +17327,11 @@ export namespace Prisma {
     costUsd?: number | null
     turnCount?: number | null
     toolCalls?: string | null
+    turnDurationMs?: number | null
+    phaseTimings?: string | null
+    currentPhase?: string | null
+    currentPhaseStartedAt?: Date | string | null
+    currentTurn?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -17241,6 +17349,11 @@ export namespace Prisma {
     costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     turnCount?: NullableIntFieldUpdateOperationsInput | number | null
     toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
+    turnDurationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    phaseTimings?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -17262,6 +17375,11 @@ export namespace Prisma {
     costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     turnCount?: NullableIntFieldUpdateOperationsInput | number | null
     toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
+    turnDurationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    phaseTimings?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -17281,6 +17399,11 @@ export namespace Prisma {
     costUsd?: number | null
     turnCount?: number | null
     toolCalls?: string | null
+    turnDurationMs?: number | null
+    phaseTimings?: string | null
+    currentPhase?: string | null
+    currentPhaseStartedAt?: Date | string | null
+    currentTurn?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -17298,6 +17421,11 @@ export namespace Prisma {
     costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     turnCount?: NullableIntFieldUpdateOperationsInput | number | null
     toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
+    turnDurationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    phaseTimings?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -17317,6 +17445,11 @@ export namespace Prisma {
     costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     turnCount?: NullableIntFieldUpdateOperationsInput | number | null
     toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
+    turnDurationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    phaseTimings?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -18497,6 +18630,11 @@ export namespace Prisma {
     costUsd?: SortOrder
     turnCount?: SortOrder
     toolCalls?: SortOrder
+    turnDurationMs?: SortOrder
+    phaseTimings?: SortOrder
+    currentPhase?: SortOrder
+    currentPhaseStartedAt?: SortOrder
+    currentTurn?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -18507,6 +18645,8 @@ export namespace Prisma {
     totalTokens?: SortOrder
     costUsd?: SortOrder
     turnCount?: SortOrder
+    turnDurationMs?: SortOrder
+    currentTurn?: SortOrder
   }
 
   export type AgentRunMaxOrderByAggregateInput = {
@@ -18524,6 +18664,11 @@ export namespace Prisma {
     costUsd?: SortOrder
     turnCount?: SortOrder
     toolCalls?: SortOrder
+    turnDurationMs?: SortOrder
+    phaseTimings?: SortOrder
+    currentPhase?: SortOrder
+    currentPhaseStartedAt?: SortOrder
+    currentTurn?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -18543,6 +18688,11 @@ export namespace Prisma {
     costUsd?: SortOrder
     turnCount?: SortOrder
     toolCalls?: SortOrder
+    turnDurationMs?: SortOrder
+    phaseTimings?: SortOrder
+    currentPhase?: SortOrder
+    currentPhaseStartedAt?: SortOrder
+    currentTurn?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -18553,6 +18703,8 @@ export namespace Prisma {
     totalTokens?: SortOrder
     costUsd?: SortOrder
     turnCount?: SortOrder
+    turnDurationMs?: SortOrder
+    currentTurn?: SortOrder
   }
 
   export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -19897,6 +20049,11 @@ export namespace Prisma {
     costUsd?: number | null
     turnCount?: number | null
     toolCalls?: string | null
+    turnDurationMs?: number | null
+    phaseTimings?: string | null
+    currentPhase?: string | null
+    currentPhaseStartedAt?: Date | string | null
+    currentTurn?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     promptVersion?: PromptVersionCreateNestedOneWithoutAgentRunsInput
@@ -19916,6 +20073,11 @@ export namespace Prisma {
     costUsd?: number | null
     turnCount?: number | null
     toolCalls?: string | null
+    turnDurationMs?: number | null
+    phaseTimings?: string | null
+    currentPhase?: string | null
+    currentPhaseStartedAt?: Date | string | null
+    currentTurn?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -20120,6 +20282,11 @@ export namespace Prisma {
     costUsd?: FloatNullableFilter<"AgentRun"> | number | null
     turnCount?: IntNullableFilter<"AgentRun"> | number | null
     toolCalls?: StringNullableFilter<"AgentRun"> | string | null
+    turnDurationMs?: IntNullableFilter<"AgentRun"> | number | null
+    phaseTimings?: StringNullableFilter<"AgentRun"> | string | null
+    currentPhase?: StringNullableFilter<"AgentRun"> | string | null
+    currentPhaseStartedAt?: DateTimeNullableFilter<"AgentRun"> | Date | string | null
+    currentTurn?: IntNullableFilter<"AgentRun"> | number | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
   }
@@ -20782,6 +20949,11 @@ export namespace Prisma {
     costUsd?: number | null
     turnCount?: number | null
     toolCalls?: string | null
+    turnDurationMs?: number | null
+    phaseTimings?: string | null
+    currentPhase?: string | null
+    currentPhaseStartedAt?: Date | string | null
+    currentTurn?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -20801,6 +20973,11 @@ export namespace Prisma {
     costUsd?: number | null
     turnCount?: number | null
     toolCalls?: string | null
+    turnDurationMs?: number | null
+    phaseTimings?: string | null
+    currentPhase?: string | null
+    currentPhaseStartedAt?: Date | string | null
+    currentTurn?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -20956,6 +21133,11 @@ export namespace Prisma {
     costUsd?: number | null
     turnCount?: number | null
     toolCalls?: string | null
+    turnDurationMs?: number | null
+    phaseTimings?: string | null
+    currentPhase?: string | null
+    currentPhaseStartedAt?: Date | string | null
+    currentTurn?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -21073,6 +21255,11 @@ export namespace Prisma {
     costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     turnCount?: NullableIntFieldUpdateOperationsInput | number | null
     toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
+    turnDurationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    phaseTimings?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     promptVersion?: PromptVersionUpdateOneWithoutAgentRunsNestedInput
@@ -21092,6 +21279,11 @@ export namespace Prisma {
     costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     turnCount?: NullableIntFieldUpdateOperationsInput | number | null
     toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
+    turnDurationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    phaseTimings?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -21110,6 +21302,11 @@ export namespace Prisma {
     costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     turnCount?: NullableIntFieldUpdateOperationsInput | number | null
     toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
+    turnDurationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    phaseTimings?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -21167,6 +21364,11 @@ export namespace Prisma {
     costUsd?: number | null
     turnCount?: number | null
     toolCalls?: string | null
+    turnDurationMs?: number | null
+    phaseTimings?: string | null
+    currentPhase?: string | null
+    currentPhaseStartedAt?: Date | string | null
+    currentTurn?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -21184,6 +21386,11 @@ export namespace Prisma {
     costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     turnCount?: NullableIntFieldUpdateOperationsInput | number | null
     toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
+    turnDurationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    phaseTimings?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -21203,6 +21410,11 @@ export namespace Prisma {
     costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     turnCount?: NullableIntFieldUpdateOperationsInput | number | null
     toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
+    turnDurationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    phaseTimings?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -21221,6 +21433,11 @@ export namespace Prisma {
     costUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     turnCount?: NullableIntFieldUpdateOperationsInput | number | null
     toolCalls?: NullableStringFieldUpdateOperationsInput | string | null
+    turnDurationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    phaseTimings?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
+    currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

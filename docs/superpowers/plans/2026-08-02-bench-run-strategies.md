@@ -201,7 +201,12 @@ Also update the `--suite` help text (bench.ts:65) to include `deep` in the suite
     if (!['single', 'consensus', 'strategy'].includes(opts.strategy)) {
       throw new Error(`Unknown --strategy value: ${opts.strategy}. Allowed: single | consensus | strategy`);
     }
+    if (opts.strategy === 'consensus' && !opts.models) {
+      throw new Error('--models is required for --strategy consensus (e.g. "external:agy,minimax/MiniMax-M3")');
+    }
 ```
+
+(The `--models` check belongs HERE in the guard block, BEFORE `waitForApi`/`loadSuiteTasks`, so a missing value errors immediately instead of waiting up to 10s for the API. The dispatch block's redundant `if (!opts.models)` throw can stay as a defensive re-check or be removed.)
 
 - [ ] **Step 3: Replace the suite-loading switch (bench.ts:130-213) with `loadSuiteTasks`:**
 
@@ -257,7 +262,7 @@ Also update the `--suite` help text (bench.ts:65) to include `deep` in the suite
     }
 
     if (opts.strategy === 'strategy') {
-      const strategies = (opts.strategies ?? 'default,verify-before-finish,research-first').split(',').map((s) => s.trim()).filter(Boolean) as string[];
+      const strategies = (opts.strategies ?? 'default,verify-before-finish,research-first').split(',').map((s) => s.trim()).filter(Boolean) as ('default' | 'verify-before-finish' | 'research-first' | 'concise' | 'plan-then-execute')[];
       if (opts.auto) {
         console.log(`Running ${String(tasks.length)} tasks with auto-selected strategies`);
       } else {

@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { apiFetch, getApiUrl } from '../api.js';
+import { apiFetch, getApiUrl, retryTask } from '../api.js';
 import { taskFeedCmd } from './task-feed.js';
 
 function formatStatus(status: string): string {
@@ -582,6 +582,16 @@ taskCmd
         concurrency: opts.concurrency,
       }),
     });
+    console.log(JSON.stringify(result, null, 2));
+  });
+
+taskCmd
+  .command('retry')
+  .description('Retry a failed task, optionally with a specific strategy')
+  .argument('<id>', 'task id')
+  .option('--strategy <name>', 'specific strategy: clean-retry | tier-escalation | different-provider | orchestrated-fallback | different-cli')
+  .action(async (id: string, opts: { strategy?: string }) => {
+    const result = await retryTask(id, opts.strategy);
     console.log(JSON.stringify(result, null, 2));
   });
 

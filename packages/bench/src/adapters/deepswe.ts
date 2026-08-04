@@ -450,7 +450,20 @@ async function installProjectDependencies(
     return;
   }
 
-  if (lang === 'python') {
+  // Some task snapshots mislabel the language in their toml (e.g. the httpx
+  // cookie-store task is a Python project declared as "typescript"). Detect
+  // Python from the repo layout so a venv (and the `python` symlink) is still
+  // provisioned; otherwise bare `python` calls in the verifier's test.sh fail
+  // with "python: command not found" and the task scores a false zero.
+  const isPythonProject =
+    lang === 'python' ||
+    (await has('pyproject.toml')) ||
+    (await has('setup.py')) ||
+    (await has('requirements.txt'));
+  if (isPythonProject) {
+    if (lang !== 'python') {
+      console.log(`[deepswe] Python project detected via repo layout (declared lang: ${lang || 'none'})`);
+    }
     // DeepSWE Python tasks target a range of interpreters. Older task snapshots
     // pin native deps (pydantic-core, msgspec, orjson) that do not build on
     // python3.13+ (internal C API changes / PyO3 version ceilings). Prefer 3.12
@@ -497,7 +510,13 @@ async function installProjectDependencies(
           const fallback = await runCommand(pipBin, ['install', '.'], { cwd: projectPath, timeout: 300_000 });
           if (fallback.exitCode !== 0) failed = fail('pip install -e .', install.stderr);
         }
-      } else if (await has('requirements.txt')) {
+      }
+      // Projects often keep their dev/test dependencies in requirements.txt
+      // while pyproject.toml only declares the runtime package (httpx pins
+      // trio/trustme/uvicorn there). Without it, pytest configs referencing
+      // those modules (e.g. a trio filterwarnings rule) abort collection and
+      // the task scores a false zero. Install it whenever present.
+      if (await has('requirements.txt')) {
         const install = await runCommand(pipBin, ['install', '-r', 'requirements.txt'], { cwd: projectPath, timeout: 300_000 });
         if (install.exitCode !== 0) failed = fail('pip install -r requirements.txt', install.stderr);
       }

@@ -115,7 +115,7 @@ export async function seedDefaults(): Promise<void> {
       update: {
         apiKey: process.env.DEEPSEEK_API_KEY,
         baseUrl,
-        defaultModel: 'deepseek-v4-pro',
+        defaultModel: 'deepseek-v4-flash',
         capabilities: JSON.stringify([
           { name: 'deepseek-v4-pro', level: 'advanced', supportsTools: true },
           { name: 'deepseek-v4-flash', level: 'advanced', supportsTools: true },
@@ -126,7 +126,7 @@ export async function seedDefaults(): Promise<void> {
         kind: 'generic',
         baseUrl,
         apiKey: process.env.DEEPSEEK_API_KEY,
-        defaultModel: 'deepseek-v4-pro',
+        defaultModel: 'deepseek-v4-flash',
         enabled: true,
         capabilities: JSON.stringify([
           { name: 'deepseek-v4-pro', level: 'advanced', supportsTools: true },

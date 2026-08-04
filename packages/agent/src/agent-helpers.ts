@@ -65,7 +65,29 @@ export async function failTask(prisma: PrismaClient, taskId: string, error: stri
 export async function tryStuckSolve(ctx: AgentContext): Promise<boolean> {
   if (ctx.stuckSolveAttempted) return false;
   ctx.stuckSolveAttempted = true;
-  const prompt = `Task: ${ctx.task.title}\n\nDescription:\n${ctx.task.description ?? ''}\n\n${ctx.repoOverview ?? ''}\n\nProduce the smallest unified diff patch (git apply format) that makes concrete progress on this task. Output ONLY the diff, no explanation, no markdown fences.`;
+  // Pull the agent's exploration so far so the draft patch is grounded in the
+  // actual repo contents the agent already read, instead of being generated
+  // blind from the task title alone (which produced unapplyable patches).
+  let explorationContext = '';
+  try {
+    const recentTraces = await ctx.prisma.taskTrace.findMany({
+      where: { taskId: ctx.task.id },
+      orderBy: { createdAt: 'desc' },
+      take: 40,
+    });
+    explorationContext = recentTraces
+      .reverse()
+      .map((t) => {
+        const prefix = t.role === 'user' ? '## exploration step' : '## tool result';
+        const content = (t.content ?? '').slice(0, 600);
+        return `${prefix}:\n${content}`;
+      })
+      .join('\n\n')
+      .slice(0, 16_000);
+  } catch {
+    // Trace fetch is best-effort; fall back to a context-less patch attempt.
+  }
+  const prompt = `Task: ${ctx.task.title}\n\nDescription:\n${ctx.task.description ?? ''}\n\n${ctx.repoOverview ?? ''}\n\nRecent exploration the agent has already done (file contents, tool outputs):\n${explorationContext || '(none)'}\n\nProduce the smallest unified diff patch (git apply format) that makes concrete progress on this task. Use the exact file paths and content from the exploration above. Output ONLY the diff, no explanation, no markdown fences.`;
   try {
     const raw = await ctx.provider.send(prompt, {
       system: 'You are a senior software engineer. Output ONLY a unified diff patch in git apply format. No explanation, no markdown fences.',

@@ -48,10 +48,26 @@ interface Reward {
 // environment-drift packages that are not declared in the project's own
 // install metadata but are required for the DeepSWE verifier to pass.
 const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
-  'gql-incremental-graphql-delivery': { pip: ['pytest-asyncio'] },
+  'gql-incremental-graphql-delivery': {
+    pip: [
+      'graphql-core==3.3.0a7',
+      'parse',
+      'aiohttp<3.14',
+      'websockets<16',
+      'httpx<0.28',
+      'requests',
+      'aiofiles',
+      'botocore',
+      'pytest-asyncio',
+    ],
+  },
   'mobly-grouped-test-barriers': { pip: ['pytz'] },
   'dateutil-rfc5545-timezone-interop': { pip: ['pytest<8'] },
   'bandit-incremental-cache-control': { pip: ['GitPython', 'sarif-om', 'jschema_to_python'] },
+  'bandit-structured-nosec-directives': { pip: ['setuptools', 'wheel', 'GitPython', 'sarif-om', 'jschema_to_python'] },
+  'httpx-deterministic-cookie-store': {
+    pip: ['pytest-xdist', 'chardet==5.2.0'],
+  },
   'adaptix-name-mapping-aliases': { pip: ['attrs==22.2.0'] },
   'langchain-request-coalescing': {
     pip: [

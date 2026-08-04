@@ -519,6 +519,18 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           stepIndex++;
           continue;
         }
+        // The stuck-solver could not produce an applyable draft. Escalate to
+        // forced edit mode immediately instead of letting the agent burn more
+        // budget on exploration: otherwise the reset loop below will keep
+        // clearing forcedEditModeSteps and the deadline arrives with no edit.
+        forcedEditMode = true;
+        forcedEditModeSteps = 0;
+        logger.warn('Stuck-solver failed; entering forced edit mode', {
+          taskId: ctx.task.id,
+          agentRunId: ctx.agentRunId,
+          stepIndex,
+          explorationCount: ctx.explorationCount,
+        });
       }
       if (forcedEditMode && !allowedInForcedMode.has(call.name) && !isPatchCommand) {
         result = {
@@ -667,14 +679,19 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         agentRunId: ctx.agentRunId,
         stepIndex,
         explorationCount: ctx.explorationCount,
+        forcedEditModeSteps,
       });
       ctx.explorationCount = 0;
       ctx.explorationAtLastEdit = 0;
       ctx.explorationSinceLastEdit = 0;
       ctx.consecutiveThinks = 0;
       stuckTurnCount = 0;
+      // On a repeat reset (already in forced edit mode) keep the forced-step
+      // counter accumulating so the "refused to edit" termination can fire;
+      // clearing it here would let the reset loop burn the whole budget.
+      const alreadyForced = forcedEditMode;
       forcedEditMode = true;
-      forcedEditModeSteps = 0;
+      if (!alreadyForced) forcedEditModeSteps = 0;
       // Preserve the conversation history — wiping it (the previous behavior)
       // blinded the model to the repo knowledge + tool results it had built up,
       // which made cheap models "refuse to edit" because they no longer knew

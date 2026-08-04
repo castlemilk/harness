@@ -37,6 +37,13 @@ function countAllSpans(traceFlow?: TraceFlowInfo): number {
   return traceFlow.spans.reduce((acc, span) => acc + countSpans(span), 0);
 }
 
+// The server performs setup (clone, venv, worktree) before the agent's own
+// wall-clock deadline starts, so runTask's 202 lands minutes before the agent
+// actually begins. Buffer the CLI wait by this much so it outlasts the agent's
+// deadline: without it, a timed-out run reports 0 patches because the diff is
+// committed after pollForDiffs' grace window has already closed.
+const SETUP_BUFFER_MS = 10 * 60 * 1000;
+
 export async function runBenchmark(
   tasks: BenchmarkTask[],
   options: RunnerOptions
@@ -100,7 +107,7 @@ export async function runBenchmark(
       }
 
       await runTask(apiUrl, harnessTask.id, options.tokenBudget);
-      const finished = await waitForTask(apiUrl, harnessTask.id, timeoutMs);
+      const finished = await waitForTask(apiUrl, harnessTask.id, timeoutMs + SETUP_BUFFER_MS);
       taskError = finished.error;
       status = finished.status === 'timeout' ? 'timeout' : (finished.status as BenchmarkResult['status']);
 

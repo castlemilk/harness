@@ -202,7 +202,7 @@ export function deadlineMsForComplexity(complexity: string | undefined): number 
   switch (complexity) {
     case 'simple': return 5 * 60_000;
     case 'medium': return 15 * 60_000;
-    case 'complex': return 30 * 60_000;
+    case 'complex': return 90 * 60_000;
     default: return 10 * 60_000;
   }
 }

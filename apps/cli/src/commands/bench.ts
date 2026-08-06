@@ -136,7 +136,7 @@ async function runConsensusCli(opts: {
 
   // Persist consensus results to benchmark history.
   try {
-    const { PrismaClient } = await import('@omega/db');
+    const { PrismaClient } = await import('@omega/db/generated');
     const prisma = new PrismaClient();
     await saveBenchmarkHistory(prisma, consensus.report, {
       provider: 'consensus',
@@ -433,7 +433,7 @@ const runCmd = new Command('run')
 
     // Persist to benchmark history for cost-per-pass-rate tracking.
     try {
-      const { PrismaClient } = await import('@omega/db');
+      const { PrismaClient } = await import('@omega/db/generated');
       const prisma = new PrismaClient();
       await saveBenchmarkHistory(prisma, report, {
         provider: opts.provider,
@@ -590,7 +590,7 @@ const evalCmd = new Command('eval')
 
       // Persist per-harness results to benchmark history.
       try {
-        const { PrismaClient } = await import('@omega/db');
+        const { PrismaClient } = await import('@omega/db/generated');
         const prisma = new PrismaClient();
         for (const r of results) {
           await saveBenchmarkHistory(prisma, r.report, {
@@ -626,7 +626,7 @@ const evalCmd = new Command('eval')
 
     // Persist per-model results to benchmark history.
     try {
-      const { PrismaClient } = await import('@omega/db');
+      const { PrismaClient } = await import('@omega/db/generated');
       const prisma = new PrismaClient();
       for (const r of results) {
         await saveBenchmarkHistory(prisma, r.report, {
@@ -914,7 +914,7 @@ const costCmd = new Command('cost')
   .option('--suite <name>', 'filter to a specific suite')
   .option('--api-url <url>', 'harness API URL')
   .action(async (opts: { suite?: string; apiUrl?: string }) => {
-    const { PrismaClient } = await import('@omega/db');
+    const { PrismaClient } = await import('@omega/db/generated');
     const prisma = new PrismaClient();
     try {
       const results = await getCostPerPassRate(prisma, opts.suite);
@@ -949,7 +949,7 @@ const historyCmd = new Command('history')
   .option('--model <model>', 'filter to a specific model')
   .option('--last <n>', 'show only the last N entries', '10')
   .action(async (opts: { suite?: string; provider?: string; model?: string; last?: string }) => {
-    const { PrismaClient } = await import('@omega/db');
+    const { PrismaClient } = await import('@omega/db/generated');
     const prisma = new PrismaClient();
     try {
       const limit = parseInt(opts.last ?? '10', 10);

@@ -2,27 +2,20 @@ import fs from 'node:fs';
 import { omegaDatabaseDir } from '@omega/core';
 
 /**
- * Detect a stale PGlite data dir (postmaster.pid with an mtime older than
- * `maxAgeMs`) and rename it aside to preserve user data before the next init
- * tries to construct a PGlite over potentially-corrupted state.
+ * Move the PGlite data dir aside and recreate an empty dir in its place.
  *
- * Safe to call at server startup BEFORE `new PGlite(...)`. If no stale lock is
- * present, this is a no-op. Best-effort: if rename fails (open file handles),
- * falls back to copy+remove.
+ * Intended to be called ONLY after `new PGlite(dir)` actually fails to
+ * initialize (WASM abort / waitReady rejection) — this is failure-driven
+ * recovery, NOT a stale-lock heuristic. postmaster.pid is left behind by
+ * PGlite whenever its process dies without a graceful postgres shutdown, so
+ * its mere existence (even stale) is NOT evidence of corruption; snapshotting
+ * on it wiped the whole DB on every server restart.
  *
- * After renaming, the helper RECREATES an empty dir at the original path so
- * the next PGlite init has somewhere to write — PGlite's `new PGlite(dir)`
- * will use the existing dir if it exists, but won't create a missing one
- * after a rename.
- *
- * @returns the snapshot path on success, `null` if no snapshot was needed.
+ * @returns the snapshot path on success, `null` if the move failed.
  */
-export function snapshotStalePgliteDir(maxAgeMs = 5000): string | null {
+export function snapshotPgliteDataDir(): string | null {
   const dir = omegaDatabaseDir();
-  const pidPath = `${dir}/postmaster.pid`;
-  if (!fs.existsSync(pidPath)) return null;
-  const mtimeMs = fs.statSync(pidPath).mtimeMs;
-  if (Date.now() - mtimeMs < maxAgeMs) return null;
+  if (!fs.existsSync(dir)) return null;
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const target = `${dir}.corrupt-${stamp}`;
   try {
@@ -36,7 +29,9 @@ export function snapshotStalePgliteDir(maxAgeMs = 5000): string | null {
       return null;
     }
   }
-  // Recreate the original dir as empty so the next PGlite init can populate it.
+  // Recreate the original dir as empty so the next PGlite init has somewhere
+  // to write — PGlite's `new PGlite(dir)` will use the existing dir if it
+  // exists, but won't create a missing one after a rename.
   fs.mkdirSync(dir, { recursive: true });
   return target;
 }

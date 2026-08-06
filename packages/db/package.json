@@ -13,6 +13,10 @@
       "import": "./dist/snapshot.js",
       "types": "./dist/snapshot.d.ts"
     },
+    "./generated": {
+      "import": "./generated/client/index.js",
+      "types": "./generated/client/index.d.ts"
+    },
     "./cli-reset": {
       "import": "./dist/cli-reset.js"
     }

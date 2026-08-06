@@ -2,7 +2,6 @@ import { config as dotenvConfig } from 'dotenv';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { snapshotStalePgliteDir } from '@omega/db/snapshot';
 
 // Load .env before any provider/database config is read.
 dotenvConfig();
@@ -23,17 +22,17 @@ const WEB_DIST_DIR = process.env.WEB_DIST_DIR ?? path.resolve(__dirname, '../web
 process.env.SKILLS_DIR =
   process.env.SKILLS_DIR ?? [path.resolve(__dirname, '../../..', '.agents/skills'), path.resolve(__dirname, '../skills')].join(path.delimiter);
 
-// Run BEFORE any @omega/db import — a static import of @omega/db would hoist
-// the PGlite constructor above this line and defeat the snapshot.
-const snapshotPath = snapshotStalePgliteDir();
-if (snapshotPath !== null) {
-  console.log(`[PGlite recovery] Snapshot of stale data dir created at: ${snapshotPath}`);
-}
+// PGlite recovery is FAILURE-DRIVEN in @omega/db (client.ts): the data dir is
+// only snapshotted aside when `new PGlite(dir)` actually fails to init. We do
+// NOT snapshot on a stale postmaster.pid here — PGlite leaves that file behind
+// after any non-graceful exit, so treating it as corruption wiped the whole DB
+// on every restart. A healthy dir (even with a stale lock) is opened as-is and
+// PGlite recovers stale locks itself.
 
 async function bootstrap(): Promise<void> {
   // Dynamic imports keep the @omega/db (and its transitive PGlite) module
-  // graph out of the static import graph so snapshotStalePgliteDir() above is
-  // guaranteed to run before PGlite construction.
+  // graph out of the static import graph — its top-level await retry must run
+  // before app.ts (which imports prisma statically) is evaluated.
   const { prisma, applyMigrations, seedDefaults } = await import('@omega/db');
   const { app } = await import('./app.js');
   const { seedSkills } = await import('./seed-skills.js');

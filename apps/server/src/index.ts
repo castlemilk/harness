@@ -20,7 +20,8 @@ const PORT = Number(process.env.PORT ?? 4000);
 const GRPC_PORT = Number(process.env.GRPC_PORT ?? 50051);
 const HOST = process.env.HOST ?? '127.0.0.1';
 const WEB_DIST_DIR = process.env.WEB_DIST_DIR ?? path.resolve(__dirname, '../web');
-process.env.SKILLS_DIR = process.env.SKILLS_DIR ?? path.resolve(__dirname, '../skills');
+process.env.SKILLS_DIR =
+  process.env.SKILLS_DIR ?? [path.resolve(__dirname, '../../..', '.agents/skills'), path.resolve(__dirname, '../skills')].join(path.delimiter);
 
 // Run BEFORE any @omega/db import — a static import of @omega/db would hoist
 // the PGlite constructor above this line and defeat the snapshot.

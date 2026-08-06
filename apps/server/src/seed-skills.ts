@@ -28,12 +28,16 @@ async function findSkillFiles(dir: string): Promise<string[]> {
 }
 
 export async function seedSkills(): Promise<void> {
-  const skillsDir = process.env.SKILLS_DIR ?? path.resolve(process.cwd(), '.agents/skills');
-  if (!(await exists(skillsDir))) {
-    console.log(`Skills directory not found at ${skillsDir}, skipping skill seed.`);
+  const skillsDirs = (process.env.SKILLS_DIR ?? path.resolve(process.cwd(), '.agents/skills')).split(path.delimiter);
+  const existing = [];
+  for (const dir of skillsDirs) {
+    if (await exists(dir)) existing.push(dir);
+  }
+  if (existing.length === 0) {
+    console.log(`Skills directories not found in ${skillsDirs.join(', ')}, skipping skill seed.`);
     return;
   }
-  const files = await findSkillFiles(skillsDir);
+  const files = (await Promise.all(existing.map(findSkillFiles))).flat();
   let seeded = 0;
   for (const file of files) {
     try {
@@ -60,5 +64,5 @@ export async function seedSkills(): Promise<void> {
       console.warn(`Failed to seed skill from ${file}:`, message);
     }
   }
-  console.log(`Seeded ${seeded.toString()} skills from ${skillsDir}.`);
+  console.log(`Seeded ${seeded.toString()} skills from ${existing.join(', ')}.`);
 }

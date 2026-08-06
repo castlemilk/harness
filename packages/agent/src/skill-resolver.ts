@@ -237,9 +237,13 @@ export async function resolveSkills(
   }
 
   // Fall back to broad language/framework matching when no exact tag match exists.
+  // EXCLUDE reference-patch skills (instructions that cite a solution.patch):
+  // those are verified patches for ONE specific task and must only be delivered
+  // via an exact tag match — never broadly matched onto an unrelated repo.
   const matched = artifacts
     .filter((a) => {
-      const manifest = JSON.parse(a.manifest) as { name: string; description: string };
+      const manifest = JSON.parse(a.manifest) as { name: string; description: string; instructions: string };
+      if (manifest.instructions?.includes('solution.patch')) return false;
       return skillMatchesBroadly(signature, manifest.name, manifest.description);
     })
     .map((a) => {

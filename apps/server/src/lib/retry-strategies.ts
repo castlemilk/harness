@@ -58,7 +58,7 @@ async function nextInternalTier(
   if (!provider) return null;
   const caps = provider.capabilities as { modelTiers?: Record<string, string> } | null;
   const ladder = caps?.modelTiers;
-  if (ladder && ladder[ctx.task.model]) {
+  if (ladder?.[ctx.task.model]) {
     const nextModel = ladder[ctx.task.model];
     if (nextModel) return { provider: ctx.task.provider, model: nextModel };
   }
@@ -78,7 +78,6 @@ async function pickDifferentProvider(
   });
   if (candidates.length === 0) return null;
   const pick = candidates[0];
-  if (!pick) return null;
   return { provider: pick.kind, model: pick.defaultModel };
 }
 
@@ -273,8 +272,8 @@ export async function executeRetry(
   if (!after) return;
   const existing = safeJsonParse<RetryRecord[]>(after.retryHistory, []);
   // Update the latest record with the actual error if any
-  const lastRecord = existing[existing.length - 1];
-  if (lastRecord && lastRecord.error === '') {
+  const lastRecord = existing.at(-1);
+  if (lastRecord?.error === '') {
     lastRecord.error = after.error ?? '';
   }
   const isStillFailed = after.status === 'failed' || after.status === 'in_progress';
@@ -317,6 +316,6 @@ export async function executeRetry(
     taskId,
     strategy: attempt.strategy,
     retryCount: after.retryCount + 1,
-    error: after.error || undefined,
+    error: after.error ?? undefined,
   });
 }

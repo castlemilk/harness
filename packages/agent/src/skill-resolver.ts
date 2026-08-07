@@ -243,7 +243,7 @@ export async function resolveSkills(
   const matched = artifacts
     .filter((a) => {
       const manifest = JSON.parse(a.manifest) as { name: string; description: string; instructions: string };
-      if (manifest.instructions?.includes('solution.patch')) return false;
+      if (manifest.instructions.includes('solution.patch')) return false;
       return skillMatchesBroadly(signature, manifest.name, manifest.description);
     })
     .map((a) => {

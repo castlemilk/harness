@@ -319,7 +319,7 @@ export function LiveTaskConsole({ taskId }: { taskId: string }) {
                 </span>
               </div>
             )}
-            {agentRun.turnDurationMs !== undefined && agentRun.turnDurationMs !== null && (
+            {agentRun.turnDurationMs !== undefined && (
               <div className="flex justify-between">
                 <span className="text-gray-500">Turn duration</span>
                 <span>{formatDuration(agentRun.turnDurationMs)}</span>

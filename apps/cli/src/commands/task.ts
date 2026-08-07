@@ -118,7 +118,7 @@ async function readSse(
 async function watchTask(taskId: string): Promise<void> {
   let task: Record<string, unknown>;
   try {
-    const data = (await apiFetch(`/tasks/${taskId}`)) as Record<string, unknown>;
+    const data = (await apiFetch(`/tasks/${taskId}`)) as Record<string, unknown> | null;
     if (!data || typeof data.id !== 'string') {
       console.error(`Task ${taskId} not found.`);
       return;
@@ -163,7 +163,7 @@ async function watchTask(taskId: string): Promise<void> {
   }
   console.log(`  Ctrl+C detaches (task keeps running). Re-attach: harness task watch ${taskId}\n`);
 
-  let finished = false;
+  const finishedState = { value: false };
   const onFrame = (event: string, parsed: Record<string, unknown>): void => {
     const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
     switch (event) {
@@ -180,12 +180,12 @@ async function watchTask(taskId: string): Promise<void> {
         if (agentRun) {
           const parts: string[] = [];
           if (typeof agentRun.turnDurationMs === 'number') {
-            parts.push(`turn=${Math.round(agentRun.turnDurationMs / 1000)}s`);
+            parts.push(`turn=${String(Math.round(agentRun.turnDurationMs / 1000))}s`);
           }
           const phase = agentRun.phaseTimings;
           if (phase && typeof phase === 'object') {
             const phases = Object.entries(phase as Record<string, unknown>)
-              .map(([k, v]) => `${k}:${Math.round(Number(v) / 1000)}s`)
+              .map(([k, v]) => `${k}:${String(Math.round(Number(v) / 1000))}s`)
               .join(',');
             parts.push(`phases=${phases}`);
           }
@@ -199,21 +199,21 @@ async function watchTask(taskId: string): Promise<void> {
               : null;
             parts.push(elapsed !== null ? `${phasePart}(${String(elapsed)}s)` : phasePart);
           }
-          if (typeof agentRun.totalTokens === 'number') parts.push(`tokens=${agentRun.totalTokens}`);
+          if (typeof agentRun.totalTokens === 'number') parts.push(`tokens=${String(agentRun.totalTokens)}`);
           if (typeof agentRun.branch === 'string') parts.push(`branch=${agentRun.branch}`);
           if (parts.length > 0) console.log(`[${ts}] agentRun: ${parts.join('  ')}`);
         }
         break;
       }
       case 'span': {
-        const name = String(parsed.name ?? '');
-        const spanStatus = String(parsed.status ?? '');
+        const name = typeof parsed.name === 'string' ? parsed.name : '';
+        const spanStatus = typeof parsed.status === 'string' ? parsed.status : '';
         const mark = spanStatus === 'ok' ? '✓' : spanStatus === 'error' ? '✗' : '·';
         console.log(`[${ts}] ${mark} ${name}`);
         break;
       }
       case 'diff': {
-        const patch = String(parsed.patch ?? '');
+        const patch = typeof parsed.patch === 'string' ? parsed.patch : '';
         const lines = patch.split('\n').filter((l) => l.startsWith('+') || l.startsWith('-')).length;
         console.log(`[${ts}] diff: ${String(lines)} changed line(s)`);
         break;
@@ -221,7 +221,7 @@ async function watchTask(taskId: string): Promise<void> {
       case 'agent-run': {
         const parts: string[] = [];
         if (typeof parsed.resultStatus === 'string') parts.push(`status=${parsed.resultStatus}`);
-        if (typeof parsed.totalTokens === 'number') parts.push(`tokens=${parsed.totalTokens}`);
+        if (typeof parsed.totalTokens === 'number') parts.push(`tokens=${String(parsed.totalTokens)}`);
         if (typeof parsed.currentPhase === 'string') {
           const phasePart = `phase=${parsed.currentPhase}`;
           const startedAt = typeof parsed.currentPhaseStartedAt === 'string'
@@ -247,7 +247,7 @@ async function watchTask(taskId: string): Promise<void> {
         break;
       }
       case 'end': {
-        finished = true;
+        finishedState.value = true;
         console.log(`[${ts}] ${formatStatus(typeof parsed.status === 'string' ? parsed.status : '')} — session ended.`);
         break;
       }
@@ -276,7 +276,7 @@ process.once('SIGINT', () => {
   await readSse(res, onFrame);
   clearInterval(heartbeat);
 
-  if (finished) process.exit(0);
+  if (finishedState.value) process.exit(0);
 }
 
 function handleEvent(event: string, data: Record<string, unknown>): void {

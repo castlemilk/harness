@@ -1552,7 +1552,7 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
       name: id,
       title,
       description: buildDeepSweDescription(instruction, language),
-      complexity: (process.env.OMEGA_DEEPSWE_COMPLEXITY as 'simple' | 'medium' | 'complex') ?? 'medium',
+      complexity: (process.env.OMEGA_DEEPSWE_COMPLEXITY as 'simple' | 'medium' | 'complex' | undefined) ?? 'medium',
       tags: [id],
       setup: async (projectPath: string) => {
         if (!repo || !commit) {

@@ -46,6 +46,23 @@ function startMockLlmServer(): Promise<{ server: http.Server; port: number; requ
 
         if (req.url?.startsWith('/v1/chat/completions')) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
+          let parsedBody: { tools?: { function?: { name?: string } }[]; max_tokens?: number } = {};
+          try {
+            parsedBody = JSON.parse(body) as typeof parsedBody;
+          } catch {
+            parsedBody = {};
+          }
+          const toolNames = (parsedBody.tools ?? [])
+            .map((t) => t.function?.name)
+            .filter(Boolean) as string[];
+          // Warmup probe: no tools, or a max_tokens=1 connectivity check.
+          const isWarmupProbe = parsedBody.max_tokens === 1 || toolNames.length === 0;
+          // Planner call only offers the single 'think' tool.
+          const isPlannerCall = !isWarmupProbe && toolNames.length === 1 && toolNames[0] === 'think';
+          if (isWarmupProbe || isPlannerCall) {
+            res.end(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }));
+            return;
+          }
           const toolCalls = [];
           if (turn === 0) {
             toolCalls.push({

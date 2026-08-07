@@ -3,7 +3,7 @@ import type { PrismaClient } from '@omega/db';
 import { getNextStrategy, type RetryContext } from './retry-strategies.js';
 
 function makePrismaMock(opts: {
-  providers?: Array<{ kind: string; enabled: boolean; defaultModel: string; capabilities: unknown }>;
+  providers?: { kind: string; enabled: boolean; defaultModel: string; capabilities: unknown }[];
 }): PrismaClient {
   return {
     providerConfig: {

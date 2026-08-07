@@ -169,9 +169,9 @@ async function runStrategyCli(opts: {
     return;
   }
 
-  const raw = opts.strategies ?? 'default,verify-before-finish,research-first';
+  const raw = opts.strategies;
   const strategies = raw.split(',').map((s) => s.trim()).filter(Boolean) as StrategyName[];
-  const validStrategies = Object.keys(STRATEGY_PROMPTS) as string[];
+  const validStrategies = Object.keys(STRATEGY_PROMPTS);
   const unknown = strategies.filter((s) => !validStrategies.includes(s));
   if (unknown.length > 0) {
     throw new Error(`Unknown strategy: ${unknown.join(', ')}. Allowed: ${validStrategies.join(' | ')}`);

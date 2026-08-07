@@ -10,6 +10,7 @@ const serverDir = path.resolve(root, 'packages/bundle/dist/server');
 
 const workspacePackageNames = new Set([
   '@omega/agent',
+  '@omega/bench',
   '@omega/core',
   '@omega/db',
   '@omega/providers',
@@ -19,6 +20,7 @@ const workspacePackageNames = new Set([
 
 const workspacePackages = [
   { name: '@omega/agent', src: 'packages/agent', extra: ['dist'] },
+  { name: '@omega/bench', src: 'packages/bench', extra: ['dist'] },
   { name: '@omega/core', src: 'packages/core', extra: ['dist'] },
   { name: '@omega/db', src: 'packages/db', extra: ['dist', 'generated', 'prisma/migrations'] },
   { name: '@omega/providers', src: 'packages/providers', extra: ['dist'] },

@@ -51,6 +51,11 @@ function startMockLlmServer(): Promise<{ server: http.Server; port: number }> {
       let body = '';
       req.on('data', (chunk) => (body += chunk));
       req.on('end', () => {
+        if (req.url?.startsWith('/v1/models')) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ data: [{ id: 'moonshot-v1-8k' }] }));
+          return;
+        }
         if (req.url?.startsWith('/v1/chat/completions')) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ choices: [{ message: { content: 'gRPC test result' } }] }));
@@ -134,10 +139,10 @@ describe('harness gRPC task ingestion', () => {
 
     const tasksRes = await fetch(`${API}/tasks?projectId=${project.id}`);
     expect(tasksRes.status).toBe(200);
-    const tasks = (await tasksRes.json()) as { title: string; status: string }[];
-    expect(tasks.length).toBe(1);
-    expect(tasks[0].title).toBe('gRPC ingested task');
-    expect(tasks[0].status).toBe('todo');
+    const body = (await tasksRes.json()) as { tasks: { title: string; status: string }[] };
+    expect(body.tasks.length).toBe(1);
+    expect(body.tasks[0].title).toBe('gRPC ingested task');
+    expect(body.tasks[0].status).toBe('todo');
   });
 
   it('auto-runs a gRPC-submitted task through a mock provider', async () => {

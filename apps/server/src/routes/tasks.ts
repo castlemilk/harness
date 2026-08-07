@@ -39,7 +39,7 @@ async function resolveTaskId(prisma: PrismaClient, partial: string): Promise<str
     take: 2,
   });
   if (matches.length !== 1) return null;
-  return matches[0] === undefined ? null : matches[0].id;
+  return matches[0].id;
 }
 
 export function taskRoutes(prisma: PrismaClient): Router {

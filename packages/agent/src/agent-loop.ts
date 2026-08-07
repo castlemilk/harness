@@ -58,6 +58,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
   const messages: {
     role: 'system' | 'user' | 'assistant' | 'tool';
     content?: string;
+    reasoning_content?: string;
     tool_calls?: { id?: string; type?: string; function?: { name?: string; arguments?: string } }[];
     tool_call_id?: string;
   }[] = [
@@ -241,6 +242,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     messages.push({
       role: 'assistant',
       content: response.content ?? undefined,
+      reasoning_content: response.reasoningContent ?? undefined,
       tool_calls: assistantToolCalls,
     });
     await addTrace(ctx, 'assistant', response.content ?? '', response.toolCalls);

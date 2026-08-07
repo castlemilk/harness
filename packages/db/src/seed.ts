@@ -115,7 +115,7 @@ export async function seedDefaults(): Promise<void> {
         baseUrl,
         defaultModel: 'deepseek-v4-flash',
         capabilities: JSON.stringify([
-          { name: 'deepseek-v4-pro', level: 'advanced', supportsTools: true },
+          { name: 'deepseek-v4-pro', level: 'advanced', supportsTools: true, thinking: true, reasoningEffort: 'high' },
           { name: 'deepseek-v4-flash', level: 'advanced', supportsTools: true },
         ]),
       },
@@ -127,7 +127,7 @@ export async function seedDefaults(): Promise<void> {
         defaultModel: 'deepseek-v4-flash',
         enabled: true,
         capabilities: JSON.stringify([
-          { name: 'deepseek-v4-pro', level: 'advanced', supportsTools: true },
+          { name: 'deepseek-v4-pro', level: 'advanced', supportsTools: true, thinking: true, reasoningEffort: 'high' },
           { name: 'deepseek-v4-flash', level: 'advanced', supportsTools: true },
         ]),
       },

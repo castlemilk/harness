@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig, SendOptions, ToolDefinition, UsageInfo } from '@omega/core';
+import type { Provider, ProviderConfig, SendOptions, ToolDefinition, UsageInfo, Capability, ReasoningEffort } from '@omega/core';
 import { refreshAccessToken } from './oauth.js';
 import { fetchWithRetry } from './fetch-retry.js';
 
@@ -45,6 +45,23 @@ export class OpenAIProvider implements Provider {
   }
 
   protected readonly supportsTemperature: boolean = true;
+
+  /** Capability entry matching the model name, if the provider declares one. */
+  protected capabilityFor(model?: string): Capability | undefined {
+    const name = model ?? this.config.defaultModel;
+    return this.config.capabilities.find((c) => c.name === name);
+  }
+
+  /**
+   * Thinking-mode config for the requested model. Providers like DeepSeek run
+   * reasoning models that (a) must receive `thinking` + `reasoning_effort`,
+   * and (b) reject/ignore `temperature` while thinking.
+   */
+  protected thinkingFor(model?: string): { enabled: boolean; effort: ReasoningEffort } | undefined {
+    const cap = this.capabilityFor(model);
+    if (!cap?.thinking) return undefined;
+    return { enabled: true, effort: cap.reasoningEffort ?? 'high' };
+  }
 
   protected async ensureTokenFresh(): Promise<void> {
     const { refreshToken, tokenExpiresAt } = this.config;
@@ -93,14 +110,19 @@ export class OpenAIProvider implements Provider {
     return data.data?.map((m) => m.id) ?? [this.config.defaultModel];
   }
 
-  private buildMessages(prompt: string, opts?: SendOptions): { role: string; content?: string; tool_calls?: unknown[]; tool_call_id?: string; name?: string }[] {
+  private buildMessages(prompt: string, opts?: SendOptions): { role: string; content?: string; reasoning_content?: string; tool_calls?: unknown[]; tool_call_id?: string; name?: string }[] {
     if (opts?.messages && opts.messages.length > 0) {
       const hasSystem = opts.messages.some((m) => m.role === 'system');
       const msgs = opts.messages.map((m) => {
-        const base: { role: string; content: string; tool_calls?: unknown[]; tool_call_id?: string; name?: string } = {
+        const base: { role: string; content: string; reasoning_content?: string; tool_calls?: unknown[]; tool_call_id?: string; name?: string } = {
           role: m.role,
           content: m.content ?? '',
         };
+        // Reasoning models require the CoT to be echoed back across tool-call
+        // turns so the next request can continue the same reasoning chain.
+        if (m.reasoning_content && m.role === 'assistant') {
+          base.reasoning_content = m.reasoning_content;
+        }
         if (m.tool_calls && m.tool_calls.length > 0) {
           base.tool_calls = m.tool_calls.map((tc) => ({
             id: tc.id ?? '',
@@ -130,6 +152,7 @@ export class OpenAIProvider implements Provider {
     if (this.isOAuth) {
       return this.sendCodex(prompt, opts);
     }
+    const thinking = this.thinkingFor(opts?.model);
     const res = await fetchWithRetry(
       `${this.baseUrl}/chat/completions`,
       {
@@ -141,9 +164,11 @@ export class OpenAIProvider implements Provider {
         body: JSON.stringify({
           model: opts?.model ?? this.config.defaultModel,
           messages: this.buildMessages(prompt, opts),
-          ...(this.supportsTemperature && opts?.temperature !== undefined
-            ? { temperature: opts.temperature }
-            : {}),
+          ...(thinking
+            ? { thinking: { type: 'enabled' }, reasoning_effort: thinking.effort }
+            : this.supportsTemperature && opts?.temperature !== undefined
+              ? { temperature: opts.temperature }
+              : {}),
         }),
       },
       'OpenAI',
@@ -169,6 +194,7 @@ export class OpenAIProvider implements Provider {
     if (this.isOAuth) {
       return this.sendCodex(prompt, opts, tools);
     }
+    const thinking = this.thinkingFor(opts?.model);
     const requestBody = JSON.stringify({
       model: opts?.model ?? this.config.defaultModel,
       messages: this.buildMessages(prompt, opts),
@@ -178,9 +204,11 @@ export class OpenAIProvider implements Provider {
       })),
       tool_choice: 'auto',
       parallel_tool_calls: false,
-      ...(this.supportsTemperature && opts?.temperature !== undefined
-        ? { temperature: opts.temperature }
-        : {}),
+      ...(thinking
+        ? { thinking: { type: 'enabled' }, reasoning_effort: thinking.effort }
+        : this.supportsTemperature && opts?.temperature !== undefined
+          ? { temperature: opts.temperature }
+          : {}),
     });
     const res = await fetchWithRetry(
       `${this.baseUrl}/chat/completions`,
@@ -220,6 +248,7 @@ export class OpenAIProvider implements Provider {
       choices?: {
         message?: {
           content?: string;
+          reasoning_content?: string;
           tool_calls?: {
             id?: string;
             function?: { name?: string; arguments?: string };
@@ -245,7 +274,12 @@ export class OpenAIProvider implements Provider {
           })(),
         }))
         .filter((tc) => tc.id && tc.name);
-      return JSON.stringify({ tool_calls: normalized });
+      // Echo the chain-of-thought back so reasoning models (DeepSeek thinking)
+      // can continue the same reasoning chain on the next tool-call turn.
+      return JSON.stringify({
+        tool_calls: normalized,
+        reasoning_content: message.reasoning_content ?? '',
+      });
     }
     return message?.content ?? '';
   }

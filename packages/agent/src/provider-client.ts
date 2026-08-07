@@ -12,6 +12,7 @@ const AGENT_TOOL_NAMES = new Set(AGENT_TOOLS.map((t) => t.name));
 interface Message {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content?: string;
+  reasoning_content?: string;
   tool_calls?: { id?: string; type?: string; function?: { name?: string; arguments?: string } }[];
   tool_call_id?: string;
 }
@@ -87,7 +88,7 @@ export async function sendToProvider(
   ctx: ProviderContext,
   messages: Message[],
   prompt?: string
-): Promise<{ content?: string; toolCalls?: string }> {
+): Promise<{ content?: string; toolCalls?: string; reasoningContent?: string }> {
   const span = ctx.tracer.startSpan('provider.send', ctx.rootSpan.toContext());
   span.setAttributes({ provider: ctx.provider.config.name, model: ctx.model });
 
@@ -119,7 +120,7 @@ export async function sendToProvider(
   const TURN_BACKOFFS_MS = [30_000, 60_000, 90_000];
   for (let attempt = 0; ; attempt++) {
   try {
-    if (typeof provider.sendWithTools === 'function' && ctx.provider.config.name !== 'glm') {
+    if (typeof provider.sendWithTools === 'function') {
       const sendMessages = prompt ? [...baseMessages, { role: 'user' as const, content: prompt }] : baseMessages;
       const raw = await provider.sendWithTools(prompt ?? 'Execute the next step.', AGENT_TOOLS, {
         system: ctx.systemPrompt,
@@ -178,7 +179,7 @@ export async function sendToProvider(
 
 // --- Response parsing ---
 
-export function parseProviderResponse(raw: string): { content?: string; toolCalls?: string } {
+export function parseProviderResponse(raw: string): { content?: string; toolCalls?: string; reasoningContent?: string } {
   const cleaned = raw.trim();
   if (cleaned.startsWith('```')) {
     const inner = cleaned.replace(/^```[a-z]*\n?/, '').replace(/\n?```$/, '');
@@ -187,11 +188,18 @@ export function parseProviderResponse(raw: string): { content?: string; toolCall
   return extractToolCalls(cleaned);
 }
 
-function extractToolCalls(text: string): { content?: string; toolCalls?: string } {
+function extractToolCalls(text: string): { content?: string; toolCalls?: string; reasoningContent?: string } {
   try {
     const parsed = JSON.parse(text) as Record<string, unknown> | unknown[];
     if (!Array.isArray(parsed) && Array.isArray(parsed.tool_calls)) {
-      return { content: parsed.content as string | undefined, toolCalls: JSON.stringify(parsed.tool_calls) };
+      return {
+        content: parsed.content as string | undefined,
+        toolCalls: JSON.stringify(parsed.tool_calls),
+        reasoningContent:
+          typeof parsed.reasoning_content === 'string' && parsed.reasoning_content
+            ? parsed.reasoning_content
+            : undefined,
+      };
     }
     if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'object' && x !== null && typeof (x as Record<string, unknown>).name === 'string')) {
       return { toolCalls: JSON.stringify(parsed) };

@@ -5,12 +5,18 @@ export interface ModelRef {
 
 export type CapabilityLevel = 'fast' | 'capable' | 'advanced';
 
+export type ReasoningEffort = 'low' | 'high' | 'max';
+
 export interface Capability {
   name: string;
   level: CapabilityLevel;
   contextWindow?: number;
   supportsVision?: boolean;
   supportsTools?: boolean;
+  /** Enable the provider's thinking/reasoning mode (e.g. DeepSeek thinking). */
+  thinking?: boolean;
+  /** Reasoning effort when thinking mode is enabled. */
+  reasoningEffort?: ReasoningEffort;
 }
 
 export type ProviderKind = 'openai' | 'anthropic' | 'ollama' | 'gemini' | 'kimi' | 'generic';
@@ -44,6 +50,7 @@ export interface UsageInfo {
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content?: string;
+  reasoning_content?: string;
   tool_calls?: { id?: string; type?: string; function?: { name?: string; arguments?: string } }[];
   tool_call_id?: string;
   name?: string;

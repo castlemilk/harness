@@ -8,6 +8,8 @@ import {
   type UsageInfo,
 } from '@omega/core';
 import { createProvider } from '@omega/providers';
+import { runExternalAgentTask, type ExternalCli } from '@omega/agent';
+import { existsSync } from 'node:fs';
 import { safeJsonParse } from './utils.js';
 
 /**
@@ -45,6 +47,8 @@ export interface PulseResult {
   /** Why the pulse did not run, when `ran` is false. */
   skipped?:
     | 'paused'
+    | 'no-task'
+    | 'no-repo'
     | 'retired'
     | 'dry-run'
     | 'budget-cap'
@@ -66,6 +70,29 @@ const MAX_SUMMARY = 400;
 
 /** Tokens a busy pulse is expected to use; the sparkline's full-height mark. */
 const PULSE_TOKEN_SCALE = 4000;
+
+/**
+ * A harness whose model reads `external:<cli>` is driven by an external agent
+ * CLI (agy, codex, opencode…) instead of a chat completion. Same convention the
+ * task runner already uses for `external:` tags, so there is one spelling of
+ * "this is driven by a CLI" in the codebase.
+ */
+const EXTERNAL_PREFIX = 'external:';
+const EXTERNAL_CLIS: ExternalCli[] = [
+  'agy',
+  'codex',
+  'claude-code',
+  'opencode',
+  'cursor-cli',
+  'aider',
+  'gemini-cli',
+];
+
+export function externalCliFor(model: string): ExternalCli | null {
+  if (!model.startsWith(EXTERNAL_PREFIX)) return null;
+  const cli = model.slice(EXTERNAL_PREFIX.length) as ExternalCli;
+  return EXTERNAL_CLIS.includes(cli) ? cli : null;
+}
 
 /* ------------------------------------------------------------------ prompts */
 
@@ -319,12 +346,67 @@ export async function runPulse(
   // harness declares. Cost and usage must be attributed to this one.
   let ranModel = harness.model;
 
+  const externalCli = externalCliFor(harness.model);
+
   if (options.simulate || harness.dryRun) {
     report = {
       summary: `Dry run: would execute ${String(routine.length)} routine step(s) against "${objective?.name ?? 'objective'}".`,
       outcome: 'ok',
       activity: 'Dry run — no provider call, no writes.',
     };
+  } else if (externalCli) {
+    // An external CLI does real work in a real repository: it needs a ticket to
+    // work on and a checkout to work in.
+    if (!harness.taskId) return { harnessId, ran: false, skipped: 'no-task' };
+    const project = objective
+      ? await prisma.project.findUnique({ where: { id: objective.projectId } })
+      : null;
+    if (!project || !existsSync(project.path)) {
+      return { harnessId, ran: false, skipped: 'no-repo' };
+    }
+
+    ranModel = harness.model;
+    try {
+      const result = await runExternalAgentTask(prisma, harness.taskId, {
+        cli: externalCli,
+        projectPath: project.path,
+        projectName: project.name,
+        complexity: 'simple',
+      });
+      // The external path records its own AgentRun; read the metrics it
+      // captured rather than inventing our own.
+      const run = await prisma.agentRun.findFirst({
+        where: { taskId: harness.taskId },
+        orderBy: { createdAt: 'desc' },
+        select: { totalTokens: true, promptTokens: true, completionTokens: true, costUsd: true },
+      });
+      usage = {
+        promptTokens: run?.promptTokens ?? undefined,
+        completionTokens: run?.completionTokens ?? undefined,
+        totalTokens: run?.totalTokens ?? undefined,
+      };
+      costUsd = run?.costUsd ?? null;
+
+      const changed = result.diff.trim().length > 0;
+      report = {
+        summary:
+          `${externalCli}: ${result.status}` +
+          (changed ? ` · produced a diff (${String(result.diff.split('\n').length)} lines)` : ' · no changes') +
+          (result.output ? ` — ${result.output.trim().slice(0, 240)}` : ''),
+        outcome: result.status === 'done' ? 'ok' : 'fail',
+        activity: changed
+          ? `Ran ${externalCli}; diff ready for review.`
+          : `Ran ${externalCli}; nothing to change.`,
+      };
+    } catch (err) {
+      report = {
+        summary: `${externalCli} run failed: ${err instanceof Error ? err.message : String(err)}`.slice(
+          0,
+          MAX_SUMMARY,
+        ),
+        outcome: 'fail',
+      };
+    }
   } else {
     const resolved = await resolveProvider(prisma, harness.model);
     if (!resolved) return { harnessId, ran: false, skipped: 'no-provider' };

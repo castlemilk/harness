@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import {
   defaultDatabaseDir,
   dirSizeMb,
@@ -135,6 +136,38 @@ export const doctorCmd = new Command('doctor')
       });
     }
 
+    // --- external agent CLIs --------------------------------------------
+    // PTY-based CLIs (agy, opencode, cursor-cli) fail with a bare
+    // "posix_spawnp failed" when node-pty's spawn-helper loses its executable
+    // bit — the CLIs themselves work fine by hand, so it looks like anything
+    // but what it is.
+    const helpers = ptySpawnHelpers(root);
+    const broken = helpers.filter((h) => !isExecutable(h));
+    if (helpers.length > 0) {
+      findings.push({
+        level: broken.length > 0 ? 'bad' : 'ok',
+        title:
+          broken.length > 0
+            ? `node-pty spawn-helper is not executable — every PTY-based agent CLI will fail`
+            : 'node-pty spawn-helper is executable',
+        detail:
+          broken.length > 0
+            ? `Run: node scripts/fix-node-pty.mjs\n${broken.map((b) => path.relative(root, b)).join('\n')}`
+            : undefined,
+      });
+    }
+
+    const clis = ['agy', 'codex', 'opencode', 'cursor-agent'];
+    const present = clis.filter((c) => onPath(c));
+    findings.push({
+      level: present.length > 0 ? 'ok' : 'warn',
+      title:
+        present.length > 0
+          ? `${String(present.length)} external agent CLI(s) on PATH`
+          : 'No external agent CLIs on PATH — external:<cli> harnesses cannot run',
+      detail: present.length > 0 ? present.join(', ') : undefined,
+    });
+
     // --- engine ---------------------------------------------------------
     findings.push({
       level: 'ok',
@@ -156,3 +189,45 @@ export const doctorCmd = new Command('doctor')
       console.log(`${OK} Environment looks usable.`);
     }
   });
+
+/** Every node-pty spawn-helper in the workspace. */
+function ptySpawnHelpers(root: string): string[] {
+  const base = path.join(root, 'node_modules', '.pnpm');
+  if (!fs.existsSync(base)) return [];
+  const out: string[] = [];
+  const walk = (dir: string, depth: number) => {
+    if (depth > 6) return;
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        if (depth === 0 && !e.name.startsWith('node-pty@')) continue;
+        walk(full, depth + 1);
+      } else if (e.name === 'spawn-helper') out.push(full);
+    }
+  };
+  walk(base, 0);
+  return out;
+}
+
+function isExecutable(file: string): boolean {
+  try {
+    return (fs.statSync(file).mode & 0o111) !== 0;
+  } catch {
+    return false;
+  }
+}
+
+function onPath(command: string): boolean {
+  try {
+    execFileSync('which', [command], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}

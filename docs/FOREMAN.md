@@ -55,6 +55,28 @@ Safety properties worth knowing, because they are load-bearing:
   substituted, the substitution is logged, and **the model that actually ran is
   what cost is attributed to**.
 
+## External agent CLIs
+
+A harness whose model reads `external:<cli>` is driven by a real agent CLI
+instead of a chat completion — it works in the objective's project checkout and
+produces a diff. Same `external:` convention the task runner already uses.
+
+```
+model: external:agy      # also codex, opencode, cursor-cli, claude-code, aider
+```
+
+It needs a linked ticket (`taskId`) and a project `path` that exists. Validated
+end to end: a harness drove `agy` against a sandbox repo, which implemented the
+function, committed it, and recorded the diff against the task.
+
+These CLIs run with permissions skipped and write to the checkout — point them
+at a repo you are willing to have modified.
+
+**If a PTY-based CLI fails with `posix_spawnp failed`**, node-pty's
+`spawn-helper` has lost its executable bit. `pnpm install` fixes it via
+postinstall; `node scripts/fix-node-pty.mjs` fixes it by hand, and `task doctor`
+reports it.
+
 ## Layout
 
 ```
@@ -74,8 +96,12 @@ bounded query. The SSE stream opens with that same snapshot, then patches.
   token prompt against a 400k window genuinely is ~0%. The fixture's higher
   numbers are fabricated. The gauge only becomes meaningful if harnesses carry
   conversation across pulses — a design decision, not a bug.
-- **A harness does no real work yet.** It reasons about state and reports; it has
-  no tools. `HarnessTool.run` records an invocation without executing anything.
+- **Chat-model harnesses do no real work.** They reason about state and report;
+  they have no tools, and will narrate plausible work that did not happen.
+  `HarnessTool.run` records an invocation without executing anything. Harnesses
+  on `external:<cli>` DO real work — that is the path that changes files.
+- **External CLI cost is usually unreported**, so an `external:` harness with a
+  spend cap runs unmeasured. The unpriced-model guard covers chat models only.
 - **`mergedToday` uses `Task.updatedAt`**, which any write bumps. There is no
   merge timestamp to key off.
 - **Day boundaries are UTC**, so "today's spend" rolls over at 10am AEST.

@@ -2,6 +2,7 @@ import type { Harness, PrismaClient } from '@omega/db';
 import {
   contextWindowFor,
   estimateCostUsd,
+  lookupModelPrice,
   type Capability,
   type ProviderConfig,
   type UsageInfo,
@@ -42,7 +43,14 @@ export interface PulseResult {
   harnessId: string;
   ran: boolean;
   /** Why the pulse did not run, when `ran` is false. */
-  skipped?: 'paused' | 'retired' | 'dry-run' | 'budget-cap' | 'no-provider' | 'awaiting-human';
+  skipped?:
+    | 'paused'
+    | 'retired'
+    | 'dry-run'
+    | 'budget-cap'
+    | 'no-provider'
+    | 'awaiting-human'
+    | 'unpriced-model';
   seq?: number;
   outcome?: PulseReport['outcome'];
   summary?: string;
@@ -321,6 +329,21 @@ export async function runPulse(
     const resolved = await resolveProvider(prisma, harness.model);
     if (!resolved) return { harnessId, ran: false, skipped: 'no-provider' };
 
+    // A budget you cannot measure is not a budget. If we have no price for the
+    // model, every pulse would record $0, spend would never rise, and the cap
+    // would never trip — so refuse rather than run uncapped in all but name.
+    if (harness.spendCapUsd != null && !lookupModelPrice(resolved.model)) {
+      const raised = await ensureUnpricedIntervention(prisma, harness, resolved.model, now);
+      return {
+        harnessId,
+        ran: false,
+        skipped: 'unpriced-model',
+        model: resolved.model,
+        costUsd: null,
+        raisedIntervention: raised,
+      };
+    }
+
     const provider = createProvider(resolved.config);
     const captured: UsageInfo = {};
     try {
@@ -359,6 +382,8 @@ export async function runPulse(
   }
 
   const tokens = usage.totalTokens ?? (usage.promptTokens ?? 0) + (usage.completionTokens ?? 0);
+  // Only reachable for an uncapped harness (the guard above refuses a capped
+  // one on an unpriced model), so recording 0 here cannot mask a blown budget.
   const spendDelta = costUsd ?? 0;
   const nextSpend = harness.spendUsd + spendDelta;
   const contextWindow =
@@ -571,4 +596,44 @@ export function startPulseScheduler(
     },
     tick,
   };
+}
+
+/** One pending notice per harness that its model has no price. */
+async function ensureUnpricedIntervention(
+  prisma: PrismaClient,
+  harness: Harness,
+  model: string,
+  now: Date,
+): Promise<boolean> {
+  const existing = await prisma.intervention.findFirst({
+    where: { harnessId: harness.id, kind: 'budget', status: 'pending' },
+    select: { id: true },
+  });
+  if (existing) return false;
+
+  await prisma.intervention.create({
+    data: {
+      objectiveId: harness.objectiveId,
+      harnessId: harness.id,
+      kind: 'budget',
+      title: `${harness.name} cannot run: no price for "${model}"`,
+      detail:
+        `This harness has a $${(harness.spendCapUsd ?? 0).toFixed(2)} cap, but there is no ` +
+        `pricing entry for "${model}", so its spend cannot be measured or capped. ` +
+        `Add the model to packages/core/src/pricing.ts, or clear the cap to accept ` +
+        `unmeasured spend.`,
+      payload: JSON.stringify({
+        spent: harness.spendUsd,
+        cap: harness.spendCapUsd ?? 0,
+        suggestedCap: harness.spendCapUsd ?? 0,
+      }),
+      status: 'pending',
+      createdAt: now,
+    },
+  });
+  await prisma.harness.update({
+    where: { id: harness.id },
+    data: { status: 'waiting', idleSince: now },
+  });
+  return true;
 }

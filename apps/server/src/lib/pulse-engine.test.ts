@@ -92,3 +92,19 @@ describe('cost estimation', () => {
     expect(contextWindowFor('mystery-model')).toBe(200_000);
   });
 });
+
+describe('unpriced models', () => {
+  it('has no price for the Kimi coding model, so cost is unknown not zero', () => {
+    // The engine refuses to run a capped harness on this, because a cap that
+    // cannot be measured does not cap anything.
+    expect(lookupModelPrice('moonshot-v1-32k')).toBeNull();
+    expect(estimateCostUsd('moonshot-v1-32k', { promptTokens: 1000, completionTokens: 1000 }))
+      .toBeNull();
+  });
+
+  it('prices the models the engine was validated against', () => {
+    for (const m of ['deepseek-chat', 'glm-5.2']) {
+      expect(lookupModelPrice(m), `${m} should be priced`).not.toBeNull();
+    }
+  });
+});

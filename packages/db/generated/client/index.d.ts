@@ -78,6 +78,46 @@ export type BenchmarkRun = $Result.DefaultSelection<Prisma.$BenchmarkRunPayload>
  * 
  */
 export type ProviderCircuitState = $Result.DefaultSelection<Prisma.$ProviderCircuitStatePayload>
+/**
+ * Model Objective
+ * 
+ */
+export type Objective = $Result.DefaultSelection<Prisma.$ObjectivePayload>
+/**
+ * Model ObjectivePhase
+ * 
+ */
+export type ObjectivePhase = $Result.DefaultSelection<Prisma.$ObjectivePhasePayload>
+/**
+ * Model Workstream
+ * 
+ */
+export type Workstream = $Result.DefaultSelection<Prisma.$WorkstreamPayload>
+/**
+ * Model Harness
+ * 
+ */
+export type Harness = $Result.DefaultSelection<Prisma.$HarnessPayload>
+/**
+ * Model Pulse
+ * 
+ */
+export type Pulse = $Result.DefaultSelection<Prisma.$PulsePayload>
+/**
+ * Model Intervention
+ * 
+ */
+export type Intervention = $Result.DefaultSelection<Prisma.$InterventionPayload>
+/**
+ * Model Playbook
+ * 
+ */
+export type Playbook = $Result.DefaultSelection<Prisma.$PlaybookPayload>
+/**
+ * Model HarnessTool
+ * 
+ */
+export type HarnessTool = $Result.DefaultSelection<Prisma.$HarnessToolPayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -331,6 +371,86 @@ export class PrismaClient<
     * ```
     */
   get providerCircuitState(): Prisma.ProviderCircuitStateDelegate<ExtArgs>;
+
+  /**
+   * `prisma.objective`: Exposes CRUD operations for the **Objective** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Objectives
+    * const objectives = await prisma.objective.findMany()
+    * ```
+    */
+  get objective(): Prisma.ObjectiveDelegate<ExtArgs>;
+
+  /**
+   * `prisma.objectivePhase`: Exposes CRUD operations for the **ObjectivePhase** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ObjectivePhases
+    * const objectivePhases = await prisma.objectivePhase.findMany()
+    * ```
+    */
+  get objectivePhase(): Prisma.ObjectivePhaseDelegate<ExtArgs>;
+
+  /**
+   * `prisma.workstream`: Exposes CRUD operations for the **Workstream** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Workstreams
+    * const workstreams = await prisma.workstream.findMany()
+    * ```
+    */
+  get workstream(): Prisma.WorkstreamDelegate<ExtArgs>;
+
+  /**
+   * `prisma.harness`: Exposes CRUD operations for the **Harness** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Harnesses
+    * const harnesses = await prisma.harness.findMany()
+    * ```
+    */
+  get harness(): Prisma.HarnessDelegate<ExtArgs>;
+
+  /**
+   * `prisma.pulse`: Exposes CRUD operations for the **Pulse** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Pulses
+    * const pulses = await prisma.pulse.findMany()
+    * ```
+    */
+  get pulse(): Prisma.PulseDelegate<ExtArgs>;
+
+  /**
+   * `prisma.intervention`: Exposes CRUD operations for the **Intervention** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Interventions
+    * const interventions = await prisma.intervention.findMany()
+    * ```
+    */
+  get intervention(): Prisma.InterventionDelegate<ExtArgs>;
+
+  /**
+   * `prisma.playbook`: Exposes CRUD operations for the **Playbook** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Playbooks
+    * const playbooks = await prisma.playbook.findMany()
+    * ```
+    */
+  get playbook(): Prisma.PlaybookDelegate<ExtArgs>;
+
+  /**
+   * `prisma.harnessTool`: Exposes CRUD operations for the **HarnessTool** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more HarnessTools
+    * const harnessTools = await prisma.harnessTool.findMany()
+    * ```
+    */
+  get harnessTool(): Prisma.HarnessToolDelegate<ExtArgs>;
 }
 
 export namespace Prisma {
@@ -784,7 +904,15 @@ export namespace Prisma {
     PromptVersion: 'PromptVersion',
     BenchmarkHistory: 'BenchmarkHistory',
     BenchmarkRun: 'BenchmarkRun',
-    ProviderCircuitState: 'ProviderCircuitState'
+    ProviderCircuitState: 'ProviderCircuitState',
+    Objective: 'Objective',
+    ObjectivePhase: 'ObjectivePhase',
+    Workstream: 'Workstream',
+    Harness: 'Harness',
+    Pulse: 'Pulse',
+    Intervention: 'Intervention',
+    Playbook: 'Playbook',
+    HarnessTool: 'HarnessTool'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -800,7 +928,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "skillArtifact" | "promptVersion" | "benchmarkHistory" | "benchmarkRun" | "providerCircuitState"
+      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "skillArtifact" | "promptVersion" | "benchmarkHistory" | "benchmarkRun" | "providerCircuitState" | "objective" | "objectivePhase" | "workstream" | "harness" | "pulse" | "intervention" | "playbook" | "harnessTool"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1714,6 +1842,566 @@ export namespace Prisma {
           }
         }
       }
+      Objective: {
+        payload: Prisma.$ObjectivePayload<ExtArgs>
+        fields: Prisma.ObjectiveFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ObjectiveFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ObjectiveFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePayload>
+          }
+          findFirst: {
+            args: Prisma.ObjectiveFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ObjectiveFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePayload>
+          }
+          findMany: {
+            args: Prisma.ObjectiveFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePayload>[]
+          }
+          create: {
+            args: Prisma.ObjectiveCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePayload>
+          }
+          createMany: {
+            args: Prisma.ObjectiveCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ObjectiveCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePayload>[]
+          }
+          delete: {
+            args: Prisma.ObjectiveDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePayload>
+          }
+          update: {
+            args: Prisma.ObjectiveUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePayload>
+          }
+          deleteMany: {
+            args: Prisma.ObjectiveDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ObjectiveUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.ObjectiveUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePayload>
+          }
+          aggregate: {
+            args: Prisma.ObjectiveAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateObjective>
+          }
+          groupBy: {
+            args: Prisma.ObjectiveGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ObjectiveGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ObjectiveCountArgs<ExtArgs>
+            result: $Utils.Optional<ObjectiveCountAggregateOutputType> | number
+          }
+        }
+      }
+      ObjectivePhase: {
+        payload: Prisma.$ObjectivePhasePayload<ExtArgs>
+        fields: Prisma.ObjectivePhaseFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ObjectivePhaseFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePhasePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ObjectivePhaseFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePhasePayload>
+          }
+          findFirst: {
+            args: Prisma.ObjectivePhaseFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePhasePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ObjectivePhaseFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePhasePayload>
+          }
+          findMany: {
+            args: Prisma.ObjectivePhaseFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePhasePayload>[]
+          }
+          create: {
+            args: Prisma.ObjectivePhaseCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePhasePayload>
+          }
+          createMany: {
+            args: Prisma.ObjectivePhaseCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ObjectivePhaseCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePhasePayload>[]
+          }
+          delete: {
+            args: Prisma.ObjectivePhaseDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePhasePayload>
+          }
+          update: {
+            args: Prisma.ObjectivePhaseUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePhasePayload>
+          }
+          deleteMany: {
+            args: Prisma.ObjectivePhaseDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ObjectivePhaseUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.ObjectivePhaseUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ObjectivePhasePayload>
+          }
+          aggregate: {
+            args: Prisma.ObjectivePhaseAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateObjectivePhase>
+          }
+          groupBy: {
+            args: Prisma.ObjectivePhaseGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ObjectivePhaseGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ObjectivePhaseCountArgs<ExtArgs>
+            result: $Utils.Optional<ObjectivePhaseCountAggregateOutputType> | number
+          }
+        }
+      }
+      Workstream: {
+        payload: Prisma.$WorkstreamPayload<ExtArgs>
+        fields: Prisma.WorkstreamFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.WorkstreamFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$WorkstreamPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.WorkstreamFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$WorkstreamPayload>
+          }
+          findFirst: {
+            args: Prisma.WorkstreamFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$WorkstreamPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.WorkstreamFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$WorkstreamPayload>
+          }
+          findMany: {
+            args: Prisma.WorkstreamFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$WorkstreamPayload>[]
+          }
+          create: {
+            args: Prisma.WorkstreamCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$WorkstreamPayload>
+          }
+          createMany: {
+            args: Prisma.WorkstreamCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.WorkstreamCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$WorkstreamPayload>[]
+          }
+          delete: {
+            args: Prisma.WorkstreamDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$WorkstreamPayload>
+          }
+          update: {
+            args: Prisma.WorkstreamUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$WorkstreamPayload>
+          }
+          deleteMany: {
+            args: Prisma.WorkstreamDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.WorkstreamUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.WorkstreamUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$WorkstreamPayload>
+          }
+          aggregate: {
+            args: Prisma.WorkstreamAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateWorkstream>
+          }
+          groupBy: {
+            args: Prisma.WorkstreamGroupByArgs<ExtArgs>
+            result: $Utils.Optional<WorkstreamGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.WorkstreamCountArgs<ExtArgs>
+            result: $Utils.Optional<WorkstreamCountAggregateOutputType> | number
+          }
+        }
+      }
+      Harness: {
+        payload: Prisma.$HarnessPayload<ExtArgs>
+        fields: Prisma.HarnessFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.HarnessFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.HarnessFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessPayload>
+          }
+          findFirst: {
+            args: Prisma.HarnessFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.HarnessFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessPayload>
+          }
+          findMany: {
+            args: Prisma.HarnessFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessPayload>[]
+          }
+          create: {
+            args: Prisma.HarnessCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessPayload>
+          }
+          createMany: {
+            args: Prisma.HarnessCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.HarnessCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessPayload>[]
+          }
+          delete: {
+            args: Prisma.HarnessDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessPayload>
+          }
+          update: {
+            args: Prisma.HarnessUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessPayload>
+          }
+          deleteMany: {
+            args: Prisma.HarnessDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.HarnessUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.HarnessUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessPayload>
+          }
+          aggregate: {
+            args: Prisma.HarnessAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateHarness>
+          }
+          groupBy: {
+            args: Prisma.HarnessGroupByArgs<ExtArgs>
+            result: $Utils.Optional<HarnessGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.HarnessCountArgs<ExtArgs>
+            result: $Utils.Optional<HarnessCountAggregateOutputType> | number
+          }
+        }
+      }
+      Pulse: {
+        payload: Prisma.$PulsePayload<ExtArgs>
+        fields: Prisma.PulseFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.PulseFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PulsePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.PulseFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PulsePayload>
+          }
+          findFirst: {
+            args: Prisma.PulseFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PulsePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.PulseFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PulsePayload>
+          }
+          findMany: {
+            args: Prisma.PulseFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PulsePayload>[]
+          }
+          create: {
+            args: Prisma.PulseCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PulsePayload>
+          }
+          createMany: {
+            args: Prisma.PulseCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.PulseCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PulsePayload>[]
+          }
+          delete: {
+            args: Prisma.PulseDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PulsePayload>
+          }
+          update: {
+            args: Prisma.PulseUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PulsePayload>
+          }
+          deleteMany: {
+            args: Prisma.PulseDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.PulseUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.PulseUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PulsePayload>
+          }
+          aggregate: {
+            args: Prisma.PulseAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregatePulse>
+          }
+          groupBy: {
+            args: Prisma.PulseGroupByArgs<ExtArgs>
+            result: $Utils.Optional<PulseGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.PulseCountArgs<ExtArgs>
+            result: $Utils.Optional<PulseCountAggregateOutputType> | number
+          }
+        }
+      }
+      Intervention: {
+        payload: Prisma.$InterventionPayload<ExtArgs>
+        fields: Prisma.InterventionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.InterventionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$InterventionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.InterventionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$InterventionPayload>
+          }
+          findFirst: {
+            args: Prisma.InterventionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$InterventionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.InterventionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$InterventionPayload>
+          }
+          findMany: {
+            args: Prisma.InterventionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$InterventionPayload>[]
+          }
+          create: {
+            args: Prisma.InterventionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$InterventionPayload>
+          }
+          createMany: {
+            args: Prisma.InterventionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.InterventionCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$InterventionPayload>[]
+          }
+          delete: {
+            args: Prisma.InterventionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$InterventionPayload>
+          }
+          update: {
+            args: Prisma.InterventionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$InterventionPayload>
+          }
+          deleteMany: {
+            args: Prisma.InterventionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.InterventionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.InterventionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$InterventionPayload>
+          }
+          aggregate: {
+            args: Prisma.InterventionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateIntervention>
+          }
+          groupBy: {
+            args: Prisma.InterventionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<InterventionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.InterventionCountArgs<ExtArgs>
+            result: $Utils.Optional<InterventionCountAggregateOutputType> | number
+          }
+        }
+      }
+      Playbook: {
+        payload: Prisma.$PlaybookPayload<ExtArgs>
+        fields: Prisma.PlaybookFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.PlaybookFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PlaybookPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.PlaybookFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PlaybookPayload>
+          }
+          findFirst: {
+            args: Prisma.PlaybookFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PlaybookPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.PlaybookFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PlaybookPayload>
+          }
+          findMany: {
+            args: Prisma.PlaybookFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PlaybookPayload>[]
+          }
+          create: {
+            args: Prisma.PlaybookCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PlaybookPayload>
+          }
+          createMany: {
+            args: Prisma.PlaybookCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.PlaybookCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PlaybookPayload>[]
+          }
+          delete: {
+            args: Prisma.PlaybookDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PlaybookPayload>
+          }
+          update: {
+            args: Prisma.PlaybookUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PlaybookPayload>
+          }
+          deleteMany: {
+            args: Prisma.PlaybookDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.PlaybookUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.PlaybookUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PlaybookPayload>
+          }
+          aggregate: {
+            args: Prisma.PlaybookAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregatePlaybook>
+          }
+          groupBy: {
+            args: Prisma.PlaybookGroupByArgs<ExtArgs>
+            result: $Utils.Optional<PlaybookGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.PlaybookCountArgs<ExtArgs>
+            result: $Utils.Optional<PlaybookCountAggregateOutputType> | number
+          }
+        }
+      }
+      HarnessTool: {
+        payload: Prisma.$HarnessToolPayload<ExtArgs>
+        fields: Prisma.HarnessToolFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.HarnessToolFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.HarnessToolFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolPayload>
+          }
+          findFirst: {
+            args: Prisma.HarnessToolFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.HarnessToolFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolPayload>
+          }
+          findMany: {
+            args: Prisma.HarnessToolFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolPayload>[]
+          }
+          create: {
+            args: Prisma.HarnessToolCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolPayload>
+          }
+          createMany: {
+            args: Prisma.HarnessToolCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.HarnessToolCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolPayload>[]
+          }
+          delete: {
+            args: Prisma.HarnessToolDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolPayload>
+          }
+          update: {
+            args: Prisma.HarnessToolUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolPayload>
+          }
+          deleteMany: {
+            args: Prisma.HarnessToolDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.HarnessToolUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.HarnessToolUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolPayload>
+          }
+          aggregate: {
+            args: Prisma.HarnessToolAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateHarnessTool>
+          }
+          groupBy: {
+            args: Prisma.HarnessToolGroupByArgs<ExtArgs>
+            result: $Utils.Optional<HarnessToolGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.HarnessToolCountArgs<ExtArgs>
+            result: $Utils.Optional<HarnessToolCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -1880,10 +2568,12 @@ export namespace Prisma {
 
   export type ProjectCountOutputType = {
     tasks: number
+    objectives: number
   }
 
   export type ProjectCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     tasks?: boolean | ProjectCountOutputTypeCountTasksArgs
+    objectives?: boolean | ProjectCountOutputTypeCountObjectivesArgs
   }
 
   // Custom InputTypes
@@ -1902,6 +2592,13 @@ export namespace Prisma {
    */
   export type ProjectCountOutputTypeCountTasksArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: TaskWhereInput
+  }
+
+  /**
+   * ProjectCountOutputType without action
+   */
+  export type ProjectCountOutputTypeCountObjectivesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ObjectiveWhereInput
   }
 
 
@@ -2000,6 +2697,144 @@ export namespace Prisma {
    */
   export type PromptVersionCountOutputTypeCountAgentRunsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: AgentRunWhereInput
+  }
+
+
+  /**
+   * Count Type ObjectiveCountOutputType
+   */
+
+  export type ObjectiveCountOutputType = {
+    phases: number
+    workstreams: number
+    harnesses: number
+    interventions: number
+  }
+
+  export type ObjectiveCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    phases?: boolean | ObjectiveCountOutputTypeCountPhasesArgs
+    workstreams?: boolean | ObjectiveCountOutputTypeCountWorkstreamsArgs
+    harnesses?: boolean | ObjectiveCountOutputTypeCountHarnessesArgs
+    interventions?: boolean | ObjectiveCountOutputTypeCountInterventionsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * ObjectiveCountOutputType without action
+   */
+  export type ObjectiveCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectiveCountOutputType
+     */
+    select?: ObjectiveCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * ObjectiveCountOutputType without action
+   */
+  export type ObjectiveCountOutputTypeCountPhasesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ObjectivePhaseWhereInput
+  }
+
+  /**
+   * ObjectiveCountOutputType without action
+   */
+  export type ObjectiveCountOutputTypeCountWorkstreamsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: WorkstreamWhereInput
+  }
+
+  /**
+   * ObjectiveCountOutputType without action
+   */
+  export type ObjectiveCountOutputTypeCountHarnessesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: HarnessWhereInput
+  }
+
+  /**
+   * ObjectiveCountOutputType without action
+   */
+  export type ObjectiveCountOutputTypeCountInterventionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: InterventionWhereInput
+  }
+
+
+  /**
+   * Count Type WorkstreamCountOutputType
+   */
+
+  export type WorkstreamCountOutputType = {
+    harnesses: number
+  }
+
+  export type WorkstreamCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    harnesses?: boolean | WorkstreamCountOutputTypeCountHarnessesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * WorkstreamCountOutputType without action
+   */
+  export type WorkstreamCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the WorkstreamCountOutputType
+     */
+    select?: WorkstreamCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * WorkstreamCountOutputType without action
+   */
+  export type WorkstreamCountOutputTypeCountHarnessesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: HarnessWhereInput
+  }
+
+
+  /**
+   * Count Type HarnessCountOutputType
+   */
+
+  export type HarnessCountOutputType = {
+    children: number
+    pulses: number
+    tools: number
+  }
+
+  export type HarnessCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    children?: boolean | HarnessCountOutputTypeCountChildrenArgs
+    pulses?: boolean | HarnessCountOutputTypeCountPulsesArgs
+    tools?: boolean | HarnessCountOutputTypeCountToolsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * HarnessCountOutputType without action
+   */
+  export type HarnessCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessCountOutputType
+     */
+    select?: HarnessCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * HarnessCountOutputType without action
+   */
+  export type HarnessCountOutputTypeCountChildrenArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: HarnessWhereInput
+  }
+
+  /**
+   * HarnessCountOutputType without action
+   */
+  export type HarnessCountOutputTypeCountPulsesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PulseWhereInput
+  }
+
+  /**
+   * HarnessCountOutputType without action
+   */
+  export type HarnessCountOutputTypeCountToolsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: HarnessToolWhereInput
   }
 
 
@@ -2188,6 +3023,7 @@ export namespace Prisma {
     env?: boolean
     createdAt?: boolean
     tasks?: boolean | Project$tasksArgs<ExtArgs>
+    objectives?: boolean | Project$objectivesArgs<ExtArgs>
     _count?: boolean | ProjectCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["project"]>
 
@@ -2213,6 +3049,7 @@ export namespace Prisma {
 
   export type ProjectInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     tasks?: boolean | Project$tasksArgs<ExtArgs>
+    objectives?: boolean | Project$objectivesArgs<ExtArgs>
     _count?: boolean | ProjectCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type ProjectIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -2221,6 +3058,7 @@ export namespace Prisma {
     name: "Project"
     objects: {
       tasks: Prisma.$TaskPayload<ExtArgs>[]
+      objectives: Prisma.$ObjectivePayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -2595,6 +3433,7 @@ export namespace Prisma {
   export interface Prisma__ProjectClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     tasks<T extends Project$tasksArgs<ExtArgs> = {}>(args?: Subset<T, Project$tasksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TaskPayload<ExtArgs>, T, "findMany"> | Null>
+    objectives<T extends Project$objectivesArgs<ExtArgs> = {}>(args?: Subset<T, Project$objectivesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2962,6 +3801,26 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: TaskScalarFieldEnum | TaskScalarFieldEnum[]
+  }
+
+  /**
+   * Project.objectives
+   */
+  export type Project$objectivesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Objective
+     */
+    select?: ObjectiveSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectiveInclude<ExtArgs> | null
+    where?: ObjectiveWhereInput
+    orderBy?: ObjectiveOrderByWithRelationInput | ObjectiveOrderByWithRelationInput[]
+    cursor?: ObjectiveWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ObjectiveScalarFieldEnum | ObjectiveScalarFieldEnum[]
   }
 
   /**
@@ -15360,6 +16219,8523 @@ export namespace Prisma {
 
 
   /**
+   * Model Objective
+   */
+
+  export type AggregateObjective = {
+    _count: ObjectiveCountAggregateOutputType | null
+    _avg: ObjectiveAvgAggregateOutputType | null
+    _sum: ObjectiveSumAggregateOutputType | null
+    _min: ObjectiveMinAggregateOutputType | null
+    _max: ObjectiveMaxAggregateOutputType | null
+  }
+
+  export type ObjectiveAvgAggregateOutputType = {
+    spendCapUsd: number | null
+  }
+
+  export type ObjectiveSumAggregateOutputType = {
+    spendCapUsd: number | null
+  }
+
+  export type ObjectiveMinAggregateOutputType = {
+    id: string | null
+    projectId: string | null
+    name: string | null
+    description: string | null
+    status: string | null
+    targetDate: Date | null
+    spendCapUsd: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ObjectiveMaxAggregateOutputType = {
+    id: string | null
+    projectId: string | null
+    name: string | null
+    description: string | null
+    status: string | null
+    targetDate: Date | null
+    spendCapUsd: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ObjectiveCountAggregateOutputType = {
+    id: number
+    projectId: number
+    name: number
+    description: number
+    status: number
+    targetDate: number
+    spendCapUsd: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type ObjectiveAvgAggregateInputType = {
+    spendCapUsd?: true
+  }
+
+  export type ObjectiveSumAggregateInputType = {
+    spendCapUsd?: true
+  }
+
+  export type ObjectiveMinAggregateInputType = {
+    id?: true
+    projectId?: true
+    name?: true
+    description?: true
+    status?: true
+    targetDate?: true
+    spendCapUsd?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ObjectiveMaxAggregateInputType = {
+    id?: true
+    projectId?: true
+    name?: true
+    description?: true
+    status?: true
+    targetDate?: true
+    spendCapUsd?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ObjectiveCountAggregateInputType = {
+    id?: true
+    projectId?: true
+    name?: true
+    description?: true
+    status?: true
+    targetDate?: true
+    spendCapUsd?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type ObjectiveAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Objective to aggregate.
+     */
+    where?: ObjectiveWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Objectives to fetch.
+     */
+    orderBy?: ObjectiveOrderByWithRelationInput | ObjectiveOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ObjectiveWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Objectives from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Objectives.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Objectives
+    **/
+    _count?: true | ObjectiveCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: ObjectiveAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ObjectiveSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ObjectiveMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ObjectiveMaxAggregateInputType
+  }
+
+  export type GetObjectiveAggregateType<T extends ObjectiveAggregateArgs> = {
+        [P in keyof T & keyof AggregateObjective]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateObjective[P]>
+      : GetScalarType<T[P], AggregateObjective[P]>
+  }
+
+
+
+
+  export type ObjectiveGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ObjectiveWhereInput
+    orderBy?: ObjectiveOrderByWithAggregationInput | ObjectiveOrderByWithAggregationInput[]
+    by: ObjectiveScalarFieldEnum[] | ObjectiveScalarFieldEnum
+    having?: ObjectiveScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ObjectiveCountAggregateInputType | true
+    _avg?: ObjectiveAvgAggregateInputType
+    _sum?: ObjectiveSumAggregateInputType
+    _min?: ObjectiveMinAggregateInputType
+    _max?: ObjectiveMaxAggregateInputType
+  }
+
+  export type ObjectiveGroupByOutputType = {
+    id: string
+    projectId: string
+    name: string
+    description: string | null
+    status: string
+    targetDate: Date | null
+    spendCapUsd: number | null
+    createdAt: Date
+    updatedAt: Date
+    _count: ObjectiveCountAggregateOutputType | null
+    _avg: ObjectiveAvgAggregateOutputType | null
+    _sum: ObjectiveSumAggregateOutputType | null
+    _min: ObjectiveMinAggregateOutputType | null
+    _max: ObjectiveMaxAggregateOutputType | null
+  }
+
+  type GetObjectiveGroupByPayload<T extends ObjectiveGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ObjectiveGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ObjectiveGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ObjectiveGroupByOutputType[P]>
+            : GetScalarType<T[P], ObjectiveGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ObjectiveSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    projectId?: boolean
+    name?: boolean
+    description?: boolean
+    status?: boolean
+    targetDate?: boolean
+    spendCapUsd?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    project?: boolean | ProjectDefaultArgs<ExtArgs>
+    phases?: boolean | Objective$phasesArgs<ExtArgs>
+    workstreams?: boolean | Objective$workstreamsArgs<ExtArgs>
+    harnesses?: boolean | Objective$harnessesArgs<ExtArgs>
+    interventions?: boolean | Objective$interventionsArgs<ExtArgs>
+    _count?: boolean | ObjectiveCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["objective"]>
+
+  export type ObjectiveSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    projectId?: boolean
+    name?: boolean
+    description?: boolean
+    status?: boolean
+    targetDate?: boolean
+    spendCapUsd?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    project?: boolean | ProjectDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["objective"]>
+
+  export type ObjectiveSelectScalar = {
+    id?: boolean
+    projectId?: boolean
+    name?: boolean
+    description?: boolean
+    status?: boolean
+    targetDate?: boolean
+    spendCapUsd?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type ObjectiveInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    project?: boolean | ProjectDefaultArgs<ExtArgs>
+    phases?: boolean | Objective$phasesArgs<ExtArgs>
+    workstreams?: boolean | Objective$workstreamsArgs<ExtArgs>
+    harnesses?: boolean | Objective$harnessesArgs<ExtArgs>
+    interventions?: boolean | Objective$interventionsArgs<ExtArgs>
+    _count?: boolean | ObjectiveCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type ObjectiveIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    project?: boolean | ProjectDefaultArgs<ExtArgs>
+  }
+
+  export type $ObjectivePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Objective"
+    objects: {
+      project: Prisma.$ProjectPayload<ExtArgs>
+      phases: Prisma.$ObjectivePhasePayload<ExtArgs>[]
+      workstreams: Prisma.$WorkstreamPayload<ExtArgs>[]
+      harnesses: Prisma.$HarnessPayload<ExtArgs>[]
+      interventions: Prisma.$InterventionPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      projectId: string
+      name: string
+      description: string | null
+      status: string
+      targetDate: Date | null
+      spendCapUsd: number | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["objective"]>
+    composites: {}
+  }
+
+  type ObjectiveGetPayload<S extends boolean | null | undefined | ObjectiveDefaultArgs> = $Result.GetResult<Prisma.$ObjectivePayload, S>
+
+  type ObjectiveCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<ObjectiveFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: ObjectiveCountAggregateInputType | true
+    }
+
+  export interface ObjectiveDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Objective'], meta: { name: 'Objective' } }
+    /**
+     * Find zero or one Objective that matches the filter.
+     * @param {ObjectiveFindUniqueArgs} args - Arguments to find a Objective
+     * @example
+     * // Get one Objective
+     * const objective = await prisma.objective.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ObjectiveFindUniqueArgs>(args: SelectSubset<T, ObjectiveFindUniqueArgs<ExtArgs>>): Prisma__ObjectiveClient<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one Objective that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {ObjectiveFindUniqueOrThrowArgs} args - Arguments to find a Objective
+     * @example
+     * // Get one Objective
+     * const objective = await prisma.objective.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ObjectiveFindUniqueOrThrowArgs>(args: SelectSubset<T, ObjectiveFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ObjectiveClient<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first Objective that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectiveFindFirstArgs} args - Arguments to find a Objective
+     * @example
+     * // Get one Objective
+     * const objective = await prisma.objective.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ObjectiveFindFirstArgs>(args?: SelectSubset<T, ObjectiveFindFirstArgs<ExtArgs>>): Prisma__ObjectiveClient<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first Objective that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectiveFindFirstOrThrowArgs} args - Arguments to find a Objective
+     * @example
+     * // Get one Objective
+     * const objective = await prisma.objective.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ObjectiveFindFirstOrThrowArgs>(args?: SelectSubset<T, ObjectiveFindFirstOrThrowArgs<ExtArgs>>): Prisma__ObjectiveClient<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more Objectives that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectiveFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Objectives
+     * const objectives = await prisma.objective.findMany()
+     * 
+     * // Get first 10 Objectives
+     * const objectives = await prisma.objective.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const objectiveWithIdOnly = await prisma.objective.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ObjectiveFindManyArgs>(args?: SelectSubset<T, ObjectiveFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a Objective.
+     * @param {ObjectiveCreateArgs} args - Arguments to create a Objective.
+     * @example
+     * // Create one Objective
+     * const Objective = await prisma.objective.create({
+     *   data: {
+     *     // ... data to create a Objective
+     *   }
+     * })
+     * 
+     */
+    create<T extends ObjectiveCreateArgs>(args: SelectSubset<T, ObjectiveCreateArgs<ExtArgs>>): Prisma__ObjectiveClient<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many Objectives.
+     * @param {ObjectiveCreateManyArgs} args - Arguments to create many Objectives.
+     * @example
+     * // Create many Objectives
+     * const objective = await prisma.objective.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ObjectiveCreateManyArgs>(args?: SelectSubset<T, ObjectiveCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Objectives and returns the data saved in the database.
+     * @param {ObjectiveCreateManyAndReturnArgs} args - Arguments to create many Objectives.
+     * @example
+     * // Create many Objectives
+     * const objective = await prisma.objective.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Objectives and only return the `id`
+     * const objectiveWithIdOnly = await prisma.objective.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ObjectiveCreateManyAndReturnArgs>(args?: SelectSubset<T, ObjectiveCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a Objective.
+     * @param {ObjectiveDeleteArgs} args - Arguments to delete one Objective.
+     * @example
+     * // Delete one Objective
+     * const Objective = await prisma.objective.delete({
+     *   where: {
+     *     // ... filter to delete one Objective
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ObjectiveDeleteArgs>(args: SelectSubset<T, ObjectiveDeleteArgs<ExtArgs>>): Prisma__ObjectiveClient<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one Objective.
+     * @param {ObjectiveUpdateArgs} args - Arguments to update one Objective.
+     * @example
+     * // Update one Objective
+     * const objective = await prisma.objective.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ObjectiveUpdateArgs>(args: SelectSubset<T, ObjectiveUpdateArgs<ExtArgs>>): Prisma__ObjectiveClient<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more Objectives.
+     * @param {ObjectiveDeleteManyArgs} args - Arguments to filter Objectives to delete.
+     * @example
+     * // Delete a few Objectives
+     * const { count } = await prisma.objective.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ObjectiveDeleteManyArgs>(args?: SelectSubset<T, ObjectiveDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Objectives.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectiveUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Objectives
+     * const objective = await prisma.objective.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ObjectiveUpdateManyArgs>(args: SelectSubset<T, ObjectiveUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one Objective.
+     * @param {ObjectiveUpsertArgs} args - Arguments to update or create a Objective.
+     * @example
+     * // Update or create a Objective
+     * const objective = await prisma.objective.upsert({
+     *   create: {
+     *     // ... data to create a Objective
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Objective we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ObjectiveUpsertArgs>(args: SelectSubset<T, ObjectiveUpsertArgs<ExtArgs>>): Prisma__ObjectiveClient<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of Objectives.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectiveCountArgs} args - Arguments to filter Objectives to count.
+     * @example
+     * // Count the number of Objectives
+     * const count = await prisma.objective.count({
+     *   where: {
+     *     // ... the filter for the Objectives we want to count
+     *   }
+     * })
+    **/
+    count<T extends ObjectiveCountArgs>(
+      args?: Subset<T, ObjectiveCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ObjectiveCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Objective.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectiveAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ObjectiveAggregateArgs>(args: Subset<T, ObjectiveAggregateArgs>): Prisma.PrismaPromise<GetObjectiveAggregateType<T>>
+
+    /**
+     * Group by Objective.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectiveGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ObjectiveGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ObjectiveGroupByArgs['orderBy'] }
+        : { orderBy?: ObjectiveGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ObjectiveGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetObjectiveGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Objective model
+   */
+  readonly fields: ObjectiveFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Objective.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ObjectiveClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    project<T extends ProjectDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ProjectDefaultArgs<ExtArgs>>): Prisma__ProjectClient<$Result.GetResult<Prisma.$ProjectPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    phases<T extends Objective$phasesArgs<ExtArgs> = {}>(args?: Subset<T, Objective$phasesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ObjectivePhasePayload<ExtArgs>, T, "findMany"> | Null>
+    workstreams<T extends Objective$workstreamsArgs<ExtArgs> = {}>(args?: Subset<T, Objective$workstreamsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$WorkstreamPayload<ExtArgs>, T, "findMany"> | Null>
+    harnesses<T extends Objective$harnessesArgs<ExtArgs> = {}>(args?: Subset<T, Objective$harnessesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "findMany"> | Null>
+    interventions<T extends Objective$interventionsArgs<ExtArgs> = {}>(args?: Subset<T, Objective$interventionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$InterventionPayload<ExtArgs>, T, "findMany"> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Objective model
+   */ 
+  interface ObjectiveFieldRefs {
+    readonly id: FieldRef<"Objective", 'String'>
+    readonly projectId: FieldRef<"Objective", 'String'>
+    readonly name: FieldRef<"Objective", 'String'>
+    readonly description: FieldRef<"Objective", 'String'>
+    readonly status: FieldRef<"Objective", 'String'>
+    readonly targetDate: FieldRef<"Objective", 'DateTime'>
+    readonly spendCapUsd: FieldRef<"Objective", 'Float'>
+    readonly createdAt: FieldRef<"Objective", 'DateTime'>
+    readonly updatedAt: FieldRef<"Objective", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Objective findUnique
+   */
+  export type ObjectiveFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Objective
+     */
+    select?: ObjectiveSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectiveInclude<ExtArgs> | null
+    /**
+     * Filter, which Objective to fetch.
+     */
+    where: ObjectiveWhereUniqueInput
+  }
+
+  /**
+   * Objective findUniqueOrThrow
+   */
+  export type ObjectiveFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Objective
+     */
+    select?: ObjectiveSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectiveInclude<ExtArgs> | null
+    /**
+     * Filter, which Objective to fetch.
+     */
+    where: ObjectiveWhereUniqueInput
+  }
+
+  /**
+   * Objective findFirst
+   */
+  export type ObjectiveFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Objective
+     */
+    select?: ObjectiveSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectiveInclude<ExtArgs> | null
+    /**
+     * Filter, which Objective to fetch.
+     */
+    where?: ObjectiveWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Objectives to fetch.
+     */
+    orderBy?: ObjectiveOrderByWithRelationInput | ObjectiveOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Objectives.
+     */
+    cursor?: ObjectiveWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Objectives from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Objectives.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Objectives.
+     */
+    distinct?: ObjectiveScalarFieldEnum | ObjectiveScalarFieldEnum[]
+  }
+
+  /**
+   * Objective findFirstOrThrow
+   */
+  export type ObjectiveFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Objective
+     */
+    select?: ObjectiveSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectiveInclude<ExtArgs> | null
+    /**
+     * Filter, which Objective to fetch.
+     */
+    where?: ObjectiveWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Objectives to fetch.
+     */
+    orderBy?: ObjectiveOrderByWithRelationInput | ObjectiveOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Objectives.
+     */
+    cursor?: ObjectiveWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Objectives from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Objectives.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Objectives.
+     */
+    distinct?: ObjectiveScalarFieldEnum | ObjectiveScalarFieldEnum[]
+  }
+
+  /**
+   * Objective findMany
+   */
+  export type ObjectiveFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Objective
+     */
+    select?: ObjectiveSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectiveInclude<ExtArgs> | null
+    /**
+     * Filter, which Objectives to fetch.
+     */
+    where?: ObjectiveWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Objectives to fetch.
+     */
+    orderBy?: ObjectiveOrderByWithRelationInput | ObjectiveOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Objectives.
+     */
+    cursor?: ObjectiveWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Objectives from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Objectives.
+     */
+    skip?: number
+    distinct?: ObjectiveScalarFieldEnum | ObjectiveScalarFieldEnum[]
+  }
+
+  /**
+   * Objective create
+   */
+  export type ObjectiveCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Objective
+     */
+    select?: ObjectiveSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectiveInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Objective.
+     */
+    data: XOR<ObjectiveCreateInput, ObjectiveUncheckedCreateInput>
+  }
+
+  /**
+   * Objective createMany
+   */
+  export type ObjectiveCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Objectives.
+     */
+    data: ObjectiveCreateManyInput | ObjectiveCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Objective createManyAndReturn
+   */
+  export type ObjectiveCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Objective
+     */
+    select?: ObjectiveSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many Objectives.
+     */
+    data: ObjectiveCreateManyInput | ObjectiveCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectiveIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Objective update
+   */
+  export type ObjectiveUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Objective
+     */
+    select?: ObjectiveSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectiveInclude<ExtArgs> | null
+    /**
+     * The data needed to update a Objective.
+     */
+    data: XOR<ObjectiveUpdateInput, ObjectiveUncheckedUpdateInput>
+    /**
+     * Choose, which Objective to update.
+     */
+    where: ObjectiveWhereUniqueInput
+  }
+
+  /**
+   * Objective updateMany
+   */
+  export type ObjectiveUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Objectives.
+     */
+    data: XOR<ObjectiveUpdateManyMutationInput, ObjectiveUncheckedUpdateManyInput>
+    /**
+     * Filter which Objectives to update
+     */
+    where?: ObjectiveWhereInput
+  }
+
+  /**
+   * Objective upsert
+   */
+  export type ObjectiveUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Objective
+     */
+    select?: ObjectiveSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectiveInclude<ExtArgs> | null
+    /**
+     * The filter to search for the Objective to update in case it exists.
+     */
+    where: ObjectiveWhereUniqueInput
+    /**
+     * In case the Objective found by the `where` argument doesn't exist, create a new Objective with this data.
+     */
+    create: XOR<ObjectiveCreateInput, ObjectiveUncheckedCreateInput>
+    /**
+     * In case the Objective was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ObjectiveUpdateInput, ObjectiveUncheckedUpdateInput>
+  }
+
+  /**
+   * Objective delete
+   */
+  export type ObjectiveDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Objective
+     */
+    select?: ObjectiveSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectiveInclude<ExtArgs> | null
+    /**
+     * Filter which Objective to delete.
+     */
+    where: ObjectiveWhereUniqueInput
+  }
+
+  /**
+   * Objective deleteMany
+   */
+  export type ObjectiveDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Objectives to delete
+     */
+    where?: ObjectiveWhereInput
+  }
+
+  /**
+   * Objective.phases
+   */
+  export type Objective$phasesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectivePhase
+     */
+    select?: ObjectivePhaseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectivePhaseInclude<ExtArgs> | null
+    where?: ObjectivePhaseWhereInput
+    orderBy?: ObjectivePhaseOrderByWithRelationInput | ObjectivePhaseOrderByWithRelationInput[]
+    cursor?: ObjectivePhaseWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ObjectivePhaseScalarFieldEnum | ObjectivePhaseScalarFieldEnum[]
+  }
+
+  /**
+   * Objective.workstreams
+   */
+  export type Objective$workstreamsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamInclude<ExtArgs> | null
+    where?: WorkstreamWhereInput
+    orderBy?: WorkstreamOrderByWithRelationInput | WorkstreamOrderByWithRelationInput[]
+    cursor?: WorkstreamWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: WorkstreamScalarFieldEnum | WorkstreamScalarFieldEnum[]
+  }
+
+  /**
+   * Objective.harnesses
+   */
+  export type Objective$harnessesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    where?: HarnessWhereInput
+    orderBy?: HarnessOrderByWithRelationInput | HarnessOrderByWithRelationInput[]
+    cursor?: HarnessWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: HarnessScalarFieldEnum | HarnessScalarFieldEnum[]
+  }
+
+  /**
+   * Objective.interventions
+   */
+  export type Objective$interventionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Intervention
+     */
+    select?: InterventionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterventionInclude<ExtArgs> | null
+    where?: InterventionWhereInput
+    orderBy?: InterventionOrderByWithRelationInput | InterventionOrderByWithRelationInput[]
+    cursor?: InterventionWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: InterventionScalarFieldEnum | InterventionScalarFieldEnum[]
+  }
+
+  /**
+   * Objective without action
+   */
+  export type ObjectiveDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Objective
+     */
+    select?: ObjectiveSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectiveInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model ObjectivePhase
+   */
+
+  export type AggregateObjectivePhase = {
+    _count: ObjectivePhaseCountAggregateOutputType | null
+    _avg: ObjectivePhaseAvgAggregateOutputType | null
+    _sum: ObjectivePhaseSumAggregateOutputType | null
+    _min: ObjectivePhaseMinAggregateOutputType | null
+    _max: ObjectivePhaseMaxAggregateOutputType | null
+  }
+
+  export type ObjectivePhaseAvgAggregateOutputType = {
+    weight: number | null
+    orderIdx: number | null
+  }
+
+  export type ObjectivePhaseSumAggregateOutputType = {
+    weight: number | null
+    orderIdx: number | null
+  }
+
+  export type ObjectivePhaseMinAggregateOutputType = {
+    id: string | null
+    objectiveId: string | null
+    name: string | null
+    state: string | null
+    weight: number | null
+    detail: string | null
+    orderIdx: number | null
+  }
+
+  export type ObjectivePhaseMaxAggregateOutputType = {
+    id: string | null
+    objectiveId: string | null
+    name: string | null
+    state: string | null
+    weight: number | null
+    detail: string | null
+    orderIdx: number | null
+  }
+
+  export type ObjectivePhaseCountAggregateOutputType = {
+    id: number
+    objectiveId: number
+    name: number
+    state: number
+    weight: number
+    detail: number
+    orderIdx: number
+    _all: number
+  }
+
+
+  export type ObjectivePhaseAvgAggregateInputType = {
+    weight?: true
+    orderIdx?: true
+  }
+
+  export type ObjectivePhaseSumAggregateInputType = {
+    weight?: true
+    orderIdx?: true
+  }
+
+  export type ObjectivePhaseMinAggregateInputType = {
+    id?: true
+    objectiveId?: true
+    name?: true
+    state?: true
+    weight?: true
+    detail?: true
+    orderIdx?: true
+  }
+
+  export type ObjectivePhaseMaxAggregateInputType = {
+    id?: true
+    objectiveId?: true
+    name?: true
+    state?: true
+    weight?: true
+    detail?: true
+    orderIdx?: true
+  }
+
+  export type ObjectivePhaseCountAggregateInputType = {
+    id?: true
+    objectiveId?: true
+    name?: true
+    state?: true
+    weight?: true
+    detail?: true
+    orderIdx?: true
+    _all?: true
+  }
+
+  export type ObjectivePhaseAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ObjectivePhase to aggregate.
+     */
+    where?: ObjectivePhaseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ObjectivePhases to fetch.
+     */
+    orderBy?: ObjectivePhaseOrderByWithRelationInput | ObjectivePhaseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ObjectivePhaseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ObjectivePhases from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ObjectivePhases.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ObjectivePhases
+    **/
+    _count?: true | ObjectivePhaseCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: ObjectivePhaseAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ObjectivePhaseSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ObjectivePhaseMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ObjectivePhaseMaxAggregateInputType
+  }
+
+  export type GetObjectivePhaseAggregateType<T extends ObjectivePhaseAggregateArgs> = {
+        [P in keyof T & keyof AggregateObjectivePhase]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateObjectivePhase[P]>
+      : GetScalarType<T[P], AggregateObjectivePhase[P]>
+  }
+
+
+
+
+  export type ObjectivePhaseGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ObjectivePhaseWhereInput
+    orderBy?: ObjectivePhaseOrderByWithAggregationInput | ObjectivePhaseOrderByWithAggregationInput[]
+    by: ObjectivePhaseScalarFieldEnum[] | ObjectivePhaseScalarFieldEnum
+    having?: ObjectivePhaseScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ObjectivePhaseCountAggregateInputType | true
+    _avg?: ObjectivePhaseAvgAggregateInputType
+    _sum?: ObjectivePhaseSumAggregateInputType
+    _min?: ObjectivePhaseMinAggregateInputType
+    _max?: ObjectivePhaseMaxAggregateInputType
+  }
+
+  export type ObjectivePhaseGroupByOutputType = {
+    id: string
+    objectiveId: string
+    name: string
+    state: string
+    weight: number
+    detail: string | null
+    orderIdx: number
+    _count: ObjectivePhaseCountAggregateOutputType | null
+    _avg: ObjectivePhaseAvgAggregateOutputType | null
+    _sum: ObjectivePhaseSumAggregateOutputType | null
+    _min: ObjectivePhaseMinAggregateOutputType | null
+    _max: ObjectivePhaseMaxAggregateOutputType | null
+  }
+
+  type GetObjectivePhaseGroupByPayload<T extends ObjectivePhaseGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ObjectivePhaseGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ObjectivePhaseGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ObjectivePhaseGroupByOutputType[P]>
+            : GetScalarType<T[P], ObjectivePhaseGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ObjectivePhaseSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    objectiveId?: boolean
+    name?: boolean
+    state?: boolean
+    weight?: boolean
+    detail?: boolean
+    orderIdx?: boolean
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["objectivePhase"]>
+
+  export type ObjectivePhaseSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    objectiveId?: boolean
+    name?: boolean
+    state?: boolean
+    weight?: boolean
+    detail?: boolean
+    orderIdx?: boolean
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["objectivePhase"]>
+
+  export type ObjectivePhaseSelectScalar = {
+    id?: boolean
+    objectiveId?: boolean
+    name?: boolean
+    state?: boolean
+    weight?: boolean
+    detail?: boolean
+    orderIdx?: boolean
+  }
+
+  export type ObjectivePhaseInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+  }
+  export type ObjectivePhaseIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+  }
+
+  export type $ObjectivePhasePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ObjectivePhase"
+    objects: {
+      objective: Prisma.$ObjectivePayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      objectiveId: string
+      name: string
+      state: string
+      weight: number
+      detail: string | null
+      orderIdx: number
+    }, ExtArgs["result"]["objectivePhase"]>
+    composites: {}
+  }
+
+  type ObjectivePhaseGetPayload<S extends boolean | null | undefined | ObjectivePhaseDefaultArgs> = $Result.GetResult<Prisma.$ObjectivePhasePayload, S>
+
+  type ObjectivePhaseCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<ObjectivePhaseFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: ObjectivePhaseCountAggregateInputType | true
+    }
+
+  export interface ObjectivePhaseDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ObjectivePhase'], meta: { name: 'ObjectivePhase' } }
+    /**
+     * Find zero or one ObjectivePhase that matches the filter.
+     * @param {ObjectivePhaseFindUniqueArgs} args - Arguments to find a ObjectivePhase
+     * @example
+     * // Get one ObjectivePhase
+     * const objectivePhase = await prisma.objectivePhase.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ObjectivePhaseFindUniqueArgs>(args: SelectSubset<T, ObjectivePhaseFindUniqueArgs<ExtArgs>>): Prisma__ObjectivePhaseClient<$Result.GetResult<Prisma.$ObjectivePhasePayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one ObjectivePhase that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {ObjectivePhaseFindUniqueOrThrowArgs} args - Arguments to find a ObjectivePhase
+     * @example
+     * // Get one ObjectivePhase
+     * const objectivePhase = await prisma.objectivePhase.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ObjectivePhaseFindUniqueOrThrowArgs>(args: SelectSubset<T, ObjectivePhaseFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ObjectivePhaseClient<$Result.GetResult<Prisma.$ObjectivePhasePayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first ObjectivePhase that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectivePhaseFindFirstArgs} args - Arguments to find a ObjectivePhase
+     * @example
+     * // Get one ObjectivePhase
+     * const objectivePhase = await prisma.objectivePhase.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ObjectivePhaseFindFirstArgs>(args?: SelectSubset<T, ObjectivePhaseFindFirstArgs<ExtArgs>>): Prisma__ObjectivePhaseClient<$Result.GetResult<Prisma.$ObjectivePhasePayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first ObjectivePhase that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectivePhaseFindFirstOrThrowArgs} args - Arguments to find a ObjectivePhase
+     * @example
+     * // Get one ObjectivePhase
+     * const objectivePhase = await prisma.objectivePhase.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ObjectivePhaseFindFirstOrThrowArgs>(args?: SelectSubset<T, ObjectivePhaseFindFirstOrThrowArgs<ExtArgs>>): Prisma__ObjectivePhaseClient<$Result.GetResult<Prisma.$ObjectivePhasePayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more ObjectivePhases that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectivePhaseFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ObjectivePhases
+     * const objectivePhases = await prisma.objectivePhase.findMany()
+     * 
+     * // Get first 10 ObjectivePhases
+     * const objectivePhases = await prisma.objectivePhase.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const objectivePhaseWithIdOnly = await prisma.objectivePhase.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ObjectivePhaseFindManyArgs>(args?: SelectSubset<T, ObjectivePhaseFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ObjectivePhasePayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a ObjectivePhase.
+     * @param {ObjectivePhaseCreateArgs} args - Arguments to create a ObjectivePhase.
+     * @example
+     * // Create one ObjectivePhase
+     * const ObjectivePhase = await prisma.objectivePhase.create({
+     *   data: {
+     *     // ... data to create a ObjectivePhase
+     *   }
+     * })
+     * 
+     */
+    create<T extends ObjectivePhaseCreateArgs>(args: SelectSubset<T, ObjectivePhaseCreateArgs<ExtArgs>>): Prisma__ObjectivePhaseClient<$Result.GetResult<Prisma.$ObjectivePhasePayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many ObjectivePhases.
+     * @param {ObjectivePhaseCreateManyArgs} args - Arguments to create many ObjectivePhases.
+     * @example
+     * // Create many ObjectivePhases
+     * const objectivePhase = await prisma.objectivePhase.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ObjectivePhaseCreateManyArgs>(args?: SelectSubset<T, ObjectivePhaseCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ObjectivePhases and returns the data saved in the database.
+     * @param {ObjectivePhaseCreateManyAndReturnArgs} args - Arguments to create many ObjectivePhases.
+     * @example
+     * // Create many ObjectivePhases
+     * const objectivePhase = await prisma.objectivePhase.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ObjectivePhases and only return the `id`
+     * const objectivePhaseWithIdOnly = await prisma.objectivePhase.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ObjectivePhaseCreateManyAndReturnArgs>(args?: SelectSubset<T, ObjectivePhaseCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ObjectivePhasePayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a ObjectivePhase.
+     * @param {ObjectivePhaseDeleteArgs} args - Arguments to delete one ObjectivePhase.
+     * @example
+     * // Delete one ObjectivePhase
+     * const ObjectivePhase = await prisma.objectivePhase.delete({
+     *   where: {
+     *     // ... filter to delete one ObjectivePhase
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ObjectivePhaseDeleteArgs>(args: SelectSubset<T, ObjectivePhaseDeleteArgs<ExtArgs>>): Prisma__ObjectivePhaseClient<$Result.GetResult<Prisma.$ObjectivePhasePayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one ObjectivePhase.
+     * @param {ObjectivePhaseUpdateArgs} args - Arguments to update one ObjectivePhase.
+     * @example
+     * // Update one ObjectivePhase
+     * const objectivePhase = await prisma.objectivePhase.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ObjectivePhaseUpdateArgs>(args: SelectSubset<T, ObjectivePhaseUpdateArgs<ExtArgs>>): Prisma__ObjectivePhaseClient<$Result.GetResult<Prisma.$ObjectivePhasePayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more ObjectivePhases.
+     * @param {ObjectivePhaseDeleteManyArgs} args - Arguments to filter ObjectivePhases to delete.
+     * @example
+     * // Delete a few ObjectivePhases
+     * const { count } = await prisma.objectivePhase.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ObjectivePhaseDeleteManyArgs>(args?: SelectSubset<T, ObjectivePhaseDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ObjectivePhases.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectivePhaseUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ObjectivePhases
+     * const objectivePhase = await prisma.objectivePhase.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ObjectivePhaseUpdateManyArgs>(args: SelectSubset<T, ObjectivePhaseUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one ObjectivePhase.
+     * @param {ObjectivePhaseUpsertArgs} args - Arguments to update or create a ObjectivePhase.
+     * @example
+     * // Update or create a ObjectivePhase
+     * const objectivePhase = await prisma.objectivePhase.upsert({
+     *   create: {
+     *     // ... data to create a ObjectivePhase
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ObjectivePhase we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ObjectivePhaseUpsertArgs>(args: SelectSubset<T, ObjectivePhaseUpsertArgs<ExtArgs>>): Prisma__ObjectivePhaseClient<$Result.GetResult<Prisma.$ObjectivePhasePayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of ObjectivePhases.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectivePhaseCountArgs} args - Arguments to filter ObjectivePhases to count.
+     * @example
+     * // Count the number of ObjectivePhases
+     * const count = await prisma.objectivePhase.count({
+     *   where: {
+     *     // ... the filter for the ObjectivePhases we want to count
+     *   }
+     * })
+    **/
+    count<T extends ObjectivePhaseCountArgs>(
+      args?: Subset<T, ObjectivePhaseCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ObjectivePhaseCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ObjectivePhase.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectivePhaseAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ObjectivePhaseAggregateArgs>(args: Subset<T, ObjectivePhaseAggregateArgs>): Prisma.PrismaPromise<GetObjectivePhaseAggregateType<T>>
+
+    /**
+     * Group by ObjectivePhase.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ObjectivePhaseGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ObjectivePhaseGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ObjectivePhaseGroupByArgs['orderBy'] }
+        : { orderBy?: ObjectivePhaseGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ObjectivePhaseGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetObjectivePhaseGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ObjectivePhase model
+   */
+  readonly fields: ObjectivePhaseFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ObjectivePhase.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ObjectivePhaseClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    objective<T extends ObjectiveDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ObjectiveDefaultArgs<ExtArgs>>): Prisma__ObjectiveClient<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ObjectivePhase model
+   */ 
+  interface ObjectivePhaseFieldRefs {
+    readonly id: FieldRef<"ObjectivePhase", 'String'>
+    readonly objectiveId: FieldRef<"ObjectivePhase", 'String'>
+    readonly name: FieldRef<"ObjectivePhase", 'String'>
+    readonly state: FieldRef<"ObjectivePhase", 'String'>
+    readonly weight: FieldRef<"ObjectivePhase", 'Float'>
+    readonly detail: FieldRef<"ObjectivePhase", 'String'>
+    readonly orderIdx: FieldRef<"ObjectivePhase", 'Int'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ObjectivePhase findUnique
+   */
+  export type ObjectivePhaseFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectivePhase
+     */
+    select?: ObjectivePhaseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectivePhaseInclude<ExtArgs> | null
+    /**
+     * Filter, which ObjectivePhase to fetch.
+     */
+    where: ObjectivePhaseWhereUniqueInput
+  }
+
+  /**
+   * ObjectivePhase findUniqueOrThrow
+   */
+  export type ObjectivePhaseFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectivePhase
+     */
+    select?: ObjectivePhaseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectivePhaseInclude<ExtArgs> | null
+    /**
+     * Filter, which ObjectivePhase to fetch.
+     */
+    where: ObjectivePhaseWhereUniqueInput
+  }
+
+  /**
+   * ObjectivePhase findFirst
+   */
+  export type ObjectivePhaseFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectivePhase
+     */
+    select?: ObjectivePhaseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectivePhaseInclude<ExtArgs> | null
+    /**
+     * Filter, which ObjectivePhase to fetch.
+     */
+    where?: ObjectivePhaseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ObjectivePhases to fetch.
+     */
+    orderBy?: ObjectivePhaseOrderByWithRelationInput | ObjectivePhaseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ObjectivePhases.
+     */
+    cursor?: ObjectivePhaseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ObjectivePhases from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ObjectivePhases.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ObjectivePhases.
+     */
+    distinct?: ObjectivePhaseScalarFieldEnum | ObjectivePhaseScalarFieldEnum[]
+  }
+
+  /**
+   * ObjectivePhase findFirstOrThrow
+   */
+  export type ObjectivePhaseFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectivePhase
+     */
+    select?: ObjectivePhaseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectivePhaseInclude<ExtArgs> | null
+    /**
+     * Filter, which ObjectivePhase to fetch.
+     */
+    where?: ObjectivePhaseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ObjectivePhases to fetch.
+     */
+    orderBy?: ObjectivePhaseOrderByWithRelationInput | ObjectivePhaseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ObjectivePhases.
+     */
+    cursor?: ObjectivePhaseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ObjectivePhases from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ObjectivePhases.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ObjectivePhases.
+     */
+    distinct?: ObjectivePhaseScalarFieldEnum | ObjectivePhaseScalarFieldEnum[]
+  }
+
+  /**
+   * ObjectivePhase findMany
+   */
+  export type ObjectivePhaseFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectivePhase
+     */
+    select?: ObjectivePhaseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectivePhaseInclude<ExtArgs> | null
+    /**
+     * Filter, which ObjectivePhases to fetch.
+     */
+    where?: ObjectivePhaseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ObjectivePhases to fetch.
+     */
+    orderBy?: ObjectivePhaseOrderByWithRelationInput | ObjectivePhaseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ObjectivePhases.
+     */
+    cursor?: ObjectivePhaseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ObjectivePhases from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ObjectivePhases.
+     */
+    skip?: number
+    distinct?: ObjectivePhaseScalarFieldEnum | ObjectivePhaseScalarFieldEnum[]
+  }
+
+  /**
+   * ObjectivePhase create
+   */
+  export type ObjectivePhaseCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectivePhase
+     */
+    select?: ObjectivePhaseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectivePhaseInclude<ExtArgs> | null
+    /**
+     * The data needed to create a ObjectivePhase.
+     */
+    data: XOR<ObjectivePhaseCreateInput, ObjectivePhaseUncheckedCreateInput>
+  }
+
+  /**
+   * ObjectivePhase createMany
+   */
+  export type ObjectivePhaseCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ObjectivePhases.
+     */
+    data: ObjectivePhaseCreateManyInput | ObjectivePhaseCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ObjectivePhase createManyAndReturn
+   */
+  export type ObjectivePhaseCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectivePhase
+     */
+    select?: ObjectivePhaseSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many ObjectivePhases.
+     */
+    data: ObjectivePhaseCreateManyInput | ObjectivePhaseCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectivePhaseIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * ObjectivePhase update
+   */
+  export type ObjectivePhaseUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectivePhase
+     */
+    select?: ObjectivePhaseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectivePhaseInclude<ExtArgs> | null
+    /**
+     * The data needed to update a ObjectivePhase.
+     */
+    data: XOR<ObjectivePhaseUpdateInput, ObjectivePhaseUncheckedUpdateInput>
+    /**
+     * Choose, which ObjectivePhase to update.
+     */
+    where: ObjectivePhaseWhereUniqueInput
+  }
+
+  /**
+   * ObjectivePhase updateMany
+   */
+  export type ObjectivePhaseUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ObjectivePhases.
+     */
+    data: XOR<ObjectivePhaseUpdateManyMutationInput, ObjectivePhaseUncheckedUpdateManyInput>
+    /**
+     * Filter which ObjectivePhases to update
+     */
+    where?: ObjectivePhaseWhereInput
+  }
+
+  /**
+   * ObjectivePhase upsert
+   */
+  export type ObjectivePhaseUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectivePhase
+     */
+    select?: ObjectivePhaseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectivePhaseInclude<ExtArgs> | null
+    /**
+     * The filter to search for the ObjectivePhase to update in case it exists.
+     */
+    where: ObjectivePhaseWhereUniqueInput
+    /**
+     * In case the ObjectivePhase found by the `where` argument doesn't exist, create a new ObjectivePhase with this data.
+     */
+    create: XOR<ObjectivePhaseCreateInput, ObjectivePhaseUncheckedCreateInput>
+    /**
+     * In case the ObjectivePhase was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ObjectivePhaseUpdateInput, ObjectivePhaseUncheckedUpdateInput>
+  }
+
+  /**
+   * ObjectivePhase delete
+   */
+  export type ObjectivePhaseDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectivePhase
+     */
+    select?: ObjectivePhaseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectivePhaseInclude<ExtArgs> | null
+    /**
+     * Filter which ObjectivePhase to delete.
+     */
+    where: ObjectivePhaseWhereUniqueInput
+  }
+
+  /**
+   * ObjectivePhase deleteMany
+   */
+  export type ObjectivePhaseDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ObjectivePhases to delete
+     */
+    where?: ObjectivePhaseWhereInput
+  }
+
+  /**
+   * ObjectivePhase without action
+   */
+  export type ObjectivePhaseDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ObjectivePhase
+     */
+    select?: ObjectivePhaseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ObjectivePhaseInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model Workstream
+   */
+
+  export type AggregateWorkstream = {
+    _count: WorkstreamCountAggregateOutputType | null
+    _avg: WorkstreamAvgAggregateOutputType | null
+    _sum: WorkstreamSumAggregateOutputType | null
+    _min: WorkstreamMinAggregateOutputType | null
+    _max: WorkstreamMaxAggregateOutputType | null
+  }
+
+  export type WorkstreamAvgAggregateOutputType = {
+    orderIdx: number | null
+  }
+
+  export type WorkstreamSumAggregateOutputType = {
+    orderIdx: number | null
+  }
+
+  export type WorkstreamMinAggregateOutputType = {
+    id: string | null
+    objectiveId: string | null
+    name: string | null
+    paused: boolean | null
+    pausedAt: Date | null
+    pausedNote: string | null
+    orderIdx: number | null
+    leadHarnessId: string | null
+  }
+
+  export type WorkstreamMaxAggregateOutputType = {
+    id: string | null
+    objectiveId: string | null
+    name: string | null
+    paused: boolean | null
+    pausedAt: Date | null
+    pausedNote: string | null
+    orderIdx: number | null
+    leadHarnessId: string | null
+  }
+
+  export type WorkstreamCountAggregateOutputType = {
+    id: number
+    objectiveId: number
+    name: number
+    paused: number
+    pausedAt: number
+    pausedNote: number
+    orderIdx: number
+    leadHarnessId: number
+    _all: number
+  }
+
+
+  export type WorkstreamAvgAggregateInputType = {
+    orderIdx?: true
+  }
+
+  export type WorkstreamSumAggregateInputType = {
+    orderIdx?: true
+  }
+
+  export type WorkstreamMinAggregateInputType = {
+    id?: true
+    objectiveId?: true
+    name?: true
+    paused?: true
+    pausedAt?: true
+    pausedNote?: true
+    orderIdx?: true
+    leadHarnessId?: true
+  }
+
+  export type WorkstreamMaxAggregateInputType = {
+    id?: true
+    objectiveId?: true
+    name?: true
+    paused?: true
+    pausedAt?: true
+    pausedNote?: true
+    orderIdx?: true
+    leadHarnessId?: true
+  }
+
+  export type WorkstreamCountAggregateInputType = {
+    id?: true
+    objectiveId?: true
+    name?: true
+    paused?: true
+    pausedAt?: true
+    pausedNote?: true
+    orderIdx?: true
+    leadHarnessId?: true
+    _all?: true
+  }
+
+  export type WorkstreamAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Workstream to aggregate.
+     */
+    where?: WorkstreamWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Workstreams to fetch.
+     */
+    orderBy?: WorkstreamOrderByWithRelationInput | WorkstreamOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: WorkstreamWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Workstreams from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Workstreams.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Workstreams
+    **/
+    _count?: true | WorkstreamCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: WorkstreamAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: WorkstreamSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: WorkstreamMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: WorkstreamMaxAggregateInputType
+  }
+
+  export type GetWorkstreamAggregateType<T extends WorkstreamAggregateArgs> = {
+        [P in keyof T & keyof AggregateWorkstream]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateWorkstream[P]>
+      : GetScalarType<T[P], AggregateWorkstream[P]>
+  }
+
+
+
+
+  export type WorkstreamGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: WorkstreamWhereInput
+    orderBy?: WorkstreamOrderByWithAggregationInput | WorkstreamOrderByWithAggregationInput[]
+    by: WorkstreamScalarFieldEnum[] | WorkstreamScalarFieldEnum
+    having?: WorkstreamScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: WorkstreamCountAggregateInputType | true
+    _avg?: WorkstreamAvgAggregateInputType
+    _sum?: WorkstreamSumAggregateInputType
+    _min?: WorkstreamMinAggregateInputType
+    _max?: WorkstreamMaxAggregateInputType
+  }
+
+  export type WorkstreamGroupByOutputType = {
+    id: string
+    objectiveId: string
+    name: string
+    paused: boolean
+    pausedAt: Date | null
+    pausedNote: string | null
+    orderIdx: number
+    leadHarnessId: string | null
+    _count: WorkstreamCountAggregateOutputType | null
+    _avg: WorkstreamAvgAggregateOutputType | null
+    _sum: WorkstreamSumAggregateOutputType | null
+    _min: WorkstreamMinAggregateOutputType | null
+    _max: WorkstreamMaxAggregateOutputType | null
+  }
+
+  type GetWorkstreamGroupByPayload<T extends WorkstreamGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<WorkstreamGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof WorkstreamGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], WorkstreamGroupByOutputType[P]>
+            : GetScalarType<T[P], WorkstreamGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type WorkstreamSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    objectiveId?: boolean
+    name?: boolean
+    paused?: boolean
+    pausedAt?: boolean
+    pausedNote?: boolean
+    orderIdx?: boolean
+    leadHarnessId?: boolean
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+    harnesses?: boolean | Workstream$harnessesArgs<ExtArgs>
+    _count?: boolean | WorkstreamCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["workstream"]>
+
+  export type WorkstreamSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    objectiveId?: boolean
+    name?: boolean
+    paused?: boolean
+    pausedAt?: boolean
+    pausedNote?: boolean
+    orderIdx?: boolean
+    leadHarnessId?: boolean
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["workstream"]>
+
+  export type WorkstreamSelectScalar = {
+    id?: boolean
+    objectiveId?: boolean
+    name?: boolean
+    paused?: boolean
+    pausedAt?: boolean
+    pausedNote?: boolean
+    orderIdx?: boolean
+    leadHarnessId?: boolean
+  }
+
+  export type WorkstreamInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+    harnesses?: boolean | Workstream$harnessesArgs<ExtArgs>
+    _count?: boolean | WorkstreamCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type WorkstreamIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+  }
+
+  export type $WorkstreamPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Workstream"
+    objects: {
+      objective: Prisma.$ObjectivePayload<ExtArgs>
+      harnesses: Prisma.$HarnessPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      objectiveId: string
+      name: string
+      paused: boolean
+      pausedAt: Date | null
+      pausedNote: string | null
+      orderIdx: number
+      leadHarnessId: string | null
+    }, ExtArgs["result"]["workstream"]>
+    composites: {}
+  }
+
+  type WorkstreamGetPayload<S extends boolean | null | undefined | WorkstreamDefaultArgs> = $Result.GetResult<Prisma.$WorkstreamPayload, S>
+
+  type WorkstreamCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<WorkstreamFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: WorkstreamCountAggregateInputType | true
+    }
+
+  export interface WorkstreamDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Workstream'], meta: { name: 'Workstream' } }
+    /**
+     * Find zero or one Workstream that matches the filter.
+     * @param {WorkstreamFindUniqueArgs} args - Arguments to find a Workstream
+     * @example
+     * // Get one Workstream
+     * const workstream = await prisma.workstream.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends WorkstreamFindUniqueArgs>(args: SelectSubset<T, WorkstreamFindUniqueArgs<ExtArgs>>): Prisma__WorkstreamClient<$Result.GetResult<Prisma.$WorkstreamPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one Workstream that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {WorkstreamFindUniqueOrThrowArgs} args - Arguments to find a Workstream
+     * @example
+     * // Get one Workstream
+     * const workstream = await prisma.workstream.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends WorkstreamFindUniqueOrThrowArgs>(args: SelectSubset<T, WorkstreamFindUniqueOrThrowArgs<ExtArgs>>): Prisma__WorkstreamClient<$Result.GetResult<Prisma.$WorkstreamPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first Workstream that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {WorkstreamFindFirstArgs} args - Arguments to find a Workstream
+     * @example
+     * // Get one Workstream
+     * const workstream = await prisma.workstream.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends WorkstreamFindFirstArgs>(args?: SelectSubset<T, WorkstreamFindFirstArgs<ExtArgs>>): Prisma__WorkstreamClient<$Result.GetResult<Prisma.$WorkstreamPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first Workstream that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {WorkstreamFindFirstOrThrowArgs} args - Arguments to find a Workstream
+     * @example
+     * // Get one Workstream
+     * const workstream = await prisma.workstream.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends WorkstreamFindFirstOrThrowArgs>(args?: SelectSubset<T, WorkstreamFindFirstOrThrowArgs<ExtArgs>>): Prisma__WorkstreamClient<$Result.GetResult<Prisma.$WorkstreamPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more Workstreams that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {WorkstreamFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Workstreams
+     * const workstreams = await prisma.workstream.findMany()
+     * 
+     * // Get first 10 Workstreams
+     * const workstreams = await prisma.workstream.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const workstreamWithIdOnly = await prisma.workstream.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends WorkstreamFindManyArgs>(args?: SelectSubset<T, WorkstreamFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$WorkstreamPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a Workstream.
+     * @param {WorkstreamCreateArgs} args - Arguments to create a Workstream.
+     * @example
+     * // Create one Workstream
+     * const Workstream = await prisma.workstream.create({
+     *   data: {
+     *     // ... data to create a Workstream
+     *   }
+     * })
+     * 
+     */
+    create<T extends WorkstreamCreateArgs>(args: SelectSubset<T, WorkstreamCreateArgs<ExtArgs>>): Prisma__WorkstreamClient<$Result.GetResult<Prisma.$WorkstreamPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many Workstreams.
+     * @param {WorkstreamCreateManyArgs} args - Arguments to create many Workstreams.
+     * @example
+     * // Create many Workstreams
+     * const workstream = await prisma.workstream.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends WorkstreamCreateManyArgs>(args?: SelectSubset<T, WorkstreamCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Workstreams and returns the data saved in the database.
+     * @param {WorkstreamCreateManyAndReturnArgs} args - Arguments to create many Workstreams.
+     * @example
+     * // Create many Workstreams
+     * const workstream = await prisma.workstream.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Workstreams and only return the `id`
+     * const workstreamWithIdOnly = await prisma.workstream.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends WorkstreamCreateManyAndReturnArgs>(args?: SelectSubset<T, WorkstreamCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$WorkstreamPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a Workstream.
+     * @param {WorkstreamDeleteArgs} args - Arguments to delete one Workstream.
+     * @example
+     * // Delete one Workstream
+     * const Workstream = await prisma.workstream.delete({
+     *   where: {
+     *     // ... filter to delete one Workstream
+     *   }
+     * })
+     * 
+     */
+    delete<T extends WorkstreamDeleteArgs>(args: SelectSubset<T, WorkstreamDeleteArgs<ExtArgs>>): Prisma__WorkstreamClient<$Result.GetResult<Prisma.$WorkstreamPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one Workstream.
+     * @param {WorkstreamUpdateArgs} args - Arguments to update one Workstream.
+     * @example
+     * // Update one Workstream
+     * const workstream = await prisma.workstream.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends WorkstreamUpdateArgs>(args: SelectSubset<T, WorkstreamUpdateArgs<ExtArgs>>): Prisma__WorkstreamClient<$Result.GetResult<Prisma.$WorkstreamPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more Workstreams.
+     * @param {WorkstreamDeleteManyArgs} args - Arguments to filter Workstreams to delete.
+     * @example
+     * // Delete a few Workstreams
+     * const { count } = await prisma.workstream.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends WorkstreamDeleteManyArgs>(args?: SelectSubset<T, WorkstreamDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Workstreams.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {WorkstreamUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Workstreams
+     * const workstream = await prisma.workstream.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends WorkstreamUpdateManyArgs>(args: SelectSubset<T, WorkstreamUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one Workstream.
+     * @param {WorkstreamUpsertArgs} args - Arguments to update or create a Workstream.
+     * @example
+     * // Update or create a Workstream
+     * const workstream = await prisma.workstream.upsert({
+     *   create: {
+     *     // ... data to create a Workstream
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Workstream we want to update
+     *   }
+     * })
+     */
+    upsert<T extends WorkstreamUpsertArgs>(args: SelectSubset<T, WorkstreamUpsertArgs<ExtArgs>>): Prisma__WorkstreamClient<$Result.GetResult<Prisma.$WorkstreamPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of Workstreams.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {WorkstreamCountArgs} args - Arguments to filter Workstreams to count.
+     * @example
+     * // Count the number of Workstreams
+     * const count = await prisma.workstream.count({
+     *   where: {
+     *     // ... the filter for the Workstreams we want to count
+     *   }
+     * })
+    **/
+    count<T extends WorkstreamCountArgs>(
+      args?: Subset<T, WorkstreamCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], WorkstreamCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Workstream.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {WorkstreamAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends WorkstreamAggregateArgs>(args: Subset<T, WorkstreamAggregateArgs>): Prisma.PrismaPromise<GetWorkstreamAggregateType<T>>
+
+    /**
+     * Group by Workstream.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {WorkstreamGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends WorkstreamGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: WorkstreamGroupByArgs['orderBy'] }
+        : { orderBy?: WorkstreamGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, WorkstreamGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetWorkstreamGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Workstream model
+   */
+  readonly fields: WorkstreamFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Workstream.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__WorkstreamClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    objective<T extends ObjectiveDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ObjectiveDefaultArgs<ExtArgs>>): Prisma__ObjectiveClient<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    harnesses<T extends Workstream$harnessesArgs<ExtArgs> = {}>(args?: Subset<T, Workstream$harnessesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "findMany"> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Workstream model
+   */ 
+  interface WorkstreamFieldRefs {
+    readonly id: FieldRef<"Workstream", 'String'>
+    readonly objectiveId: FieldRef<"Workstream", 'String'>
+    readonly name: FieldRef<"Workstream", 'String'>
+    readonly paused: FieldRef<"Workstream", 'Boolean'>
+    readonly pausedAt: FieldRef<"Workstream", 'DateTime'>
+    readonly pausedNote: FieldRef<"Workstream", 'String'>
+    readonly orderIdx: FieldRef<"Workstream", 'Int'>
+    readonly leadHarnessId: FieldRef<"Workstream", 'String'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Workstream findUnique
+   */
+  export type WorkstreamFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamInclude<ExtArgs> | null
+    /**
+     * Filter, which Workstream to fetch.
+     */
+    where: WorkstreamWhereUniqueInput
+  }
+
+  /**
+   * Workstream findUniqueOrThrow
+   */
+  export type WorkstreamFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamInclude<ExtArgs> | null
+    /**
+     * Filter, which Workstream to fetch.
+     */
+    where: WorkstreamWhereUniqueInput
+  }
+
+  /**
+   * Workstream findFirst
+   */
+  export type WorkstreamFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamInclude<ExtArgs> | null
+    /**
+     * Filter, which Workstream to fetch.
+     */
+    where?: WorkstreamWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Workstreams to fetch.
+     */
+    orderBy?: WorkstreamOrderByWithRelationInput | WorkstreamOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Workstreams.
+     */
+    cursor?: WorkstreamWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Workstreams from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Workstreams.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Workstreams.
+     */
+    distinct?: WorkstreamScalarFieldEnum | WorkstreamScalarFieldEnum[]
+  }
+
+  /**
+   * Workstream findFirstOrThrow
+   */
+  export type WorkstreamFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamInclude<ExtArgs> | null
+    /**
+     * Filter, which Workstream to fetch.
+     */
+    where?: WorkstreamWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Workstreams to fetch.
+     */
+    orderBy?: WorkstreamOrderByWithRelationInput | WorkstreamOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Workstreams.
+     */
+    cursor?: WorkstreamWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Workstreams from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Workstreams.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Workstreams.
+     */
+    distinct?: WorkstreamScalarFieldEnum | WorkstreamScalarFieldEnum[]
+  }
+
+  /**
+   * Workstream findMany
+   */
+  export type WorkstreamFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamInclude<ExtArgs> | null
+    /**
+     * Filter, which Workstreams to fetch.
+     */
+    where?: WorkstreamWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Workstreams to fetch.
+     */
+    orderBy?: WorkstreamOrderByWithRelationInput | WorkstreamOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Workstreams.
+     */
+    cursor?: WorkstreamWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Workstreams from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Workstreams.
+     */
+    skip?: number
+    distinct?: WorkstreamScalarFieldEnum | WorkstreamScalarFieldEnum[]
+  }
+
+  /**
+   * Workstream create
+   */
+  export type WorkstreamCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Workstream.
+     */
+    data: XOR<WorkstreamCreateInput, WorkstreamUncheckedCreateInput>
+  }
+
+  /**
+   * Workstream createMany
+   */
+  export type WorkstreamCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Workstreams.
+     */
+    data: WorkstreamCreateManyInput | WorkstreamCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Workstream createManyAndReturn
+   */
+  export type WorkstreamCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many Workstreams.
+     */
+    data: WorkstreamCreateManyInput | WorkstreamCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Workstream update
+   */
+  export type WorkstreamUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamInclude<ExtArgs> | null
+    /**
+     * The data needed to update a Workstream.
+     */
+    data: XOR<WorkstreamUpdateInput, WorkstreamUncheckedUpdateInput>
+    /**
+     * Choose, which Workstream to update.
+     */
+    where: WorkstreamWhereUniqueInput
+  }
+
+  /**
+   * Workstream updateMany
+   */
+  export type WorkstreamUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Workstreams.
+     */
+    data: XOR<WorkstreamUpdateManyMutationInput, WorkstreamUncheckedUpdateManyInput>
+    /**
+     * Filter which Workstreams to update
+     */
+    where?: WorkstreamWhereInput
+  }
+
+  /**
+   * Workstream upsert
+   */
+  export type WorkstreamUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamInclude<ExtArgs> | null
+    /**
+     * The filter to search for the Workstream to update in case it exists.
+     */
+    where: WorkstreamWhereUniqueInput
+    /**
+     * In case the Workstream found by the `where` argument doesn't exist, create a new Workstream with this data.
+     */
+    create: XOR<WorkstreamCreateInput, WorkstreamUncheckedCreateInput>
+    /**
+     * In case the Workstream was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<WorkstreamUpdateInput, WorkstreamUncheckedUpdateInput>
+  }
+
+  /**
+   * Workstream delete
+   */
+  export type WorkstreamDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamInclude<ExtArgs> | null
+    /**
+     * Filter which Workstream to delete.
+     */
+    where: WorkstreamWhereUniqueInput
+  }
+
+  /**
+   * Workstream deleteMany
+   */
+  export type WorkstreamDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Workstreams to delete
+     */
+    where?: WorkstreamWhereInput
+  }
+
+  /**
+   * Workstream.harnesses
+   */
+  export type Workstream$harnessesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    where?: HarnessWhereInput
+    orderBy?: HarnessOrderByWithRelationInput | HarnessOrderByWithRelationInput[]
+    cursor?: HarnessWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: HarnessScalarFieldEnum | HarnessScalarFieldEnum[]
+  }
+
+  /**
+   * Workstream without action
+   */
+  export type WorkstreamDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model Harness
+   */
+
+  export type AggregateHarness = {
+    _count: HarnessCountAggregateOutputType | null
+    _avg: HarnessAvgAggregateOutputType | null
+    _sum: HarnessSumAggregateOutputType | null
+    _min: HarnessMinAggregateOutputType | null
+    _max: HarnessMaxAggregateOutputType | null
+  }
+
+  export type HarnessAvgAggregateOutputType = {
+    heartbeatMinutes: number | null
+    maxChildren: number | null
+    spendCapUsd: number | null
+    spendUsd: number | null
+    contextTokens: number | null
+    contextWindow: number | null
+    lastPulseSeq: number | null
+  }
+
+  export type HarnessSumAggregateOutputType = {
+    heartbeatMinutes: number | null
+    maxChildren: number | null
+    spendCapUsd: number | null
+    spendUsd: number | null
+    contextTokens: number | null
+    contextWindow: number | null
+    lastPulseSeq: number | null
+  }
+
+  export type HarnessMinAggregateOutputType = {
+    id: string | null
+    objectiveId: string | null
+    workstreamId: string | null
+    parentId: string | null
+    name: string | null
+    status: string | null
+    statusBeforePause: string | null
+    activity: string | null
+    mission: string | null
+    currentJob: string | null
+    model: string | null
+    playbookId: string | null
+    taskId: string | null
+    branch: string | null
+    heartbeatMinutes: number | null
+    nextPulseAt: Date | null
+    maxChildren: number | null
+    spendCapUsd: number | null
+    spendUsd: number | null
+    contextTokens: number | null
+    contextWindow: number | null
+    permissions: string | null
+    dryRun: boolean | null
+    lastPulseSeq: number | null
+    idleSince: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    retiredAt: Date | null
+  }
+
+  export type HarnessMaxAggregateOutputType = {
+    id: string | null
+    objectiveId: string | null
+    workstreamId: string | null
+    parentId: string | null
+    name: string | null
+    status: string | null
+    statusBeforePause: string | null
+    activity: string | null
+    mission: string | null
+    currentJob: string | null
+    model: string | null
+    playbookId: string | null
+    taskId: string | null
+    branch: string | null
+    heartbeatMinutes: number | null
+    nextPulseAt: Date | null
+    maxChildren: number | null
+    spendCapUsd: number | null
+    spendUsd: number | null
+    contextTokens: number | null
+    contextWindow: number | null
+    permissions: string | null
+    dryRun: boolean | null
+    lastPulseSeq: number | null
+    idleSince: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    retiredAt: Date | null
+  }
+
+  export type HarnessCountAggregateOutputType = {
+    id: number
+    objectiveId: number
+    workstreamId: number
+    parentId: number
+    name: number
+    status: number
+    statusBeforePause: number
+    activity: number
+    mission: number
+    currentJob: number
+    model: number
+    playbookId: number
+    taskId: number
+    branch: number
+    heartbeatMinutes: number
+    nextPulseAt: number
+    maxChildren: number
+    spendCapUsd: number
+    spendUsd: number
+    contextTokens: number
+    contextWindow: number
+    permissions: number
+    dryRun: number
+    lastPulseSeq: number
+    idleSince: number
+    createdAt: number
+    updatedAt: number
+    retiredAt: number
+    _all: number
+  }
+
+
+  export type HarnessAvgAggregateInputType = {
+    heartbeatMinutes?: true
+    maxChildren?: true
+    spendCapUsd?: true
+    spendUsd?: true
+    contextTokens?: true
+    contextWindow?: true
+    lastPulseSeq?: true
+  }
+
+  export type HarnessSumAggregateInputType = {
+    heartbeatMinutes?: true
+    maxChildren?: true
+    spendCapUsd?: true
+    spendUsd?: true
+    contextTokens?: true
+    contextWindow?: true
+    lastPulseSeq?: true
+  }
+
+  export type HarnessMinAggregateInputType = {
+    id?: true
+    objectiveId?: true
+    workstreamId?: true
+    parentId?: true
+    name?: true
+    status?: true
+    statusBeforePause?: true
+    activity?: true
+    mission?: true
+    currentJob?: true
+    model?: true
+    playbookId?: true
+    taskId?: true
+    branch?: true
+    heartbeatMinutes?: true
+    nextPulseAt?: true
+    maxChildren?: true
+    spendCapUsd?: true
+    spendUsd?: true
+    contextTokens?: true
+    contextWindow?: true
+    permissions?: true
+    dryRun?: true
+    lastPulseSeq?: true
+    idleSince?: true
+    createdAt?: true
+    updatedAt?: true
+    retiredAt?: true
+  }
+
+  export type HarnessMaxAggregateInputType = {
+    id?: true
+    objectiveId?: true
+    workstreamId?: true
+    parentId?: true
+    name?: true
+    status?: true
+    statusBeforePause?: true
+    activity?: true
+    mission?: true
+    currentJob?: true
+    model?: true
+    playbookId?: true
+    taskId?: true
+    branch?: true
+    heartbeatMinutes?: true
+    nextPulseAt?: true
+    maxChildren?: true
+    spendCapUsd?: true
+    spendUsd?: true
+    contextTokens?: true
+    contextWindow?: true
+    permissions?: true
+    dryRun?: true
+    lastPulseSeq?: true
+    idleSince?: true
+    createdAt?: true
+    updatedAt?: true
+    retiredAt?: true
+  }
+
+  export type HarnessCountAggregateInputType = {
+    id?: true
+    objectiveId?: true
+    workstreamId?: true
+    parentId?: true
+    name?: true
+    status?: true
+    statusBeforePause?: true
+    activity?: true
+    mission?: true
+    currentJob?: true
+    model?: true
+    playbookId?: true
+    taskId?: true
+    branch?: true
+    heartbeatMinutes?: true
+    nextPulseAt?: true
+    maxChildren?: true
+    spendCapUsd?: true
+    spendUsd?: true
+    contextTokens?: true
+    contextWindow?: true
+    permissions?: true
+    dryRun?: true
+    lastPulseSeq?: true
+    idleSince?: true
+    createdAt?: true
+    updatedAt?: true
+    retiredAt?: true
+    _all?: true
+  }
+
+  export type HarnessAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Harness to aggregate.
+     */
+    where?: HarnessWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Harnesses to fetch.
+     */
+    orderBy?: HarnessOrderByWithRelationInput | HarnessOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: HarnessWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Harnesses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Harnesses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Harnesses
+    **/
+    _count?: true | HarnessCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: HarnessAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: HarnessSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: HarnessMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: HarnessMaxAggregateInputType
+  }
+
+  export type GetHarnessAggregateType<T extends HarnessAggregateArgs> = {
+        [P in keyof T & keyof AggregateHarness]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateHarness[P]>
+      : GetScalarType<T[P], AggregateHarness[P]>
+  }
+
+
+
+
+  export type HarnessGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: HarnessWhereInput
+    orderBy?: HarnessOrderByWithAggregationInput | HarnessOrderByWithAggregationInput[]
+    by: HarnessScalarFieldEnum[] | HarnessScalarFieldEnum
+    having?: HarnessScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: HarnessCountAggregateInputType | true
+    _avg?: HarnessAvgAggregateInputType
+    _sum?: HarnessSumAggregateInputType
+    _min?: HarnessMinAggregateInputType
+    _max?: HarnessMaxAggregateInputType
+  }
+
+  export type HarnessGroupByOutputType = {
+    id: string
+    objectiveId: string
+    workstreamId: string | null
+    parentId: string | null
+    name: string
+    status: string
+    statusBeforePause: string | null
+    activity: string | null
+    mission: string
+    currentJob: string | null
+    model: string
+    playbookId: string | null
+    taskId: string | null
+    branch: string | null
+    heartbeatMinutes: number
+    nextPulseAt: Date | null
+    maxChildren: number
+    spendCapUsd: number | null
+    spendUsd: number
+    contextTokens: number
+    contextWindow: number
+    permissions: string
+    dryRun: boolean
+    lastPulseSeq: number
+    idleSince: Date | null
+    createdAt: Date
+    updatedAt: Date
+    retiredAt: Date | null
+    _count: HarnessCountAggregateOutputType | null
+    _avg: HarnessAvgAggregateOutputType | null
+    _sum: HarnessSumAggregateOutputType | null
+    _min: HarnessMinAggregateOutputType | null
+    _max: HarnessMaxAggregateOutputType | null
+  }
+
+  type GetHarnessGroupByPayload<T extends HarnessGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<HarnessGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof HarnessGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], HarnessGroupByOutputType[P]>
+            : GetScalarType<T[P], HarnessGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type HarnessSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    objectiveId?: boolean
+    workstreamId?: boolean
+    parentId?: boolean
+    name?: boolean
+    status?: boolean
+    statusBeforePause?: boolean
+    activity?: boolean
+    mission?: boolean
+    currentJob?: boolean
+    model?: boolean
+    playbookId?: boolean
+    taskId?: boolean
+    branch?: boolean
+    heartbeatMinutes?: boolean
+    nextPulseAt?: boolean
+    maxChildren?: boolean
+    spendCapUsd?: boolean
+    spendUsd?: boolean
+    contextTokens?: boolean
+    contextWindow?: boolean
+    permissions?: boolean
+    dryRun?: boolean
+    lastPulseSeq?: boolean
+    idleSince?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    retiredAt?: boolean
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+    workstream?: boolean | Harness$workstreamArgs<ExtArgs>
+    parent?: boolean | Harness$parentArgs<ExtArgs>
+    children?: boolean | Harness$childrenArgs<ExtArgs>
+    pulses?: boolean | Harness$pulsesArgs<ExtArgs>
+    tools?: boolean | Harness$toolsArgs<ExtArgs>
+    _count?: boolean | HarnessCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["harness"]>
+
+  export type HarnessSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    objectiveId?: boolean
+    workstreamId?: boolean
+    parentId?: boolean
+    name?: boolean
+    status?: boolean
+    statusBeforePause?: boolean
+    activity?: boolean
+    mission?: boolean
+    currentJob?: boolean
+    model?: boolean
+    playbookId?: boolean
+    taskId?: boolean
+    branch?: boolean
+    heartbeatMinutes?: boolean
+    nextPulseAt?: boolean
+    maxChildren?: boolean
+    spendCapUsd?: boolean
+    spendUsd?: boolean
+    contextTokens?: boolean
+    contextWindow?: boolean
+    permissions?: boolean
+    dryRun?: boolean
+    lastPulseSeq?: boolean
+    idleSince?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    retiredAt?: boolean
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+    workstream?: boolean | Harness$workstreamArgs<ExtArgs>
+    parent?: boolean | Harness$parentArgs<ExtArgs>
+  }, ExtArgs["result"]["harness"]>
+
+  export type HarnessSelectScalar = {
+    id?: boolean
+    objectiveId?: boolean
+    workstreamId?: boolean
+    parentId?: boolean
+    name?: boolean
+    status?: boolean
+    statusBeforePause?: boolean
+    activity?: boolean
+    mission?: boolean
+    currentJob?: boolean
+    model?: boolean
+    playbookId?: boolean
+    taskId?: boolean
+    branch?: boolean
+    heartbeatMinutes?: boolean
+    nextPulseAt?: boolean
+    maxChildren?: boolean
+    spendCapUsd?: boolean
+    spendUsd?: boolean
+    contextTokens?: boolean
+    contextWindow?: boolean
+    permissions?: boolean
+    dryRun?: boolean
+    lastPulseSeq?: boolean
+    idleSince?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    retiredAt?: boolean
+  }
+
+  export type HarnessInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+    workstream?: boolean | Harness$workstreamArgs<ExtArgs>
+    parent?: boolean | Harness$parentArgs<ExtArgs>
+    children?: boolean | Harness$childrenArgs<ExtArgs>
+    pulses?: boolean | Harness$pulsesArgs<ExtArgs>
+    tools?: boolean | Harness$toolsArgs<ExtArgs>
+    _count?: boolean | HarnessCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type HarnessIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+    workstream?: boolean | Harness$workstreamArgs<ExtArgs>
+    parent?: boolean | Harness$parentArgs<ExtArgs>
+  }
+
+  export type $HarnessPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Harness"
+    objects: {
+      objective: Prisma.$ObjectivePayload<ExtArgs>
+      workstream: Prisma.$WorkstreamPayload<ExtArgs> | null
+      parent: Prisma.$HarnessPayload<ExtArgs> | null
+      children: Prisma.$HarnessPayload<ExtArgs>[]
+      pulses: Prisma.$PulsePayload<ExtArgs>[]
+      tools: Prisma.$HarnessToolPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      objectiveId: string
+      workstreamId: string | null
+      parentId: string | null
+      name: string
+      status: string
+      statusBeforePause: string | null
+      activity: string | null
+      mission: string
+      currentJob: string | null
+      model: string
+      playbookId: string | null
+      taskId: string | null
+      branch: string | null
+      heartbeatMinutes: number
+      nextPulseAt: Date | null
+      maxChildren: number
+      spendCapUsd: number | null
+      spendUsd: number
+      contextTokens: number
+      contextWindow: number
+      permissions: string
+      dryRun: boolean
+      lastPulseSeq: number
+      idleSince: Date | null
+      createdAt: Date
+      updatedAt: Date
+      retiredAt: Date | null
+    }, ExtArgs["result"]["harness"]>
+    composites: {}
+  }
+
+  type HarnessGetPayload<S extends boolean | null | undefined | HarnessDefaultArgs> = $Result.GetResult<Prisma.$HarnessPayload, S>
+
+  type HarnessCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<HarnessFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: HarnessCountAggregateInputType | true
+    }
+
+  export interface HarnessDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Harness'], meta: { name: 'Harness' } }
+    /**
+     * Find zero or one Harness that matches the filter.
+     * @param {HarnessFindUniqueArgs} args - Arguments to find a Harness
+     * @example
+     * // Get one Harness
+     * const harness = await prisma.harness.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends HarnessFindUniqueArgs>(args: SelectSubset<T, HarnessFindUniqueArgs<ExtArgs>>): Prisma__HarnessClient<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one Harness that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {HarnessFindUniqueOrThrowArgs} args - Arguments to find a Harness
+     * @example
+     * // Get one Harness
+     * const harness = await prisma.harness.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends HarnessFindUniqueOrThrowArgs>(args: SelectSubset<T, HarnessFindUniqueOrThrowArgs<ExtArgs>>): Prisma__HarnessClient<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first Harness that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessFindFirstArgs} args - Arguments to find a Harness
+     * @example
+     * // Get one Harness
+     * const harness = await prisma.harness.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends HarnessFindFirstArgs>(args?: SelectSubset<T, HarnessFindFirstArgs<ExtArgs>>): Prisma__HarnessClient<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first Harness that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessFindFirstOrThrowArgs} args - Arguments to find a Harness
+     * @example
+     * // Get one Harness
+     * const harness = await prisma.harness.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends HarnessFindFirstOrThrowArgs>(args?: SelectSubset<T, HarnessFindFirstOrThrowArgs<ExtArgs>>): Prisma__HarnessClient<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more Harnesses that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Harnesses
+     * const harnesses = await prisma.harness.findMany()
+     * 
+     * // Get first 10 Harnesses
+     * const harnesses = await prisma.harness.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const harnessWithIdOnly = await prisma.harness.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends HarnessFindManyArgs>(args?: SelectSubset<T, HarnessFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a Harness.
+     * @param {HarnessCreateArgs} args - Arguments to create a Harness.
+     * @example
+     * // Create one Harness
+     * const Harness = await prisma.harness.create({
+     *   data: {
+     *     // ... data to create a Harness
+     *   }
+     * })
+     * 
+     */
+    create<T extends HarnessCreateArgs>(args: SelectSubset<T, HarnessCreateArgs<ExtArgs>>): Prisma__HarnessClient<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many Harnesses.
+     * @param {HarnessCreateManyArgs} args - Arguments to create many Harnesses.
+     * @example
+     * // Create many Harnesses
+     * const harness = await prisma.harness.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends HarnessCreateManyArgs>(args?: SelectSubset<T, HarnessCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Harnesses and returns the data saved in the database.
+     * @param {HarnessCreateManyAndReturnArgs} args - Arguments to create many Harnesses.
+     * @example
+     * // Create many Harnesses
+     * const harness = await prisma.harness.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Harnesses and only return the `id`
+     * const harnessWithIdOnly = await prisma.harness.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends HarnessCreateManyAndReturnArgs>(args?: SelectSubset<T, HarnessCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a Harness.
+     * @param {HarnessDeleteArgs} args - Arguments to delete one Harness.
+     * @example
+     * // Delete one Harness
+     * const Harness = await prisma.harness.delete({
+     *   where: {
+     *     // ... filter to delete one Harness
+     *   }
+     * })
+     * 
+     */
+    delete<T extends HarnessDeleteArgs>(args: SelectSubset<T, HarnessDeleteArgs<ExtArgs>>): Prisma__HarnessClient<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one Harness.
+     * @param {HarnessUpdateArgs} args - Arguments to update one Harness.
+     * @example
+     * // Update one Harness
+     * const harness = await prisma.harness.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends HarnessUpdateArgs>(args: SelectSubset<T, HarnessUpdateArgs<ExtArgs>>): Prisma__HarnessClient<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more Harnesses.
+     * @param {HarnessDeleteManyArgs} args - Arguments to filter Harnesses to delete.
+     * @example
+     * // Delete a few Harnesses
+     * const { count } = await prisma.harness.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends HarnessDeleteManyArgs>(args?: SelectSubset<T, HarnessDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Harnesses.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Harnesses
+     * const harness = await prisma.harness.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends HarnessUpdateManyArgs>(args: SelectSubset<T, HarnessUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one Harness.
+     * @param {HarnessUpsertArgs} args - Arguments to update or create a Harness.
+     * @example
+     * // Update or create a Harness
+     * const harness = await prisma.harness.upsert({
+     *   create: {
+     *     // ... data to create a Harness
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Harness we want to update
+     *   }
+     * })
+     */
+    upsert<T extends HarnessUpsertArgs>(args: SelectSubset<T, HarnessUpsertArgs<ExtArgs>>): Prisma__HarnessClient<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of Harnesses.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessCountArgs} args - Arguments to filter Harnesses to count.
+     * @example
+     * // Count the number of Harnesses
+     * const count = await prisma.harness.count({
+     *   where: {
+     *     // ... the filter for the Harnesses we want to count
+     *   }
+     * })
+    **/
+    count<T extends HarnessCountArgs>(
+      args?: Subset<T, HarnessCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], HarnessCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Harness.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends HarnessAggregateArgs>(args: Subset<T, HarnessAggregateArgs>): Prisma.PrismaPromise<GetHarnessAggregateType<T>>
+
+    /**
+     * Group by Harness.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends HarnessGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: HarnessGroupByArgs['orderBy'] }
+        : { orderBy?: HarnessGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, HarnessGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetHarnessGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Harness model
+   */
+  readonly fields: HarnessFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Harness.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__HarnessClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    objective<T extends ObjectiveDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ObjectiveDefaultArgs<ExtArgs>>): Prisma__ObjectiveClient<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    workstream<T extends Harness$workstreamArgs<ExtArgs> = {}>(args?: Subset<T, Harness$workstreamArgs<ExtArgs>>): Prisma__WorkstreamClient<$Result.GetResult<Prisma.$WorkstreamPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    parent<T extends Harness$parentArgs<ExtArgs> = {}>(args?: Subset<T, Harness$parentArgs<ExtArgs>>): Prisma__HarnessClient<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    children<T extends Harness$childrenArgs<ExtArgs> = {}>(args?: Subset<T, Harness$childrenArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "findMany"> | Null>
+    pulses<T extends Harness$pulsesArgs<ExtArgs> = {}>(args?: Subset<T, Harness$pulsesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PulsePayload<ExtArgs>, T, "findMany"> | Null>
+    tools<T extends Harness$toolsArgs<ExtArgs> = {}>(args?: Subset<T, Harness$toolsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$HarnessToolPayload<ExtArgs>, T, "findMany"> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Harness model
+   */ 
+  interface HarnessFieldRefs {
+    readonly id: FieldRef<"Harness", 'String'>
+    readonly objectiveId: FieldRef<"Harness", 'String'>
+    readonly workstreamId: FieldRef<"Harness", 'String'>
+    readonly parentId: FieldRef<"Harness", 'String'>
+    readonly name: FieldRef<"Harness", 'String'>
+    readonly status: FieldRef<"Harness", 'String'>
+    readonly statusBeforePause: FieldRef<"Harness", 'String'>
+    readonly activity: FieldRef<"Harness", 'String'>
+    readonly mission: FieldRef<"Harness", 'String'>
+    readonly currentJob: FieldRef<"Harness", 'String'>
+    readonly model: FieldRef<"Harness", 'String'>
+    readonly playbookId: FieldRef<"Harness", 'String'>
+    readonly taskId: FieldRef<"Harness", 'String'>
+    readonly branch: FieldRef<"Harness", 'String'>
+    readonly heartbeatMinutes: FieldRef<"Harness", 'Int'>
+    readonly nextPulseAt: FieldRef<"Harness", 'DateTime'>
+    readonly maxChildren: FieldRef<"Harness", 'Int'>
+    readonly spendCapUsd: FieldRef<"Harness", 'Float'>
+    readonly spendUsd: FieldRef<"Harness", 'Float'>
+    readonly contextTokens: FieldRef<"Harness", 'Int'>
+    readonly contextWindow: FieldRef<"Harness", 'Int'>
+    readonly permissions: FieldRef<"Harness", 'String'>
+    readonly dryRun: FieldRef<"Harness", 'Boolean'>
+    readonly lastPulseSeq: FieldRef<"Harness", 'Int'>
+    readonly idleSince: FieldRef<"Harness", 'DateTime'>
+    readonly createdAt: FieldRef<"Harness", 'DateTime'>
+    readonly updatedAt: FieldRef<"Harness", 'DateTime'>
+    readonly retiredAt: FieldRef<"Harness", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Harness findUnique
+   */
+  export type HarnessFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    /**
+     * Filter, which Harness to fetch.
+     */
+    where: HarnessWhereUniqueInput
+  }
+
+  /**
+   * Harness findUniqueOrThrow
+   */
+  export type HarnessFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    /**
+     * Filter, which Harness to fetch.
+     */
+    where: HarnessWhereUniqueInput
+  }
+
+  /**
+   * Harness findFirst
+   */
+  export type HarnessFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    /**
+     * Filter, which Harness to fetch.
+     */
+    where?: HarnessWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Harnesses to fetch.
+     */
+    orderBy?: HarnessOrderByWithRelationInput | HarnessOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Harnesses.
+     */
+    cursor?: HarnessWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Harnesses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Harnesses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Harnesses.
+     */
+    distinct?: HarnessScalarFieldEnum | HarnessScalarFieldEnum[]
+  }
+
+  /**
+   * Harness findFirstOrThrow
+   */
+  export type HarnessFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    /**
+     * Filter, which Harness to fetch.
+     */
+    where?: HarnessWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Harnesses to fetch.
+     */
+    orderBy?: HarnessOrderByWithRelationInput | HarnessOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Harnesses.
+     */
+    cursor?: HarnessWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Harnesses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Harnesses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Harnesses.
+     */
+    distinct?: HarnessScalarFieldEnum | HarnessScalarFieldEnum[]
+  }
+
+  /**
+   * Harness findMany
+   */
+  export type HarnessFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    /**
+     * Filter, which Harnesses to fetch.
+     */
+    where?: HarnessWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Harnesses to fetch.
+     */
+    orderBy?: HarnessOrderByWithRelationInput | HarnessOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Harnesses.
+     */
+    cursor?: HarnessWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Harnesses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Harnesses.
+     */
+    skip?: number
+    distinct?: HarnessScalarFieldEnum | HarnessScalarFieldEnum[]
+  }
+
+  /**
+   * Harness create
+   */
+  export type HarnessCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Harness.
+     */
+    data: XOR<HarnessCreateInput, HarnessUncheckedCreateInput>
+  }
+
+  /**
+   * Harness createMany
+   */
+  export type HarnessCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Harnesses.
+     */
+    data: HarnessCreateManyInput | HarnessCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Harness createManyAndReturn
+   */
+  export type HarnessCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many Harnesses.
+     */
+    data: HarnessCreateManyInput | HarnessCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Harness update
+   */
+  export type HarnessUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    /**
+     * The data needed to update a Harness.
+     */
+    data: XOR<HarnessUpdateInput, HarnessUncheckedUpdateInput>
+    /**
+     * Choose, which Harness to update.
+     */
+    where: HarnessWhereUniqueInput
+  }
+
+  /**
+   * Harness updateMany
+   */
+  export type HarnessUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Harnesses.
+     */
+    data: XOR<HarnessUpdateManyMutationInput, HarnessUncheckedUpdateManyInput>
+    /**
+     * Filter which Harnesses to update
+     */
+    where?: HarnessWhereInput
+  }
+
+  /**
+   * Harness upsert
+   */
+  export type HarnessUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    /**
+     * The filter to search for the Harness to update in case it exists.
+     */
+    where: HarnessWhereUniqueInput
+    /**
+     * In case the Harness found by the `where` argument doesn't exist, create a new Harness with this data.
+     */
+    create: XOR<HarnessCreateInput, HarnessUncheckedCreateInput>
+    /**
+     * In case the Harness was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<HarnessUpdateInput, HarnessUncheckedUpdateInput>
+  }
+
+  /**
+   * Harness delete
+   */
+  export type HarnessDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    /**
+     * Filter which Harness to delete.
+     */
+    where: HarnessWhereUniqueInput
+  }
+
+  /**
+   * Harness deleteMany
+   */
+  export type HarnessDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Harnesses to delete
+     */
+    where?: HarnessWhereInput
+  }
+
+  /**
+   * Harness.workstream
+   */
+  export type Harness$workstreamArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Workstream
+     */
+    select?: WorkstreamSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: WorkstreamInclude<ExtArgs> | null
+    where?: WorkstreamWhereInput
+  }
+
+  /**
+   * Harness.parent
+   */
+  export type Harness$parentArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    where?: HarnessWhereInput
+  }
+
+  /**
+   * Harness.children
+   */
+  export type Harness$childrenArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+    where?: HarnessWhereInput
+    orderBy?: HarnessOrderByWithRelationInput | HarnessOrderByWithRelationInput[]
+    cursor?: HarnessWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: HarnessScalarFieldEnum | HarnessScalarFieldEnum[]
+  }
+
+  /**
+   * Harness.pulses
+   */
+  export type Harness$pulsesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Pulse
+     */
+    select?: PulseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PulseInclude<ExtArgs> | null
+    where?: PulseWhereInput
+    orderBy?: PulseOrderByWithRelationInput | PulseOrderByWithRelationInput[]
+    cursor?: PulseWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: PulseScalarFieldEnum | PulseScalarFieldEnum[]
+  }
+
+  /**
+   * Harness.tools
+   */
+  export type Harness$toolsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessTool
+     */
+    select?: HarnessToolSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolInclude<ExtArgs> | null
+    where?: HarnessToolWhereInput
+    orderBy?: HarnessToolOrderByWithRelationInput | HarnessToolOrderByWithRelationInput[]
+    cursor?: HarnessToolWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: HarnessToolScalarFieldEnum | HarnessToolScalarFieldEnum[]
+  }
+
+  /**
+   * Harness without action
+   */
+  export type HarnessDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Harness
+     */
+    select?: HarnessSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model Pulse
+   */
+
+  export type AggregatePulse = {
+    _count: PulseCountAggregateOutputType | null
+    _avg: PulseAvgAggregateOutputType | null
+    _sum: PulseSumAggregateOutputType | null
+    _min: PulseMinAggregateOutputType | null
+    _max: PulseMaxAggregateOutputType | null
+  }
+
+  export type PulseAvgAggregateOutputType = {
+    seq: number | null
+    costUsd: number | null
+    tokens: number | null
+    weight: number | null
+  }
+
+  export type PulseSumAggregateOutputType = {
+    seq: number | null
+    costUsd: number | null
+    tokens: number | null
+    weight: number | null
+  }
+
+  export type PulseMinAggregateOutputType = {
+    id: string | null
+    harnessId: string | null
+    seq: number | null
+    startedAt: Date | null
+    endedAt: Date | null
+    outcome: string | null
+    summary: string | null
+    costUsd: number | null
+    tokens: number | null
+    weight: number | null
+  }
+
+  export type PulseMaxAggregateOutputType = {
+    id: string | null
+    harnessId: string | null
+    seq: number | null
+    startedAt: Date | null
+    endedAt: Date | null
+    outcome: string | null
+    summary: string | null
+    costUsd: number | null
+    tokens: number | null
+    weight: number | null
+  }
+
+  export type PulseCountAggregateOutputType = {
+    id: number
+    harnessId: number
+    seq: number
+    startedAt: number
+    endedAt: number
+    outcome: number
+    summary: number
+    costUsd: number
+    tokens: number
+    weight: number
+    _all: number
+  }
+
+
+  export type PulseAvgAggregateInputType = {
+    seq?: true
+    costUsd?: true
+    tokens?: true
+    weight?: true
+  }
+
+  export type PulseSumAggregateInputType = {
+    seq?: true
+    costUsd?: true
+    tokens?: true
+    weight?: true
+  }
+
+  export type PulseMinAggregateInputType = {
+    id?: true
+    harnessId?: true
+    seq?: true
+    startedAt?: true
+    endedAt?: true
+    outcome?: true
+    summary?: true
+    costUsd?: true
+    tokens?: true
+    weight?: true
+  }
+
+  export type PulseMaxAggregateInputType = {
+    id?: true
+    harnessId?: true
+    seq?: true
+    startedAt?: true
+    endedAt?: true
+    outcome?: true
+    summary?: true
+    costUsd?: true
+    tokens?: true
+    weight?: true
+  }
+
+  export type PulseCountAggregateInputType = {
+    id?: true
+    harnessId?: true
+    seq?: true
+    startedAt?: true
+    endedAt?: true
+    outcome?: true
+    summary?: true
+    costUsd?: true
+    tokens?: true
+    weight?: true
+    _all?: true
+  }
+
+  export type PulseAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Pulse to aggregate.
+     */
+    where?: PulseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Pulses to fetch.
+     */
+    orderBy?: PulseOrderByWithRelationInput | PulseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: PulseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Pulses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Pulses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Pulses
+    **/
+    _count?: true | PulseCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: PulseAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: PulseSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: PulseMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: PulseMaxAggregateInputType
+  }
+
+  export type GetPulseAggregateType<T extends PulseAggregateArgs> = {
+        [P in keyof T & keyof AggregatePulse]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregatePulse[P]>
+      : GetScalarType<T[P], AggregatePulse[P]>
+  }
+
+
+
+
+  export type PulseGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PulseWhereInput
+    orderBy?: PulseOrderByWithAggregationInput | PulseOrderByWithAggregationInput[]
+    by: PulseScalarFieldEnum[] | PulseScalarFieldEnum
+    having?: PulseScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: PulseCountAggregateInputType | true
+    _avg?: PulseAvgAggregateInputType
+    _sum?: PulseSumAggregateInputType
+    _min?: PulseMinAggregateInputType
+    _max?: PulseMaxAggregateInputType
+  }
+
+  export type PulseGroupByOutputType = {
+    id: string
+    harnessId: string
+    seq: number
+    startedAt: Date
+    endedAt: Date | null
+    outcome: string
+    summary: string | null
+    costUsd: number
+    tokens: number
+    weight: number
+    _count: PulseCountAggregateOutputType | null
+    _avg: PulseAvgAggregateOutputType | null
+    _sum: PulseSumAggregateOutputType | null
+    _min: PulseMinAggregateOutputType | null
+    _max: PulseMaxAggregateOutputType | null
+  }
+
+  type GetPulseGroupByPayload<T extends PulseGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<PulseGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof PulseGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], PulseGroupByOutputType[P]>
+            : GetScalarType<T[P], PulseGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type PulseSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    harnessId?: boolean
+    seq?: boolean
+    startedAt?: boolean
+    endedAt?: boolean
+    outcome?: boolean
+    summary?: boolean
+    costUsd?: boolean
+    tokens?: boolean
+    weight?: boolean
+    harness?: boolean | HarnessDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["pulse"]>
+
+  export type PulseSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    harnessId?: boolean
+    seq?: boolean
+    startedAt?: boolean
+    endedAt?: boolean
+    outcome?: boolean
+    summary?: boolean
+    costUsd?: boolean
+    tokens?: boolean
+    weight?: boolean
+    harness?: boolean | HarnessDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["pulse"]>
+
+  export type PulseSelectScalar = {
+    id?: boolean
+    harnessId?: boolean
+    seq?: boolean
+    startedAt?: boolean
+    endedAt?: boolean
+    outcome?: boolean
+    summary?: boolean
+    costUsd?: boolean
+    tokens?: boolean
+    weight?: boolean
+  }
+
+  export type PulseInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    harness?: boolean | HarnessDefaultArgs<ExtArgs>
+  }
+  export type PulseIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    harness?: boolean | HarnessDefaultArgs<ExtArgs>
+  }
+
+  export type $PulsePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Pulse"
+    objects: {
+      harness: Prisma.$HarnessPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      harnessId: string
+      seq: number
+      startedAt: Date
+      endedAt: Date | null
+      outcome: string
+      summary: string | null
+      costUsd: number
+      tokens: number
+      weight: number
+    }, ExtArgs["result"]["pulse"]>
+    composites: {}
+  }
+
+  type PulseGetPayload<S extends boolean | null | undefined | PulseDefaultArgs> = $Result.GetResult<Prisma.$PulsePayload, S>
+
+  type PulseCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<PulseFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: PulseCountAggregateInputType | true
+    }
+
+  export interface PulseDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Pulse'], meta: { name: 'Pulse' } }
+    /**
+     * Find zero or one Pulse that matches the filter.
+     * @param {PulseFindUniqueArgs} args - Arguments to find a Pulse
+     * @example
+     * // Get one Pulse
+     * const pulse = await prisma.pulse.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends PulseFindUniqueArgs>(args: SelectSubset<T, PulseFindUniqueArgs<ExtArgs>>): Prisma__PulseClient<$Result.GetResult<Prisma.$PulsePayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one Pulse that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {PulseFindUniqueOrThrowArgs} args - Arguments to find a Pulse
+     * @example
+     * // Get one Pulse
+     * const pulse = await prisma.pulse.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends PulseFindUniqueOrThrowArgs>(args: SelectSubset<T, PulseFindUniqueOrThrowArgs<ExtArgs>>): Prisma__PulseClient<$Result.GetResult<Prisma.$PulsePayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first Pulse that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PulseFindFirstArgs} args - Arguments to find a Pulse
+     * @example
+     * // Get one Pulse
+     * const pulse = await prisma.pulse.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends PulseFindFirstArgs>(args?: SelectSubset<T, PulseFindFirstArgs<ExtArgs>>): Prisma__PulseClient<$Result.GetResult<Prisma.$PulsePayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first Pulse that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PulseFindFirstOrThrowArgs} args - Arguments to find a Pulse
+     * @example
+     * // Get one Pulse
+     * const pulse = await prisma.pulse.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends PulseFindFirstOrThrowArgs>(args?: SelectSubset<T, PulseFindFirstOrThrowArgs<ExtArgs>>): Prisma__PulseClient<$Result.GetResult<Prisma.$PulsePayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more Pulses that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PulseFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Pulses
+     * const pulses = await prisma.pulse.findMany()
+     * 
+     * // Get first 10 Pulses
+     * const pulses = await prisma.pulse.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const pulseWithIdOnly = await prisma.pulse.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends PulseFindManyArgs>(args?: SelectSubset<T, PulseFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PulsePayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a Pulse.
+     * @param {PulseCreateArgs} args - Arguments to create a Pulse.
+     * @example
+     * // Create one Pulse
+     * const Pulse = await prisma.pulse.create({
+     *   data: {
+     *     // ... data to create a Pulse
+     *   }
+     * })
+     * 
+     */
+    create<T extends PulseCreateArgs>(args: SelectSubset<T, PulseCreateArgs<ExtArgs>>): Prisma__PulseClient<$Result.GetResult<Prisma.$PulsePayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many Pulses.
+     * @param {PulseCreateManyArgs} args - Arguments to create many Pulses.
+     * @example
+     * // Create many Pulses
+     * const pulse = await prisma.pulse.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends PulseCreateManyArgs>(args?: SelectSubset<T, PulseCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Pulses and returns the data saved in the database.
+     * @param {PulseCreateManyAndReturnArgs} args - Arguments to create many Pulses.
+     * @example
+     * // Create many Pulses
+     * const pulse = await prisma.pulse.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Pulses and only return the `id`
+     * const pulseWithIdOnly = await prisma.pulse.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends PulseCreateManyAndReturnArgs>(args?: SelectSubset<T, PulseCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PulsePayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a Pulse.
+     * @param {PulseDeleteArgs} args - Arguments to delete one Pulse.
+     * @example
+     * // Delete one Pulse
+     * const Pulse = await prisma.pulse.delete({
+     *   where: {
+     *     // ... filter to delete one Pulse
+     *   }
+     * })
+     * 
+     */
+    delete<T extends PulseDeleteArgs>(args: SelectSubset<T, PulseDeleteArgs<ExtArgs>>): Prisma__PulseClient<$Result.GetResult<Prisma.$PulsePayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one Pulse.
+     * @param {PulseUpdateArgs} args - Arguments to update one Pulse.
+     * @example
+     * // Update one Pulse
+     * const pulse = await prisma.pulse.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends PulseUpdateArgs>(args: SelectSubset<T, PulseUpdateArgs<ExtArgs>>): Prisma__PulseClient<$Result.GetResult<Prisma.$PulsePayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more Pulses.
+     * @param {PulseDeleteManyArgs} args - Arguments to filter Pulses to delete.
+     * @example
+     * // Delete a few Pulses
+     * const { count } = await prisma.pulse.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends PulseDeleteManyArgs>(args?: SelectSubset<T, PulseDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Pulses.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PulseUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Pulses
+     * const pulse = await prisma.pulse.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends PulseUpdateManyArgs>(args: SelectSubset<T, PulseUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one Pulse.
+     * @param {PulseUpsertArgs} args - Arguments to update or create a Pulse.
+     * @example
+     * // Update or create a Pulse
+     * const pulse = await prisma.pulse.upsert({
+     *   create: {
+     *     // ... data to create a Pulse
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Pulse we want to update
+     *   }
+     * })
+     */
+    upsert<T extends PulseUpsertArgs>(args: SelectSubset<T, PulseUpsertArgs<ExtArgs>>): Prisma__PulseClient<$Result.GetResult<Prisma.$PulsePayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of Pulses.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PulseCountArgs} args - Arguments to filter Pulses to count.
+     * @example
+     * // Count the number of Pulses
+     * const count = await prisma.pulse.count({
+     *   where: {
+     *     // ... the filter for the Pulses we want to count
+     *   }
+     * })
+    **/
+    count<T extends PulseCountArgs>(
+      args?: Subset<T, PulseCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], PulseCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Pulse.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PulseAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends PulseAggregateArgs>(args: Subset<T, PulseAggregateArgs>): Prisma.PrismaPromise<GetPulseAggregateType<T>>
+
+    /**
+     * Group by Pulse.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PulseGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends PulseGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: PulseGroupByArgs['orderBy'] }
+        : { orderBy?: PulseGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, PulseGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPulseGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Pulse model
+   */
+  readonly fields: PulseFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Pulse.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__PulseClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    harness<T extends HarnessDefaultArgs<ExtArgs> = {}>(args?: Subset<T, HarnessDefaultArgs<ExtArgs>>): Prisma__HarnessClient<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Pulse model
+   */ 
+  interface PulseFieldRefs {
+    readonly id: FieldRef<"Pulse", 'String'>
+    readonly harnessId: FieldRef<"Pulse", 'String'>
+    readonly seq: FieldRef<"Pulse", 'Int'>
+    readonly startedAt: FieldRef<"Pulse", 'DateTime'>
+    readonly endedAt: FieldRef<"Pulse", 'DateTime'>
+    readonly outcome: FieldRef<"Pulse", 'String'>
+    readonly summary: FieldRef<"Pulse", 'String'>
+    readonly costUsd: FieldRef<"Pulse", 'Float'>
+    readonly tokens: FieldRef<"Pulse", 'Int'>
+    readonly weight: FieldRef<"Pulse", 'Float'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Pulse findUnique
+   */
+  export type PulseFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Pulse
+     */
+    select?: PulseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PulseInclude<ExtArgs> | null
+    /**
+     * Filter, which Pulse to fetch.
+     */
+    where: PulseWhereUniqueInput
+  }
+
+  /**
+   * Pulse findUniqueOrThrow
+   */
+  export type PulseFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Pulse
+     */
+    select?: PulseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PulseInclude<ExtArgs> | null
+    /**
+     * Filter, which Pulse to fetch.
+     */
+    where: PulseWhereUniqueInput
+  }
+
+  /**
+   * Pulse findFirst
+   */
+  export type PulseFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Pulse
+     */
+    select?: PulseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PulseInclude<ExtArgs> | null
+    /**
+     * Filter, which Pulse to fetch.
+     */
+    where?: PulseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Pulses to fetch.
+     */
+    orderBy?: PulseOrderByWithRelationInput | PulseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Pulses.
+     */
+    cursor?: PulseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Pulses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Pulses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Pulses.
+     */
+    distinct?: PulseScalarFieldEnum | PulseScalarFieldEnum[]
+  }
+
+  /**
+   * Pulse findFirstOrThrow
+   */
+  export type PulseFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Pulse
+     */
+    select?: PulseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PulseInclude<ExtArgs> | null
+    /**
+     * Filter, which Pulse to fetch.
+     */
+    where?: PulseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Pulses to fetch.
+     */
+    orderBy?: PulseOrderByWithRelationInput | PulseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Pulses.
+     */
+    cursor?: PulseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Pulses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Pulses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Pulses.
+     */
+    distinct?: PulseScalarFieldEnum | PulseScalarFieldEnum[]
+  }
+
+  /**
+   * Pulse findMany
+   */
+  export type PulseFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Pulse
+     */
+    select?: PulseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PulseInclude<ExtArgs> | null
+    /**
+     * Filter, which Pulses to fetch.
+     */
+    where?: PulseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Pulses to fetch.
+     */
+    orderBy?: PulseOrderByWithRelationInput | PulseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Pulses.
+     */
+    cursor?: PulseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Pulses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Pulses.
+     */
+    skip?: number
+    distinct?: PulseScalarFieldEnum | PulseScalarFieldEnum[]
+  }
+
+  /**
+   * Pulse create
+   */
+  export type PulseCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Pulse
+     */
+    select?: PulseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PulseInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Pulse.
+     */
+    data: XOR<PulseCreateInput, PulseUncheckedCreateInput>
+  }
+
+  /**
+   * Pulse createMany
+   */
+  export type PulseCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Pulses.
+     */
+    data: PulseCreateManyInput | PulseCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Pulse createManyAndReturn
+   */
+  export type PulseCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Pulse
+     */
+    select?: PulseSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many Pulses.
+     */
+    data: PulseCreateManyInput | PulseCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PulseIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Pulse update
+   */
+  export type PulseUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Pulse
+     */
+    select?: PulseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PulseInclude<ExtArgs> | null
+    /**
+     * The data needed to update a Pulse.
+     */
+    data: XOR<PulseUpdateInput, PulseUncheckedUpdateInput>
+    /**
+     * Choose, which Pulse to update.
+     */
+    where: PulseWhereUniqueInput
+  }
+
+  /**
+   * Pulse updateMany
+   */
+  export type PulseUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Pulses.
+     */
+    data: XOR<PulseUpdateManyMutationInput, PulseUncheckedUpdateManyInput>
+    /**
+     * Filter which Pulses to update
+     */
+    where?: PulseWhereInput
+  }
+
+  /**
+   * Pulse upsert
+   */
+  export type PulseUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Pulse
+     */
+    select?: PulseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PulseInclude<ExtArgs> | null
+    /**
+     * The filter to search for the Pulse to update in case it exists.
+     */
+    where: PulseWhereUniqueInput
+    /**
+     * In case the Pulse found by the `where` argument doesn't exist, create a new Pulse with this data.
+     */
+    create: XOR<PulseCreateInput, PulseUncheckedCreateInput>
+    /**
+     * In case the Pulse was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<PulseUpdateInput, PulseUncheckedUpdateInput>
+  }
+
+  /**
+   * Pulse delete
+   */
+  export type PulseDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Pulse
+     */
+    select?: PulseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PulseInclude<ExtArgs> | null
+    /**
+     * Filter which Pulse to delete.
+     */
+    where: PulseWhereUniqueInput
+  }
+
+  /**
+   * Pulse deleteMany
+   */
+  export type PulseDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Pulses to delete
+     */
+    where?: PulseWhereInput
+  }
+
+  /**
+   * Pulse without action
+   */
+  export type PulseDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Pulse
+     */
+    select?: PulseSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PulseInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model Intervention
+   */
+
+  export type AggregateIntervention = {
+    _count: InterventionCountAggregateOutputType | null
+    _min: InterventionMinAggregateOutputType | null
+    _max: InterventionMaxAggregateOutputType | null
+  }
+
+  export type InterventionMinAggregateOutputType = {
+    id: string | null
+    objectiveId: string | null
+    harnessId: string | null
+    kind: string | null
+    title: string | null
+    detail: string | null
+    impact: string | null
+    payload: string | null
+    status: string | null
+    response: string | null
+    createdAt: Date | null
+    resolvedAt: Date | null
+  }
+
+  export type InterventionMaxAggregateOutputType = {
+    id: string | null
+    objectiveId: string | null
+    harnessId: string | null
+    kind: string | null
+    title: string | null
+    detail: string | null
+    impact: string | null
+    payload: string | null
+    status: string | null
+    response: string | null
+    createdAt: Date | null
+    resolvedAt: Date | null
+  }
+
+  export type InterventionCountAggregateOutputType = {
+    id: number
+    objectiveId: number
+    harnessId: number
+    kind: number
+    title: number
+    detail: number
+    impact: number
+    payload: number
+    status: number
+    response: number
+    createdAt: number
+    resolvedAt: number
+    _all: number
+  }
+
+
+  export type InterventionMinAggregateInputType = {
+    id?: true
+    objectiveId?: true
+    harnessId?: true
+    kind?: true
+    title?: true
+    detail?: true
+    impact?: true
+    payload?: true
+    status?: true
+    response?: true
+    createdAt?: true
+    resolvedAt?: true
+  }
+
+  export type InterventionMaxAggregateInputType = {
+    id?: true
+    objectiveId?: true
+    harnessId?: true
+    kind?: true
+    title?: true
+    detail?: true
+    impact?: true
+    payload?: true
+    status?: true
+    response?: true
+    createdAt?: true
+    resolvedAt?: true
+  }
+
+  export type InterventionCountAggregateInputType = {
+    id?: true
+    objectiveId?: true
+    harnessId?: true
+    kind?: true
+    title?: true
+    detail?: true
+    impact?: true
+    payload?: true
+    status?: true
+    response?: true
+    createdAt?: true
+    resolvedAt?: true
+    _all?: true
+  }
+
+  export type InterventionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Intervention to aggregate.
+     */
+    where?: InterventionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Interventions to fetch.
+     */
+    orderBy?: InterventionOrderByWithRelationInput | InterventionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: InterventionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Interventions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Interventions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Interventions
+    **/
+    _count?: true | InterventionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: InterventionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: InterventionMaxAggregateInputType
+  }
+
+  export type GetInterventionAggregateType<T extends InterventionAggregateArgs> = {
+        [P in keyof T & keyof AggregateIntervention]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateIntervention[P]>
+      : GetScalarType<T[P], AggregateIntervention[P]>
+  }
+
+
+
+
+  export type InterventionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: InterventionWhereInput
+    orderBy?: InterventionOrderByWithAggregationInput | InterventionOrderByWithAggregationInput[]
+    by: InterventionScalarFieldEnum[] | InterventionScalarFieldEnum
+    having?: InterventionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: InterventionCountAggregateInputType | true
+    _min?: InterventionMinAggregateInputType
+    _max?: InterventionMaxAggregateInputType
+  }
+
+  export type InterventionGroupByOutputType = {
+    id: string
+    objectiveId: string
+    harnessId: string
+    kind: string
+    title: string
+    detail: string | null
+    impact: string | null
+    payload: string | null
+    status: string
+    response: string | null
+    createdAt: Date
+    resolvedAt: Date | null
+    _count: InterventionCountAggregateOutputType | null
+    _min: InterventionMinAggregateOutputType | null
+    _max: InterventionMaxAggregateOutputType | null
+  }
+
+  type GetInterventionGroupByPayload<T extends InterventionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<InterventionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof InterventionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], InterventionGroupByOutputType[P]>
+            : GetScalarType<T[P], InterventionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type InterventionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    objectiveId?: boolean
+    harnessId?: boolean
+    kind?: boolean
+    title?: boolean
+    detail?: boolean
+    impact?: boolean
+    payload?: boolean
+    status?: boolean
+    response?: boolean
+    createdAt?: boolean
+    resolvedAt?: boolean
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["intervention"]>
+
+  export type InterventionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    objectiveId?: boolean
+    harnessId?: boolean
+    kind?: boolean
+    title?: boolean
+    detail?: boolean
+    impact?: boolean
+    payload?: boolean
+    status?: boolean
+    response?: boolean
+    createdAt?: boolean
+    resolvedAt?: boolean
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["intervention"]>
+
+  export type InterventionSelectScalar = {
+    id?: boolean
+    objectiveId?: boolean
+    harnessId?: boolean
+    kind?: boolean
+    title?: boolean
+    detail?: boolean
+    impact?: boolean
+    payload?: boolean
+    status?: boolean
+    response?: boolean
+    createdAt?: boolean
+    resolvedAt?: boolean
+  }
+
+  export type InterventionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+  }
+  export type InterventionIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    objective?: boolean | ObjectiveDefaultArgs<ExtArgs>
+  }
+
+  export type $InterventionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Intervention"
+    objects: {
+      objective: Prisma.$ObjectivePayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      objectiveId: string
+      harnessId: string
+      kind: string
+      title: string
+      detail: string | null
+      impact: string | null
+      payload: string | null
+      status: string
+      response: string | null
+      createdAt: Date
+      resolvedAt: Date | null
+    }, ExtArgs["result"]["intervention"]>
+    composites: {}
+  }
+
+  type InterventionGetPayload<S extends boolean | null | undefined | InterventionDefaultArgs> = $Result.GetResult<Prisma.$InterventionPayload, S>
+
+  type InterventionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<InterventionFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: InterventionCountAggregateInputType | true
+    }
+
+  export interface InterventionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Intervention'], meta: { name: 'Intervention' } }
+    /**
+     * Find zero or one Intervention that matches the filter.
+     * @param {InterventionFindUniqueArgs} args - Arguments to find a Intervention
+     * @example
+     * // Get one Intervention
+     * const intervention = await prisma.intervention.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends InterventionFindUniqueArgs>(args: SelectSubset<T, InterventionFindUniqueArgs<ExtArgs>>): Prisma__InterventionClient<$Result.GetResult<Prisma.$InterventionPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one Intervention that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {InterventionFindUniqueOrThrowArgs} args - Arguments to find a Intervention
+     * @example
+     * // Get one Intervention
+     * const intervention = await prisma.intervention.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends InterventionFindUniqueOrThrowArgs>(args: SelectSubset<T, InterventionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__InterventionClient<$Result.GetResult<Prisma.$InterventionPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first Intervention that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InterventionFindFirstArgs} args - Arguments to find a Intervention
+     * @example
+     * // Get one Intervention
+     * const intervention = await prisma.intervention.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends InterventionFindFirstArgs>(args?: SelectSubset<T, InterventionFindFirstArgs<ExtArgs>>): Prisma__InterventionClient<$Result.GetResult<Prisma.$InterventionPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first Intervention that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InterventionFindFirstOrThrowArgs} args - Arguments to find a Intervention
+     * @example
+     * // Get one Intervention
+     * const intervention = await prisma.intervention.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends InterventionFindFirstOrThrowArgs>(args?: SelectSubset<T, InterventionFindFirstOrThrowArgs<ExtArgs>>): Prisma__InterventionClient<$Result.GetResult<Prisma.$InterventionPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more Interventions that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InterventionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Interventions
+     * const interventions = await prisma.intervention.findMany()
+     * 
+     * // Get first 10 Interventions
+     * const interventions = await prisma.intervention.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const interventionWithIdOnly = await prisma.intervention.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends InterventionFindManyArgs>(args?: SelectSubset<T, InterventionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$InterventionPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a Intervention.
+     * @param {InterventionCreateArgs} args - Arguments to create a Intervention.
+     * @example
+     * // Create one Intervention
+     * const Intervention = await prisma.intervention.create({
+     *   data: {
+     *     // ... data to create a Intervention
+     *   }
+     * })
+     * 
+     */
+    create<T extends InterventionCreateArgs>(args: SelectSubset<T, InterventionCreateArgs<ExtArgs>>): Prisma__InterventionClient<$Result.GetResult<Prisma.$InterventionPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many Interventions.
+     * @param {InterventionCreateManyArgs} args - Arguments to create many Interventions.
+     * @example
+     * // Create many Interventions
+     * const intervention = await prisma.intervention.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends InterventionCreateManyArgs>(args?: SelectSubset<T, InterventionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Interventions and returns the data saved in the database.
+     * @param {InterventionCreateManyAndReturnArgs} args - Arguments to create many Interventions.
+     * @example
+     * // Create many Interventions
+     * const intervention = await prisma.intervention.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Interventions and only return the `id`
+     * const interventionWithIdOnly = await prisma.intervention.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends InterventionCreateManyAndReturnArgs>(args?: SelectSubset<T, InterventionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$InterventionPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a Intervention.
+     * @param {InterventionDeleteArgs} args - Arguments to delete one Intervention.
+     * @example
+     * // Delete one Intervention
+     * const Intervention = await prisma.intervention.delete({
+     *   where: {
+     *     // ... filter to delete one Intervention
+     *   }
+     * })
+     * 
+     */
+    delete<T extends InterventionDeleteArgs>(args: SelectSubset<T, InterventionDeleteArgs<ExtArgs>>): Prisma__InterventionClient<$Result.GetResult<Prisma.$InterventionPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one Intervention.
+     * @param {InterventionUpdateArgs} args - Arguments to update one Intervention.
+     * @example
+     * // Update one Intervention
+     * const intervention = await prisma.intervention.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends InterventionUpdateArgs>(args: SelectSubset<T, InterventionUpdateArgs<ExtArgs>>): Prisma__InterventionClient<$Result.GetResult<Prisma.$InterventionPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more Interventions.
+     * @param {InterventionDeleteManyArgs} args - Arguments to filter Interventions to delete.
+     * @example
+     * // Delete a few Interventions
+     * const { count } = await prisma.intervention.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends InterventionDeleteManyArgs>(args?: SelectSubset<T, InterventionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Interventions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InterventionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Interventions
+     * const intervention = await prisma.intervention.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends InterventionUpdateManyArgs>(args: SelectSubset<T, InterventionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one Intervention.
+     * @param {InterventionUpsertArgs} args - Arguments to update or create a Intervention.
+     * @example
+     * // Update or create a Intervention
+     * const intervention = await prisma.intervention.upsert({
+     *   create: {
+     *     // ... data to create a Intervention
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Intervention we want to update
+     *   }
+     * })
+     */
+    upsert<T extends InterventionUpsertArgs>(args: SelectSubset<T, InterventionUpsertArgs<ExtArgs>>): Prisma__InterventionClient<$Result.GetResult<Prisma.$InterventionPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of Interventions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InterventionCountArgs} args - Arguments to filter Interventions to count.
+     * @example
+     * // Count the number of Interventions
+     * const count = await prisma.intervention.count({
+     *   where: {
+     *     // ... the filter for the Interventions we want to count
+     *   }
+     * })
+    **/
+    count<T extends InterventionCountArgs>(
+      args?: Subset<T, InterventionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], InterventionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Intervention.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InterventionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends InterventionAggregateArgs>(args: Subset<T, InterventionAggregateArgs>): Prisma.PrismaPromise<GetInterventionAggregateType<T>>
+
+    /**
+     * Group by Intervention.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {InterventionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends InterventionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: InterventionGroupByArgs['orderBy'] }
+        : { orderBy?: InterventionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, InterventionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetInterventionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Intervention model
+   */
+  readonly fields: InterventionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Intervention.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__InterventionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    objective<T extends ObjectiveDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ObjectiveDefaultArgs<ExtArgs>>): Prisma__ObjectiveClient<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Intervention model
+   */ 
+  interface InterventionFieldRefs {
+    readonly id: FieldRef<"Intervention", 'String'>
+    readonly objectiveId: FieldRef<"Intervention", 'String'>
+    readonly harnessId: FieldRef<"Intervention", 'String'>
+    readonly kind: FieldRef<"Intervention", 'String'>
+    readonly title: FieldRef<"Intervention", 'String'>
+    readonly detail: FieldRef<"Intervention", 'String'>
+    readonly impact: FieldRef<"Intervention", 'String'>
+    readonly payload: FieldRef<"Intervention", 'String'>
+    readonly status: FieldRef<"Intervention", 'String'>
+    readonly response: FieldRef<"Intervention", 'String'>
+    readonly createdAt: FieldRef<"Intervention", 'DateTime'>
+    readonly resolvedAt: FieldRef<"Intervention", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Intervention findUnique
+   */
+  export type InterventionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Intervention
+     */
+    select?: InterventionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterventionInclude<ExtArgs> | null
+    /**
+     * Filter, which Intervention to fetch.
+     */
+    where: InterventionWhereUniqueInput
+  }
+
+  /**
+   * Intervention findUniqueOrThrow
+   */
+  export type InterventionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Intervention
+     */
+    select?: InterventionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterventionInclude<ExtArgs> | null
+    /**
+     * Filter, which Intervention to fetch.
+     */
+    where: InterventionWhereUniqueInput
+  }
+
+  /**
+   * Intervention findFirst
+   */
+  export type InterventionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Intervention
+     */
+    select?: InterventionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterventionInclude<ExtArgs> | null
+    /**
+     * Filter, which Intervention to fetch.
+     */
+    where?: InterventionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Interventions to fetch.
+     */
+    orderBy?: InterventionOrderByWithRelationInput | InterventionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Interventions.
+     */
+    cursor?: InterventionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Interventions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Interventions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Interventions.
+     */
+    distinct?: InterventionScalarFieldEnum | InterventionScalarFieldEnum[]
+  }
+
+  /**
+   * Intervention findFirstOrThrow
+   */
+  export type InterventionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Intervention
+     */
+    select?: InterventionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterventionInclude<ExtArgs> | null
+    /**
+     * Filter, which Intervention to fetch.
+     */
+    where?: InterventionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Interventions to fetch.
+     */
+    orderBy?: InterventionOrderByWithRelationInput | InterventionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Interventions.
+     */
+    cursor?: InterventionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Interventions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Interventions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Interventions.
+     */
+    distinct?: InterventionScalarFieldEnum | InterventionScalarFieldEnum[]
+  }
+
+  /**
+   * Intervention findMany
+   */
+  export type InterventionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Intervention
+     */
+    select?: InterventionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterventionInclude<ExtArgs> | null
+    /**
+     * Filter, which Interventions to fetch.
+     */
+    where?: InterventionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Interventions to fetch.
+     */
+    orderBy?: InterventionOrderByWithRelationInput | InterventionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Interventions.
+     */
+    cursor?: InterventionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Interventions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Interventions.
+     */
+    skip?: number
+    distinct?: InterventionScalarFieldEnum | InterventionScalarFieldEnum[]
+  }
+
+  /**
+   * Intervention create
+   */
+  export type InterventionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Intervention
+     */
+    select?: InterventionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterventionInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Intervention.
+     */
+    data: XOR<InterventionCreateInput, InterventionUncheckedCreateInput>
+  }
+
+  /**
+   * Intervention createMany
+   */
+  export type InterventionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Interventions.
+     */
+    data: InterventionCreateManyInput | InterventionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Intervention createManyAndReturn
+   */
+  export type InterventionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Intervention
+     */
+    select?: InterventionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many Interventions.
+     */
+    data: InterventionCreateManyInput | InterventionCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterventionIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Intervention update
+   */
+  export type InterventionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Intervention
+     */
+    select?: InterventionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterventionInclude<ExtArgs> | null
+    /**
+     * The data needed to update a Intervention.
+     */
+    data: XOR<InterventionUpdateInput, InterventionUncheckedUpdateInput>
+    /**
+     * Choose, which Intervention to update.
+     */
+    where: InterventionWhereUniqueInput
+  }
+
+  /**
+   * Intervention updateMany
+   */
+  export type InterventionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Interventions.
+     */
+    data: XOR<InterventionUpdateManyMutationInput, InterventionUncheckedUpdateManyInput>
+    /**
+     * Filter which Interventions to update
+     */
+    where?: InterventionWhereInput
+  }
+
+  /**
+   * Intervention upsert
+   */
+  export type InterventionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Intervention
+     */
+    select?: InterventionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterventionInclude<ExtArgs> | null
+    /**
+     * The filter to search for the Intervention to update in case it exists.
+     */
+    where: InterventionWhereUniqueInput
+    /**
+     * In case the Intervention found by the `where` argument doesn't exist, create a new Intervention with this data.
+     */
+    create: XOR<InterventionCreateInput, InterventionUncheckedCreateInput>
+    /**
+     * In case the Intervention was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<InterventionUpdateInput, InterventionUncheckedUpdateInput>
+  }
+
+  /**
+   * Intervention delete
+   */
+  export type InterventionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Intervention
+     */
+    select?: InterventionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterventionInclude<ExtArgs> | null
+    /**
+     * Filter which Intervention to delete.
+     */
+    where: InterventionWhereUniqueInput
+  }
+
+  /**
+   * Intervention deleteMany
+   */
+  export type InterventionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Interventions to delete
+     */
+    where?: InterventionWhereInput
+  }
+
+  /**
+   * Intervention without action
+   */
+  export type InterventionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Intervention
+     */
+    select?: InterventionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InterventionInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model Playbook
+   */
+
+  export type AggregatePlaybook = {
+    _count: PlaybookCountAggregateOutputType | null
+    _avg: PlaybookAvgAggregateOutputType | null
+    _sum: PlaybookSumAggregateOutputType | null
+    _min: PlaybookMinAggregateOutputType | null
+    _max: PlaybookMaxAggregateOutputType | null
+  }
+
+  export type PlaybookAvgAggregateOutputType = {
+    version: number | null
+  }
+
+  export type PlaybookSumAggregateOutputType = {
+    version: number | null
+  }
+
+  export type PlaybookMinAggregateOutputType = {
+    id: string | null
+    projectId: string | null
+    name: string | null
+    version: number | null
+    variables: string | null
+    cadence: string | null
+    retireWhen: string | null
+    steps: string | null
+    previousVersionId: string | null
+    createdAt: Date | null
+  }
+
+  export type PlaybookMaxAggregateOutputType = {
+    id: string | null
+    projectId: string | null
+    name: string | null
+    version: number | null
+    variables: string | null
+    cadence: string | null
+    retireWhen: string | null
+    steps: string | null
+    previousVersionId: string | null
+    createdAt: Date | null
+  }
+
+  export type PlaybookCountAggregateOutputType = {
+    id: number
+    projectId: number
+    name: number
+    version: number
+    variables: number
+    cadence: number
+    retireWhen: number
+    steps: number
+    previousVersionId: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type PlaybookAvgAggregateInputType = {
+    version?: true
+  }
+
+  export type PlaybookSumAggregateInputType = {
+    version?: true
+  }
+
+  export type PlaybookMinAggregateInputType = {
+    id?: true
+    projectId?: true
+    name?: true
+    version?: true
+    variables?: true
+    cadence?: true
+    retireWhen?: true
+    steps?: true
+    previousVersionId?: true
+    createdAt?: true
+  }
+
+  export type PlaybookMaxAggregateInputType = {
+    id?: true
+    projectId?: true
+    name?: true
+    version?: true
+    variables?: true
+    cadence?: true
+    retireWhen?: true
+    steps?: true
+    previousVersionId?: true
+    createdAt?: true
+  }
+
+  export type PlaybookCountAggregateInputType = {
+    id?: true
+    projectId?: true
+    name?: true
+    version?: true
+    variables?: true
+    cadence?: true
+    retireWhen?: true
+    steps?: true
+    previousVersionId?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type PlaybookAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Playbook to aggregate.
+     */
+    where?: PlaybookWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Playbooks to fetch.
+     */
+    orderBy?: PlaybookOrderByWithRelationInput | PlaybookOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: PlaybookWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Playbooks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Playbooks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Playbooks
+    **/
+    _count?: true | PlaybookCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: PlaybookAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: PlaybookSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: PlaybookMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: PlaybookMaxAggregateInputType
+  }
+
+  export type GetPlaybookAggregateType<T extends PlaybookAggregateArgs> = {
+        [P in keyof T & keyof AggregatePlaybook]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregatePlaybook[P]>
+      : GetScalarType<T[P], AggregatePlaybook[P]>
+  }
+
+
+
+
+  export type PlaybookGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PlaybookWhereInput
+    orderBy?: PlaybookOrderByWithAggregationInput | PlaybookOrderByWithAggregationInput[]
+    by: PlaybookScalarFieldEnum[] | PlaybookScalarFieldEnum
+    having?: PlaybookScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: PlaybookCountAggregateInputType | true
+    _avg?: PlaybookAvgAggregateInputType
+    _sum?: PlaybookSumAggregateInputType
+    _min?: PlaybookMinAggregateInputType
+    _max?: PlaybookMaxAggregateInputType
+  }
+
+  export type PlaybookGroupByOutputType = {
+    id: string
+    projectId: string | null
+    name: string
+    version: number
+    variables: string
+    cadence: string
+    retireWhen: string | null
+    steps: string
+    previousVersionId: string | null
+    createdAt: Date
+    _count: PlaybookCountAggregateOutputType | null
+    _avg: PlaybookAvgAggregateOutputType | null
+    _sum: PlaybookSumAggregateOutputType | null
+    _min: PlaybookMinAggregateOutputType | null
+    _max: PlaybookMaxAggregateOutputType | null
+  }
+
+  type GetPlaybookGroupByPayload<T extends PlaybookGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<PlaybookGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof PlaybookGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], PlaybookGroupByOutputType[P]>
+            : GetScalarType<T[P], PlaybookGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type PlaybookSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    projectId?: boolean
+    name?: boolean
+    version?: boolean
+    variables?: boolean
+    cadence?: boolean
+    retireWhen?: boolean
+    steps?: boolean
+    previousVersionId?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["playbook"]>
+
+  export type PlaybookSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    projectId?: boolean
+    name?: boolean
+    version?: boolean
+    variables?: boolean
+    cadence?: boolean
+    retireWhen?: boolean
+    steps?: boolean
+    previousVersionId?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["playbook"]>
+
+  export type PlaybookSelectScalar = {
+    id?: boolean
+    projectId?: boolean
+    name?: boolean
+    version?: boolean
+    variables?: boolean
+    cadence?: boolean
+    retireWhen?: boolean
+    steps?: boolean
+    previousVersionId?: boolean
+    createdAt?: boolean
+  }
+
+
+  export type $PlaybookPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Playbook"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      projectId: string | null
+      name: string
+      version: number
+      variables: string
+      cadence: string
+      retireWhen: string | null
+      steps: string
+      previousVersionId: string | null
+      createdAt: Date
+    }, ExtArgs["result"]["playbook"]>
+    composites: {}
+  }
+
+  type PlaybookGetPayload<S extends boolean | null | undefined | PlaybookDefaultArgs> = $Result.GetResult<Prisma.$PlaybookPayload, S>
+
+  type PlaybookCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<PlaybookFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: PlaybookCountAggregateInputType | true
+    }
+
+  export interface PlaybookDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Playbook'], meta: { name: 'Playbook' } }
+    /**
+     * Find zero or one Playbook that matches the filter.
+     * @param {PlaybookFindUniqueArgs} args - Arguments to find a Playbook
+     * @example
+     * // Get one Playbook
+     * const playbook = await prisma.playbook.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends PlaybookFindUniqueArgs>(args: SelectSubset<T, PlaybookFindUniqueArgs<ExtArgs>>): Prisma__PlaybookClient<$Result.GetResult<Prisma.$PlaybookPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one Playbook that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {PlaybookFindUniqueOrThrowArgs} args - Arguments to find a Playbook
+     * @example
+     * // Get one Playbook
+     * const playbook = await prisma.playbook.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends PlaybookFindUniqueOrThrowArgs>(args: SelectSubset<T, PlaybookFindUniqueOrThrowArgs<ExtArgs>>): Prisma__PlaybookClient<$Result.GetResult<Prisma.$PlaybookPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first Playbook that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PlaybookFindFirstArgs} args - Arguments to find a Playbook
+     * @example
+     * // Get one Playbook
+     * const playbook = await prisma.playbook.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends PlaybookFindFirstArgs>(args?: SelectSubset<T, PlaybookFindFirstArgs<ExtArgs>>): Prisma__PlaybookClient<$Result.GetResult<Prisma.$PlaybookPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first Playbook that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PlaybookFindFirstOrThrowArgs} args - Arguments to find a Playbook
+     * @example
+     * // Get one Playbook
+     * const playbook = await prisma.playbook.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends PlaybookFindFirstOrThrowArgs>(args?: SelectSubset<T, PlaybookFindFirstOrThrowArgs<ExtArgs>>): Prisma__PlaybookClient<$Result.GetResult<Prisma.$PlaybookPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more Playbooks that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PlaybookFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Playbooks
+     * const playbooks = await prisma.playbook.findMany()
+     * 
+     * // Get first 10 Playbooks
+     * const playbooks = await prisma.playbook.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const playbookWithIdOnly = await prisma.playbook.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends PlaybookFindManyArgs>(args?: SelectSubset<T, PlaybookFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PlaybookPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a Playbook.
+     * @param {PlaybookCreateArgs} args - Arguments to create a Playbook.
+     * @example
+     * // Create one Playbook
+     * const Playbook = await prisma.playbook.create({
+     *   data: {
+     *     // ... data to create a Playbook
+     *   }
+     * })
+     * 
+     */
+    create<T extends PlaybookCreateArgs>(args: SelectSubset<T, PlaybookCreateArgs<ExtArgs>>): Prisma__PlaybookClient<$Result.GetResult<Prisma.$PlaybookPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many Playbooks.
+     * @param {PlaybookCreateManyArgs} args - Arguments to create many Playbooks.
+     * @example
+     * // Create many Playbooks
+     * const playbook = await prisma.playbook.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends PlaybookCreateManyArgs>(args?: SelectSubset<T, PlaybookCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Playbooks and returns the data saved in the database.
+     * @param {PlaybookCreateManyAndReturnArgs} args - Arguments to create many Playbooks.
+     * @example
+     * // Create many Playbooks
+     * const playbook = await prisma.playbook.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Playbooks and only return the `id`
+     * const playbookWithIdOnly = await prisma.playbook.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends PlaybookCreateManyAndReturnArgs>(args?: SelectSubset<T, PlaybookCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PlaybookPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a Playbook.
+     * @param {PlaybookDeleteArgs} args - Arguments to delete one Playbook.
+     * @example
+     * // Delete one Playbook
+     * const Playbook = await prisma.playbook.delete({
+     *   where: {
+     *     // ... filter to delete one Playbook
+     *   }
+     * })
+     * 
+     */
+    delete<T extends PlaybookDeleteArgs>(args: SelectSubset<T, PlaybookDeleteArgs<ExtArgs>>): Prisma__PlaybookClient<$Result.GetResult<Prisma.$PlaybookPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one Playbook.
+     * @param {PlaybookUpdateArgs} args - Arguments to update one Playbook.
+     * @example
+     * // Update one Playbook
+     * const playbook = await prisma.playbook.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends PlaybookUpdateArgs>(args: SelectSubset<T, PlaybookUpdateArgs<ExtArgs>>): Prisma__PlaybookClient<$Result.GetResult<Prisma.$PlaybookPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more Playbooks.
+     * @param {PlaybookDeleteManyArgs} args - Arguments to filter Playbooks to delete.
+     * @example
+     * // Delete a few Playbooks
+     * const { count } = await prisma.playbook.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends PlaybookDeleteManyArgs>(args?: SelectSubset<T, PlaybookDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Playbooks.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PlaybookUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Playbooks
+     * const playbook = await prisma.playbook.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends PlaybookUpdateManyArgs>(args: SelectSubset<T, PlaybookUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one Playbook.
+     * @param {PlaybookUpsertArgs} args - Arguments to update or create a Playbook.
+     * @example
+     * // Update or create a Playbook
+     * const playbook = await prisma.playbook.upsert({
+     *   create: {
+     *     // ... data to create a Playbook
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Playbook we want to update
+     *   }
+     * })
+     */
+    upsert<T extends PlaybookUpsertArgs>(args: SelectSubset<T, PlaybookUpsertArgs<ExtArgs>>): Prisma__PlaybookClient<$Result.GetResult<Prisma.$PlaybookPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of Playbooks.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PlaybookCountArgs} args - Arguments to filter Playbooks to count.
+     * @example
+     * // Count the number of Playbooks
+     * const count = await prisma.playbook.count({
+     *   where: {
+     *     // ... the filter for the Playbooks we want to count
+     *   }
+     * })
+    **/
+    count<T extends PlaybookCountArgs>(
+      args?: Subset<T, PlaybookCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], PlaybookCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Playbook.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PlaybookAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends PlaybookAggregateArgs>(args: Subset<T, PlaybookAggregateArgs>): Prisma.PrismaPromise<GetPlaybookAggregateType<T>>
+
+    /**
+     * Group by Playbook.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PlaybookGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends PlaybookGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: PlaybookGroupByArgs['orderBy'] }
+        : { orderBy?: PlaybookGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, PlaybookGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPlaybookGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Playbook model
+   */
+  readonly fields: PlaybookFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Playbook.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__PlaybookClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Playbook model
+   */ 
+  interface PlaybookFieldRefs {
+    readonly id: FieldRef<"Playbook", 'String'>
+    readonly projectId: FieldRef<"Playbook", 'String'>
+    readonly name: FieldRef<"Playbook", 'String'>
+    readonly version: FieldRef<"Playbook", 'Int'>
+    readonly variables: FieldRef<"Playbook", 'String'>
+    readonly cadence: FieldRef<"Playbook", 'String'>
+    readonly retireWhen: FieldRef<"Playbook", 'String'>
+    readonly steps: FieldRef<"Playbook", 'String'>
+    readonly previousVersionId: FieldRef<"Playbook", 'String'>
+    readonly createdAt: FieldRef<"Playbook", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Playbook findUnique
+   */
+  export type PlaybookFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Playbook
+     */
+    select?: PlaybookSelect<ExtArgs> | null
+    /**
+     * Filter, which Playbook to fetch.
+     */
+    where: PlaybookWhereUniqueInput
+  }
+
+  /**
+   * Playbook findUniqueOrThrow
+   */
+  export type PlaybookFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Playbook
+     */
+    select?: PlaybookSelect<ExtArgs> | null
+    /**
+     * Filter, which Playbook to fetch.
+     */
+    where: PlaybookWhereUniqueInput
+  }
+
+  /**
+   * Playbook findFirst
+   */
+  export type PlaybookFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Playbook
+     */
+    select?: PlaybookSelect<ExtArgs> | null
+    /**
+     * Filter, which Playbook to fetch.
+     */
+    where?: PlaybookWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Playbooks to fetch.
+     */
+    orderBy?: PlaybookOrderByWithRelationInput | PlaybookOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Playbooks.
+     */
+    cursor?: PlaybookWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Playbooks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Playbooks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Playbooks.
+     */
+    distinct?: PlaybookScalarFieldEnum | PlaybookScalarFieldEnum[]
+  }
+
+  /**
+   * Playbook findFirstOrThrow
+   */
+  export type PlaybookFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Playbook
+     */
+    select?: PlaybookSelect<ExtArgs> | null
+    /**
+     * Filter, which Playbook to fetch.
+     */
+    where?: PlaybookWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Playbooks to fetch.
+     */
+    orderBy?: PlaybookOrderByWithRelationInput | PlaybookOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Playbooks.
+     */
+    cursor?: PlaybookWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Playbooks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Playbooks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Playbooks.
+     */
+    distinct?: PlaybookScalarFieldEnum | PlaybookScalarFieldEnum[]
+  }
+
+  /**
+   * Playbook findMany
+   */
+  export type PlaybookFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Playbook
+     */
+    select?: PlaybookSelect<ExtArgs> | null
+    /**
+     * Filter, which Playbooks to fetch.
+     */
+    where?: PlaybookWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Playbooks to fetch.
+     */
+    orderBy?: PlaybookOrderByWithRelationInput | PlaybookOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Playbooks.
+     */
+    cursor?: PlaybookWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Playbooks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Playbooks.
+     */
+    skip?: number
+    distinct?: PlaybookScalarFieldEnum | PlaybookScalarFieldEnum[]
+  }
+
+  /**
+   * Playbook create
+   */
+  export type PlaybookCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Playbook
+     */
+    select?: PlaybookSelect<ExtArgs> | null
+    /**
+     * The data needed to create a Playbook.
+     */
+    data: XOR<PlaybookCreateInput, PlaybookUncheckedCreateInput>
+  }
+
+  /**
+   * Playbook createMany
+   */
+  export type PlaybookCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Playbooks.
+     */
+    data: PlaybookCreateManyInput | PlaybookCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Playbook createManyAndReturn
+   */
+  export type PlaybookCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Playbook
+     */
+    select?: PlaybookSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many Playbooks.
+     */
+    data: PlaybookCreateManyInput | PlaybookCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Playbook update
+   */
+  export type PlaybookUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Playbook
+     */
+    select?: PlaybookSelect<ExtArgs> | null
+    /**
+     * The data needed to update a Playbook.
+     */
+    data: XOR<PlaybookUpdateInput, PlaybookUncheckedUpdateInput>
+    /**
+     * Choose, which Playbook to update.
+     */
+    where: PlaybookWhereUniqueInput
+  }
+
+  /**
+   * Playbook updateMany
+   */
+  export type PlaybookUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Playbooks.
+     */
+    data: XOR<PlaybookUpdateManyMutationInput, PlaybookUncheckedUpdateManyInput>
+    /**
+     * Filter which Playbooks to update
+     */
+    where?: PlaybookWhereInput
+  }
+
+  /**
+   * Playbook upsert
+   */
+  export type PlaybookUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Playbook
+     */
+    select?: PlaybookSelect<ExtArgs> | null
+    /**
+     * The filter to search for the Playbook to update in case it exists.
+     */
+    where: PlaybookWhereUniqueInput
+    /**
+     * In case the Playbook found by the `where` argument doesn't exist, create a new Playbook with this data.
+     */
+    create: XOR<PlaybookCreateInput, PlaybookUncheckedCreateInput>
+    /**
+     * In case the Playbook was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<PlaybookUpdateInput, PlaybookUncheckedUpdateInput>
+  }
+
+  /**
+   * Playbook delete
+   */
+  export type PlaybookDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Playbook
+     */
+    select?: PlaybookSelect<ExtArgs> | null
+    /**
+     * Filter which Playbook to delete.
+     */
+    where: PlaybookWhereUniqueInput
+  }
+
+  /**
+   * Playbook deleteMany
+   */
+  export type PlaybookDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Playbooks to delete
+     */
+    where?: PlaybookWhereInput
+  }
+
+  /**
+   * Playbook without action
+   */
+  export type PlaybookDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Playbook
+     */
+    select?: PlaybookSelect<ExtArgs> | null
+  }
+
+
+  /**
+   * Model HarnessTool
+   */
+
+  export type AggregateHarnessTool = {
+    _count: HarnessToolCountAggregateOutputType | null
+    _min: HarnessToolMinAggregateOutputType | null
+    _max: HarnessToolMaxAggregateOutputType | null
+  }
+
+  export type HarnessToolMinAggregateOutputType = {
+    id: string | null
+    harnessId: string | null
+    name: string | null
+    groupName: string | null
+    needsApproval: boolean | null
+    lastStatus: string | null
+    lastResultLabel: string | null
+    lastRanAt: Date | null
+  }
+
+  export type HarnessToolMaxAggregateOutputType = {
+    id: string | null
+    harnessId: string | null
+    name: string | null
+    groupName: string | null
+    needsApproval: boolean | null
+    lastStatus: string | null
+    lastResultLabel: string | null
+    lastRanAt: Date | null
+  }
+
+  export type HarnessToolCountAggregateOutputType = {
+    id: number
+    harnessId: number
+    name: number
+    groupName: number
+    needsApproval: number
+    lastStatus: number
+    lastResultLabel: number
+    lastRanAt: number
+    _all: number
+  }
+
+
+  export type HarnessToolMinAggregateInputType = {
+    id?: true
+    harnessId?: true
+    name?: true
+    groupName?: true
+    needsApproval?: true
+    lastStatus?: true
+    lastResultLabel?: true
+    lastRanAt?: true
+  }
+
+  export type HarnessToolMaxAggregateInputType = {
+    id?: true
+    harnessId?: true
+    name?: true
+    groupName?: true
+    needsApproval?: true
+    lastStatus?: true
+    lastResultLabel?: true
+    lastRanAt?: true
+  }
+
+  export type HarnessToolCountAggregateInputType = {
+    id?: true
+    harnessId?: true
+    name?: true
+    groupName?: true
+    needsApproval?: true
+    lastStatus?: true
+    lastResultLabel?: true
+    lastRanAt?: true
+    _all?: true
+  }
+
+  export type HarnessToolAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which HarnessTool to aggregate.
+     */
+    where?: HarnessToolWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of HarnessTools to fetch.
+     */
+    orderBy?: HarnessToolOrderByWithRelationInput | HarnessToolOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: HarnessToolWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` HarnessTools from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` HarnessTools.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned HarnessTools
+    **/
+    _count?: true | HarnessToolCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: HarnessToolMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: HarnessToolMaxAggregateInputType
+  }
+
+  export type GetHarnessToolAggregateType<T extends HarnessToolAggregateArgs> = {
+        [P in keyof T & keyof AggregateHarnessTool]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateHarnessTool[P]>
+      : GetScalarType<T[P], AggregateHarnessTool[P]>
+  }
+
+
+
+
+  export type HarnessToolGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: HarnessToolWhereInput
+    orderBy?: HarnessToolOrderByWithAggregationInput | HarnessToolOrderByWithAggregationInput[]
+    by: HarnessToolScalarFieldEnum[] | HarnessToolScalarFieldEnum
+    having?: HarnessToolScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: HarnessToolCountAggregateInputType | true
+    _min?: HarnessToolMinAggregateInputType
+    _max?: HarnessToolMaxAggregateInputType
+  }
+
+  export type HarnessToolGroupByOutputType = {
+    id: string
+    harnessId: string
+    name: string
+    groupName: string
+    needsApproval: boolean
+    lastStatus: string | null
+    lastResultLabel: string | null
+    lastRanAt: Date | null
+    _count: HarnessToolCountAggregateOutputType | null
+    _min: HarnessToolMinAggregateOutputType | null
+    _max: HarnessToolMaxAggregateOutputType | null
+  }
+
+  type GetHarnessToolGroupByPayload<T extends HarnessToolGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<HarnessToolGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof HarnessToolGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], HarnessToolGroupByOutputType[P]>
+            : GetScalarType<T[P], HarnessToolGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type HarnessToolSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    harnessId?: boolean
+    name?: boolean
+    groupName?: boolean
+    needsApproval?: boolean
+    lastStatus?: boolean
+    lastResultLabel?: boolean
+    lastRanAt?: boolean
+    harness?: boolean | HarnessDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["harnessTool"]>
+
+  export type HarnessToolSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    harnessId?: boolean
+    name?: boolean
+    groupName?: boolean
+    needsApproval?: boolean
+    lastStatus?: boolean
+    lastResultLabel?: boolean
+    lastRanAt?: boolean
+    harness?: boolean | HarnessDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["harnessTool"]>
+
+  export type HarnessToolSelectScalar = {
+    id?: boolean
+    harnessId?: boolean
+    name?: boolean
+    groupName?: boolean
+    needsApproval?: boolean
+    lastStatus?: boolean
+    lastResultLabel?: boolean
+    lastRanAt?: boolean
+  }
+
+  export type HarnessToolInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    harness?: boolean | HarnessDefaultArgs<ExtArgs>
+  }
+  export type HarnessToolIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    harness?: boolean | HarnessDefaultArgs<ExtArgs>
+  }
+
+  export type $HarnessToolPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "HarnessTool"
+    objects: {
+      harness: Prisma.$HarnessPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      harnessId: string
+      name: string
+      groupName: string
+      needsApproval: boolean
+      lastStatus: string | null
+      lastResultLabel: string | null
+      lastRanAt: Date | null
+    }, ExtArgs["result"]["harnessTool"]>
+    composites: {}
+  }
+
+  type HarnessToolGetPayload<S extends boolean | null | undefined | HarnessToolDefaultArgs> = $Result.GetResult<Prisma.$HarnessToolPayload, S>
+
+  type HarnessToolCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<HarnessToolFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: HarnessToolCountAggregateInputType | true
+    }
+
+  export interface HarnessToolDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['HarnessTool'], meta: { name: 'HarnessTool' } }
+    /**
+     * Find zero or one HarnessTool that matches the filter.
+     * @param {HarnessToolFindUniqueArgs} args - Arguments to find a HarnessTool
+     * @example
+     * // Get one HarnessTool
+     * const harnessTool = await prisma.harnessTool.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends HarnessToolFindUniqueArgs>(args: SelectSubset<T, HarnessToolFindUniqueArgs<ExtArgs>>): Prisma__HarnessToolClient<$Result.GetResult<Prisma.$HarnessToolPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one HarnessTool that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {HarnessToolFindUniqueOrThrowArgs} args - Arguments to find a HarnessTool
+     * @example
+     * // Get one HarnessTool
+     * const harnessTool = await prisma.harnessTool.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends HarnessToolFindUniqueOrThrowArgs>(args: SelectSubset<T, HarnessToolFindUniqueOrThrowArgs<ExtArgs>>): Prisma__HarnessToolClient<$Result.GetResult<Prisma.$HarnessToolPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first HarnessTool that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolFindFirstArgs} args - Arguments to find a HarnessTool
+     * @example
+     * // Get one HarnessTool
+     * const harnessTool = await prisma.harnessTool.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends HarnessToolFindFirstArgs>(args?: SelectSubset<T, HarnessToolFindFirstArgs<ExtArgs>>): Prisma__HarnessToolClient<$Result.GetResult<Prisma.$HarnessToolPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first HarnessTool that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolFindFirstOrThrowArgs} args - Arguments to find a HarnessTool
+     * @example
+     * // Get one HarnessTool
+     * const harnessTool = await prisma.harnessTool.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends HarnessToolFindFirstOrThrowArgs>(args?: SelectSubset<T, HarnessToolFindFirstOrThrowArgs<ExtArgs>>): Prisma__HarnessToolClient<$Result.GetResult<Prisma.$HarnessToolPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more HarnessTools that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all HarnessTools
+     * const harnessTools = await prisma.harnessTool.findMany()
+     * 
+     * // Get first 10 HarnessTools
+     * const harnessTools = await prisma.harnessTool.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const harnessToolWithIdOnly = await prisma.harnessTool.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends HarnessToolFindManyArgs>(args?: SelectSubset<T, HarnessToolFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$HarnessToolPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a HarnessTool.
+     * @param {HarnessToolCreateArgs} args - Arguments to create a HarnessTool.
+     * @example
+     * // Create one HarnessTool
+     * const HarnessTool = await prisma.harnessTool.create({
+     *   data: {
+     *     // ... data to create a HarnessTool
+     *   }
+     * })
+     * 
+     */
+    create<T extends HarnessToolCreateArgs>(args: SelectSubset<T, HarnessToolCreateArgs<ExtArgs>>): Prisma__HarnessToolClient<$Result.GetResult<Prisma.$HarnessToolPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many HarnessTools.
+     * @param {HarnessToolCreateManyArgs} args - Arguments to create many HarnessTools.
+     * @example
+     * // Create many HarnessTools
+     * const harnessTool = await prisma.harnessTool.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends HarnessToolCreateManyArgs>(args?: SelectSubset<T, HarnessToolCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many HarnessTools and returns the data saved in the database.
+     * @param {HarnessToolCreateManyAndReturnArgs} args - Arguments to create many HarnessTools.
+     * @example
+     * // Create many HarnessTools
+     * const harnessTool = await prisma.harnessTool.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many HarnessTools and only return the `id`
+     * const harnessToolWithIdOnly = await prisma.harnessTool.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends HarnessToolCreateManyAndReturnArgs>(args?: SelectSubset<T, HarnessToolCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$HarnessToolPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a HarnessTool.
+     * @param {HarnessToolDeleteArgs} args - Arguments to delete one HarnessTool.
+     * @example
+     * // Delete one HarnessTool
+     * const HarnessTool = await prisma.harnessTool.delete({
+     *   where: {
+     *     // ... filter to delete one HarnessTool
+     *   }
+     * })
+     * 
+     */
+    delete<T extends HarnessToolDeleteArgs>(args: SelectSubset<T, HarnessToolDeleteArgs<ExtArgs>>): Prisma__HarnessToolClient<$Result.GetResult<Prisma.$HarnessToolPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one HarnessTool.
+     * @param {HarnessToolUpdateArgs} args - Arguments to update one HarnessTool.
+     * @example
+     * // Update one HarnessTool
+     * const harnessTool = await prisma.harnessTool.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends HarnessToolUpdateArgs>(args: SelectSubset<T, HarnessToolUpdateArgs<ExtArgs>>): Prisma__HarnessToolClient<$Result.GetResult<Prisma.$HarnessToolPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more HarnessTools.
+     * @param {HarnessToolDeleteManyArgs} args - Arguments to filter HarnessTools to delete.
+     * @example
+     * // Delete a few HarnessTools
+     * const { count } = await prisma.harnessTool.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends HarnessToolDeleteManyArgs>(args?: SelectSubset<T, HarnessToolDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more HarnessTools.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many HarnessTools
+     * const harnessTool = await prisma.harnessTool.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends HarnessToolUpdateManyArgs>(args: SelectSubset<T, HarnessToolUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one HarnessTool.
+     * @param {HarnessToolUpsertArgs} args - Arguments to update or create a HarnessTool.
+     * @example
+     * // Update or create a HarnessTool
+     * const harnessTool = await prisma.harnessTool.upsert({
+     *   create: {
+     *     // ... data to create a HarnessTool
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the HarnessTool we want to update
+     *   }
+     * })
+     */
+    upsert<T extends HarnessToolUpsertArgs>(args: SelectSubset<T, HarnessToolUpsertArgs<ExtArgs>>): Prisma__HarnessToolClient<$Result.GetResult<Prisma.$HarnessToolPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of HarnessTools.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolCountArgs} args - Arguments to filter HarnessTools to count.
+     * @example
+     * // Count the number of HarnessTools
+     * const count = await prisma.harnessTool.count({
+     *   where: {
+     *     // ... the filter for the HarnessTools we want to count
+     *   }
+     * })
+    **/
+    count<T extends HarnessToolCountArgs>(
+      args?: Subset<T, HarnessToolCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], HarnessToolCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a HarnessTool.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends HarnessToolAggregateArgs>(args: Subset<T, HarnessToolAggregateArgs>): Prisma.PrismaPromise<GetHarnessToolAggregateType<T>>
+
+    /**
+     * Group by HarnessTool.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends HarnessToolGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: HarnessToolGroupByArgs['orderBy'] }
+        : { orderBy?: HarnessToolGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, HarnessToolGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetHarnessToolGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the HarnessTool model
+   */
+  readonly fields: HarnessToolFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for HarnessTool.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__HarnessToolClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    harness<T extends HarnessDefaultArgs<ExtArgs> = {}>(args?: Subset<T, HarnessDefaultArgs<ExtArgs>>): Prisma__HarnessClient<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the HarnessTool model
+   */ 
+  interface HarnessToolFieldRefs {
+    readonly id: FieldRef<"HarnessTool", 'String'>
+    readonly harnessId: FieldRef<"HarnessTool", 'String'>
+    readonly name: FieldRef<"HarnessTool", 'String'>
+    readonly groupName: FieldRef<"HarnessTool", 'String'>
+    readonly needsApproval: FieldRef<"HarnessTool", 'Boolean'>
+    readonly lastStatus: FieldRef<"HarnessTool", 'String'>
+    readonly lastResultLabel: FieldRef<"HarnessTool", 'String'>
+    readonly lastRanAt: FieldRef<"HarnessTool", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * HarnessTool findUnique
+   */
+  export type HarnessToolFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessTool
+     */
+    select?: HarnessToolSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolInclude<ExtArgs> | null
+    /**
+     * Filter, which HarnessTool to fetch.
+     */
+    where: HarnessToolWhereUniqueInput
+  }
+
+  /**
+   * HarnessTool findUniqueOrThrow
+   */
+  export type HarnessToolFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessTool
+     */
+    select?: HarnessToolSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolInclude<ExtArgs> | null
+    /**
+     * Filter, which HarnessTool to fetch.
+     */
+    where: HarnessToolWhereUniqueInput
+  }
+
+  /**
+   * HarnessTool findFirst
+   */
+  export type HarnessToolFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessTool
+     */
+    select?: HarnessToolSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolInclude<ExtArgs> | null
+    /**
+     * Filter, which HarnessTool to fetch.
+     */
+    where?: HarnessToolWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of HarnessTools to fetch.
+     */
+    orderBy?: HarnessToolOrderByWithRelationInput | HarnessToolOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for HarnessTools.
+     */
+    cursor?: HarnessToolWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` HarnessTools from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` HarnessTools.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of HarnessTools.
+     */
+    distinct?: HarnessToolScalarFieldEnum | HarnessToolScalarFieldEnum[]
+  }
+
+  /**
+   * HarnessTool findFirstOrThrow
+   */
+  export type HarnessToolFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessTool
+     */
+    select?: HarnessToolSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolInclude<ExtArgs> | null
+    /**
+     * Filter, which HarnessTool to fetch.
+     */
+    where?: HarnessToolWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of HarnessTools to fetch.
+     */
+    orderBy?: HarnessToolOrderByWithRelationInput | HarnessToolOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for HarnessTools.
+     */
+    cursor?: HarnessToolWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` HarnessTools from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` HarnessTools.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of HarnessTools.
+     */
+    distinct?: HarnessToolScalarFieldEnum | HarnessToolScalarFieldEnum[]
+  }
+
+  /**
+   * HarnessTool findMany
+   */
+  export type HarnessToolFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessTool
+     */
+    select?: HarnessToolSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolInclude<ExtArgs> | null
+    /**
+     * Filter, which HarnessTools to fetch.
+     */
+    where?: HarnessToolWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of HarnessTools to fetch.
+     */
+    orderBy?: HarnessToolOrderByWithRelationInput | HarnessToolOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing HarnessTools.
+     */
+    cursor?: HarnessToolWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` HarnessTools from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` HarnessTools.
+     */
+    skip?: number
+    distinct?: HarnessToolScalarFieldEnum | HarnessToolScalarFieldEnum[]
+  }
+
+  /**
+   * HarnessTool create
+   */
+  export type HarnessToolCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessTool
+     */
+    select?: HarnessToolSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolInclude<ExtArgs> | null
+    /**
+     * The data needed to create a HarnessTool.
+     */
+    data: XOR<HarnessToolCreateInput, HarnessToolUncheckedCreateInput>
+  }
+
+  /**
+   * HarnessTool createMany
+   */
+  export type HarnessToolCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many HarnessTools.
+     */
+    data: HarnessToolCreateManyInput | HarnessToolCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * HarnessTool createManyAndReturn
+   */
+  export type HarnessToolCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessTool
+     */
+    select?: HarnessToolSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many HarnessTools.
+     */
+    data: HarnessToolCreateManyInput | HarnessToolCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * HarnessTool update
+   */
+  export type HarnessToolUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessTool
+     */
+    select?: HarnessToolSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolInclude<ExtArgs> | null
+    /**
+     * The data needed to update a HarnessTool.
+     */
+    data: XOR<HarnessToolUpdateInput, HarnessToolUncheckedUpdateInput>
+    /**
+     * Choose, which HarnessTool to update.
+     */
+    where: HarnessToolWhereUniqueInput
+  }
+
+  /**
+   * HarnessTool updateMany
+   */
+  export type HarnessToolUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update HarnessTools.
+     */
+    data: XOR<HarnessToolUpdateManyMutationInput, HarnessToolUncheckedUpdateManyInput>
+    /**
+     * Filter which HarnessTools to update
+     */
+    where?: HarnessToolWhereInput
+  }
+
+  /**
+   * HarnessTool upsert
+   */
+  export type HarnessToolUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessTool
+     */
+    select?: HarnessToolSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolInclude<ExtArgs> | null
+    /**
+     * The filter to search for the HarnessTool to update in case it exists.
+     */
+    where: HarnessToolWhereUniqueInput
+    /**
+     * In case the HarnessTool found by the `where` argument doesn't exist, create a new HarnessTool with this data.
+     */
+    create: XOR<HarnessToolCreateInput, HarnessToolUncheckedCreateInput>
+    /**
+     * In case the HarnessTool was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<HarnessToolUpdateInput, HarnessToolUncheckedUpdateInput>
+  }
+
+  /**
+   * HarnessTool delete
+   */
+  export type HarnessToolDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessTool
+     */
+    select?: HarnessToolSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolInclude<ExtArgs> | null
+    /**
+     * Filter which HarnessTool to delete.
+     */
+    where: HarnessToolWhereUniqueInput
+  }
+
+  /**
+   * HarnessTool deleteMany
+   */
+  export type HarnessToolDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which HarnessTools to delete
+     */
+    where?: HarnessToolWhereInput
+  }
+
+  /**
+   * HarnessTool without action
+   */
+  export type HarnessToolDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessTool
+     */
+    select?: HarnessToolSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -15599,6 +24975,146 @@ export namespace Prisma {
   export type ProviderCircuitStateScalarFieldEnum = (typeof ProviderCircuitStateScalarFieldEnum)[keyof typeof ProviderCircuitStateScalarFieldEnum]
 
 
+  export const ObjectiveScalarFieldEnum: {
+    id: 'id',
+    projectId: 'projectId',
+    name: 'name',
+    description: 'description',
+    status: 'status',
+    targetDate: 'targetDate',
+    spendCapUsd: 'spendCapUsd',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type ObjectiveScalarFieldEnum = (typeof ObjectiveScalarFieldEnum)[keyof typeof ObjectiveScalarFieldEnum]
+
+
+  export const ObjectivePhaseScalarFieldEnum: {
+    id: 'id',
+    objectiveId: 'objectiveId',
+    name: 'name',
+    state: 'state',
+    weight: 'weight',
+    detail: 'detail',
+    orderIdx: 'orderIdx'
+  };
+
+  export type ObjectivePhaseScalarFieldEnum = (typeof ObjectivePhaseScalarFieldEnum)[keyof typeof ObjectivePhaseScalarFieldEnum]
+
+
+  export const WorkstreamScalarFieldEnum: {
+    id: 'id',
+    objectiveId: 'objectiveId',
+    name: 'name',
+    paused: 'paused',
+    pausedAt: 'pausedAt',
+    pausedNote: 'pausedNote',
+    orderIdx: 'orderIdx',
+    leadHarnessId: 'leadHarnessId'
+  };
+
+  export type WorkstreamScalarFieldEnum = (typeof WorkstreamScalarFieldEnum)[keyof typeof WorkstreamScalarFieldEnum]
+
+
+  export const HarnessScalarFieldEnum: {
+    id: 'id',
+    objectiveId: 'objectiveId',
+    workstreamId: 'workstreamId',
+    parentId: 'parentId',
+    name: 'name',
+    status: 'status',
+    statusBeforePause: 'statusBeforePause',
+    activity: 'activity',
+    mission: 'mission',
+    currentJob: 'currentJob',
+    model: 'model',
+    playbookId: 'playbookId',
+    taskId: 'taskId',
+    branch: 'branch',
+    heartbeatMinutes: 'heartbeatMinutes',
+    nextPulseAt: 'nextPulseAt',
+    maxChildren: 'maxChildren',
+    spendCapUsd: 'spendCapUsd',
+    spendUsd: 'spendUsd',
+    contextTokens: 'contextTokens',
+    contextWindow: 'contextWindow',
+    permissions: 'permissions',
+    dryRun: 'dryRun',
+    lastPulseSeq: 'lastPulseSeq',
+    idleSince: 'idleSince',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
+    retiredAt: 'retiredAt'
+  };
+
+  export type HarnessScalarFieldEnum = (typeof HarnessScalarFieldEnum)[keyof typeof HarnessScalarFieldEnum]
+
+
+  export const PulseScalarFieldEnum: {
+    id: 'id',
+    harnessId: 'harnessId',
+    seq: 'seq',
+    startedAt: 'startedAt',
+    endedAt: 'endedAt',
+    outcome: 'outcome',
+    summary: 'summary',
+    costUsd: 'costUsd',
+    tokens: 'tokens',
+    weight: 'weight'
+  };
+
+  export type PulseScalarFieldEnum = (typeof PulseScalarFieldEnum)[keyof typeof PulseScalarFieldEnum]
+
+
+  export const InterventionScalarFieldEnum: {
+    id: 'id',
+    objectiveId: 'objectiveId',
+    harnessId: 'harnessId',
+    kind: 'kind',
+    title: 'title',
+    detail: 'detail',
+    impact: 'impact',
+    payload: 'payload',
+    status: 'status',
+    response: 'response',
+    createdAt: 'createdAt',
+    resolvedAt: 'resolvedAt'
+  };
+
+  export type InterventionScalarFieldEnum = (typeof InterventionScalarFieldEnum)[keyof typeof InterventionScalarFieldEnum]
+
+
+  export const PlaybookScalarFieldEnum: {
+    id: 'id',
+    projectId: 'projectId',
+    name: 'name',
+    version: 'version',
+    variables: 'variables',
+    cadence: 'cadence',
+    retireWhen: 'retireWhen',
+    steps: 'steps',
+    previousVersionId: 'previousVersionId',
+    createdAt: 'createdAt'
+  };
+
+  export type PlaybookScalarFieldEnum = (typeof PlaybookScalarFieldEnum)[keyof typeof PlaybookScalarFieldEnum]
+
+
+  export const HarnessToolScalarFieldEnum: {
+    id: 'id',
+    harnessId: 'harnessId',
+    name: 'name',
+    groupName: 'groupName',
+    needsApproval: 'needsApproval',
+    lastStatus: 'lastStatus',
+    lastResultLabel: 'lastResultLabel',
+    lastRanAt: 'lastRanAt'
+  };
+
+  export type HarnessToolScalarFieldEnum = (typeof HarnessToolScalarFieldEnum)[keyof typeof HarnessToolScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -15706,6 +25222,7 @@ export namespace Prisma {
     env?: StringNullableFilter<"Project"> | string | null
     createdAt?: DateTimeFilter<"Project"> | Date | string
     tasks?: TaskListRelationFilter
+    objectives?: ObjectiveListRelationFilter
   }
 
   export type ProjectOrderByWithRelationInput = {
@@ -15717,6 +25234,7 @@ export namespace Prisma {
     env?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     tasks?: TaskOrderByRelationAggregateInput
+    objectives?: ObjectiveOrderByRelationAggregateInput
   }
 
   export type ProjectWhereUniqueInput = Prisma.AtLeast<{
@@ -15731,6 +25249,7 @@ export namespace Prisma {
     env?: StringNullableFilter<"Project"> | string | null
     createdAt?: DateTimeFilter<"Project"> | Date | string
     tasks?: TaskListRelationFilter
+    objectives?: ObjectiveListRelationFilter
   }, "id" | "path">
 
   export type ProjectOrderByWithAggregationInput = {
@@ -16841,6 +26360,747 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"ProviderCircuitState"> | Date | string
   }
 
+  export type ObjectiveWhereInput = {
+    AND?: ObjectiveWhereInput | ObjectiveWhereInput[]
+    OR?: ObjectiveWhereInput[]
+    NOT?: ObjectiveWhereInput | ObjectiveWhereInput[]
+    id?: StringFilter<"Objective"> | string
+    projectId?: StringFilter<"Objective"> | string
+    name?: StringFilter<"Objective"> | string
+    description?: StringNullableFilter<"Objective"> | string | null
+    status?: StringFilter<"Objective"> | string
+    targetDate?: DateTimeNullableFilter<"Objective"> | Date | string | null
+    spendCapUsd?: FloatNullableFilter<"Objective"> | number | null
+    createdAt?: DateTimeFilter<"Objective"> | Date | string
+    updatedAt?: DateTimeFilter<"Objective"> | Date | string
+    project?: XOR<ProjectRelationFilter, ProjectWhereInput>
+    phases?: ObjectivePhaseListRelationFilter
+    workstreams?: WorkstreamListRelationFilter
+    harnesses?: HarnessListRelationFilter
+    interventions?: InterventionListRelationFilter
+  }
+
+  export type ObjectiveOrderByWithRelationInput = {
+    id?: SortOrder
+    projectId?: SortOrder
+    name?: SortOrder
+    description?: SortOrderInput | SortOrder
+    status?: SortOrder
+    targetDate?: SortOrderInput | SortOrder
+    spendCapUsd?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    project?: ProjectOrderByWithRelationInput
+    phases?: ObjectivePhaseOrderByRelationAggregateInput
+    workstreams?: WorkstreamOrderByRelationAggregateInput
+    harnesses?: HarnessOrderByRelationAggregateInput
+    interventions?: InterventionOrderByRelationAggregateInput
+  }
+
+  export type ObjectiveWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: ObjectiveWhereInput | ObjectiveWhereInput[]
+    OR?: ObjectiveWhereInput[]
+    NOT?: ObjectiveWhereInput | ObjectiveWhereInput[]
+    projectId?: StringFilter<"Objective"> | string
+    name?: StringFilter<"Objective"> | string
+    description?: StringNullableFilter<"Objective"> | string | null
+    status?: StringFilter<"Objective"> | string
+    targetDate?: DateTimeNullableFilter<"Objective"> | Date | string | null
+    spendCapUsd?: FloatNullableFilter<"Objective"> | number | null
+    createdAt?: DateTimeFilter<"Objective"> | Date | string
+    updatedAt?: DateTimeFilter<"Objective"> | Date | string
+    project?: XOR<ProjectRelationFilter, ProjectWhereInput>
+    phases?: ObjectivePhaseListRelationFilter
+    workstreams?: WorkstreamListRelationFilter
+    harnesses?: HarnessListRelationFilter
+    interventions?: InterventionListRelationFilter
+  }, "id">
+
+  export type ObjectiveOrderByWithAggregationInput = {
+    id?: SortOrder
+    projectId?: SortOrder
+    name?: SortOrder
+    description?: SortOrderInput | SortOrder
+    status?: SortOrder
+    targetDate?: SortOrderInput | SortOrder
+    spendCapUsd?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: ObjectiveCountOrderByAggregateInput
+    _avg?: ObjectiveAvgOrderByAggregateInput
+    _max?: ObjectiveMaxOrderByAggregateInput
+    _min?: ObjectiveMinOrderByAggregateInput
+    _sum?: ObjectiveSumOrderByAggregateInput
+  }
+
+  export type ObjectiveScalarWhereWithAggregatesInput = {
+    AND?: ObjectiveScalarWhereWithAggregatesInput | ObjectiveScalarWhereWithAggregatesInput[]
+    OR?: ObjectiveScalarWhereWithAggregatesInput[]
+    NOT?: ObjectiveScalarWhereWithAggregatesInput | ObjectiveScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"Objective"> | string
+    projectId?: StringWithAggregatesFilter<"Objective"> | string
+    name?: StringWithAggregatesFilter<"Objective"> | string
+    description?: StringNullableWithAggregatesFilter<"Objective"> | string | null
+    status?: StringWithAggregatesFilter<"Objective"> | string
+    targetDate?: DateTimeNullableWithAggregatesFilter<"Objective"> | Date | string | null
+    spendCapUsd?: FloatNullableWithAggregatesFilter<"Objective"> | number | null
+    createdAt?: DateTimeWithAggregatesFilter<"Objective"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Objective"> | Date | string
+  }
+
+  export type ObjectivePhaseWhereInput = {
+    AND?: ObjectivePhaseWhereInput | ObjectivePhaseWhereInput[]
+    OR?: ObjectivePhaseWhereInput[]
+    NOT?: ObjectivePhaseWhereInput | ObjectivePhaseWhereInput[]
+    id?: StringFilter<"ObjectivePhase"> | string
+    objectiveId?: StringFilter<"ObjectivePhase"> | string
+    name?: StringFilter<"ObjectivePhase"> | string
+    state?: StringFilter<"ObjectivePhase"> | string
+    weight?: FloatFilter<"ObjectivePhase"> | number
+    detail?: StringNullableFilter<"ObjectivePhase"> | string | null
+    orderIdx?: IntFilter<"ObjectivePhase"> | number
+    objective?: XOR<ObjectiveRelationFilter, ObjectiveWhereInput>
+  }
+
+  export type ObjectivePhaseOrderByWithRelationInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    name?: SortOrder
+    state?: SortOrder
+    weight?: SortOrder
+    detail?: SortOrderInput | SortOrder
+    orderIdx?: SortOrder
+    objective?: ObjectiveOrderByWithRelationInput
+  }
+
+  export type ObjectivePhaseWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: ObjectivePhaseWhereInput | ObjectivePhaseWhereInput[]
+    OR?: ObjectivePhaseWhereInput[]
+    NOT?: ObjectivePhaseWhereInput | ObjectivePhaseWhereInput[]
+    objectiveId?: StringFilter<"ObjectivePhase"> | string
+    name?: StringFilter<"ObjectivePhase"> | string
+    state?: StringFilter<"ObjectivePhase"> | string
+    weight?: FloatFilter<"ObjectivePhase"> | number
+    detail?: StringNullableFilter<"ObjectivePhase"> | string | null
+    orderIdx?: IntFilter<"ObjectivePhase"> | number
+    objective?: XOR<ObjectiveRelationFilter, ObjectiveWhereInput>
+  }, "id">
+
+  export type ObjectivePhaseOrderByWithAggregationInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    name?: SortOrder
+    state?: SortOrder
+    weight?: SortOrder
+    detail?: SortOrderInput | SortOrder
+    orderIdx?: SortOrder
+    _count?: ObjectivePhaseCountOrderByAggregateInput
+    _avg?: ObjectivePhaseAvgOrderByAggregateInput
+    _max?: ObjectivePhaseMaxOrderByAggregateInput
+    _min?: ObjectivePhaseMinOrderByAggregateInput
+    _sum?: ObjectivePhaseSumOrderByAggregateInput
+  }
+
+  export type ObjectivePhaseScalarWhereWithAggregatesInput = {
+    AND?: ObjectivePhaseScalarWhereWithAggregatesInput | ObjectivePhaseScalarWhereWithAggregatesInput[]
+    OR?: ObjectivePhaseScalarWhereWithAggregatesInput[]
+    NOT?: ObjectivePhaseScalarWhereWithAggregatesInput | ObjectivePhaseScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"ObjectivePhase"> | string
+    objectiveId?: StringWithAggregatesFilter<"ObjectivePhase"> | string
+    name?: StringWithAggregatesFilter<"ObjectivePhase"> | string
+    state?: StringWithAggregatesFilter<"ObjectivePhase"> | string
+    weight?: FloatWithAggregatesFilter<"ObjectivePhase"> | number
+    detail?: StringNullableWithAggregatesFilter<"ObjectivePhase"> | string | null
+    orderIdx?: IntWithAggregatesFilter<"ObjectivePhase"> | number
+  }
+
+  export type WorkstreamWhereInput = {
+    AND?: WorkstreamWhereInput | WorkstreamWhereInput[]
+    OR?: WorkstreamWhereInput[]
+    NOT?: WorkstreamWhereInput | WorkstreamWhereInput[]
+    id?: StringFilter<"Workstream"> | string
+    objectiveId?: StringFilter<"Workstream"> | string
+    name?: StringFilter<"Workstream"> | string
+    paused?: BoolFilter<"Workstream"> | boolean
+    pausedAt?: DateTimeNullableFilter<"Workstream"> | Date | string | null
+    pausedNote?: StringNullableFilter<"Workstream"> | string | null
+    orderIdx?: IntFilter<"Workstream"> | number
+    leadHarnessId?: StringNullableFilter<"Workstream"> | string | null
+    objective?: XOR<ObjectiveRelationFilter, ObjectiveWhereInput>
+    harnesses?: HarnessListRelationFilter
+  }
+
+  export type WorkstreamOrderByWithRelationInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    name?: SortOrder
+    paused?: SortOrder
+    pausedAt?: SortOrderInput | SortOrder
+    pausedNote?: SortOrderInput | SortOrder
+    orderIdx?: SortOrder
+    leadHarnessId?: SortOrderInput | SortOrder
+    objective?: ObjectiveOrderByWithRelationInput
+    harnesses?: HarnessOrderByRelationAggregateInput
+  }
+
+  export type WorkstreamWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: WorkstreamWhereInput | WorkstreamWhereInput[]
+    OR?: WorkstreamWhereInput[]
+    NOT?: WorkstreamWhereInput | WorkstreamWhereInput[]
+    objectiveId?: StringFilter<"Workstream"> | string
+    name?: StringFilter<"Workstream"> | string
+    paused?: BoolFilter<"Workstream"> | boolean
+    pausedAt?: DateTimeNullableFilter<"Workstream"> | Date | string | null
+    pausedNote?: StringNullableFilter<"Workstream"> | string | null
+    orderIdx?: IntFilter<"Workstream"> | number
+    leadHarnessId?: StringNullableFilter<"Workstream"> | string | null
+    objective?: XOR<ObjectiveRelationFilter, ObjectiveWhereInput>
+    harnesses?: HarnessListRelationFilter
+  }, "id">
+
+  export type WorkstreamOrderByWithAggregationInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    name?: SortOrder
+    paused?: SortOrder
+    pausedAt?: SortOrderInput | SortOrder
+    pausedNote?: SortOrderInput | SortOrder
+    orderIdx?: SortOrder
+    leadHarnessId?: SortOrderInput | SortOrder
+    _count?: WorkstreamCountOrderByAggregateInput
+    _avg?: WorkstreamAvgOrderByAggregateInput
+    _max?: WorkstreamMaxOrderByAggregateInput
+    _min?: WorkstreamMinOrderByAggregateInput
+    _sum?: WorkstreamSumOrderByAggregateInput
+  }
+
+  export type WorkstreamScalarWhereWithAggregatesInput = {
+    AND?: WorkstreamScalarWhereWithAggregatesInput | WorkstreamScalarWhereWithAggregatesInput[]
+    OR?: WorkstreamScalarWhereWithAggregatesInput[]
+    NOT?: WorkstreamScalarWhereWithAggregatesInput | WorkstreamScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"Workstream"> | string
+    objectiveId?: StringWithAggregatesFilter<"Workstream"> | string
+    name?: StringWithAggregatesFilter<"Workstream"> | string
+    paused?: BoolWithAggregatesFilter<"Workstream"> | boolean
+    pausedAt?: DateTimeNullableWithAggregatesFilter<"Workstream"> | Date | string | null
+    pausedNote?: StringNullableWithAggregatesFilter<"Workstream"> | string | null
+    orderIdx?: IntWithAggregatesFilter<"Workstream"> | number
+    leadHarnessId?: StringNullableWithAggregatesFilter<"Workstream"> | string | null
+  }
+
+  export type HarnessWhereInput = {
+    AND?: HarnessWhereInput | HarnessWhereInput[]
+    OR?: HarnessWhereInput[]
+    NOT?: HarnessWhereInput | HarnessWhereInput[]
+    id?: StringFilter<"Harness"> | string
+    objectiveId?: StringFilter<"Harness"> | string
+    workstreamId?: StringNullableFilter<"Harness"> | string | null
+    parentId?: StringNullableFilter<"Harness"> | string | null
+    name?: StringFilter<"Harness"> | string
+    status?: StringFilter<"Harness"> | string
+    statusBeforePause?: StringNullableFilter<"Harness"> | string | null
+    activity?: StringNullableFilter<"Harness"> | string | null
+    mission?: StringFilter<"Harness"> | string
+    currentJob?: StringNullableFilter<"Harness"> | string | null
+    model?: StringFilter<"Harness"> | string
+    playbookId?: StringNullableFilter<"Harness"> | string | null
+    taskId?: StringNullableFilter<"Harness"> | string | null
+    branch?: StringNullableFilter<"Harness"> | string | null
+    heartbeatMinutes?: IntFilter<"Harness"> | number
+    nextPulseAt?: DateTimeNullableFilter<"Harness"> | Date | string | null
+    maxChildren?: IntFilter<"Harness"> | number
+    spendCapUsd?: FloatNullableFilter<"Harness"> | number | null
+    spendUsd?: FloatFilter<"Harness"> | number
+    contextTokens?: IntFilter<"Harness"> | number
+    contextWindow?: IntFilter<"Harness"> | number
+    permissions?: StringFilter<"Harness"> | string
+    dryRun?: BoolFilter<"Harness"> | boolean
+    lastPulseSeq?: IntFilter<"Harness"> | number
+    idleSince?: DateTimeNullableFilter<"Harness"> | Date | string | null
+    createdAt?: DateTimeFilter<"Harness"> | Date | string
+    updatedAt?: DateTimeFilter<"Harness"> | Date | string
+    retiredAt?: DateTimeNullableFilter<"Harness"> | Date | string | null
+    objective?: XOR<ObjectiveRelationFilter, ObjectiveWhereInput>
+    workstream?: XOR<WorkstreamNullableRelationFilter, WorkstreamWhereInput> | null
+    parent?: XOR<HarnessNullableRelationFilter, HarnessWhereInput> | null
+    children?: HarnessListRelationFilter
+    pulses?: PulseListRelationFilter
+    tools?: HarnessToolListRelationFilter
+  }
+
+  export type HarnessOrderByWithRelationInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    workstreamId?: SortOrderInput | SortOrder
+    parentId?: SortOrderInput | SortOrder
+    name?: SortOrder
+    status?: SortOrder
+    statusBeforePause?: SortOrderInput | SortOrder
+    activity?: SortOrderInput | SortOrder
+    mission?: SortOrder
+    currentJob?: SortOrderInput | SortOrder
+    model?: SortOrder
+    playbookId?: SortOrderInput | SortOrder
+    taskId?: SortOrderInput | SortOrder
+    branch?: SortOrderInput | SortOrder
+    heartbeatMinutes?: SortOrder
+    nextPulseAt?: SortOrderInput | SortOrder
+    maxChildren?: SortOrder
+    spendCapUsd?: SortOrderInput | SortOrder
+    spendUsd?: SortOrder
+    contextTokens?: SortOrder
+    contextWindow?: SortOrder
+    permissions?: SortOrder
+    dryRun?: SortOrder
+    lastPulseSeq?: SortOrder
+    idleSince?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    retiredAt?: SortOrderInput | SortOrder
+    objective?: ObjectiveOrderByWithRelationInput
+    workstream?: WorkstreamOrderByWithRelationInput
+    parent?: HarnessOrderByWithRelationInput
+    children?: HarnessOrderByRelationAggregateInput
+    pulses?: PulseOrderByRelationAggregateInput
+    tools?: HarnessToolOrderByRelationAggregateInput
+  }
+
+  export type HarnessWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: HarnessWhereInput | HarnessWhereInput[]
+    OR?: HarnessWhereInput[]
+    NOT?: HarnessWhereInput | HarnessWhereInput[]
+    objectiveId?: StringFilter<"Harness"> | string
+    workstreamId?: StringNullableFilter<"Harness"> | string | null
+    parentId?: StringNullableFilter<"Harness"> | string | null
+    name?: StringFilter<"Harness"> | string
+    status?: StringFilter<"Harness"> | string
+    statusBeforePause?: StringNullableFilter<"Harness"> | string | null
+    activity?: StringNullableFilter<"Harness"> | string | null
+    mission?: StringFilter<"Harness"> | string
+    currentJob?: StringNullableFilter<"Harness"> | string | null
+    model?: StringFilter<"Harness"> | string
+    playbookId?: StringNullableFilter<"Harness"> | string | null
+    taskId?: StringNullableFilter<"Harness"> | string | null
+    branch?: StringNullableFilter<"Harness"> | string | null
+    heartbeatMinutes?: IntFilter<"Harness"> | number
+    nextPulseAt?: DateTimeNullableFilter<"Harness"> | Date | string | null
+    maxChildren?: IntFilter<"Harness"> | number
+    spendCapUsd?: FloatNullableFilter<"Harness"> | number | null
+    spendUsd?: FloatFilter<"Harness"> | number
+    contextTokens?: IntFilter<"Harness"> | number
+    contextWindow?: IntFilter<"Harness"> | number
+    permissions?: StringFilter<"Harness"> | string
+    dryRun?: BoolFilter<"Harness"> | boolean
+    lastPulseSeq?: IntFilter<"Harness"> | number
+    idleSince?: DateTimeNullableFilter<"Harness"> | Date | string | null
+    createdAt?: DateTimeFilter<"Harness"> | Date | string
+    updatedAt?: DateTimeFilter<"Harness"> | Date | string
+    retiredAt?: DateTimeNullableFilter<"Harness"> | Date | string | null
+    objective?: XOR<ObjectiveRelationFilter, ObjectiveWhereInput>
+    workstream?: XOR<WorkstreamNullableRelationFilter, WorkstreamWhereInput> | null
+    parent?: XOR<HarnessNullableRelationFilter, HarnessWhereInput> | null
+    children?: HarnessListRelationFilter
+    pulses?: PulseListRelationFilter
+    tools?: HarnessToolListRelationFilter
+  }, "id">
+
+  export type HarnessOrderByWithAggregationInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    workstreamId?: SortOrderInput | SortOrder
+    parentId?: SortOrderInput | SortOrder
+    name?: SortOrder
+    status?: SortOrder
+    statusBeforePause?: SortOrderInput | SortOrder
+    activity?: SortOrderInput | SortOrder
+    mission?: SortOrder
+    currentJob?: SortOrderInput | SortOrder
+    model?: SortOrder
+    playbookId?: SortOrderInput | SortOrder
+    taskId?: SortOrderInput | SortOrder
+    branch?: SortOrderInput | SortOrder
+    heartbeatMinutes?: SortOrder
+    nextPulseAt?: SortOrderInput | SortOrder
+    maxChildren?: SortOrder
+    spendCapUsd?: SortOrderInput | SortOrder
+    spendUsd?: SortOrder
+    contextTokens?: SortOrder
+    contextWindow?: SortOrder
+    permissions?: SortOrder
+    dryRun?: SortOrder
+    lastPulseSeq?: SortOrder
+    idleSince?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    retiredAt?: SortOrderInput | SortOrder
+    _count?: HarnessCountOrderByAggregateInput
+    _avg?: HarnessAvgOrderByAggregateInput
+    _max?: HarnessMaxOrderByAggregateInput
+    _min?: HarnessMinOrderByAggregateInput
+    _sum?: HarnessSumOrderByAggregateInput
+  }
+
+  export type HarnessScalarWhereWithAggregatesInput = {
+    AND?: HarnessScalarWhereWithAggregatesInput | HarnessScalarWhereWithAggregatesInput[]
+    OR?: HarnessScalarWhereWithAggregatesInput[]
+    NOT?: HarnessScalarWhereWithAggregatesInput | HarnessScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"Harness"> | string
+    objectiveId?: StringWithAggregatesFilter<"Harness"> | string
+    workstreamId?: StringNullableWithAggregatesFilter<"Harness"> | string | null
+    parentId?: StringNullableWithAggregatesFilter<"Harness"> | string | null
+    name?: StringWithAggregatesFilter<"Harness"> | string
+    status?: StringWithAggregatesFilter<"Harness"> | string
+    statusBeforePause?: StringNullableWithAggregatesFilter<"Harness"> | string | null
+    activity?: StringNullableWithAggregatesFilter<"Harness"> | string | null
+    mission?: StringWithAggregatesFilter<"Harness"> | string
+    currentJob?: StringNullableWithAggregatesFilter<"Harness"> | string | null
+    model?: StringWithAggregatesFilter<"Harness"> | string
+    playbookId?: StringNullableWithAggregatesFilter<"Harness"> | string | null
+    taskId?: StringNullableWithAggregatesFilter<"Harness"> | string | null
+    branch?: StringNullableWithAggregatesFilter<"Harness"> | string | null
+    heartbeatMinutes?: IntWithAggregatesFilter<"Harness"> | number
+    nextPulseAt?: DateTimeNullableWithAggregatesFilter<"Harness"> | Date | string | null
+    maxChildren?: IntWithAggregatesFilter<"Harness"> | number
+    spendCapUsd?: FloatNullableWithAggregatesFilter<"Harness"> | number | null
+    spendUsd?: FloatWithAggregatesFilter<"Harness"> | number
+    contextTokens?: IntWithAggregatesFilter<"Harness"> | number
+    contextWindow?: IntWithAggregatesFilter<"Harness"> | number
+    permissions?: StringWithAggregatesFilter<"Harness"> | string
+    dryRun?: BoolWithAggregatesFilter<"Harness"> | boolean
+    lastPulseSeq?: IntWithAggregatesFilter<"Harness"> | number
+    idleSince?: DateTimeNullableWithAggregatesFilter<"Harness"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"Harness"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Harness"> | Date | string
+    retiredAt?: DateTimeNullableWithAggregatesFilter<"Harness"> | Date | string | null
+  }
+
+  export type PulseWhereInput = {
+    AND?: PulseWhereInput | PulseWhereInput[]
+    OR?: PulseWhereInput[]
+    NOT?: PulseWhereInput | PulseWhereInput[]
+    id?: StringFilter<"Pulse"> | string
+    harnessId?: StringFilter<"Pulse"> | string
+    seq?: IntFilter<"Pulse"> | number
+    startedAt?: DateTimeFilter<"Pulse"> | Date | string
+    endedAt?: DateTimeNullableFilter<"Pulse"> | Date | string | null
+    outcome?: StringFilter<"Pulse"> | string
+    summary?: StringNullableFilter<"Pulse"> | string | null
+    costUsd?: FloatFilter<"Pulse"> | number
+    tokens?: IntFilter<"Pulse"> | number
+    weight?: FloatFilter<"Pulse"> | number
+    harness?: XOR<HarnessRelationFilter, HarnessWhereInput>
+  }
+
+  export type PulseOrderByWithRelationInput = {
+    id?: SortOrder
+    harnessId?: SortOrder
+    seq?: SortOrder
+    startedAt?: SortOrder
+    endedAt?: SortOrderInput | SortOrder
+    outcome?: SortOrder
+    summary?: SortOrderInput | SortOrder
+    costUsd?: SortOrder
+    tokens?: SortOrder
+    weight?: SortOrder
+    harness?: HarnessOrderByWithRelationInput
+  }
+
+  export type PulseWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    harnessId_seq?: PulseHarnessIdSeqCompoundUniqueInput
+    AND?: PulseWhereInput | PulseWhereInput[]
+    OR?: PulseWhereInput[]
+    NOT?: PulseWhereInput | PulseWhereInput[]
+    harnessId?: StringFilter<"Pulse"> | string
+    seq?: IntFilter<"Pulse"> | number
+    startedAt?: DateTimeFilter<"Pulse"> | Date | string
+    endedAt?: DateTimeNullableFilter<"Pulse"> | Date | string | null
+    outcome?: StringFilter<"Pulse"> | string
+    summary?: StringNullableFilter<"Pulse"> | string | null
+    costUsd?: FloatFilter<"Pulse"> | number
+    tokens?: IntFilter<"Pulse"> | number
+    weight?: FloatFilter<"Pulse"> | number
+    harness?: XOR<HarnessRelationFilter, HarnessWhereInput>
+  }, "id" | "harnessId_seq">
+
+  export type PulseOrderByWithAggregationInput = {
+    id?: SortOrder
+    harnessId?: SortOrder
+    seq?: SortOrder
+    startedAt?: SortOrder
+    endedAt?: SortOrderInput | SortOrder
+    outcome?: SortOrder
+    summary?: SortOrderInput | SortOrder
+    costUsd?: SortOrder
+    tokens?: SortOrder
+    weight?: SortOrder
+    _count?: PulseCountOrderByAggregateInput
+    _avg?: PulseAvgOrderByAggregateInput
+    _max?: PulseMaxOrderByAggregateInput
+    _min?: PulseMinOrderByAggregateInput
+    _sum?: PulseSumOrderByAggregateInput
+  }
+
+  export type PulseScalarWhereWithAggregatesInput = {
+    AND?: PulseScalarWhereWithAggregatesInput | PulseScalarWhereWithAggregatesInput[]
+    OR?: PulseScalarWhereWithAggregatesInput[]
+    NOT?: PulseScalarWhereWithAggregatesInput | PulseScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"Pulse"> | string
+    harnessId?: StringWithAggregatesFilter<"Pulse"> | string
+    seq?: IntWithAggregatesFilter<"Pulse"> | number
+    startedAt?: DateTimeWithAggregatesFilter<"Pulse"> | Date | string
+    endedAt?: DateTimeNullableWithAggregatesFilter<"Pulse"> | Date | string | null
+    outcome?: StringWithAggregatesFilter<"Pulse"> | string
+    summary?: StringNullableWithAggregatesFilter<"Pulse"> | string | null
+    costUsd?: FloatWithAggregatesFilter<"Pulse"> | number
+    tokens?: IntWithAggregatesFilter<"Pulse"> | number
+    weight?: FloatWithAggregatesFilter<"Pulse"> | number
+  }
+
+  export type InterventionWhereInput = {
+    AND?: InterventionWhereInput | InterventionWhereInput[]
+    OR?: InterventionWhereInput[]
+    NOT?: InterventionWhereInput | InterventionWhereInput[]
+    id?: StringFilter<"Intervention"> | string
+    objectiveId?: StringFilter<"Intervention"> | string
+    harnessId?: StringFilter<"Intervention"> | string
+    kind?: StringFilter<"Intervention"> | string
+    title?: StringFilter<"Intervention"> | string
+    detail?: StringNullableFilter<"Intervention"> | string | null
+    impact?: StringNullableFilter<"Intervention"> | string | null
+    payload?: StringNullableFilter<"Intervention"> | string | null
+    status?: StringFilter<"Intervention"> | string
+    response?: StringNullableFilter<"Intervention"> | string | null
+    createdAt?: DateTimeFilter<"Intervention"> | Date | string
+    resolvedAt?: DateTimeNullableFilter<"Intervention"> | Date | string | null
+    objective?: XOR<ObjectiveRelationFilter, ObjectiveWhereInput>
+  }
+
+  export type InterventionOrderByWithRelationInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    harnessId?: SortOrder
+    kind?: SortOrder
+    title?: SortOrder
+    detail?: SortOrderInput | SortOrder
+    impact?: SortOrderInput | SortOrder
+    payload?: SortOrderInput | SortOrder
+    status?: SortOrder
+    response?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    resolvedAt?: SortOrderInput | SortOrder
+    objective?: ObjectiveOrderByWithRelationInput
+  }
+
+  export type InterventionWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: InterventionWhereInput | InterventionWhereInput[]
+    OR?: InterventionWhereInput[]
+    NOT?: InterventionWhereInput | InterventionWhereInput[]
+    objectiveId?: StringFilter<"Intervention"> | string
+    harnessId?: StringFilter<"Intervention"> | string
+    kind?: StringFilter<"Intervention"> | string
+    title?: StringFilter<"Intervention"> | string
+    detail?: StringNullableFilter<"Intervention"> | string | null
+    impact?: StringNullableFilter<"Intervention"> | string | null
+    payload?: StringNullableFilter<"Intervention"> | string | null
+    status?: StringFilter<"Intervention"> | string
+    response?: StringNullableFilter<"Intervention"> | string | null
+    createdAt?: DateTimeFilter<"Intervention"> | Date | string
+    resolvedAt?: DateTimeNullableFilter<"Intervention"> | Date | string | null
+    objective?: XOR<ObjectiveRelationFilter, ObjectiveWhereInput>
+  }, "id">
+
+  export type InterventionOrderByWithAggregationInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    harnessId?: SortOrder
+    kind?: SortOrder
+    title?: SortOrder
+    detail?: SortOrderInput | SortOrder
+    impact?: SortOrderInput | SortOrder
+    payload?: SortOrderInput | SortOrder
+    status?: SortOrder
+    response?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    resolvedAt?: SortOrderInput | SortOrder
+    _count?: InterventionCountOrderByAggregateInput
+    _max?: InterventionMaxOrderByAggregateInput
+    _min?: InterventionMinOrderByAggregateInput
+  }
+
+  export type InterventionScalarWhereWithAggregatesInput = {
+    AND?: InterventionScalarWhereWithAggregatesInput | InterventionScalarWhereWithAggregatesInput[]
+    OR?: InterventionScalarWhereWithAggregatesInput[]
+    NOT?: InterventionScalarWhereWithAggregatesInput | InterventionScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"Intervention"> | string
+    objectiveId?: StringWithAggregatesFilter<"Intervention"> | string
+    harnessId?: StringWithAggregatesFilter<"Intervention"> | string
+    kind?: StringWithAggregatesFilter<"Intervention"> | string
+    title?: StringWithAggregatesFilter<"Intervention"> | string
+    detail?: StringNullableWithAggregatesFilter<"Intervention"> | string | null
+    impact?: StringNullableWithAggregatesFilter<"Intervention"> | string | null
+    payload?: StringNullableWithAggregatesFilter<"Intervention"> | string | null
+    status?: StringWithAggregatesFilter<"Intervention"> | string
+    response?: StringNullableWithAggregatesFilter<"Intervention"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"Intervention"> | Date | string
+    resolvedAt?: DateTimeNullableWithAggregatesFilter<"Intervention"> | Date | string | null
+  }
+
+  export type PlaybookWhereInput = {
+    AND?: PlaybookWhereInput | PlaybookWhereInput[]
+    OR?: PlaybookWhereInput[]
+    NOT?: PlaybookWhereInput | PlaybookWhereInput[]
+    id?: StringFilter<"Playbook"> | string
+    projectId?: StringNullableFilter<"Playbook"> | string | null
+    name?: StringFilter<"Playbook"> | string
+    version?: IntFilter<"Playbook"> | number
+    variables?: StringFilter<"Playbook"> | string
+    cadence?: StringFilter<"Playbook"> | string
+    retireWhen?: StringNullableFilter<"Playbook"> | string | null
+    steps?: StringFilter<"Playbook"> | string
+    previousVersionId?: StringNullableFilter<"Playbook"> | string | null
+    createdAt?: DateTimeFilter<"Playbook"> | Date | string
+  }
+
+  export type PlaybookOrderByWithRelationInput = {
+    id?: SortOrder
+    projectId?: SortOrderInput | SortOrder
+    name?: SortOrder
+    version?: SortOrder
+    variables?: SortOrder
+    cadence?: SortOrder
+    retireWhen?: SortOrderInput | SortOrder
+    steps?: SortOrder
+    previousVersionId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type PlaybookWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    name_version?: PlaybookNameVersionCompoundUniqueInput
+    AND?: PlaybookWhereInput | PlaybookWhereInput[]
+    OR?: PlaybookWhereInput[]
+    NOT?: PlaybookWhereInput | PlaybookWhereInput[]
+    projectId?: StringNullableFilter<"Playbook"> | string | null
+    name?: StringFilter<"Playbook"> | string
+    version?: IntFilter<"Playbook"> | number
+    variables?: StringFilter<"Playbook"> | string
+    cadence?: StringFilter<"Playbook"> | string
+    retireWhen?: StringNullableFilter<"Playbook"> | string | null
+    steps?: StringFilter<"Playbook"> | string
+    previousVersionId?: StringNullableFilter<"Playbook"> | string | null
+    createdAt?: DateTimeFilter<"Playbook"> | Date | string
+  }, "id" | "name_version">
+
+  export type PlaybookOrderByWithAggregationInput = {
+    id?: SortOrder
+    projectId?: SortOrderInput | SortOrder
+    name?: SortOrder
+    version?: SortOrder
+    variables?: SortOrder
+    cadence?: SortOrder
+    retireWhen?: SortOrderInput | SortOrder
+    steps?: SortOrder
+    previousVersionId?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    _count?: PlaybookCountOrderByAggregateInput
+    _avg?: PlaybookAvgOrderByAggregateInput
+    _max?: PlaybookMaxOrderByAggregateInput
+    _min?: PlaybookMinOrderByAggregateInput
+    _sum?: PlaybookSumOrderByAggregateInput
+  }
+
+  export type PlaybookScalarWhereWithAggregatesInput = {
+    AND?: PlaybookScalarWhereWithAggregatesInput | PlaybookScalarWhereWithAggregatesInput[]
+    OR?: PlaybookScalarWhereWithAggregatesInput[]
+    NOT?: PlaybookScalarWhereWithAggregatesInput | PlaybookScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"Playbook"> | string
+    projectId?: StringNullableWithAggregatesFilter<"Playbook"> | string | null
+    name?: StringWithAggregatesFilter<"Playbook"> | string
+    version?: IntWithAggregatesFilter<"Playbook"> | number
+    variables?: StringWithAggregatesFilter<"Playbook"> | string
+    cadence?: StringWithAggregatesFilter<"Playbook"> | string
+    retireWhen?: StringNullableWithAggregatesFilter<"Playbook"> | string | null
+    steps?: StringWithAggregatesFilter<"Playbook"> | string
+    previousVersionId?: StringNullableWithAggregatesFilter<"Playbook"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"Playbook"> | Date | string
+  }
+
+  export type HarnessToolWhereInput = {
+    AND?: HarnessToolWhereInput | HarnessToolWhereInput[]
+    OR?: HarnessToolWhereInput[]
+    NOT?: HarnessToolWhereInput | HarnessToolWhereInput[]
+    id?: StringFilter<"HarnessTool"> | string
+    harnessId?: StringFilter<"HarnessTool"> | string
+    name?: StringFilter<"HarnessTool"> | string
+    groupName?: StringFilter<"HarnessTool"> | string
+    needsApproval?: BoolFilter<"HarnessTool"> | boolean
+    lastStatus?: StringNullableFilter<"HarnessTool"> | string | null
+    lastResultLabel?: StringNullableFilter<"HarnessTool"> | string | null
+    lastRanAt?: DateTimeNullableFilter<"HarnessTool"> | Date | string | null
+    harness?: XOR<HarnessRelationFilter, HarnessWhereInput>
+  }
+
+  export type HarnessToolOrderByWithRelationInput = {
+    id?: SortOrder
+    harnessId?: SortOrder
+    name?: SortOrder
+    groupName?: SortOrder
+    needsApproval?: SortOrder
+    lastStatus?: SortOrderInput | SortOrder
+    lastResultLabel?: SortOrderInput | SortOrder
+    lastRanAt?: SortOrderInput | SortOrder
+    harness?: HarnessOrderByWithRelationInput
+  }
+
+  export type HarnessToolWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: HarnessToolWhereInput | HarnessToolWhereInput[]
+    OR?: HarnessToolWhereInput[]
+    NOT?: HarnessToolWhereInput | HarnessToolWhereInput[]
+    harnessId?: StringFilter<"HarnessTool"> | string
+    name?: StringFilter<"HarnessTool"> | string
+    groupName?: StringFilter<"HarnessTool"> | string
+    needsApproval?: BoolFilter<"HarnessTool"> | boolean
+    lastStatus?: StringNullableFilter<"HarnessTool"> | string | null
+    lastResultLabel?: StringNullableFilter<"HarnessTool"> | string | null
+    lastRanAt?: DateTimeNullableFilter<"HarnessTool"> | Date | string | null
+    harness?: XOR<HarnessRelationFilter, HarnessWhereInput>
+  }, "id">
+
+  export type HarnessToolOrderByWithAggregationInput = {
+    id?: SortOrder
+    harnessId?: SortOrder
+    name?: SortOrder
+    groupName?: SortOrder
+    needsApproval?: SortOrder
+    lastStatus?: SortOrderInput | SortOrder
+    lastResultLabel?: SortOrderInput | SortOrder
+    lastRanAt?: SortOrderInput | SortOrder
+    _count?: HarnessToolCountOrderByAggregateInput
+    _max?: HarnessToolMaxOrderByAggregateInput
+    _min?: HarnessToolMinOrderByAggregateInput
+  }
+
+  export type HarnessToolScalarWhereWithAggregatesInput = {
+    AND?: HarnessToolScalarWhereWithAggregatesInput | HarnessToolScalarWhereWithAggregatesInput[]
+    OR?: HarnessToolScalarWhereWithAggregatesInput[]
+    NOT?: HarnessToolScalarWhereWithAggregatesInput | HarnessToolScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"HarnessTool"> | string
+    harnessId?: StringWithAggregatesFilter<"HarnessTool"> | string
+    name?: StringWithAggregatesFilter<"HarnessTool"> | string
+    groupName?: StringWithAggregatesFilter<"HarnessTool"> | string
+    needsApproval?: BoolWithAggregatesFilter<"HarnessTool"> | boolean
+    lastStatus?: StringNullableWithAggregatesFilter<"HarnessTool"> | string | null
+    lastResultLabel?: StringNullableWithAggregatesFilter<"HarnessTool"> | string | null
+    lastRanAt?: DateTimeNullableWithAggregatesFilter<"HarnessTool"> | Date | string | null
+  }
+
   export type ProjectCreateInput = {
     id?: string
     name: string
@@ -16850,6 +27110,7 @@ export namespace Prisma {
     env?: string | null
     createdAt?: Date | string
     tasks?: TaskCreateNestedManyWithoutProjectInput
+    objectives?: ObjectiveCreateNestedManyWithoutProjectInput
   }
 
   export type ProjectUncheckedCreateInput = {
@@ -16861,6 +27122,7 @@ export namespace Prisma {
     env?: string | null
     createdAt?: Date | string
     tasks?: TaskUncheckedCreateNestedManyWithoutProjectInput
+    objectives?: ObjectiveUncheckedCreateNestedManyWithoutProjectInput
   }
 
   export type ProjectUpdateInput = {
@@ -16872,6 +27134,7 @@ export namespace Prisma {
     env?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     tasks?: TaskUpdateManyWithoutProjectNestedInput
+    objectives?: ObjectiveUpdateManyWithoutProjectNestedInput
   }
 
   export type ProjectUncheckedUpdateInput = {
@@ -16883,6 +27146,7 @@ export namespace Prisma {
     env?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     tasks?: TaskUncheckedUpdateManyWithoutProjectNestedInput
+    objectives?: ObjectiveUncheckedUpdateManyWithoutProjectNestedInput
   }
 
   export type ProjectCreateManyInput = {
@@ -18171,6 +28435,841 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type ObjectiveCreateInput = {
+    id?: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    project: ProjectCreateNestedOneWithoutObjectivesInput
+    phases?: ObjectivePhaseCreateNestedManyWithoutObjectiveInput
+    workstreams?: WorkstreamCreateNestedManyWithoutObjectiveInput
+    harnesses?: HarnessCreateNestedManyWithoutObjectiveInput
+    interventions?: InterventionCreateNestedManyWithoutObjectiveInput
+  }
+
+  export type ObjectiveUncheckedCreateInput = {
+    id?: string
+    projectId: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    phases?: ObjectivePhaseUncheckedCreateNestedManyWithoutObjectiveInput
+    workstreams?: WorkstreamUncheckedCreateNestedManyWithoutObjectiveInput
+    harnesses?: HarnessUncheckedCreateNestedManyWithoutObjectiveInput
+    interventions?: InterventionUncheckedCreateNestedManyWithoutObjectiveInput
+  }
+
+  export type ObjectiveUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    project?: ProjectUpdateOneRequiredWithoutObjectivesNestedInput
+    phases?: ObjectivePhaseUpdateManyWithoutObjectiveNestedInput
+    workstreams?: WorkstreamUpdateManyWithoutObjectiveNestedInput
+    harnesses?: HarnessUpdateManyWithoutObjectiveNestedInput
+    interventions?: InterventionUpdateManyWithoutObjectiveNestedInput
+  }
+
+  export type ObjectiveUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    phases?: ObjectivePhaseUncheckedUpdateManyWithoutObjectiveNestedInput
+    workstreams?: WorkstreamUncheckedUpdateManyWithoutObjectiveNestedInput
+    harnesses?: HarnessUncheckedUpdateManyWithoutObjectiveNestedInput
+    interventions?: InterventionUncheckedUpdateManyWithoutObjectiveNestedInput
+  }
+
+  export type ObjectiveCreateManyInput = {
+    id?: string
+    projectId: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ObjectiveUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ObjectiveUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ObjectivePhaseCreateInput = {
+    id?: string
+    name: string
+    state: string
+    weight?: number
+    detail?: string | null
+    orderIdx: number
+    objective: ObjectiveCreateNestedOneWithoutPhasesInput
+  }
+
+  export type ObjectivePhaseUncheckedCreateInput = {
+    id?: string
+    objectiveId: string
+    name: string
+    state: string
+    weight?: number
+    detail?: string | null
+    orderIdx: number
+  }
+
+  export type ObjectivePhaseUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    weight?: FloatFieldUpdateOperationsInput | number
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+    objective?: ObjectiveUpdateOneRequiredWithoutPhasesNestedInput
+  }
+
+  export type ObjectivePhaseUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    weight?: FloatFieldUpdateOperationsInput | number
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type ObjectivePhaseCreateManyInput = {
+    id?: string
+    objectiveId: string
+    name: string
+    state: string
+    weight?: number
+    detail?: string | null
+    orderIdx: number
+  }
+
+  export type ObjectivePhaseUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    weight?: FloatFieldUpdateOperationsInput | number
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type ObjectivePhaseUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    weight?: FloatFieldUpdateOperationsInput | number
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type WorkstreamCreateInput = {
+    id?: string
+    name: string
+    paused?: boolean
+    pausedAt?: Date | string | null
+    pausedNote?: string | null
+    orderIdx?: number
+    leadHarnessId?: string | null
+    objective: ObjectiveCreateNestedOneWithoutWorkstreamsInput
+    harnesses?: HarnessCreateNestedManyWithoutWorkstreamInput
+  }
+
+  export type WorkstreamUncheckedCreateInput = {
+    id?: string
+    objectiveId: string
+    name: string
+    paused?: boolean
+    pausedAt?: Date | string | null
+    pausedNote?: string | null
+    orderIdx?: number
+    leadHarnessId?: string | null
+    harnesses?: HarnessUncheckedCreateNestedManyWithoutWorkstreamInput
+  }
+
+  export type WorkstreamUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    paused?: BoolFieldUpdateOperationsInput | boolean
+    pausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    pausedNote?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+    leadHarnessId?: NullableStringFieldUpdateOperationsInput | string | null
+    objective?: ObjectiveUpdateOneRequiredWithoutWorkstreamsNestedInput
+    harnesses?: HarnessUpdateManyWithoutWorkstreamNestedInput
+  }
+
+  export type WorkstreamUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    paused?: BoolFieldUpdateOperationsInput | boolean
+    pausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    pausedNote?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+    leadHarnessId?: NullableStringFieldUpdateOperationsInput | string | null
+    harnesses?: HarnessUncheckedUpdateManyWithoutWorkstreamNestedInput
+  }
+
+  export type WorkstreamCreateManyInput = {
+    id?: string
+    objectiveId: string
+    name: string
+    paused?: boolean
+    pausedAt?: Date | string | null
+    pausedNote?: string | null
+    orderIdx?: number
+    leadHarnessId?: string | null
+  }
+
+  export type WorkstreamUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    paused?: BoolFieldUpdateOperationsInput | boolean
+    pausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    pausedNote?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+    leadHarnessId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type WorkstreamUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    paused?: BoolFieldUpdateOperationsInput | boolean
+    pausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    pausedNote?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+    leadHarnessId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type HarnessCreateInput = {
+    id?: string
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    objective: ObjectiveCreateNestedOneWithoutHarnessesInput
+    workstream?: WorkstreamCreateNestedOneWithoutHarnessesInput
+    parent?: HarnessCreateNestedOneWithoutChildrenInput
+    children?: HarnessCreateNestedManyWithoutParentInput
+    pulses?: PulseCreateNestedManyWithoutHarnessInput
+    tools?: HarnessToolCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessUncheckedCreateInput = {
+    id?: string
+    objectiveId: string
+    workstreamId?: string | null
+    parentId?: string | null
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    children?: HarnessUncheckedCreateNestedManyWithoutParentInput
+    pulses?: PulseUncheckedCreateNestedManyWithoutHarnessInput
+    tools?: HarnessToolUncheckedCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    objective?: ObjectiveUpdateOneRequiredWithoutHarnessesNestedInput
+    workstream?: WorkstreamUpdateOneWithoutHarnessesNestedInput
+    parent?: HarnessUpdateOneWithoutChildrenNestedInput
+    children?: HarnessUpdateManyWithoutParentNestedInput
+    pulses?: PulseUpdateManyWithoutHarnessNestedInput
+    tools?: HarnessToolUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    workstreamId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    children?: HarnessUncheckedUpdateManyWithoutParentNestedInput
+    pulses?: PulseUncheckedUpdateManyWithoutHarnessNestedInput
+    tools?: HarnessToolUncheckedUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessCreateManyInput = {
+    id?: string
+    objectiveId: string
+    workstreamId?: string | null
+    parentId?: string | null
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+  }
+
+  export type HarnessUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type HarnessUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    workstreamId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type PulseCreateInput = {
+    id?: string
+    seq: number
+    startedAt: Date | string
+    endedAt?: Date | string | null
+    outcome: string
+    summary?: string | null
+    costUsd?: number
+    tokens?: number
+    weight?: number
+    harness: HarnessCreateNestedOneWithoutPulsesInput
+  }
+
+  export type PulseUncheckedCreateInput = {
+    id?: string
+    harnessId: string
+    seq: number
+    startedAt: Date | string
+    endedAt?: Date | string | null
+    outcome: string
+    summary?: string | null
+    costUsd?: number
+    tokens?: number
+    weight?: number
+  }
+
+  export type PulseUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    seq?: IntFieldUpdateOperationsInput | number
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    outcome?: StringFieldUpdateOperationsInput | string
+    summary?: NullableStringFieldUpdateOperationsInput | string | null
+    costUsd?: FloatFieldUpdateOperationsInput | number
+    tokens?: IntFieldUpdateOperationsInput | number
+    weight?: FloatFieldUpdateOperationsInput | number
+    harness?: HarnessUpdateOneRequiredWithoutPulsesNestedInput
+  }
+
+  export type PulseUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    seq?: IntFieldUpdateOperationsInput | number
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    outcome?: StringFieldUpdateOperationsInput | string
+    summary?: NullableStringFieldUpdateOperationsInput | string | null
+    costUsd?: FloatFieldUpdateOperationsInput | number
+    tokens?: IntFieldUpdateOperationsInput | number
+    weight?: FloatFieldUpdateOperationsInput | number
+  }
+
+  export type PulseCreateManyInput = {
+    id?: string
+    harnessId: string
+    seq: number
+    startedAt: Date | string
+    endedAt?: Date | string | null
+    outcome: string
+    summary?: string | null
+    costUsd?: number
+    tokens?: number
+    weight?: number
+  }
+
+  export type PulseUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    seq?: IntFieldUpdateOperationsInput | number
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    outcome?: StringFieldUpdateOperationsInput | string
+    summary?: NullableStringFieldUpdateOperationsInput | string | null
+    costUsd?: FloatFieldUpdateOperationsInput | number
+    tokens?: IntFieldUpdateOperationsInput | number
+    weight?: FloatFieldUpdateOperationsInput | number
+  }
+
+  export type PulseUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    seq?: IntFieldUpdateOperationsInput | number
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    outcome?: StringFieldUpdateOperationsInput | string
+    summary?: NullableStringFieldUpdateOperationsInput | string | null
+    costUsd?: FloatFieldUpdateOperationsInput | number
+    tokens?: IntFieldUpdateOperationsInput | number
+    weight?: FloatFieldUpdateOperationsInput | number
+  }
+
+  export type InterventionCreateInput = {
+    id?: string
+    harnessId: string
+    kind: string
+    title: string
+    detail?: string | null
+    impact?: string | null
+    payload?: string | null
+    status?: string
+    response?: string | null
+    createdAt?: Date | string
+    resolvedAt?: Date | string | null
+    objective: ObjectiveCreateNestedOneWithoutInterventionsInput
+  }
+
+  export type InterventionUncheckedCreateInput = {
+    id?: string
+    objectiveId: string
+    harnessId: string
+    kind: string
+    title: string
+    detail?: string | null
+    impact?: string | null
+    payload?: string | null
+    status?: string
+    response?: string | null
+    createdAt?: Date | string
+    resolvedAt?: Date | string | null
+  }
+
+  export type InterventionUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    impact?: NullableStringFieldUpdateOperationsInput | string | null
+    payload?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    response?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    objective?: ObjectiveUpdateOneRequiredWithoutInterventionsNestedInput
+  }
+
+  export type InterventionUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    impact?: NullableStringFieldUpdateOperationsInput | string | null
+    payload?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    response?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type InterventionCreateManyInput = {
+    id?: string
+    objectiveId: string
+    harnessId: string
+    kind: string
+    title: string
+    detail?: string | null
+    impact?: string | null
+    payload?: string | null
+    status?: string
+    response?: string | null
+    createdAt?: Date | string
+    resolvedAt?: Date | string | null
+  }
+
+  export type InterventionUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    impact?: NullableStringFieldUpdateOperationsInput | string | null
+    payload?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    response?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type InterventionUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    impact?: NullableStringFieldUpdateOperationsInput | string | null
+    payload?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    response?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type PlaybookCreateInput = {
+    id?: string
+    projectId?: string | null
+    name: string
+    version?: number
+    variables?: string
+    cadence?: string
+    retireWhen?: string | null
+    steps?: string
+    previousVersionId?: string | null
+    createdAt?: Date | string
+  }
+
+  export type PlaybookUncheckedCreateInput = {
+    id?: string
+    projectId?: string | null
+    name: string
+    version?: number
+    variables?: string
+    cadence?: string
+    retireWhen?: string | null
+    steps?: string
+    previousVersionId?: string | null
+    createdAt?: Date | string
+  }
+
+  export type PlaybookUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    variables?: StringFieldUpdateOperationsInput | string
+    cadence?: StringFieldUpdateOperationsInput | string
+    retireWhen?: NullableStringFieldUpdateOperationsInput | string | null
+    steps?: StringFieldUpdateOperationsInput | string
+    previousVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PlaybookUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    variables?: StringFieldUpdateOperationsInput | string
+    cadence?: StringFieldUpdateOperationsInput | string
+    retireWhen?: NullableStringFieldUpdateOperationsInput | string | null
+    steps?: StringFieldUpdateOperationsInput | string
+    previousVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PlaybookCreateManyInput = {
+    id?: string
+    projectId?: string | null
+    name: string
+    version?: number
+    variables?: string
+    cadence?: string
+    retireWhen?: string | null
+    steps?: string
+    previousVersionId?: string | null
+    createdAt?: Date | string
+  }
+
+  export type PlaybookUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    variables?: StringFieldUpdateOperationsInput | string
+    cadence?: StringFieldUpdateOperationsInput | string
+    retireWhen?: NullableStringFieldUpdateOperationsInput | string | null
+    steps?: StringFieldUpdateOperationsInput | string
+    previousVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PlaybookUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    variables?: StringFieldUpdateOperationsInput | string
+    cadence?: StringFieldUpdateOperationsInput | string
+    retireWhen?: NullableStringFieldUpdateOperationsInput | string | null
+    steps?: StringFieldUpdateOperationsInput | string
+    previousVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type HarnessToolCreateInput = {
+    id?: string
+    name: string
+    groupName: string
+    needsApproval?: boolean
+    lastStatus?: string | null
+    lastResultLabel?: string | null
+    lastRanAt?: Date | string | null
+    harness: HarnessCreateNestedOneWithoutToolsInput
+  }
+
+  export type HarnessToolUncheckedCreateInput = {
+    id?: string
+    harnessId: string
+    name: string
+    groupName: string
+    needsApproval?: boolean
+    lastStatus?: string | null
+    lastResultLabel?: string | null
+    lastRanAt?: Date | string | null
+  }
+
+  export type HarnessToolUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    groupName?: StringFieldUpdateOperationsInput | string
+    needsApproval?: BoolFieldUpdateOperationsInput | boolean
+    lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    harness?: HarnessUpdateOneRequiredWithoutToolsNestedInput
+  }
+
+  export type HarnessToolUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    groupName?: StringFieldUpdateOperationsInput | string
+    needsApproval?: BoolFieldUpdateOperationsInput | boolean
+    lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type HarnessToolCreateManyInput = {
+    id?: string
+    harnessId: string
+    name: string
+    groupName: string
+    needsApproval?: boolean
+    lastStatus?: string | null
+    lastResultLabel?: string | null
+    lastRanAt?: Date | string | null
+  }
+
+  export type HarnessToolUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    groupName?: StringFieldUpdateOperationsInput | string
+    needsApproval?: BoolFieldUpdateOperationsInput | boolean
+    lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type HarnessToolUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    groupName?: StringFieldUpdateOperationsInput | string
+    needsApproval?: BoolFieldUpdateOperationsInput | boolean
+    lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -18218,12 +29317,22 @@ export namespace Prisma {
     none?: TaskWhereInput
   }
 
+  export type ObjectiveListRelationFilter = {
+    every?: ObjectiveWhereInput
+    some?: ObjectiveWhereInput
+    none?: ObjectiveWhereInput
+  }
+
   export type SortOrderInput = {
     sort: SortOrder
     nulls?: NullsOrder
   }
 
   export type TaskOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type ObjectiveOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -19148,6 +30257,512 @@ export namespace Prisma {
     errorRate?: SortOrder
   }
 
+  export type ObjectivePhaseListRelationFilter = {
+    every?: ObjectivePhaseWhereInput
+    some?: ObjectivePhaseWhereInput
+    none?: ObjectivePhaseWhereInput
+  }
+
+  export type WorkstreamListRelationFilter = {
+    every?: WorkstreamWhereInput
+    some?: WorkstreamWhereInput
+    none?: WorkstreamWhereInput
+  }
+
+  export type HarnessListRelationFilter = {
+    every?: HarnessWhereInput
+    some?: HarnessWhereInput
+    none?: HarnessWhereInput
+  }
+
+  export type InterventionListRelationFilter = {
+    every?: InterventionWhereInput
+    some?: InterventionWhereInput
+    none?: InterventionWhereInput
+  }
+
+  export type ObjectivePhaseOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type WorkstreamOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type HarnessOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type InterventionOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type ObjectiveCountOrderByAggregateInput = {
+    id?: SortOrder
+    projectId?: SortOrder
+    name?: SortOrder
+    description?: SortOrder
+    status?: SortOrder
+    targetDate?: SortOrder
+    spendCapUsd?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ObjectiveAvgOrderByAggregateInput = {
+    spendCapUsd?: SortOrder
+  }
+
+  export type ObjectiveMaxOrderByAggregateInput = {
+    id?: SortOrder
+    projectId?: SortOrder
+    name?: SortOrder
+    description?: SortOrder
+    status?: SortOrder
+    targetDate?: SortOrder
+    spendCapUsd?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ObjectiveMinOrderByAggregateInput = {
+    id?: SortOrder
+    projectId?: SortOrder
+    name?: SortOrder
+    description?: SortOrder
+    status?: SortOrder
+    targetDate?: SortOrder
+    spendCapUsd?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ObjectiveSumOrderByAggregateInput = {
+    spendCapUsd?: SortOrder
+  }
+
+  export type ObjectiveRelationFilter = {
+    is?: ObjectiveWhereInput
+    isNot?: ObjectiveWhereInput
+  }
+
+  export type ObjectivePhaseCountOrderByAggregateInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    name?: SortOrder
+    state?: SortOrder
+    weight?: SortOrder
+    detail?: SortOrder
+    orderIdx?: SortOrder
+  }
+
+  export type ObjectivePhaseAvgOrderByAggregateInput = {
+    weight?: SortOrder
+    orderIdx?: SortOrder
+  }
+
+  export type ObjectivePhaseMaxOrderByAggregateInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    name?: SortOrder
+    state?: SortOrder
+    weight?: SortOrder
+    detail?: SortOrder
+    orderIdx?: SortOrder
+  }
+
+  export type ObjectivePhaseMinOrderByAggregateInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    name?: SortOrder
+    state?: SortOrder
+    weight?: SortOrder
+    detail?: SortOrder
+    orderIdx?: SortOrder
+  }
+
+  export type ObjectivePhaseSumOrderByAggregateInput = {
+    weight?: SortOrder
+    orderIdx?: SortOrder
+  }
+
+  export type WorkstreamCountOrderByAggregateInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    name?: SortOrder
+    paused?: SortOrder
+    pausedAt?: SortOrder
+    pausedNote?: SortOrder
+    orderIdx?: SortOrder
+    leadHarnessId?: SortOrder
+  }
+
+  export type WorkstreamAvgOrderByAggregateInput = {
+    orderIdx?: SortOrder
+  }
+
+  export type WorkstreamMaxOrderByAggregateInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    name?: SortOrder
+    paused?: SortOrder
+    pausedAt?: SortOrder
+    pausedNote?: SortOrder
+    orderIdx?: SortOrder
+    leadHarnessId?: SortOrder
+  }
+
+  export type WorkstreamMinOrderByAggregateInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    name?: SortOrder
+    paused?: SortOrder
+    pausedAt?: SortOrder
+    pausedNote?: SortOrder
+    orderIdx?: SortOrder
+    leadHarnessId?: SortOrder
+  }
+
+  export type WorkstreamSumOrderByAggregateInput = {
+    orderIdx?: SortOrder
+  }
+
+  export type WorkstreamNullableRelationFilter = {
+    is?: WorkstreamWhereInput | null
+    isNot?: WorkstreamWhereInput | null
+  }
+
+  export type HarnessNullableRelationFilter = {
+    is?: HarnessWhereInput | null
+    isNot?: HarnessWhereInput | null
+  }
+
+  export type PulseListRelationFilter = {
+    every?: PulseWhereInput
+    some?: PulseWhereInput
+    none?: PulseWhereInput
+  }
+
+  export type HarnessToolListRelationFilter = {
+    every?: HarnessToolWhereInput
+    some?: HarnessToolWhereInput
+    none?: HarnessToolWhereInput
+  }
+
+  export type PulseOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type HarnessToolOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type HarnessCountOrderByAggregateInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    workstreamId?: SortOrder
+    parentId?: SortOrder
+    name?: SortOrder
+    status?: SortOrder
+    statusBeforePause?: SortOrder
+    activity?: SortOrder
+    mission?: SortOrder
+    currentJob?: SortOrder
+    model?: SortOrder
+    playbookId?: SortOrder
+    taskId?: SortOrder
+    branch?: SortOrder
+    heartbeatMinutes?: SortOrder
+    nextPulseAt?: SortOrder
+    maxChildren?: SortOrder
+    spendCapUsd?: SortOrder
+    spendUsd?: SortOrder
+    contextTokens?: SortOrder
+    contextWindow?: SortOrder
+    permissions?: SortOrder
+    dryRun?: SortOrder
+    lastPulseSeq?: SortOrder
+    idleSince?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    retiredAt?: SortOrder
+  }
+
+  export type HarnessAvgOrderByAggregateInput = {
+    heartbeatMinutes?: SortOrder
+    maxChildren?: SortOrder
+    spendCapUsd?: SortOrder
+    spendUsd?: SortOrder
+    contextTokens?: SortOrder
+    contextWindow?: SortOrder
+    lastPulseSeq?: SortOrder
+  }
+
+  export type HarnessMaxOrderByAggregateInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    workstreamId?: SortOrder
+    parentId?: SortOrder
+    name?: SortOrder
+    status?: SortOrder
+    statusBeforePause?: SortOrder
+    activity?: SortOrder
+    mission?: SortOrder
+    currentJob?: SortOrder
+    model?: SortOrder
+    playbookId?: SortOrder
+    taskId?: SortOrder
+    branch?: SortOrder
+    heartbeatMinutes?: SortOrder
+    nextPulseAt?: SortOrder
+    maxChildren?: SortOrder
+    spendCapUsd?: SortOrder
+    spendUsd?: SortOrder
+    contextTokens?: SortOrder
+    contextWindow?: SortOrder
+    permissions?: SortOrder
+    dryRun?: SortOrder
+    lastPulseSeq?: SortOrder
+    idleSince?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    retiredAt?: SortOrder
+  }
+
+  export type HarnessMinOrderByAggregateInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    workstreamId?: SortOrder
+    parentId?: SortOrder
+    name?: SortOrder
+    status?: SortOrder
+    statusBeforePause?: SortOrder
+    activity?: SortOrder
+    mission?: SortOrder
+    currentJob?: SortOrder
+    model?: SortOrder
+    playbookId?: SortOrder
+    taskId?: SortOrder
+    branch?: SortOrder
+    heartbeatMinutes?: SortOrder
+    nextPulseAt?: SortOrder
+    maxChildren?: SortOrder
+    spendCapUsd?: SortOrder
+    spendUsd?: SortOrder
+    contextTokens?: SortOrder
+    contextWindow?: SortOrder
+    permissions?: SortOrder
+    dryRun?: SortOrder
+    lastPulseSeq?: SortOrder
+    idleSince?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    retiredAt?: SortOrder
+  }
+
+  export type HarnessSumOrderByAggregateInput = {
+    heartbeatMinutes?: SortOrder
+    maxChildren?: SortOrder
+    spendCapUsd?: SortOrder
+    spendUsd?: SortOrder
+    contextTokens?: SortOrder
+    contextWindow?: SortOrder
+    lastPulseSeq?: SortOrder
+  }
+
+  export type HarnessRelationFilter = {
+    is?: HarnessWhereInput
+    isNot?: HarnessWhereInput
+  }
+
+  export type PulseHarnessIdSeqCompoundUniqueInput = {
+    harnessId: string
+    seq: number
+  }
+
+  export type PulseCountOrderByAggregateInput = {
+    id?: SortOrder
+    harnessId?: SortOrder
+    seq?: SortOrder
+    startedAt?: SortOrder
+    endedAt?: SortOrder
+    outcome?: SortOrder
+    summary?: SortOrder
+    costUsd?: SortOrder
+    tokens?: SortOrder
+    weight?: SortOrder
+  }
+
+  export type PulseAvgOrderByAggregateInput = {
+    seq?: SortOrder
+    costUsd?: SortOrder
+    tokens?: SortOrder
+    weight?: SortOrder
+  }
+
+  export type PulseMaxOrderByAggregateInput = {
+    id?: SortOrder
+    harnessId?: SortOrder
+    seq?: SortOrder
+    startedAt?: SortOrder
+    endedAt?: SortOrder
+    outcome?: SortOrder
+    summary?: SortOrder
+    costUsd?: SortOrder
+    tokens?: SortOrder
+    weight?: SortOrder
+  }
+
+  export type PulseMinOrderByAggregateInput = {
+    id?: SortOrder
+    harnessId?: SortOrder
+    seq?: SortOrder
+    startedAt?: SortOrder
+    endedAt?: SortOrder
+    outcome?: SortOrder
+    summary?: SortOrder
+    costUsd?: SortOrder
+    tokens?: SortOrder
+    weight?: SortOrder
+  }
+
+  export type PulseSumOrderByAggregateInput = {
+    seq?: SortOrder
+    costUsd?: SortOrder
+    tokens?: SortOrder
+    weight?: SortOrder
+  }
+
+  export type InterventionCountOrderByAggregateInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    harnessId?: SortOrder
+    kind?: SortOrder
+    title?: SortOrder
+    detail?: SortOrder
+    impact?: SortOrder
+    payload?: SortOrder
+    status?: SortOrder
+    response?: SortOrder
+    createdAt?: SortOrder
+    resolvedAt?: SortOrder
+  }
+
+  export type InterventionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    harnessId?: SortOrder
+    kind?: SortOrder
+    title?: SortOrder
+    detail?: SortOrder
+    impact?: SortOrder
+    payload?: SortOrder
+    status?: SortOrder
+    response?: SortOrder
+    createdAt?: SortOrder
+    resolvedAt?: SortOrder
+  }
+
+  export type InterventionMinOrderByAggregateInput = {
+    id?: SortOrder
+    objectiveId?: SortOrder
+    harnessId?: SortOrder
+    kind?: SortOrder
+    title?: SortOrder
+    detail?: SortOrder
+    impact?: SortOrder
+    payload?: SortOrder
+    status?: SortOrder
+    response?: SortOrder
+    createdAt?: SortOrder
+    resolvedAt?: SortOrder
+  }
+
+  export type PlaybookNameVersionCompoundUniqueInput = {
+    name: string
+    version: number
+  }
+
+  export type PlaybookCountOrderByAggregateInput = {
+    id?: SortOrder
+    projectId?: SortOrder
+    name?: SortOrder
+    version?: SortOrder
+    variables?: SortOrder
+    cadence?: SortOrder
+    retireWhen?: SortOrder
+    steps?: SortOrder
+    previousVersionId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type PlaybookAvgOrderByAggregateInput = {
+    version?: SortOrder
+  }
+
+  export type PlaybookMaxOrderByAggregateInput = {
+    id?: SortOrder
+    projectId?: SortOrder
+    name?: SortOrder
+    version?: SortOrder
+    variables?: SortOrder
+    cadence?: SortOrder
+    retireWhen?: SortOrder
+    steps?: SortOrder
+    previousVersionId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type PlaybookMinOrderByAggregateInput = {
+    id?: SortOrder
+    projectId?: SortOrder
+    name?: SortOrder
+    version?: SortOrder
+    variables?: SortOrder
+    cadence?: SortOrder
+    retireWhen?: SortOrder
+    steps?: SortOrder
+    previousVersionId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type PlaybookSumOrderByAggregateInput = {
+    version?: SortOrder
+  }
+
+  export type HarnessToolCountOrderByAggregateInput = {
+    id?: SortOrder
+    harnessId?: SortOrder
+    name?: SortOrder
+    groupName?: SortOrder
+    needsApproval?: SortOrder
+    lastStatus?: SortOrder
+    lastResultLabel?: SortOrder
+    lastRanAt?: SortOrder
+  }
+
+  export type HarnessToolMaxOrderByAggregateInput = {
+    id?: SortOrder
+    harnessId?: SortOrder
+    name?: SortOrder
+    groupName?: SortOrder
+    needsApproval?: SortOrder
+    lastStatus?: SortOrder
+    lastResultLabel?: SortOrder
+    lastRanAt?: SortOrder
+  }
+
+  export type HarnessToolMinOrderByAggregateInput = {
+    id?: SortOrder
+    harnessId?: SortOrder
+    name?: SortOrder
+    groupName?: SortOrder
+    needsApproval?: SortOrder
+    lastStatus?: SortOrder
+    lastResultLabel?: SortOrder
+    lastRanAt?: SortOrder
+  }
+
   export type TaskCreateNestedManyWithoutProjectInput = {
     create?: XOR<TaskCreateWithoutProjectInput, TaskUncheckedCreateWithoutProjectInput> | TaskCreateWithoutProjectInput[] | TaskUncheckedCreateWithoutProjectInput[]
     connectOrCreate?: TaskCreateOrConnectWithoutProjectInput | TaskCreateOrConnectWithoutProjectInput[]
@@ -19155,11 +30770,25 @@ export namespace Prisma {
     connect?: TaskWhereUniqueInput | TaskWhereUniqueInput[]
   }
 
+  export type ObjectiveCreateNestedManyWithoutProjectInput = {
+    create?: XOR<ObjectiveCreateWithoutProjectInput, ObjectiveUncheckedCreateWithoutProjectInput> | ObjectiveCreateWithoutProjectInput[] | ObjectiveUncheckedCreateWithoutProjectInput[]
+    connectOrCreate?: ObjectiveCreateOrConnectWithoutProjectInput | ObjectiveCreateOrConnectWithoutProjectInput[]
+    createMany?: ObjectiveCreateManyProjectInputEnvelope
+    connect?: ObjectiveWhereUniqueInput | ObjectiveWhereUniqueInput[]
+  }
+
   export type TaskUncheckedCreateNestedManyWithoutProjectInput = {
     create?: XOR<TaskCreateWithoutProjectInput, TaskUncheckedCreateWithoutProjectInput> | TaskCreateWithoutProjectInput[] | TaskUncheckedCreateWithoutProjectInput[]
     connectOrCreate?: TaskCreateOrConnectWithoutProjectInput | TaskCreateOrConnectWithoutProjectInput[]
     createMany?: TaskCreateManyProjectInputEnvelope
     connect?: TaskWhereUniqueInput | TaskWhereUniqueInput[]
+  }
+
+  export type ObjectiveUncheckedCreateNestedManyWithoutProjectInput = {
+    create?: XOR<ObjectiveCreateWithoutProjectInput, ObjectiveUncheckedCreateWithoutProjectInput> | ObjectiveCreateWithoutProjectInput[] | ObjectiveUncheckedCreateWithoutProjectInput[]
+    connectOrCreate?: ObjectiveCreateOrConnectWithoutProjectInput | ObjectiveCreateOrConnectWithoutProjectInput[]
+    createMany?: ObjectiveCreateManyProjectInputEnvelope
+    connect?: ObjectiveWhereUniqueInput | ObjectiveWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -19188,6 +30817,20 @@ export namespace Prisma {
     deleteMany?: TaskScalarWhereInput | TaskScalarWhereInput[]
   }
 
+  export type ObjectiveUpdateManyWithoutProjectNestedInput = {
+    create?: XOR<ObjectiveCreateWithoutProjectInput, ObjectiveUncheckedCreateWithoutProjectInput> | ObjectiveCreateWithoutProjectInput[] | ObjectiveUncheckedCreateWithoutProjectInput[]
+    connectOrCreate?: ObjectiveCreateOrConnectWithoutProjectInput | ObjectiveCreateOrConnectWithoutProjectInput[]
+    upsert?: ObjectiveUpsertWithWhereUniqueWithoutProjectInput | ObjectiveUpsertWithWhereUniqueWithoutProjectInput[]
+    createMany?: ObjectiveCreateManyProjectInputEnvelope
+    set?: ObjectiveWhereUniqueInput | ObjectiveWhereUniqueInput[]
+    disconnect?: ObjectiveWhereUniqueInput | ObjectiveWhereUniqueInput[]
+    delete?: ObjectiveWhereUniqueInput | ObjectiveWhereUniqueInput[]
+    connect?: ObjectiveWhereUniqueInput | ObjectiveWhereUniqueInput[]
+    update?: ObjectiveUpdateWithWhereUniqueWithoutProjectInput | ObjectiveUpdateWithWhereUniqueWithoutProjectInput[]
+    updateMany?: ObjectiveUpdateManyWithWhereWithoutProjectInput | ObjectiveUpdateManyWithWhereWithoutProjectInput[]
+    deleteMany?: ObjectiveScalarWhereInput | ObjectiveScalarWhereInput[]
+  }
+
   export type TaskUncheckedUpdateManyWithoutProjectNestedInput = {
     create?: XOR<TaskCreateWithoutProjectInput, TaskUncheckedCreateWithoutProjectInput> | TaskCreateWithoutProjectInput[] | TaskUncheckedCreateWithoutProjectInput[]
     connectOrCreate?: TaskCreateOrConnectWithoutProjectInput | TaskCreateOrConnectWithoutProjectInput[]
@@ -19200,6 +30843,20 @@ export namespace Prisma {
     update?: TaskUpdateWithWhereUniqueWithoutProjectInput | TaskUpdateWithWhereUniqueWithoutProjectInput[]
     updateMany?: TaskUpdateManyWithWhereWithoutProjectInput | TaskUpdateManyWithWhereWithoutProjectInput[]
     deleteMany?: TaskScalarWhereInput | TaskScalarWhereInput[]
+  }
+
+  export type ObjectiveUncheckedUpdateManyWithoutProjectNestedInput = {
+    create?: XOR<ObjectiveCreateWithoutProjectInput, ObjectiveUncheckedCreateWithoutProjectInput> | ObjectiveCreateWithoutProjectInput[] | ObjectiveUncheckedCreateWithoutProjectInput[]
+    connectOrCreate?: ObjectiveCreateOrConnectWithoutProjectInput | ObjectiveCreateOrConnectWithoutProjectInput[]
+    upsert?: ObjectiveUpsertWithWhereUniqueWithoutProjectInput | ObjectiveUpsertWithWhereUniqueWithoutProjectInput[]
+    createMany?: ObjectiveCreateManyProjectInputEnvelope
+    set?: ObjectiveWhereUniqueInput | ObjectiveWhereUniqueInput[]
+    disconnect?: ObjectiveWhereUniqueInput | ObjectiveWhereUniqueInput[]
+    delete?: ObjectiveWhereUniqueInput | ObjectiveWhereUniqueInput[]
+    connect?: ObjectiveWhereUniqueInput | ObjectiveWhereUniqueInput[]
+    update?: ObjectiveUpdateWithWhereUniqueWithoutProjectInput | ObjectiveUpdateWithWhereUniqueWithoutProjectInput[]
+    updateMany?: ObjectiveUpdateManyWithWhereWithoutProjectInput | ObjectiveUpdateManyWithWhereWithoutProjectInput[]
+    deleteMany?: ObjectiveScalarWhereInput | ObjectiveScalarWhereInput[]
   }
 
   export type ProjectCreateNestedOneWithoutTasksInput = {
@@ -19596,6 +31253,472 @@ export namespace Prisma {
     divide?: number
   }
 
+  export type ProjectCreateNestedOneWithoutObjectivesInput = {
+    create?: XOR<ProjectCreateWithoutObjectivesInput, ProjectUncheckedCreateWithoutObjectivesInput>
+    connectOrCreate?: ProjectCreateOrConnectWithoutObjectivesInput
+    connect?: ProjectWhereUniqueInput
+  }
+
+  export type ObjectivePhaseCreateNestedManyWithoutObjectiveInput = {
+    create?: XOR<ObjectivePhaseCreateWithoutObjectiveInput, ObjectivePhaseUncheckedCreateWithoutObjectiveInput> | ObjectivePhaseCreateWithoutObjectiveInput[] | ObjectivePhaseUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: ObjectivePhaseCreateOrConnectWithoutObjectiveInput | ObjectivePhaseCreateOrConnectWithoutObjectiveInput[]
+    createMany?: ObjectivePhaseCreateManyObjectiveInputEnvelope
+    connect?: ObjectivePhaseWhereUniqueInput | ObjectivePhaseWhereUniqueInput[]
+  }
+
+  export type WorkstreamCreateNestedManyWithoutObjectiveInput = {
+    create?: XOR<WorkstreamCreateWithoutObjectiveInput, WorkstreamUncheckedCreateWithoutObjectiveInput> | WorkstreamCreateWithoutObjectiveInput[] | WorkstreamUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: WorkstreamCreateOrConnectWithoutObjectiveInput | WorkstreamCreateOrConnectWithoutObjectiveInput[]
+    createMany?: WorkstreamCreateManyObjectiveInputEnvelope
+    connect?: WorkstreamWhereUniqueInput | WorkstreamWhereUniqueInput[]
+  }
+
+  export type HarnessCreateNestedManyWithoutObjectiveInput = {
+    create?: XOR<HarnessCreateWithoutObjectiveInput, HarnessUncheckedCreateWithoutObjectiveInput> | HarnessCreateWithoutObjectiveInput[] | HarnessUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: HarnessCreateOrConnectWithoutObjectiveInput | HarnessCreateOrConnectWithoutObjectiveInput[]
+    createMany?: HarnessCreateManyObjectiveInputEnvelope
+    connect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+  }
+
+  export type InterventionCreateNestedManyWithoutObjectiveInput = {
+    create?: XOR<InterventionCreateWithoutObjectiveInput, InterventionUncheckedCreateWithoutObjectiveInput> | InterventionCreateWithoutObjectiveInput[] | InterventionUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: InterventionCreateOrConnectWithoutObjectiveInput | InterventionCreateOrConnectWithoutObjectiveInput[]
+    createMany?: InterventionCreateManyObjectiveInputEnvelope
+    connect?: InterventionWhereUniqueInput | InterventionWhereUniqueInput[]
+  }
+
+  export type ObjectivePhaseUncheckedCreateNestedManyWithoutObjectiveInput = {
+    create?: XOR<ObjectivePhaseCreateWithoutObjectiveInput, ObjectivePhaseUncheckedCreateWithoutObjectiveInput> | ObjectivePhaseCreateWithoutObjectiveInput[] | ObjectivePhaseUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: ObjectivePhaseCreateOrConnectWithoutObjectiveInput | ObjectivePhaseCreateOrConnectWithoutObjectiveInput[]
+    createMany?: ObjectivePhaseCreateManyObjectiveInputEnvelope
+    connect?: ObjectivePhaseWhereUniqueInput | ObjectivePhaseWhereUniqueInput[]
+  }
+
+  export type WorkstreamUncheckedCreateNestedManyWithoutObjectiveInput = {
+    create?: XOR<WorkstreamCreateWithoutObjectiveInput, WorkstreamUncheckedCreateWithoutObjectiveInput> | WorkstreamCreateWithoutObjectiveInput[] | WorkstreamUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: WorkstreamCreateOrConnectWithoutObjectiveInput | WorkstreamCreateOrConnectWithoutObjectiveInput[]
+    createMany?: WorkstreamCreateManyObjectiveInputEnvelope
+    connect?: WorkstreamWhereUniqueInput | WorkstreamWhereUniqueInput[]
+  }
+
+  export type HarnessUncheckedCreateNestedManyWithoutObjectiveInput = {
+    create?: XOR<HarnessCreateWithoutObjectiveInput, HarnessUncheckedCreateWithoutObjectiveInput> | HarnessCreateWithoutObjectiveInput[] | HarnessUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: HarnessCreateOrConnectWithoutObjectiveInput | HarnessCreateOrConnectWithoutObjectiveInput[]
+    createMany?: HarnessCreateManyObjectiveInputEnvelope
+    connect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+  }
+
+  export type InterventionUncheckedCreateNestedManyWithoutObjectiveInput = {
+    create?: XOR<InterventionCreateWithoutObjectiveInput, InterventionUncheckedCreateWithoutObjectiveInput> | InterventionCreateWithoutObjectiveInput[] | InterventionUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: InterventionCreateOrConnectWithoutObjectiveInput | InterventionCreateOrConnectWithoutObjectiveInput[]
+    createMany?: InterventionCreateManyObjectiveInputEnvelope
+    connect?: InterventionWhereUniqueInput | InterventionWhereUniqueInput[]
+  }
+
+  export type ProjectUpdateOneRequiredWithoutObjectivesNestedInput = {
+    create?: XOR<ProjectCreateWithoutObjectivesInput, ProjectUncheckedCreateWithoutObjectivesInput>
+    connectOrCreate?: ProjectCreateOrConnectWithoutObjectivesInput
+    upsert?: ProjectUpsertWithoutObjectivesInput
+    connect?: ProjectWhereUniqueInput
+    update?: XOR<XOR<ProjectUpdateToOneWithWhereWithoutObjectivesInput, ProjectUpdateWithoutObjectivesInput>, ProjectUncheckedUpdateWithoutObjectivesInput>
+  }
+
+  export type ObjectivePhaseUpdateManyWithoutObjectiveNestedInput = {
+    create?: XOR<ObjectivePhaseCreateWithoutObjectiveInput, ObjectivePhaseUncheckedCreateWithoutObjectiveInput> | ObjectivePhaseCreateWithoutObjectiveInput[] | ObjectivePhaseUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: ObjectivePhaseCreateOrConnectWithoutObjectiveInput | ObjectivePhaseCreateOrConnectWithoutObjectiveInput[]
+    upsert?: ObjectivePhaseUpsertWithWhereUniqueWithoutObjectiveInput | ObjectivePhaseUpsertWithWhereUniqueWithoutObjectiveInput[]
+    createMany?: ObjectivePhaseCreateManyObjectiveInputEnvelope
+    set?: ObjectivePhaseWhereUniqueInput | ObjectivePhaseWhereUniqueInput[]
+    disconnect?: ObjectivePhaseWhereUniqueInput | ObjectivePhaseWhereUniqueInput[]
+    delete?: ObjectivePhaseWhereUniqueInput | ObjectivePhaseWhereUniqueInput[]
+    connect?: ObjectivePhaseWhereUniqueInput | ObjectivePhaseWhereUniqueInput[]
+    update?: ObjectivePhaseUpdateWithWhereUniqueWithoutObjectiveInput | ObjectivePhaseUpdateWithWhereUniqueWithoutObjectiveInput[]
+    updateMany?: ObjectivePhaseUpdateManyWithWhereWithoutObjectiveInput | ObjectivePhaseUpdateManyWithWhereWithoutObjectiveInput[]
+    deleteMany?: ObjectivePhaseScalarWhereInput | ObjectivePhaseScalarWhereInput[]
+  }
+
+  export type WorkstreamUpdateManyWithoutObjectiveNestedInput = {
+    create?: XOR<WorkstreamCreateWithoutObjectiveInput, WorkstreamUncheckedCreateWithoutObjectiveInput> | WorkstreamCreateWithoutObjectiveInput[] | WorkstreamUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: WorkstreamCreateOrConnectWithoutObjectiveInput | WorkstreamCreateOrConnectWithoutObjectiveInput[]
+    upsert?: WorkstreamUpsertWithWhereUniqueWithoutObjectiveInput | WorkstreamUpsertWithWhereUniqueWithoutObjectiveInput[]
+    createMany?: WorkstreamCreateManyObjectiveInputEnvelope
+    set?: WorkstreamWhereUniqueInput | WorkstreamWhereUniqueInput[]
+    disconnect?: WorkstreamWhereUniqueInput | WorkstreamWhereUniqueInput[]
+    delete?: WorkstreamWhereUniqueInput | WorkstreamWhereUniqueInput[]
+    connect?: WorkstreamWhereUniqueInput | WorkstreamWhereUniqueInput[]
+    update?: WorkstreamUpdateWithWhereUniqueWithoutObjectiveInput | WorkstreamUpdateWithWhereUniqueWithoutObjectiveInput[]
+    updateMany?: WorkstreamUpdateManyWithWhereWithoutObjectiveInput | WorkstreamUpdateManyWithWhereWithoutObjectiveInput[]
+    deleteMany?: WorkstreamScalarWhereInput | WorkstreamScalarWhereInput[]
+  }
+
+  export type HarnessUpdateManyWithoutObjectiveNestedInput = {
+    create?: XOR<HarnessCreateWithoutObjectiveInput, HarnessUncheckedCreateWithoutObjectiveInput> | HarnessCreateWithoutObjectiveInput[] | HarnessUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: HarnessCreateOrConnectWithoutObjectiveInput | HarnessCreateOrConnectWithoutObjectiveInput[]
+    upsert?: HarnessUpsertWithWhereUniqueWithoutObjectiveInput | HarnessUpsertWithWhereUniqueWithoutObjectiveInput[]
+    createMany?: HarnessCreateManyObjectiveInputEnvelope
+    set?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    disconnect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    delete?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    connect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    update?: HarnessUpdateWithWhereUniqueWithoutObjectiveInput | HarnessUpdateWithWhereUniqueWithoutObjectiveInput[]
+    updateMany?: HarnessUpdateManyWithWhereWithoutObjectiveInput | HarnessUpdateManyWithWhereWithoutObjectiveInput[]
+    deleteMany?: HarnessScalarWhereInput | HarnessScalarWhereInput[]
+  }
+
+  export type InterventionUpdateManyWithoutObjectiveNestedInput = {
+    create?: XOR<InterventionCreateWithoutObjectiveInput, InterventionUncheckedCreateWithoutObjectiveInput> | InterventionCreateWithoutObjectiveInput[] | InterventionUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: InterventionCreateOrConnectWithoutObjectiveInput | InterventionCreateOrConnectWithoutObjectiveInput[]
+    upsert?: InterventionUpsertWithWhereUniqueWithoutObjectiveInput | InterventionUpsertWithWhereUniqueWithoutObjectiveInput[]
+    createMany?: InterventionCreateManyObjectiveInputEnvelope
+    set?: InterventionWhereUniqueInput | InterventionWhereUniqueInput[]
+    disconnect?: InterventionWhereUniqueInput | InterventionWhereUniqueInput[]
+    delete?: InterventionWhereUniqueInput | InterventionWhereUniqueInput[]
+    connect?: InterventionWhereUniqueInput | InterventionWhereUniqueInput[]
+    update?: InterventionUpdateWithWhereUniqueWithoutObjectiveInput | InterventionUpdateWithWhereUniqueWithoutObjectiveInput[]
+    updateMany?: InterventionUpdateManyWithWhereWithoutObjectiveInput | InterventionUpdateManyWithWhereWithoutObjectiveInput[]
+    deleteMany?: InterventionScalarWhereInput | InterventionScalarWhereInput[]
+  }
+
+  export type ObjectivePhaseUncheckedUpdateManyWithoutObjectiveNestedInput = {
+    create?: XOR<ObjectivePhaseCreateWithoutObjectiveInput, ObjectivePhaseUncheckedCreateWithoutObjectiveInput> | ObjectivePhaseCreateWithoutObjectiveInput[] | ObjectivePhaseUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: ObjectivePhaseCreateOrConnectWithoutObjectiveInput | ObjectivePhaseCreateOrConnectWithoutObjectiveInput[]
+    upsert?: ObjectivePhaseUpsertWithWhereUniqueWithoutObjectiveInput | ObjectivePhaseUpsertWithWhereUniqueWithoutObjectiveInput[]
+    createMany?: ObjectivePhaseCreateManyObjectiveInputEnvelope
+    set?: ObjectivePhaseWhereUniqueInput | ObjectivePhaseWhereUniqueInput[]
+    disconnect?: ObjectivePhaseWhereUniqueInput | ObjectivePhaseWhereUniqueInput[]
+    delete?: ObjectivePhaseWhereUniqueInput | ObjectivePhaseWhereUniqueInput[]
+    connect?: ObjectivePhaseWhereUniqueInput | ObjectivePhaseWhereUniqueInput[]
+    update?: ObjectivePhaseUpdateWithWhereUniqueWithoutObjectiveInput | ObjectivePhaseUpdateWithWhereUniqueWithoutObjectiveInput[]
+    updateMany?: ObjectivePhaseUpdateManyWithWhereWithoutObjectiveInput | ObjectivePhaseUpdateManyWithWhereWithoutObjectiveInput[]
+    deleteMany?: ObjectivePhaseScalarWhereInput | ObjectivePhaseScalarWhereInput[]
+  }
+
+  export type WorkstreamUncheckedUpdateManyWithoutObjectiveNestedInput = {
+    create?: XOR<WorkstreamCreateWithoutObjectiveInput, WorkstreamUncheckedCreateWithoutObjectiveInput> | WorkstreamCreateWithoutObjectiveInput[] | WorkstreamUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: WorkstreamCreateOrConnectWithoutObjectiveInput | WorkstreamCreateOrConnectWithoutObjectiveInput[]
+    upsert?: WorkstreamUpsertWithWhereUniqueWithoutObjectiveInput | WorkstreamUpsertWithWhereUniqueWithoutObjectiveInput[]
+    createMany?: WorkstreamCreateManyObjectiveInputEnvelope
+    set?: WorkstreamWhereUniqueInput | WorkstreamWhereUniqueInput[]
+    disconnect?: WorkstreamWhereUniqueInput | WorkstreamWhereUniqueInput[]
+    delete?: WorkstreamWhereUniqueInput | WorkstreamWhereUniqueInput[]
+    connect?: WorkstreamWhereUniqueInput | WorkstreamWhereUniqueInput[]
+    update?: WorkstreamUpdateWithWhereUniqueWithoutObjectiveInput | WorkstreamUpdateWithWhereUniqueWithoutObjectiveInput[]
+    updateMany?: WorkstreamUpdateManyWithWhereWithoutObjectiveInput | WorkstreamUpdateManyWithWhereWithoutObjectiveInput[]
+    deleteMany?: WorkstreamScalarWhereInput | WorkstreamScalarWhereInput[]
+  }
+
+  export type HarnessUncheckedUpdateManyWithoutObjectiveNestedInput = {
+    create?: XOR<HarnessCreateWithoutObjectiveInput, HarnessUncheckedCreateWithoutObjectiveInput> | HarnessCreateWithoutObjectiveInput[] | HarnessUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: HarnessCreateOrConnectWithoutObjectiveInput | HarnessCreateOrConnectWithoutObjectiveInput[]
+    upsert?: HarnessUpsertWithWhereUniqueWithoutObjectiveInput | HarnessUpsertWithWhereUniqueWithoutObjectiveInput[]
+    createMany?: HarnessCreateManyObjectiveInputEnvelope
+    set?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    disconnect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    delete?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    connect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    update?: HarnessUpdateWithWhereUniqueWithoutObjectiveInput | HarnessUpdateWithWhereUniqueWithoutObjectiveInput[]
+    updateMany?: HarnessUpdateManyWithWhereWithoutObjectiveInput | HarnessUpdateManyWithWhereWithoutObjectiveInput[]
+    deleteMany?: HarnessScalarWhereInput | HarnessScalarWhereInput[]
+  }
+
+  export type InterventionUncheckedUpdateManyWithoutObjectiveNestedInput = {
+    create?: XOR<InterventionCreateWithoutObjectiveInput, InterventionUncheckedCreateWithoutObjectiveInput> | InterventionCreateWithoutObjectiveInput[] | InterventionUncheckedCreateWithoutObjectiveInput[]
+    connectOrCreate?: InterventionCreateOrConnectWithoutObjectiveInput | InterventionCreateOrConnectWithoutObjectiveInput[]
+    upsert?: InterventionUpsertWithWhereUniqueWithoutObjectiveInput | InterventionUpsertWithWhereUniqueWithoutObjectiveInput[]
+    createMany?: InterventionCreateManyObjectiveInputEnvelope
+    set?: InterventionWhereUniqueInput | InterventionWhereUniqueInput[]
+    disconnect?: InterventionWhereUniqueInput | InterventionWhereUniqueInput[]
+    delete?: InterventionWhereUniqueInput | InterventionWhereUniqueInput[]
+    connect?: InterventionWhereUniqueInput | InterventionWhereUniqueInput[]
+    update?: InterventionUpdateWithWhereUniqueWithoutObjectiveInput | InterventionUpdateWithWhereUniqueWithoutObjectiveInput[]
+    updateMany?: InterventionUpdateManyWithWhereWithoutObjectiveInput | InterventionUpdateManyWithWhereWithoutObjectiveInput[]
+    deleteMany?: InterventionScalarWhereInput | InterventionScalarWhereInput[]
+  }
+
+  export type ObjectiveCreateNestedOneWithoutPhasesInput = {
+    create?: XOR<ObjectiveCreateWithoutPhasesInput, ObjectiveUncheckedCreateWithoutPhasesInput>
+    connectOrCreate?: ObjectiveCreateOrConnectWithoutPhasesInput
+    connect?: ObjectiveWhereUniqueInput
+  }
+
+  export type ObjectiveUpdateOneRequiredWithoutPhasesNestedInput = {
+    create?: XOR<ObjectiveCreateWithoutPhasesInput, ObjectiveUncheckedCreateWithoutPhasesInput>
+    connectOrCreate?: ObjectiveCreateOrConnectWithoutPhasesInput
+    upsert?: ObjectiveUpsertWithoutPhasesInput
+    connect?: ObjectiveWhereUniqueInput
+    update?: XOR<XOR<ObjectiveUpdateToOneWithWhereWithoutPhasesInput, ObjectiveUpdateWithoutPhasesInput>, ObjectiveUncheckedUpdateWithoutPhasesInput>
+  }
+
+  export type ObjectiveCreateNestedOneWithoutWorkstreamsInput = {
+    create?: XOR<ObjectiveCreateWithoutWorkstreamsInput, ObjectiveUncheckedCreateWithoutWorkstreamsInput>
+    connectOrCreate?: ObjectiveCreateOrConnectWithoutWorkstreamsInput
+    connect?: ObjectiveWhereUniqueInput
+  }
+
+  export type HarnessCreateNestedManyWithoutWorkstreamInput = {
+    create?: XOR<HarnessCreateWithoutWorkstreamInput, HarnessUncheckedCreateWithoutWorkstreamInput> | HarnessCreateWithoutWorkstreamInput[] | HarnessUncheckedCreateWithoutWorkstreamInput[]
+    connectOrCreate?: HarnessCreateOrConnectWithoutWorkstreamInput | HarnessCreateOrConnectWithoutWorkstreamInput[]
+    createMany?: HarnessCreateManyWorkstreamInputEnvelope
+    connect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+  }
+
+  export type HarnessUncheckedCreateNestedManyWithoutWorkstreamInput = {
+    create?: XOR<HarnessCreateWithoutWorkstreamInput, HarnessUncheckedCreateWithoutWorkstreamInput> | HarnessCreateWithoutWorkstreamInput[] | HarnessUncheckedCreateWithoutWorkstreamInput[]
+    connectOrCreate?: HarnessCreateOrConnectWithoutWorkstreamInput | HarnessCreateOrConnectWithoutWorkstreamInput[]
+    createMany?: HarnessCreateManyWorkstreamInputEnvelope
+    connect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+  }
+
+  export type ObjectiveUpdateOneRequiredWithoutWorkstreamsNestedInput = {
+    create?: XOR<ObjectiveCreateWithoutWorkstreamsInput, ObjectiveUncheckedCreateWithoutWorkstreamsInput>
+    connectOrCreate?: ObjectiveCreateOrConnectWithoutWorkstreamsInput
+    upsert?: ObjectiveUpsertWithoutWorkstreamsInput
+    connect?: ObjectiveWhereUniqueInput
+    update?: XOR<XOR<ObjectiveUpdateToOneWithWhereWithoutWorkstreamsInput, ObjectiveUpdateWithoutWorkstreamsInput>, ObjectiveUncheckedUpdateWithoutWorkstreamsInput>
+  }
+
+  export type HarnessUpdateManyWithoutWorkstreamNestedInput = {
+    create?: XOR<HarnessCreateWithoutWorkstreamInput, HarnessUncheckedCreateWithoutWorkstreamInput> | HarnessCreateWithoutWorkstreamInput[] | HarnessUncheckedCreateWithoutWorkstreamInput[]
+    connectOrCreate?: HarnessCreateOrConnectWithoutWorkstreamInput | HarnessCreateOrConnectWithoutWorkstreamInput[]
+    upsert?: HarnessUpsertWithWhereUniqueWithoutWorkstreamInput | HarnessUpsertWithWhereUniqueWithoutWorkstreamInput[]
+    createMany?: HarnessCreateManyWorkstreamInputEnvelope
+    set?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    disconnect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    delete?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    connect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    update?: HarnessUpdateWithWhereUniqueWithoutWorkstreamInput | HarnessUpdateWithWhereUniqueWithoutWorkstreamInput[]
+    updateMany?: HarnessUpdateManyWithWhereWithoutWorkstreamInput | HarnessUpdateManyWithWhereWithoutWorkstreamInput[]
+    deleteMany?: HarnessScalarWhereInput | HarnessScalarWhereInput[]
+  }
+
+  export type HarnessUncheckedUpdateManyWithoutWorkstreamNestedInput = {
+    create?: XOR<HarnessCreateWithoutWorkstreamInput, HarnessUncheckedCreateWithoutWorkstreamInput> | HarnessCreateWithoutWorkstreamInput[] | HarnessUncheckedCreateWithoutWorkstreamInput[]
+    connectOrCreate?: HarnessCreateOrConnectWithoutWorkstreamInput | HarnessCreateOrConnectWithoutWorkstreamInput[]
+    upsert?: HarnessUpsertWithWhereUniqueWithoutWorkstreamInput | HarnessUpsertWithWhereUniqueWithoutWorkstreamInput[]
+    createMany?: HarnessCreateManyWorkstreamInputEnvelope
+    set?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    disconnect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    delete?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    connect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    update?: HarnessUpdateWithWhereUniqueWithoutWorkstreamInput | HarnessUpdateWithWhereUniqueWithoutWorkstreamInput[]
+    updateMany?: HarnessUpdateManyWithWhereWithoutWorkstreamInput | HarnessUpdateManyWithWhereWithoutWorkstreamInput[]
+    deleteMany?: HarnessScalarWhereInput | HarnessScalarWhereInput[]
+  }
+
+  export type ObjectiveCreateNestedOneWithoutHarnessesInput = {
+    create?: XOR<ObjectiveCreateWithoutHarnessesInput, ObjectiveUncheckedCreateWithoutHarnessesInput>
+    connectOrCreate?: ObjectiveCreateOrConnectWithoutHarnessesInput
+    connect?: ObjectiveWhereUniqueInput
+  }
+
+  export type WorkstreamCreateNestedOneWithoutHarnessesInput = {
+    create?: XOR<WorkstreamCreateWithoutHarnessesInput, WorkstreamUncheckedCreateWithoutHarnessesInput>
+    connectOrCreate?: WorkstreamCreateOrConnectWithoutHarnessesInput
+    connect?: WorkstreamWhereUniqueInput
+  }
+
+  export type HarnessCreateNestedOneWithoutChildrenInput = {
+    create?: XOR<HarnessCreateWithoutChildrenInput, HarnessUncheckedCreateWithoutChildrenInput>
+    connectOrCreate?: HarnessCreateOrConnectWithoutChildrenInput
+    connect?: HarnessWhereUniqueInput
+  }
+
+  export type HarnessCreateNestedManyWithoutParentInput = {
+    create?: XOR<HarnessCreateWithoutParentInput, HarnessUncheckedCreateWithoutParentInput> | HarnessCreateWithoutParentInput[] | HarnessUncheckedCreateWithoutParentInput[]
+    connectOrCreate?: HarnessCreateOrConnectWithoutParentInput | HarnessCreateOrConnectWithoutParentInput[]
+    createMany?: HarnessCreateManyParentInputEnvelope
+    connect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+  }
+
+  export type PulseCreateNestedManyWithoutHarnessInput = {
+    create?: XOR<PulseCreateWithoutHarnessInput, PulseUncheckedCreateWithoutHarnessInput> | PulseCreateWithoutHarnessInput[] | PulseUncheckedCreateWithoutHarnessInput[]
+    connectOrCreate?: PulseCreateOrConnectWithoutHarnessInput | PulseCreateOrConnectWithoutHarnessInput[]
+    createMany?: PulseCreateManyHarnessInputEnvelope
+    connect?: PulseWhereUniqueInput | PulseWhereUniqueInput[]
+  }
+
+  export type HarnessToolCreateNestedManyWithoutHarnessInput = {
+    create?: XOR<HarnessToolCreateWithoutHarnessInput, HarnessToolUncheckedCreateWithoutHarnessInput> | HarnessToolCreateWithoutHarnessInput[] | HarnessToolUncheckedCreateWithoutHarnessInput[]
+    connectOrCreate?: HarnessToolCreateOrConnectWithoutHarnessInput | HarnessToolCreateOrConnectWithoutHarnessInput[]
+    createMany?: HarnessToolCreateManyHarnessInputEnvelope
+    connect?: HarnessToolWhereUniqueInput | HarnessToolWhereUniqueInput[]
+  }
+
+  export type HarnessUncheckedCreateNestedManyWithoutParentInput = {
+    create?: XOR<HarnessCreateWithoutParentInput, HarnessUncheckedCreateWithoutParentInput> | HarnessCreateWithoutParentInput[] | HarnessUncheckedCreateWithoutParentInput[]
+    connectOrCreate?: HarnessCreateOrConnectWithoutParentInput | HarnessCreateOrConnectWithoutParentInput[]
+    createMany?: HarnessCreateManyParentInputEnvelope
+    connect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+  }
+
+  export type PulseUncheckedCreateNestedManyWithoutHarnessInput = {
+    create?: XOR<PulseCreateWithoutHarnessInput, PulseUncheckedCreateWithoutHarnessInput> | PulseCreateWithoutHarnessInput[] | PulseUncheckedCreateWithoutHarnessInput[]
+    connectOrCreate?: PulseCreateOrConnectWithoutHarnessInput | PulseCreateOrConnectWithoutHarnessInput[]
+    createMany?: PulseCreateManyHarnessInputEnvelope
+    connect?: PulseWhereUniqueInput | PulseWhereUniqueInput[]
+  }
+
+  export type HarnessToolUncheckedCreateNestedManyWithoutHarnessInput = {
+    create?: XOR<HarnessToolCreateWithoutHarnessInput, HarnessToolUncheckedCreateWithoutHarnessInput> | HarnessToolCreateWithoutHarnessInput[] | HarnessToolUncheckedCreateWithoutHarnessInput[]
+    connectOrCreate?: HarnessToolCreateOrConnectWithoutHarnessInput | HarnessToolCreateOrConnectWithoutHarnessInput[]
+    createMany?: HarnessToolCreateManyHarnessInputEnvelope
+    connect?: HarnessToolWhereUniqueInput | HarnessToolWhereUniqueInput[]
+  }
+
+  export type ObjectiveUpdateOneRequiredWithoutHarnessesNestedInput = {
+    create?: XOR<ObjectiveCreateWithoutHarnessesInput, ObjectiveUncheckedCreateWithoutHarnessesInput>
+    connectOrCreate?: ObjectiveCreateOrConnectWithoutHarnessesInput
+    upsert?: ObjectiveUpsertWithoutHarnessesInput
+    connect?: ObjectiveWhereUniqueInput
+    update?: XOR<XOR<ObjectiveUpdateToOneWithWhereWithoutHarnessesInput, ObjectiveUpdateWithoutHarnessesInput>, ObjectiveUncheckedUpdateWithoutHarnessesInput>
+  }
+
+  export type WorkstreamUpdateOneWithoutHarnessesNestedInput = {
+    create?: XOR<WorkstreamCreateWithoutHarnessesInput, WorkstreamUncheckedCreateWithoutHarnessesInput>
+    connectOrCreate?: WorkstreamCreateOrConnectWithoutHarnessesInput
+    upsert?: WorkstreamUpsertWithoutHarnessesInput
+    disconnect?: WorkstreamWhereInput | boolean
+    delete?: WorkstreamWhereInput | boolean
+    connect?: WorkstreamWhereUniqueInput
+    update?: XOR<XOR<WorkstreamUpdateToOneWithWhereWithoutHarnessesInput, WorkstreamUpdateWithoutHarnessesInput>, WorkstreamUncheckedUpdateWithoutHarnessesInput>
+  }
+
+  export type HarnessUpdateOneWithoutChildrenNestedInput = {
+    create?: XOR<HarnessCreateWithoutChildrenInput, HarnessUncheckedCreateWithoutChildrenInput>
+    connectOrCreate?: HarnessCreateOrConnectWithoutChildrenInput
+    upsert?: HarnessUpsertWithoutChildrenInput
+    disconnect?: HarnessWhereInput | boolean
+    delete?: HarnessWhereInput | boolean
+    connect?: HarnessWhereUniqueInput
+    update?: XOR<XOR<HarnessUpdateToOneWithWhereWithoutChildrenInput, HarnessUpdateWithoutChildrenInput>, HarnessUncheckedUpdateWithoutChildrenInput>
+  }
+
+  export type HarnessUpdateManyWithoutParentNestedInput = {
+    create?: XOR<HarnessCreateWithoutParentInput, HarnessUncheckedCreateWithoutParentInput> | HarnessCreateWithoutParentInput[] | HarnessUncheckedCreateWithoutParentInput[]
+    connectOrCreate?: HarnessCreateOrConnectWithoutParentInput | HarnessCreateOrConnectWithoutParentInput[]
+    upsert?: HarnessUpsertWithWhereUniqueWithoutParentInput | HarnessUpsertWithWhereUniqueWithoutParentInput[]
+    createMany?: HarnessCreateManyParentInputEnvelope
+    set?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    disconnect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    delete?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    connect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    update?: HarnessUpdateWithWhereUniqueWithoutParentInput | HarnessUpdateWithWhereUniqueWithoutParentInput[]
+    updateMany?: HarnessUpdateManyWithWhereWithoutParentInput | HarnessUpdateManyWithWhereWithoutParentInput[]
+    deleteMany?: HarnessScalarWhereInput | HarnessScalarWhereInput[]
+  }
+
+  export type PulseUpdateManyWithoutHarnessNestedInput = {
+    create?: XOR<PulseCreateWithoutHarnessInput, PulseUncheckedCreateWithoutHarnessInput> | PulseCreateWithoutHarnessInput[] | PulseUncheckedCreateWithoutHarnessInput[]
+    connectOrCreate?: PulseCreateOrConnectWithoutHarnessInput | PulseCreateOrConnectWithoutHarnessInput[]
+    upsert?: PulseUpsertWithWhereUniqueWithoutHarnessInput | PulseUpsertWithWhereUniqueWithoutHarnessInput[]
+    createMany?: PulseCreateManyHarnessInputEnvelope
+    set?: PulseWhereUniqueInput | PulseWhereUniqueInput[]
+    disconnect?: PulseWhereUniqueInput | PulseWhereUniqueInput[]
+    delete?: PulseWhereUniqueInput | PulseWhereUniqueInput[]
+    connect?: PulseWhereUniqueInput | PulseWhereUniqueInput[]
+    update?: PulseUpdateWithWhereUniqueWithoutHarnessInput | PulseUpdateWithWhereUniqueWithoutHarnessInput[]
+    updateMany?: PulseUpdateManyWithWhereWithoutHarnessInput | PulseUpdateManyWithWhereWithoutHarnessInput[]
+    deleteMany?: PulseScalarWhereInput | PulseScalarWhereInput[]
+  }
+
+  export type HarnessToolUpdateManyWithoutHarnessNestedInput = {
+    create?: XOR<HarnessToolCreateWithoutHarnessInput, HarnessToolUncheckedCreateWithoutHarnessInput> | HarnessToolCreateWithoutHarnessInput[] | HarnessToolUncheckedCreateWithoutHarnessInput[]
+    connectOrCreate?: HarnessToolCreateOrConnectWithoutHarnessInput | HarnessToolCreateOrConnectWithoutHarnessInput[]
+    upsert?: HarnessToolUpsertWithWhereUniqueWithoutHarnessInput | HarnessToolUpsertWithWhereUniqueWithoutHarnessInput[]
+    createMany?: HarnessToolCreateManyHarnessInputEnvelope
+    set?: HarnessToolWhereUniqueInput | HarnessToolWhereUniqueInput[]
+    disconnect?: HarnessToolWhereUniqueInput | HarnessToolWhereUniqueInput[]
+    delete?: HarnessToolWhereUniqueInput | HarnessToolWhereUniqueInput[]
+    connect?: HarnessToolWhereUniqueInput | HarnessToolWhereUniqueInput[]
+    update?: HarnessToolUpdateWithWhereUniqueWithoutHarnessInput | HarnessToolUpdateWithWhereUniqueWithoutHarnessInput[]
+    updateMany?: HarnessToolUpdateManyWithWhereWithoutHarnessInput | HarnessToolUpdateManyWithWhereWithoutHarnessInput[]
+    deleteMany?: HarnessToolScalarWhereInput | HarnessToolScalarWhereInput[]
+  }
+
+  export type HarnessUncheckedUpdateManyWithoutParentNestedInput = {
+    create?: XOR<HarnessCreateWithoutParentInput, HarnessUncheckedCreateWithoutParentInput> | HarnessCreateWithoutParentInput[] | HarnessUncheckedCreateWithoutParentInput[]
+    connectOrCreate?: HarnessCreateOrConnectWithoutParentInput | HarnessCreateOrConnectWithoutParentInput[]
+    upsert?: HarnessUpsertWithWhereUniqueWithoutParentInput | HarnessUpsertWithWhereUniqueWithoutParentInput[]
+    createMany?: HarnessCreateManyParentInputEnvelope
+    set?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    disconnect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    delete?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    connect?: HarnessWhereUniqueInput | HarnessWhereUniqueInput[]
+    update?: HarnessUpdateWithWhereUniqueWithoutParentInput | HarnessUpdateWithWhereUniqueWithoutParentInput[]
+    updateMany?: HarnessUpdateManyWithWhereWithoutParentInput | HarnessUpdateManyWithWhereWithoutParentInput[]
+    deleteMany?: HarnessScalarWhereInput | HarnessScalarWhereInput[]
+  }
+
+  export type PulseUncheckedUpdateManyWithoutHarnessNestedInput = {
+    create?: XOR<PulseCreateWithoutHarnessInput, PulseUncheckedCreateWithoutHarnessInput> | PulseCreateWithoutHarnessInput[] | PulseUncheckedCreateWithoutHarnessInput[]
+    connectOrCreate?: PulseCreateOrConnectWithoutHarnessInput | PulseCreateOrConnectWithoutHarnessInput[]
+    upsert?: PulseUpsertWithWhereUniqueWithoutHarnessInput | PulseUpsertWithWhereUniqueWithoutHarnessInput[]
+    createMany?: PulseCreateManyHarnessInputEnvelope
+    set?: PulseWhereUniqueInput | PulseWhereUniqueInput[]
+    disconnect?: PulseWhereUniqueInput | PulseWhereUniqueInput[]
+    delete?: PulseWhereUniqueInput | PulseWhereUniqueInput[]
+    connect?: PulseWhereUniqueInput | PulseWhereUniqueInput[]
+    update?: PulseUpdateWithWhereUniqueWithoutHarnessInput | PulseUpdateWithWhereUniqueWithoutHarnessInput[]
+    updateMany?: PulseUpdateManyWithWhereWithoutHarnessInput | PulseUpdateManyWithWhereWithoutHarnessInput[]
+    deleteMany?: PulseScalarWhereInput | PulseScalarWhereInput[]
+  }
+
+  export type HarnessToolUncheckedUpdateManyWithoutHarnessNestedInput = {
+    create?: XOR<HarnessToolCreateWithoutHarnessInput, HarnessToolUncheckedCreateWithoutHarnessInput> | HarnessToolCreateWithoutHarnessInput[] | HarnessToolUncheckedCreateWithoutHarnessInput[]
+    connectOrCreate?: HarnessToolCreateOrConnectWithoutHarnessInput | HarnessToolCreateOrConnectWithoutHarnessInput[]
+    upsert?: HarnessToolUpsertWithWhereUniqueWithoutHarnessInput | HarnessToolUpsertWithWhereUniqueWithoutHarnessInput[]
+    createMany?: HarnessToolCreateManyHarnessInputEnvelope
+    set?: HarnessToolWhereUniqueInput | HarnessToolWhereUniqueInput[]
+    disconnect?: HarnessToolWhereUniqueInput | HarnessToolWhereUniqueInput[]
+    delete?: HarnessToolWhereUniqueInput | HarnessToolWhereUniqueInput[]
+    connect?: HarnessToolWhereUniqueInput | HarnessToolWhereUniqueInput[]
+    update?: HarnessToolUpdateWithWhereUniqueWithoutHarnessInput | HarnessToolUpdateWithWhereUniqueWithoutHarnessInput[]
+    updateMany?: HarnessToolUpdateManyWithWhereWithoutHarnessInput | HarnessToolUpdateManyWithWhereWithoutHarnessInput[]
+    deleteMany?: HarnessToolScalarWhereInput | HarnessToolScalarWhereInput[]
+  }
+
+  export type HarnessCreateNestedOneWithoutPulsesInput = {
+    create?: XOR<HarnessCreateWithoutPulsesInput, HarnessUncheckedCreateWithoutPulsesInput>
+    connectOrCreate?: HarnessCreateOrConnectWithoutPulsesInput
+    connect?: HarnessWhereUniqueInput
+  }
+
+  export type HarnessUpdateOneRequiredWithoutPulsesNestedInput = {
+    create?: XOR<HarnessCreateWithoutPulsesInput, HarnessUncheckedCreateWithoutPulsesInput>
+    connectOrCreate?: HarnessCreateOrConnectWithoutPulsesInput
+    upsert?: HarnessUpsertWithoutPulsesInput
+    connect?: HarnessWhereUniqueInput
+    update?: XOR<XOR<HarnessUpdateToOneWithWhereWithoutPulsesInput, HarnessUpdateWithoutPulsesInput>, HarnessUncheckedUpdateWithoutPulsesInput>
+  }
+
+  export type ObjectiveCreateNestedOneWithoutInterventionsInput = {
+    create?: XOR<ObjectiveCreateWithoutInterventionsInput, ObjectiveUncheckedCreateWithoutInterventionsInput>
+    connectOrCreate?: ObjectiveCreateOrConnectWithoutInterventionsInput
+    connect?: ObjectiveWhereUniqueInput
+  }
+
+  export type ObjectiveUpdateOneRequiredWithoutInterventionsNestedInput = {
+    create?: XOR<ObjectiveCreateWithoutInterventionsInput, ObjectiveUncheckedCreateWithoutInterventionsInput>
+    connectOrCreate?: ObjectiveCreateOrConnectWithoutInterventionsInput
+    upsert?: ObjectiveUpsertWithoutInterventionsInput
+    connect?: ObjectiveWhereUniqueInput
+    update?: XOR<XOR<ObjectiveUpdateToOneWithWhereWithoutInterventionsInput, ObjectiveUpdateWithoutInterventionsInput>, ObjectiveUncheckedUpdateWithoutInterventionsInput>
+  }
+
+  export type HarnessCreateNestedOneWithoutToolsInput = {
+    create?: XOR<HarnessCreateWithoutToolsInput, HarnessUncheckedCreateWithoutToolsInput>
+    connectOrCreate?: HarnessCreateOrConnectWithoutToolsInput
+    connect?: HarnessWhereUniqueInput
+  }
+
+  export type HarnessUpdateOneRequiredWithoutToolsNestedInput = {
+    create?: XOR<HarnessCreateWithoutToolsInput, HarnessUncheckedCreateWithoutToolsInput>
+    connectOrCreate?: HarnessCreateOrConnectWithoutToolsInput
+    upsert?: HarnessUpsertWithoutToolsInput
+    connect?: HarnessWhereUniqueInput
+    update?: XOR<XOR<HarnessUpdateToOneWithWhereWithoutToolsInput, HarnessUpdateWithoutToolsInput>, HarnessUncheckedUpdateWithoutToolsInput>
+  }
+
   export type NestedStringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -19885,6 +32008,46 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type ObjectiveCreateWithoutProjectInput = {
+    id?: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    phases?: ObjectivePhaseCreateNestedManyWithoutObjectiveInput
+    workstreams?: WorkstreamCreateNestedManyWithoutObjectiveInput
+    harnesses?: HarnessCreateNestedManyWithoutObjectiveInput
+    interventions?: InterventionCreateNestedManyWithoutObjectiveInput
+  }
+
+  export type ObjectiveUncheckedCreateWithoutProjectInput = {
+    id?: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    phases?: ObjectivePhaseUncheckedCreateNestedManyWithoutObjectiveInput
+    workstreams?: WorkstreamUncheckedCreateNestedManyWithoutObjectiveInput
+    harnesses?: HarnessUncheckedCreateNestedManyWithoutObjectiveInput
+    interventions?: InterventionUncheckedCreateNestedManyWithoutObjectiveInput
+  }
+
+  export type ObjectiveCreateOrConnectWithoutProjectInput = {
+    where: ObjectiveWhereUniqueInput
+    create: XOR<ObjectiveCreateWithoutProjectInput, ObjectiveUncheckedCreateWithoutProjectInput>
+  }
+
+  export type ObjectiveCreateManyProjectInputEnvelope = {
+    data: ObjectiveCreateManyProjectInput | ObjectiveCreateManyProjectInput[]
+    skipDuplicates?: boolean
+  }
+
   export type TaskUpsertWithWhereUniqueWithoutProjectInput = {
     where: TaskWhereUniqueInput
     update: XOR<TaskUpdateWithoutProjectInput, TaskUncheckedUpdateWithoutProjectInput>
@@ -19923,6 +32086,37 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Task"> | Date | string
   }
 
+  export type ObjectiveUpsertWithWhereUniqueWithoutProjectInput = {
+    where: ObjectiveWhereUniqueInput
+    update: XOR<ObjectiveUpdateWithoutProjectInput, ObjectiveUncheckedUpdateWithoutProjectInput>
+    create: XOR<ObjectiveCreateWithoutProjectInput, ObjectiveUncheckedCreateWithoutProjectInput>
+  }
+
+  export type ObjectiveUpdateWithWhereUniqueWithoutProjectInput = {
+    where: ObjectiveWhereUniqueInput
+    data: XOR<ObjectiveUpdateWithoutProjectInput, ObjectiveUncheckedUpdateWithoutProjectInput>
+  }
+
+  export type ObjectiveUpdateManyWithWhereWithoutProjectInput = {
+    where: ObjectiveScalarWhereInput
+    data: XOR<ObjectiveUpdateManyMutationInput, ObjectiveUncheckedUpdateManyWithoutProjectInput>
+  }
+
+  export type ObjectiveScalarWhereInput = {
+    AND?: ObjectiveScalarWhereInput | ObjectiveScalarWhereInput[]
+    OR?: ObjectiveScalarWhereInput[]
+    NOT?: ObjectiveScalarWhereInput | ObjectiveScalarWhereInput[]
+    id?: StringFilter<"Objective"> | string
+    projectId?: StringFilter<"Objective"> | string
+    name?: StringFilter<"Objective"> | string
+    description?: StringNullableFilter<"Objective"> | string | null
+    status?: StringFilter<"Objective"> | string
+    targetDate?: DateTimeNullableFilter<"Objective"> | Date | string | null
+    spendCapUsd?: FloatNullableFilter<"Objective"> | number | null
+    createdAt?: DateTimeFilter<"Objective"> | Date | string
+    updatedAt?: DateTimeFilter<"Objective"> | Date | string
+  }
+
   export type ProjectCreateWithoutTasksInput = {
     id?: string
     name: string
@@ -19931,6 +32125,7 @@ export namespace Prisma {
     description?: string | null
     env?: string | null
     createdAt?: Date | string
+    objectives?: ObjectiveCreateNestedManyWithoutProjectInput
   }
 
   export type ProjectUncheckedCreateWithoutTasksInput = {
@@ -19941,6 +32136,7 @@ export namespace Prisma {
     description?: string | null
     env?: string | null
     createdAt?: Date | string
+    objectives?: ObjectiveUncheckedCreateNestedManyWithoutProjectInput
   }
 
   export type ProjectCreateOrConnectWithoutTasksInput = {
@@ -20147,6 +32343,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     env?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    objectives?: ObjectiveUpdateManyWithoutProjectNestedInput
   }
 
   export type ProjectUncheckedUpdateWithoutTasksInput = {
@@ -20157,6 +32354,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     env?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    objectives?: ObjectiveUncheckedUpdateManyWithoutProjectNestedInput
   }
 
   export type TaskStepUpsertWithWhereUniqueWithoutTaskInput = {
@@ -21008,6 +33206,1501 @@ export namespace Prisma {
     data: XOR<AgentRunUpdateManyMutationInput, AgentRunUncheckedUpdateManyWithoutPromptVersionInput>
   }
 
+  export type ProjectCreateWithoutObjectivesInput = {
+    id?: string
+    name: string
+    path: string
+    repoUrl?: string | null
+    description?: string | null
+    env?: string | null
+    createdAt?: Date | string
+    tasks?: TaskCreateNestedManyWithoutProjectInput
+  }
+
+  export type ProjectUncheckedCreateWithoutObjectivesInput = {
+    id?: string
+    name: string
+    path: string
+    repoUrl?: string | null
+    description?: string | null
+    env?: string | null
+    createdAt?: Date | string
+    tasks?: TaskUncheckedCreateNestedManyWithoutProjectInput
+  }
+
+  export type ProjectCreateOrConnectWithoutObjectivesInput = {
+    where: ProjectWhereUniqueInput
+    create: XOR<ProjectCreateWithoutObjectivesInput, ProjectUncheckedCreateWithoutObjectivesInput>
+  }
+
+  export type ObjectivePhaseCreateWithoutObjectiveInput = {
+    id?: string
+    name: string
+    state: string
+    weight?: number
+    detail?: string | null
+    orderIdx: number
+  }
+
+  export type ObjectivePhaseUncheckedCreateWithoutObjectiveInput = {
+    id?: string
+    name: string
+    state: string
+    weight?: number
+    detail?: string | null
+    orderIdx: number
+  }
+
+  export type ObjectivePhaseCreateOrConnectWithoutObjectiveInput = {
+    where: ObjectivePhaseWhereUniqueInput
+    create: XOR<ObjectivePhaseCreateWithoutObjectiveInput, ObjectivePhaseUncheckedCreateWithoutObjectiveInput>
+  }
+
+  export type ObjectivePhaseCreateManyObjectiveInputEnvelope = {
+    data: ObjectivePhaseCreateManyObjectiveInput | ObjectivePhaseCreateManyObjectiveInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type WorkstreamCreateWithoutObjectiveInput = {
+    id?: string
+    name: string
+    paused?: boolean
+    pausedAt?: Date | string | null
+    pausedNote?: string | null
+    orderIdx?: number
+    leadHarnessId?: string | null
+    harnesses?: HarnessCreateNestedManyWithoutWorkstreamInput
+  }
+
+  export type WorkstreamUncheckedCreateWithoutObjectiveInput = {
+    id?: string
+    name: string
+    paused?: boolean
+    pausedAt?: Date | string | null
+    pausedNote?: string | null
+    orderIdx?: number
+    leadHarnessId?: string | null
+    harnesses?: HarnessUncheckedCreateNestedManyWithoutWorkstreamInput
+  }
+
+  export type WorkstreamCreateOrConnectWithoutObjectiveInput = {
+    where: WorkstreamWhereUniqueInput
+    create: XOR<WorkstreamCreateWithoutObjectiveInput, WorkstreamUncheckedCreateWithoutObjectiveInput>
+  }
+
+  export type WorkstreamCreateManyObjectiveInputEnvelope = {
+    data: WorkstreamCreateManyObjectiveInput | WorkstreamCreateManyObjectiveInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type HarnessCreateWithoutObjectiveInput = {
+    id?: string
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    workstream?: WorkstreamCreateNestedOneWithoutHarnessesInput
+    parent?: HarnessCreateNestedOneWithoutChildrenInput
+    children?: HarnessCreateNestedManyWithoutParentInput
+    pulses?: PulseCreateNestedManyWithoutHarnessInput
+    tools?: HarnessToolCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessUncheckedCreateWithoutObjectiveInput = {
+    id?: string
+    workstreamId?: string | null
+    parentId?: string | null
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    children?: HarnessUncheckedCreateNestedManyWithoutParentInput
+    pulses?: PulseUncheckedCreateNestedManyWithoutHarnessInput
+    tools?: HarnessToolUncheckedCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessCreateOrConnectWithoutObjectiveInput = {
+    where: HarnessWhereUniqueInput
+    create: XOR<HarnessCreateWithoutObjectiveInput, HarnessUncheckedCreateWithoutObjectiveInput>
+  }
+
+  export type HarnessCreateManyObjectiveInputEnvelope = {
+    data: HarnessCreateManyObjectiveInput | HarnessCreateManyObjectiveInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type InterventionCreateWithoutObjectiveInput = {
+    id?: string
+    harnessId: string
+    kind: string
+    title: string
+    detail?: string | null
+    impact?: string | null
+    payload?: string | null
+    status?: string
+    response?: string | null
+    createdAt?: Date | string
+    resolvedAt?: Date | string | null
+  }
+
+  export type InterventionUncheckedCreateWithoutObjectiveInput = {
+    id?: string
+    harnessId: string
+    kind: string
+    title: string
+    detail?: string | null
+    impact?: string | null
+    payload?: string | null
+    status?: string
+    response?: string | null
+    createdAt?: Date | string
+    resolvedAt?: Date | string | null
+  }
+
+  export type InterventionCreateOrConnectWithoutObjectiveInput = {
+    where: InterventionWhereUniqueInput
+    create: XOR<InterventionCreateWithoutObjectiveInput, InterventionUncheckedCreateWithoutObjectiveInput>
+  }
+
+  export type InterventionCreateManyObjectiveInputEnvelope = {
+    data: InterventionCreateManyObjectiveInput | InterventionCreateManyObjectiveInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type ProjectUpsertWithoutObjectivesInput = {
+    update: XOR<ProjectUpdateWithoutObjectivesInput, ProjectUncheckedUpdateWithoutObjectivesInput>
+    create: XOR<ProjectCreateWithoutObjectivesInput, ProjectUncheckedCreateWithoutObjectivesInput>
+    where?: ProjectWhereInput
+  }
+
+  export type ProjectUpdateToOneWithWhereWithoutObjectivesInput = {
+    where?: ProjectWhereInput
+    data: XOR<ProjectUpdateWithoutObjectivesInput, ProjectUncheckedUpdateWithoutObjectivesInput>
+  }
+
+  export type ProjectUpdateWithoutObjectivesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    path?: StringFieldUpdateOperationsInput | string
+    repoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    env?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    tasks?: TaskUpdateManyWithoutProjectNestedInput
+  }
+
+  export type ProjectUncheckedUpdateWithoutObjectivesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    path?: StringFieldUpdateOperationsInput | string
+    repoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    env?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    tasks?: TaskUncheckedUpdateManyWithoutProjectNestedInput
+  }
+
+  export type ObjectivePhaseUpsertWithWhereUniqueWithoutObjectiveInput = {
+    where: ObjectivePhaseWhereUniqueInput
+    update: XOR<ObjectivePhaseUpdateWithoutObjectiveInput, ObjectivePhaseUncheckedUpdateWithoutObjectiveInput>
+    create: XOR<ObjectivePhaseCreateWithoutObjectiveInput, ObjectivePhaseUncheckedCreateWithoutObjectiveInput>
+  }
+
+  export type ObjectivePhaseUpdateWithWhereUniqueWithoutObjectiveInput = {
+    where: ObjectivePhaseWhereUniqueInput
+    data: XOR<ObjectivePhaseUpdateWithoutObjectiveInput, ObjectivePhaseUncheckedUpdateWithoutObjectiveInput>
+  }
+
+  export type ObjectivePhaseUpdateManyWithWhereWithoutObjectiveInput = {
+    where: ObjectivePhaseScalarWhereInput
+    data: XOR<ObjectivePhaseUpdateManyMutationInput, ObjectivePhaseUncheckedUpdateManyWithoutObjectiveInput>
+  }
+
+  export type ObjectivePhaseScalarWhereInput = {
+    AND?: ObjectivePhaseScalarWhereInput | ObjectivePhaseScalarWhereInput[]
+    OR?: ObjectivePhaseScalarWhereInput[]
+    NOT?: ObjectivePhaseScalarWhereInput | ObjectivePhaseScalarWhereInput[]
+    id?: StringFilter<"ObjectivePhase"> | string
+    objectiveId?: StringFilter<"ObjectivePhase"> | string
+    name?: StringFilter<"ObjectivePhase"> | string
+    state?: StringFilter<"ObjectivePhase"> | string
+    weight?: FloatFilter<"ObjectivePhase"> | number
+    detail?: StringNullableFilter<"ObjectivePhase"> | string | null
+    orderIdx?: IntFilter<"ObjectivePhase"> | number
+  }
+
+  export type WorkstreamUpsertWithWhereUniqueWithoutObjectiveInput = {
+    where: WorkstreamWhereUniqueInput
+    update: XOR<WorkstreamUpdateWithoutObjectiveInput, WorkstreamUncheckedUpdateWithoutObjectiveInput>
+    create: XOR<WorkstreamCreateWithoutObjectiveInput, WorkstreamUncheckedCreateWithoutObjectiveInput>
+  }
+
+  export type WorkstreamUpdateWithWhereUniqueWithoutObjectiveInput = {
+    where: WorkstreamWhereUniqueInput
+    data: XOR<WorkstreamUpdateWithoutObjectiveInput, WorkstreamUncheckedUpdateWithoutObjectiveInput>
+  }
+
+  export type WorkstreamUpdateManyWithWhereWithoutObjectiveInput = {
+    where: WorkstreamScalarWhereInput
+    data: XOR<WorkstreamUpdateManyMutationInput, WorkstreamUncheckedUpdateManyWithoutObjectiveInput>
+  }
+
+  export type WorkstreamScalarWhereInput = {
+    AND?: WorkstreamScalarWhereInput | WorkstreamScalarWhereInput[]
+    OR?: WorkstreamScalarWhereInput[]
+    NOT?: WorkstreamScalarWhereInput | WorkstreamScalarWhereInput[]
+    id?: StringFilter<"Workstream"> | string
+    objectiveId?: StringFilter<"Workstream"> | string
+    name?: StringFilter<"Workstream"> | string
+    paused?: BoolFilter<"Workstream"> | boolean
+    pausedAt?: DateTimeNullableFilter<"Workstream"> | Date | string | null
+    pausedNote?: StringNullableFilter<"Workstream"> | string | null
+    orderIdx?: IntFilter<"Workstream"> | number
+    leadHarnessId?: StringNullableFilter<"Workstream"> | string | null
+  }
+
+  export type HarnessUpsertWithWhereUniqueWithoutObjectiveInput = {
+    where: HarnessWhereUniqueInput
+    update: XOR<HarnessUpdateWithoutObjectiveInput, HarnessUncheckedUpdateWithoutObjectiveInput>
+    create: XOR<HarnessCreateWithoutObjectiveInput, HarnessUncheckedCreateWithoutObjectiveInput>
+  }
+
+  export type HarnessUpdateWithWhereUniqueWithoutObjectiveInput = {
+    where: HarnessWhereUniqueInput
+    data: XOR<HarnessUpdateWithoutObjectiveInput, HarnessUncheckedUpdateWithoutObjectiveInput>
+  }
+
+  export type HarnessUpdateManyWithWhereWithoutObjectiveInput = {
+    where: HarnessScalarWhereInput
+    data: XOR<HarnessUpdateManyMutationInput, HarnessUncheckedUpdateManyWithoutObjectiveInput>
+  }
+
+  export type HarnessScalarWhereInput = {
+    AND?: HarnessScalarWhereInput | HarnessScalarWhereInput[]
+    OR?: HarnessScalarWhereInput[]
+    NOT?: HarnessScalarWhereInput | HarnessScalarWhereInput[]
+    id?: StringFilter<"Harness"> | string
+    objectiveId?: StringFilter<"Harness"> | string
+    workstreamId?: StringNullableFilter<"Harness"> | string | null
+    parentId?: StringNullableFilter<"Harness"> | string | null
+    name?: StringFilter<"Harness"> | string
+    status?: StringFilter<"Harness"> | string
+    statusBeforePause?: StringNullableFilter<"Harness"> | string | null
+    activity?: StringNullableFilter<"Harness"> | string | null
+    mission?: StringFilter<"Harness"> | string
+    currentJob?: StringNullableFilter<"Harness"> | string | null
+    model?: StringFilter<"Harness"> | string
+    playbookId?: StringNullableFilter<"Harness"> | string | null
+    taskId?: StringNullableFilter<"Harness"> | string | null
+    branch?: StringNullableFilter<"Harness"> | string | null
+    heartbeatMinutes?: IntFilter<"Harness"> | number
+    nextPulseAt?: DateTimeNullableFilter<"Harness"> | Date | string | null
+    maxChildren?: IntFilter<"Harness"> | number
+    spendCapUsd?: FloatNullableFilter<"Harness"> | number | null
+    spendUsd?: FloatFilter<"Harness"> | number
+    contextTokens?: IntFilter<"Harness"> | number
+    contextWindow?: IntFilter<"Harness"> | number
+    permissions?: StringFilter<"Harness"> | string
+    dryRun?: BoolFilter<"Harness"> | boolean
+    lastPulseSeq?: IntFilter<"Harness"> | number
+    idleSince?: DateTimeNullableFilter<"Harness"> | Date | string | null
+    createdAt?: DateTimeFilter<"Harness"> | Date | string
+    updatedAt?: DateTimeFilter<"Harness"> | Date | string
+    retiredAt?: DateTimeNullableFilter<"Harness"> | Date | string | null
+  }
+
+  export type InterventionUpsertWithWhereUniqueWithoutObjectiveInput = {
+    where: InterventionWhereUniqueInput
+    update: XOR<InterventionUpdateWithoutObjectiveInput, InterventionUncheckedUpdateWithoutObjectiveInput>
+    create: XOR<InterventionCreateWithoutObjectiveInput, InterventionUncheckedCreateWithoutObjectiveInput>
+  }
+
+  export type InterventionUpdateWithWhereUniqueWithoutObjectiveInput = {
+    where: InterventionWhereUniqueInput
+    data: XOR<InterventionUpdateWithoutObjectiveInput, InterventionUncheckedUpdateWithoutObjectiveInput>
+  }
+
+  export type InterventionUpdateManyWithWhereWithoutObjectiveInput = {
+    where: InterventionScalarWhereInput
+    data: XOR<InterventionUpdateManyMutationInput, InterventionUncheckedUpdateManyWithoutObjectiveInput>
+  }
+
+  export type InterventionScalarWhereInput = {
+    AND?: InterventionScalarWhereInput | InterventionScalarWhereInput[]
+    OR?: InterventionScalarWhereInput[]
+    NOT?: InterventionScalarWhereInput | InterventionScalarWhereInput[]
+    id?: StringFilter<"Intervention"> | string
+    objectiveId?: StringFilter<"Intervention"> | string
+    harnessId?: StringFilter<"Intervention"> | string
+    kind?: StringFilter<"Intervention"> | string
+    title?: StringFilter<"Intervention"> | string
+    detail?: StringNullableFilter<"Intervention"> | string | null
+    impact?: StringNullableFilter<"Intervention"> | string | null
+    payload?: StringNullableFilter<"Intervention"> | string | null
+    status?: StringFilter<"Intervention"> | string
+    response?: StringNullableFilter<"Intervention"> | string | null
+    createdAt?: DateTimeFilter<"Intervention"> | Date | string
+    resolvedAt?: DateTimeNullableFilter<"Intervention"> | Date | string | null
+  }
+
+  export type ObjectiveCreateWithoutPhasesInput = {
+    id?: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    project: ProjectCreateNestedOneWithoutObjectivesInput
+    workstreams?: WorkstreamCreateNestedManyWithoutObjectiveInput
+    harnesses?: HarnessCreateNestedManyWithoutObjectiveInput
+    interventions?: InterventionCreateNestedManyWithoutObjectiveInput
+  }
+
+  export type ObjectiveUncheckedCreateWithoutPhasesInput = {
+    id?: string
+    projectId: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    workstreams?: WorkstreamUncheckedCreateNestedManyWithoutObjectiveInput
+    harnesses?: HarnessUncheckedCreateNestedManyWithoutObjectiveInput
+    interventions?: InterventionUncheckedCreateNestedManyWithoutObjectiveInput
+  }
+
+  export type ObjectiveCreateOrConnectWithoutPhasesInput = {
+    where: ObjectiveWhereUniqueInput
+    create: XOR<ObjectiveCreateWithoutPhasesInput, ObjectiveUncheckedCreateWithoutPhasesInput>
+  }
+
+  export type ObjectiveUpsertWithoutPhasesInput = {
+    update: XOR<ObjectiveUpdateWithoutPhasesInput, ObjectiveUncheckedUpdateWithoutPhasesInput>
+    create: XOR<ObjectiveCreateWithoutPhasesInput, ObjectiveUncheckedCreateWithoutPhasesInput>
+    where?: ObjectiveWhereInput
+  }
+
+  export type ObjectiveUpdateToOneWithWhereWithoutPhasesInput = {
+    where?: ObjectiveWhereInput
+    data: XOR<ObjectiveUpdateWithoutPhasesInput, ObjectiveUncheckedUpdateWithoutPhasesInput>
+  }
+
+  export type ObjectiveUpdateWithoutPhasesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    project?: ProjectUpdateOneRequiredWithoutObjectivesNestedInput
+    workstreams?: WorkstreamUpdateManyWithoutObjectiveNestedInput
+    harnesses?: HarnessUpdateManyWithoutObjectiveNestedInput
+    interventions?: InterventionUpdateManyWithoutObjectiveNestedInput
+  }
+
+  export type ObjectiveUncheckedUpdateWithoutPhasesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    workstreams?: WorkstreamUncheckedUpdateManyWithoutObjectiveNestedInput
+    harnesses?: HarnessUncheckedUpdateManyWithoutObjectiveNestedInput
+    interventions?: InterventionUncheckedUpdateManyWithoutObjectiveNestedInput
+  }
+
+  export type ObjectiveCreateWithoutWorkstreamsInput = {
+    id?: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    project: ProjectCreateNestedOneWithoutObjectivesInput
+    phases?: ObjectivePhaseCreateNestedManyWithoutObjectiveInput
+    harnesses?: HarnessCreateNestedManyWithoutObjectiveInput
+    interventions?: InterventionCreateNestedManyWithoutObjectiveInput
+  }
+
+  export type ObjectiveUncheckedCreateWithoutWorkstreamsInput = {
+    id?: string
+    projectId: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    phases?: ObjectivePhaseUncheckedCreateNestedManyWithoutObjectiveInput
+    harnesses?: HarnessUncheckedCreateNestedManyWithoutObjectiveInput
+    interventions?: InterventionUncheckedCreateNestedManyWithoutObjectiveInput
+  }
+
+  export type ObjectiveCreateOrConnectWithoutWorkstreamsInput = {
+    where: ObjectiveWhereUniqueInput
+    create: XOR<ObjectiveCreateWithoutWorkstreamsInput, ObjectiveUncheckedCreateWithoutWorkstreamsInput>
+  }
+
+  export type HarnessCreateWithoutWorkstreamInput = {
+    id?: string
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    objective: ObjectiveCreateNestedOneWithoutHarnessesInput
+    parent?: HarnessCreateNestedOneWithoutChildrenInput
+    children?: HarnessCreateNestedManyWithoutParentInput
+    pulses?: PulseCreateNestedManyWithoutHarnessInput
+    tools?: HarnessToolCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessUncheckedCreateWithoutWorkstreamInput = {
+    id?: string
+    objectiveId: string
+    parentId?: string | null
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    children?: HarnessUncheckedCreateNestedManyWithoutParentInput
+    pulses?: PulseUncheckedCreateNestedManyWithoutHarnessInput
+    tools?: HarnessToolUncheckedCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessCreateOrConnectWithoutWorkstreamInput = {
+    where: HarnessWhereUniqueInput
+    create: XOR<HarnessCreateWithoutWorkstreamInput, HarnessUncheckedCreateWithoutWorkstreamInput>
+  }
+
+  export type HarnessCreateManyWorkstreamInputEnvelope = {
+    data: HarnessCreateManyWorkstreamInput | HarnessCreateManyWorkstreamInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type ObjectiveUpsertWithoutWorkstreamsInput = {
+    update: XOR<ObjectiveUpdateWithoutWorkstreamsInput, ObjectiveUncheckedUpdateWithoutWorkstreamsInput>
+    create: XOR<ObjectiveCreateWithoutWorkstreamsInput, ObjectiveUncheckedCreateWithoutWorkstreamsInput>
+    where?: ObjectiveWhereInput
+  }
+
+  export type ObjectiveUpdateToOneWithWhereWithoutWorkstreamsInput = {
+    where?: ObjectiveWhereInput
+    data: XOR<ObjectiveUpdateWithoutWorkstreamsInput, ObjectiveUncheckedUpdateWithoutWorkstreamsInput>
+  }
+
+  export type ObjectiveUpdateWithoutWorkstreamsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    project?: ProjectUpdateOneRequiredWithoutObjectivesNestedInput
+    phases?: ObjectivePhaseUpdateManyWithoutObjectiveNestedInput
+    harnesses?: HarnessUpdateManyWithoutObjectiveNestedInput
+    interventions?: InterventionUpdateManyWithoutObjectiveNestedInput
+  }
+
+  export type ObjectiveUncheckedUpdateWithoutWorkstreamsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    phases?: ObjectivePhaseUncheckedUpdateManyWithoutObjectiveNestedInput
+    harnesses?: HarnessUncheckedUpdateManyWithoutObjectiveNestedInput
+    interventions?: InterventionUncheckedUpdateManyWithoutObjectiveNestedInput
+  }
+
+  export type HarnessUpsertWithWhereUniqueWithoutWorkstreamInput = {
+    where: HarnessWhereUniqueInput
+    update: XOR<HarnessUpdateWithoutWorkstreamInput, HarnessUncheckedUpdateWithoutWorkstreamInput>
+    create: XOR<HarnessCreateWithoutWorkstreamInput, HarnessUncheckedCreateWithoutWorkstreamInput>
+  }
+
+  export type HarnessUpdateWithWhereUniqueWithoutWorkstreamInput = {
+    where: HarnessWhereUniqueInput
+    data: XOR<HarnessUpdateWithoutWorkstreamInput, HarnessUncheckedUpdateWithoutWorkstreamInput>
+  }
+
+  export type HarnessUpdateManyWithWhereWithoutWorkstreamInput = {
+    where: HarnessScalarWhereInput
+    data: XOR<HarnessUpdateManyMutationInput, HarnessUncheckedUpdateManyWithoutWorkstreamInput>
+  }
+
+  export type ObjectiveCreateWithoutHarnessesInput = {
+    id?: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    project: ProjectCreateNestedOneWithoutObjectivesInput
+    phases?: ObjectivePhaseCreateNestedManyWithoutObjectiveInput
+    workstreams?: WorkstreamCreateNestedManyWithoutObjectiveInput
+    interventions?: InterventionCreateNestedManyWithoutObjectiveInput
+  }
+
+  export type ObjectiveUncheckedCreateWithoutHarnessesInput = {
+    id?: string
+    projectId: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    phases?: ObjectivePhaseUncheckedCreateNestedManyWithoutObjectiveInput
+    workstreams?: WorkstreamUncheckedCreateNestedManyWithoutObjectiveInput
+    interventions?: InterventionUncheckedCreateNestedManyWithoutObjectiveInput
+  }
+
+  export type ObjectiveCreateOrConnectWithoutHarnessesInput = {
+    where: ObjectiveWhereUniqueInput
+    create: XOR<ObjectiveCreateWithoutHarnessesInput, ObjectiveUncheckedCreateWithoutHarnessesInput>
+  }
+
+  export type WorkstreamCreateWithoutHarnessesInput = {
+    id?: string
+    name: string
+    paused?: boolean
+    pausedAt?: Date | string | null
+    pausedNote?: string | null
+    orderIdx?: number
+    leadHarnessId?: string | null
+    objective: ObjectiveCreateNestedOneWithoutWorkstreamsInput
+  }
+
+  export type WorkstreamUncheckedCreateWithoutHarnessesInput = {
+    id?: string
+    objectiveId: string
+    name: string
+    paused?: boolean
+    pausedAt?: Date | string | null
+    pausedNote?: string | null
+    orderIdx?: number
+    leadHarnessId?: string | null
+  }
+
+  export type WorkstreamCreateOrConnectWithoutHarnessesInput = {
+    where: WorkstreamWhereUniqueInput
+    create: XOR<WorkstreamCreateWithoutHarnessesInput, WorkstreamUncheckedCreateWithoutHarnessesInput>
+  }
+
+  export type HarnessCreateWithoutChildrenInput = {
+    id?: string
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    objective: ObjectiveCreateNestedOneWithoutHarnessesInput
+    workstream?: WorkstreamCreateNestedOneWithoutHarnessesInput
+    parent?: HarnessCreateNestedOneWithoutChildrenInput
+    pulses?: PulseCreateNestedManyWithoutHarnessInput
+    tools?: HarnessToolCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessUncheckedCreateWithoutChildrenInput = {
+    id?: string
+    objectiveId: string
+    workstreamId?: string | null
+    parentId?: string | null
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    pulses?: PulseUncheckedCreateNestedManyWithoutHarnessInput
+    tools?: HarnessToolUncheckedCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessCreateOrConnectWithoutChildrenInput = {
+    where: HarnessWhereUniqueInput
+    create: XOR<HarnessCreateWithoutChildrenInput, HarnessUncheckedCreateWithoutChildrenInput>
+  }
+
+  export type HarnessCreateWithoutParentInput = {
+    id?: string
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    objective: ObjectiveCreateNestedOneWithoutHarnessesInput
+    workstream?: WorkstreamCreateNestedOneWithoutHarnessesInput
+    children?: HarnessCreateNestedManyWithoutParentInput
+    pulses?: PulseCreateNestedManyWithoutHarnessInput
+    tools?: HarnessToolCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessUncheckedCreateWithoutParentInput = {
+    id?: string
+    objectiveId: string
+    workstreamId?: string | null
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    children?: HarnessUncheckedCreateNestedManyWithoutParentInput
+    pulses?: PulseUncheckedCreateNestedManyWithoutHarnessInput
+    tools?: HarnessToolUncheckedCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessCreateOrConnectWithoutParentInput = {
+    where: HarnessWhereUniqueInput
+    create: XOR<HarnessCreateWithoutParentInput, HarnessUncheckedCreateWithoutParentInput>
+  }
+
+  export type HarnessCreateManyParentInputEnvelope = {
+    data: HarnessCreateManyParentInput | HarnessCreateManyParentInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type PulseCreateWithoutHarnessInput = {
+    id?: string
+    seq: number
+    startedAt: Date | string
+    endedAt?: Date | string | null
+    outcome: string
+    summary?: string | null
+    costUsd?: number
+    tokens?: number
+    weight?: number
+  }
+
+  export type PulseUncheckedCreateWithoutHarnessInput = {
+    id?: string
+    seq: number
+    startedAt: Date | string
+    endedAt?: Date | string | null
+    outcome: string
+    summary?: string | null
+    costUsd?: number
+    tokens?: number
+    weight?: number
+  }
+
+  export type PulseCreateOrConnectWithoutHarnessInput = {
+    where: PulseWhereUniqueInput
+    create: XOR<PulseCreateWithoutHarnessInput, PulseUncheckedCreateWithoutHarnessInput>
+  }
+
+  export type PulseCreateManyHarnessInputEnvelope = {
+    data: PulseCreateManyHarnessInput | PulseCreateManyHarnessInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type HarnessToolCreateWithoutHarnessInput = {
+    id?: string
+    name: string
+    groupName: string
+    needsApproval?: boolean
+    lastStatus?: string | null
+    lastResultLabel?: string | null
+    lastRanAt?: Date | string | null
+  }
+
+  export type HarnessToolUncheckedCreateWithoutHarnessInput = {
+    id?: string
+    name: string
+    groupName: string
+    needsApproval?: boolean
+    lastStatus?: string | null
+    lastResultLabel?: string | null
+    lastRanAt?: Date | string | null
+  }
+
+  export type HarnessToolCreateOrConnectWithoutHarnessInput = {
+    where: HarnessToolWhereUniqueInput
+    create: XOR<HarnessToolCreateWithoutHarnessInput, HarnessToolUncheckedCreateWithoutHarnessInput>
+  }
+
+  export type HarnessToolCreateManyHarnessInputEnvelope = {
+    data: HarnessToolCreateManyHarnessInput | HarnessToolCreateManyHarnessInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type ObjectiveUpsertWithoutHarnessesInput = {
+    update: XOR<ObjectiveUpdateWithoutHarnessesInput, ObjectiveUncheckedUpdateWithoutHarnessesInput>
+    create: XOR<ObjectiveCreateWithoutHarnessesInput, ObjectiveUncheckedCreateWithoutHarnessesInput>
+    where?: ObjectiveWhereInput
+  }
+
+  export type ObjectiveUpdateToOneWithWhereWithoutHarnessesInput = {
+    where?: ObjectiveWhereInput
+    data: XOR<ObjectiveUpdateWithoutHarnessesInput, ObjectiveUncheckedUpdateWithoutHarnessesInput>
+  }
+
+  export type ObjectiveUpdateWithoutHarnessesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    project?: ProjectUpdateOneRequiredWithoutObjectivesNestedInput
+    phases?: ObjectivePhaseUpdateManyWithoutObjectiveNestedInput
+    workstreams?: WorkstreamUpdateManyWithoutObjectiveNestedInput
+    interventions?: InterventionUpdateManyWithoutObjectiveNestedInput
+  }
+
+  export type ObjectiveUncheckedUpdateWithoutHarnessesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    phases?: ObjectivePhaseUncheckedUpdateManyWithoutObjectiveNestedInput
+    workstreams?: WorkstreamUncheckedUpdateManyWithoutObjectiveNestedInput
+    interventions?: InterventionUncheckedUpdateManyWithoutObjectiveNestedInput
+  }
+
+  export type WorkstreamUpsertWithoutHarnessesInput = {
+    update: XOR<WorkstreamUpdateWithoutHarnessesInput, WorkstreamUncheckedUpdateWithoutHarnessesInput>
+    create: XOR<WorkstreamCreateWithoutHarnessesInput, WorkstreamUncheckedCreateWithoutHarnessesInput>
+    where?: WorkstreamWhereInput
+  }
+
+  export type WorkstreamUpdateToOneWithWhereWithoutHarnessesInput = {
+    where?: WorkstreamWhereInput
+    data: XOR<WorkstreamUpdateWithoutHarnessesInput, WorkstreamUncheckedUpdateWithoutHarnessesInput>
+  }
+
+  export type WorkstreamUpdateWithoutHarnessesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    paused?: BoolFieldUpdateOperationsInput | boolean
+    pausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    pausedNote?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+    leadHarnessId?: NullableStringFieldUpdateOperationsInput | string | null
+    objective?: ObjectiveUpdateOneRequiredWithoutWorkstreamsNestedInput
+  }
+
+  export type WorkstreamUncheckedUpdateWithoutHarnessesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    paused?: BoolFieldUpdateOperationsInput | boolean
+    pausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    pausedNote?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+    leadHarnessId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type HarnessUpsertWithoutChildrenInput = {
+    update: XOR<HarnessUpdateWithoutChildrenInput, HarnessUncheckedUpdateWithoutChildrenInput>
+    create: XOR<HarnessCreateWithoutChildrenInput, HarnessUncheckedCreateWithoutChildrenInput>
+    where?: HarnessWhereInput
+  }
+
+  export type HarnessUpdateToOneWithWhereWithoutChildrenInput = {
+    where?: HarnessWhereInput
+    data: XOR<HarnessUpdateWithoutChildrenInput, HarnessUncheckedUpdateWithoutChildrenInput>
+  }
+
+  export type HarnessUpdateWithoutChildrenInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    objective?: ObjectiveUpdateOneRequiredWithoutHarnessesNestedInput
+    workstream?: WorkstreamUpdateOneWithoutHarnessesNestedInput
+    parent?: HarnessUpdateOneWithoutChildrenNestedInput
+    pulses?: PulseUpdateManyWithoutHarnessNestedInput
+    tools?: HarnessToolUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessUncheckedUpdateWithoutChildrenInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    workstreamId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    pulses?: PulseUncheckedUpdateManyWithoutHarnessNestedInput
+    tools?: HarnessToolUncheckedUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessUpsertWithWhereUniqueWithoutParentInput = {
+    where: HarnessWhereUniqueInput
+    update: XOR<HarnessUpdateWithoutParentInput, HarnessUncheckedUpdateWithoutParentInput>
+    create: XOR<HarnessCreateWithoutParentInput, HarnessUncheckedCreateWithoutParentInput>
+  }
+
+  export type HarnessUpdateWithWhereUniqueWithoutParentInput = {
+    where: HarnessWhereUniqueInput
+    data: XOR<HarnessUpdateWithoutParentInput, HarnessUncheckedUpdateWithoutParentInput>
+  }
+
+  export type HarnessUpdateManyWithWhereWithoutParentInput = {
+    where: HarnessScalarWhereInput
+    data: XOR<HarnessUpdateManyMutationInput, HarnessUncheckedUpdateManyWithoutParentInput>
+  }
+
+  export type PulseUpsertWithWhereUniqueWithoutHarnessInput = {
+    where: PulseWhereUniqueInput
+    update: XOR<PulseUpdateWithoutHarnessInput, PulseUncheckedUpdateWithoutHarnessInput>
+    create: XOR<PulseCreateWithoutHarnessInput, PulseUncheckedCreateWithoutHarnessInput>
+  }
+
+  export type PulseUpdateWithWhereUniqueWithoutHarnessInput = {
+    where: PulseWhereUniqueInput
+    data: XOR<PulseUpdateWithoutHarnessInput, PulseUncheckedUpdateWithoutHarnessInput>
+  }
+
+  export type PulseUpdateManyWithWhereWithoutHarnessInput = {
+    where: PulseScalarWhereInput
+    data: XOR<PulseUpdateManyMutationInput, PulseUncheckedUpdateManyWithoutHarnessInput>
+  }
+
+  export type PulseScalarWhereInput = {
+    AND?: PulseScalarWhereInput | PulseScalarWhereInput[]
+    OR?: PulseScalarWhereInput[]
+    NOT?: PulseScalarWhereInput | PulseScalarWhereInput[]
+    id?: StringFilter<"Pulse"> | string
+    harnessId?: StringFilter<"Pulse"> | string
+    seq?: IntFilter<"Pulse"> | number
+    startedAt?: DateTimeFilter<"Pulse"> | Date | string
+    endedAt?: DateTimeNullableFilter<"Pulse"> | Date | string | null
+    outcome?: StringFilter<"Pulse"> | string
+    summary?: StringNullableFilter<"Pulse"> | string | null
+    costUsd?: FloatFilter<"Pulse"> | number
+    tokens?: IntFilter<"Pulse"> | number
+    weight?: FloatFilter<"Pulse"> | number
+  }
+
+  export type HarnessToolUpsertWithWhereUniqueWithoutHarnessInput = {
+    where: HarnessToolWhereUniqueInput
+    update: XOR<HarnessToolUpdateWithoutHarnessInput, HarnessToolUncheckedUpdateWithoutHarnessInput>
+    create: XOR<HarnessToolCreateWithoutHarnessInput, HarnessToolUncheckedCreateWithoutHarnessInput>
+  }
+
+  export type HarnessToolUpdateWithWhereUniqueWithoutHarnessInput = {
+    where: HarnessToolWhereUniqueInput
+    data: XOR<HarnessToolUpdateWithoutHarnessInput, HarnessToolUncheckedUpdateWithoutHarnessInput>
+  }
+
+  export type HarnessToolUpdateManyWithWhereWithoutHarnessInput = {
+    where: HarnessToolScalarWhereInput
+    data: XOR<HarnessToolUpdateManyMutationInput, HarnessToolUncheckedUpdateManyWithoutHarnessInput>
+  }
+
+  export type HarnessToolScalarWhereInput = {
+    AND?: HarnessToolScalarWhereInput | HarnessToolScalarWhereInput[]
+    OR?: HarnessToolScalarWhereInput[]
+    NOT?: HarnessToolScalarWhereInput | HarnessToolScalarWhereInput[]
+    id?: StringFilter<"HarnessTool"> | string
+    harnessId?: StringFilter<"HarnessTool"> | string
+    name?: StringFilter<"HarnessTool"> | string
+    groupName?: StringFilter<"HarnessTool"> | string
+    needsApproval?: BoolFilter<"HarnessTool"> | boolean
+    lastStatus?: StringNullableFilter<"HarnessTool"> | string | null
+    lastResultLabel?: StringNullableFilter<"HarnessTool"> | string | null
+    lastRanAt?: DateTimeNullableFilter<"HarnessTool"> | Date | string | null
+  }
+
+  export type HarnessCreateWithoutPulsesInput = {
+    id?: string
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    objective: ObjectiveCreateNestedOneWithoutHarnessesInput
+    workstream?: WorkstreamCreateNestedOneWithoutHarnessesInput
+    parent?: HarnessCreateNestedOneWithoutChildrenInput
+    children?: HarnessCreateNestedManyWithoutParentInput
+    tools?: HarnessToolCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessUncheckedCreateWithoutPulsesInput = {
+    id?: string
+    objectiveId: string
+    workstreamId?: string | null
+    parentId?: string | null
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    children?: HarnessUncheckedCreateNestedManyWithoutParentInput
+    tools?: HarnessToolUncheckedCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessCreateOrConnectWithoutPulsesInput = {
+    where: HarnessWhereUniqueInput
+    create: XOR<HarnessCreateWithoutPulsesInput, HarnessUncheckedCreateWithoutPulsesInput>
+  }
+
+  export type HarnessUpsertWithoutPulsesInput = {
+    update: XOR<HarnessUpdateWithoutPulsesInput, HarnessUncheckedUpdateWithoutPulsesInput>
+    create: XOR<HarnessCreateWithoutPulsesInput, HarnessUncheckedCreateWithoutPulsesInput>
+    where?: HarnessWhereInput
+  }
+
+  export type HarnessUpdateToOneWithWhereWithoutPulsesInput = {
+    where?: HarnessWhereInput
+    data: XOR<HarnessUpdateWithoutPulsesInput, HarnessUncheckedUpdateWithoutPulsesInput>
+  }
+
+  export type HarnessUpdateWithoutPulsesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    objective?: ObjectiveUpdateOneRequiredWithoutHarnessesNestedInput
+    workstream?: WorkstreamUpdateOneWithoutHarnessesNestedInput
+    parent?: HarnessUpdateOneWithoutChildrenNestedInput
+    children?: HarnessUpdateManyWithoutParentNestedInput
+    tools?: HarnessToolUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessUncheckedUpdateWithoutPulsesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    workstreamId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    children?: HarnessUncheckedUpdateManyWithoutParentNestedInput
+    tools?: HarnessToolUncheckedUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type ObjectiveCreateWithoutInterventionsInput = {
+    id?: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    project: ProjectCreateNestedOneWithoutObjectivesInput
+    phases?: ObjectivePhaseCreateNestedManyWithoutObjectiveInput
+    workstreams?: WorkstreamCreateNestedManyWithoutObjectiveInput
+    harnesses?: HarnessCreateNestedManyWithoutObjectiveInput
+  }
+
+  export type ObjectiveUncheckedCreateWithoutInterventionsInput = {
+    id?: string
+    projectId: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    phases?: ObjectivePhaseUncheckedCreateNestedManyWithoutObjectiveInput
+    workstreams?: WorkstreamUncheckedCreateNestedManyWithoutObjectiveInput
+    harnesses?: HarnessUncheckedCreateNestedManyWithoutObjectiveInput
+  }
+
+  export type ObjectiveCreateOrConnectWithoutInterventionsInput = {
+    where: ObjectiveWhereUniqueInput
+    create: XOR<ObjectiveCreateWithoutInterventionsInput, ObjectiveUncheckedCreateWithoutInterventionsInput>
+  }
+
+  export type ObjectiveUpsertWithoutInterventionsInput = {
+    update: XOR<ObjectiveUpdateWithoutInterventionsInput, ObjectiveUncheckedUpdateWithoutInterventionsInput>
+    create: XOR<ObjectiveCreateWithoutInterventionsInput, ObjectiveUncheckedCreateWithoutInterventionsInput>
+    where?: ObjectiveWhereInput
+  }
+
+  export type ObjectiveUpdateToOneWithWhereWithoutInterventionsInput = {
+    where?: ObjectiveWhereInput
+    data: XOR<ObjectiveUpdateWithoutInterventionsInput, ObjectiveUncheckedUpdateWithoutInterventionsInput>
+  }
+
+  export type ObjectiveUpdateWithoutInterventionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    project?: ProjectUpdateOneRequiredWithoutObjectivesNestedInput
+    phases?: ObjectivePhaseUpdateManyWithoutObjectiveNestedInput
+    workstreams?: WorkstreamUpdateManyWithoutObjectiveNestedInput
+    harnesses?: HarnessUpdateManyWithoutObjectiveNestedInput
+  }
+
+  export type ObjectiveUncheckedUpdateWithoutInterventionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    phases?: ObjectivePhaseUncheckedUpdateManyWithoutObjectiveNestedInput
+    workstreams?: WorkstreamUncheckedUpdateManyWithoutObjectiveNestedInput
+    harnesses?: HarnessUncheckedUpdateManyWithoutObjectiveNestedInput
+  }
+
+  export type HarnessCreateWithoutToolsInput = {
+    id?: string
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    objective: ObjectiveCreateNestedOneWithoutHarnessesInput
+    workstream?: WorkstreamCreateNestedOneWithoutHarnessesInput
+    parent?: HarnessCreateNestedOneWithoutChildrenInput
+    children?: HarnessCreateNestedManyWithoutParentInput
+    pulses?: PulseCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessUncheckedCreateWithoutToolsInput = {
+    id?: string
+    objectiveId: string
+    workstreamId?: string | null
+    parentId?: string | null
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+    children?: HarnessUncheckedCreateNestedManyWithoutParentInput
+    pulses?: PulseUncheckedCreateNestedManyWithoutHarnessInput
+  }
+
+  export type HarnessCreateOrConnectWithoutToolsInput = {
+    where: HarnessWhereUniqueInput
+    create: XOR<HarnessCreateWithoutToolsInput, HarnessUncheckedCreateWithoutToolsInput>
+  }
+
+  export type HarnessUpsertWithoutToolsInput = {
+    update: XOR<HarnessUpdateWithoutToolsInput, HarnessUncheckedUpdateWithoutToolsInput>
+    create: XOR<HarnessCreateWithoutToolsInput, HarnessUncheckedCreateWithoutToolsInput>
+    where?: HarnessWhereInput
+  }
+
+  export type HarnessUpdateToOneWithWhereWithoutToolsInput = {
+    where?: HarnessWhereInput
+    data: XOR<HarnessUpdateWithoutToolsInput, HarnessUncheckedUpdateWithoutToolsInput>
+  }
+
+  export type HarnessUpdateWithoutToolsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    objective?: ObjectiveUpdateOneRequiredWithoutHarnessesNestedInput
+    workstream?: WorkstreamUpdateOneWithoutHarnessesNestedInput
+    parent?: HarnessUpdateOneWithoutChildrenNestedInput
+    children?: HarnessUpdateManyWithoutParentNestedInput
+    pulses?: PulseUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessUncheckedUpdateWithoutToolsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    workstreamId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    children?: HarnessUncheckedUpdateManyWithoutParentNestedInput
+    pulses?: PulseUncheckedUpdateManyWithoutHarnessNestedInput
+  }
+
   export type TaskCreateManyProjectInput = {
     id?: string
     title: string
@@ -21022,6 +34715,17 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ObjectiveCreateManyProjectInput = {
+    id?: string
+    name: string
+    description?: string | null
+    status?: string
+    targetDate?: Date | string | null
+    spendCapUsd?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -21086,6 +34790,47 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ObjectiveUpdateWithoutProjectInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    phases?: ObjectivePhaseUpdateManyWithoutObjectiveNestedInput
+    workstreams?: WorkstreamUpdateManyWithoutObjectiveNestedInput
+    harnesses?: HarnessUpdateManyWithoutObjectiveNestedInput
+    interventions?: InterventionUpdateManyWithoutObjectiveNestedInput
+  }
+
+  export type ObjectiveUncheckedUpdateWithoutProjectInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    phases?: ObjectivePhaseUncheckedUpdateManyWithoutObjectiveNestedInput
+    workstreams?: WorkstreamUncheckedUpdateManyWithoutObjectiveNestedInput
+    harnesses?: HarnessUncheckedUpdateManyWithoutObjectiveNestedInput
+    interventions?: InterventionUncheckedUpdateManyWithoutObjectiveNestedInput
+  }
+
+  export type ObjectiveUncheckedUpdateManyWithoutProjectInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -21442,6 +35187,606 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type ObjectivePhaseCreateManyObjectiveInput = {
+    id?: string
+    name: string
+    state: string
+    weight?: number
+    detail?: string | null
+    orderIdx: number
+  }
+
+  export type WorkstreamCreateManyObjectiveInput = {
+    id?: string
+    name: string
+    paused?: boolean
+    pausedAt?: Date | string | null
+    pausedNote?: string | null
+    orderIdx?: number
+    leadHarnessId?: string | null
+  }
+
+  export type HarnessCreateManyObjectiveInput = {
+    id?: string
+    workstreamId?: string | null
+    parentId?: string | null
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+  }
+
+  export type InterventionCreateManyObjectiveInput = {
+    id?: string
+    harnessId: string
+    kind: string
+    title: string
+    detail?: string | null
+    impact?: string | null
+    payload?: string | null
+    status?: string
+    response?: string | null
+    createdAt?: Date | string
+    resolvedAt?: Date | string | null
+  }
+
+  export type ObjectivePhaseUpdateWithoutObjectiveInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    weight?: FloatFieldUpdateOperationsInput | number
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type ObjectivePhaseUncheckedUpdateWithoutObjectiveInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    weight?: FloatFieldUpdateOperationsInput | number
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type ObjectivePhaseUncheckedUpdateManyWithoutObjectiveInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    state?: StringFieldUpdateOperationsInput | string
+    weight?: FloatFieldUpdateOperationsInput | number
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+  }
+
+  export type WorkstreamUpdateWithoutObjectiveInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    paused?: BoolFieldUpdateOperationsInput | boolean
+    pausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    pausedNote?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+    leadHarnessId?: NullableStringFieldUpdateOperationsInput | string | null
+    harnesses?: HarnessUpdateManyWithoutWorkstreamNestedInput
+  }
+
+  export type WorkstreamUncheckedUpdateWithoutObjectiveInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    paused?: BoolFieldUpdateOperationsInput | boolean
+    pausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    pausedNote?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+    leadHarnessId?: NullableStringFieldUpdateOperationsInput | string | null
+    harnesses?: HarnessUncheckedUpdateManyWithoutWorkstreamNestedInput
+  }
+
+  export type WorkstreamUncheckedUpdateManyWithoutObjectiveInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    paused?: BoolFieldUpdateOperationsInput | boolean
+    pausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    pausedNote?: NullableStringFieldUpdateOperationsInput | string | null
+    orderIdx?: IntFieldUpdateOperationsInput | number
+    leadHarnessId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type HarnessUpdateWithoutObjectiveInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    workstream?: WorkstreamUpdateOneWithoutHarnessesNestedInput
+    parent?: HarnessUpdateOneWithoutChildrenNestedInput
+    children?: HarnessUpdateManyWithoutParentNestedInput
+    pulses?: PulseUpdateManyWithoutHarnessNestedInput
+    tools?: HarnessToolUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessUncheckedUpdateWithoutObjectiveInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    workstreamId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    children?: HarnessUncheckedUpdateManyWithoutParentNestedInput
+    pulses?: PulseUncheckedUpdateManyWithoutHarnessNestedInput
+    tools?: HarnessToolUncheckedUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessUncheckedUpdateManyWithoutObjectiveInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    workstreamId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type InterventionUpdateWithoutObjectiveInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    impact?: NullableStringFieldUpdateOperationsInput | string | null
+    payload?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    response?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type InterventionUncheckedUpdateWithoutObjectiveInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    impact?: NullableStringFieldUpdateOperationsInput | string | null
+    payload?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    response?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type InterventionUncheckedUpdateManyWithoutObjectiveInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    impact?: NullableStringFieldUpdateOperationsInput | string | null
+    payload?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    response?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type HarnessCreateManyWorkstreamInput = {
+    id?: string
+    objectiveId: string
+    parentId?: string | null
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+  }
+
+  export type HarnessUpdateWithoutWorkstreamInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    objective?: ObjectiveUpdateOneRequiredWithoutHarnessesNestedInput
+    parent?: HarnessUpdateOneWithoutChildrenNestedInput
+    children?: HarnessUpdateManyWithoutParentNestedInput
+    pulses?: PulseUpdateManyWithoutHarnessNestedInput
+    tools?: HarnessToolUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessUncheckedUpdateWithoutWorkstreamInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    children?: HarnessUncheckedUpdateManyWithoutParentNestedInput
+    pulses?: PulseUncheckedUpdateManyWithoutHarnessNestedInput
+    tools?: HarnessToolUncheckedUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessUncheckedUpdateManyWithoutWorkstreamInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    parentId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type HarnessCreateManyParentInput = {
+    id?: string
+    objectiveId: string
+    workstreamId?: string | null
+    name: string
+    status?: string
+    statusBeforePause?: string | null
+    activity?: string | null
+    mission: string
+    currentJob?: string | null
+    model: string
+    playbookId?: string | null
+    taskId?: string | null
+    branch?: string | null
+    heartbeatMinutes?: number
+    nextPulseAt?: Date | string | null
+    maxChildren?: number
+    spendCapUsd?: number | null
+    spendUsd?: number
+    contextTokens?: number
+    contextWindow?: number
+    permissions?: string
+    dryRun?: boolean
+    lastPulseSeq?: number
+    idleSince?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    retiredAt?: Date | string | null
+  }
+
+  export type PulseCreateManyHarnessInput = {
+    id?: string
+    seq: number
+    startedAt: Date | string
+    endedAt?: Date | string | null
+    outcome: string
+    summary?: string | null
+    costUsd?: number
+    tokens?: number
+    weight?: number
+  }
+
+  export type HarnessToolCreateManyHarnessInput = {
+    id?: string
+    name: string
+    groupName: string
+    needsApproval?: boolean
+    lastStatus?: string | null
+    lastResultLabel?: string | null
+    lastRanAt?: Date | string | null
+  }
+
+  export type HarnessUpdateWithoutParentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    objective?: ObjectiveUpdateOneRequiredWithoutHarnessesNestedInput
+    workstream?: WorkstreamUpdateOneWithoutHarnessesNestedInput
+    children?: HarnessUpdateManyWithoutParentNestedInput
+    pulses?: PulseUpdateManyWithoutHarnessNestedInput
+    tools?: HarnessToolUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessUncheckedUpdateWithoutParentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    workstreamId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    children?: HarnessUncheckedUpdateManyWithoutParentNestedInput
+    pulses?: PulseUncheckedUpdateManyWithoutHarnessNestedInput
+    tools?: HarnessToolUncheckedUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessUncheckedUpdateManyWithoutParentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    objectiveId?: StringFieldUpdateOperationsInput | string
+    workstreamId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    statusBeforePause?: NullableStringFieldUpdateOperationsInput | string | null
+    activity?: NullableStringFieldUpdateOperationsInput | string | null
+    mission?: StringFieldUpdateOperationsInput | string
+    currentJob?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: StringFieldUpdateOperationsInput | string
+    playbookId?: NullableStringFieldUpdateOperationsInput | string | null
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    branch?: NullableStringFieldUpdateOperationsInput | string | null
+    heartbeatMinutes?: IntFieldUpdateOperationsInput | number
+    nextPulseAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    maxChildren?: IntFieldUpdateOperationsInput | number
+    spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    spendUsd?: FloatFieldUpdateOperationsInput | number
+    contextTokens?: IntFieldUpdateOperationsInput | number
+    contextWindow?: IntFieldUpdateOperationsInput | number
+    permissions?: StringFieldUpdateOperationsInput | string
+    dryRun?: BoolFieldUpdateOperationsInput | boolean
+    lastPulseSeq?: IntFieldUpdateOperationsInput | number
+    idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type PulseUpdateWithoutHarnessInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    seq?: IntFieldUpdateOperationsInput | number
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    outcome?: StringFieldUpdateOperationsInput | string
+    summary?: NullableStringFieldUpdateOperationsInput | string | null
+    costUsd?: FloatFieldUpdateOperationsInput | number
+    tokens?: IntFieldUpdateOperationsInput | number
+    weight?: FloatFieldUpdateOperationsInput | number
+  }
+
+  export type PulseUncheckedUpdateWithoutHarnessInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    seq?: IntFieldUpdateOperationsInput | number
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    outcome?: StringFieldUpdateOperationsInput | string
+    summary?: NullableStringFieldUpdateOperationsInput | string | null
+    costUsd?: FloatFieldUpdateOperationsInput | number
+    tokens?: IntFieldUpdateOperationsInput | number
+    weight?: FloatFieldUpdateOperationsInput | number
+  }
+
+  export type PulseUncheckedUpdateManyWithoutHarnessInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    seq?: IntFieldUpdateOperationsInput | number
+    startedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    outcome?: StringFieldUpdateOperationsInput | string
+    summary?: NullableStringFieldUpdateOperationsInput | string | null
+    costUsd?: FloatFieldUpdateOperationsInput | number
+    tokens?: IntFieldUpdateOperationsInput | number
+    weight?: FloatFieldUpdateOperationsInput | number
+  }
+
+  export type HarnessToolUpdateWithoutHarnessInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    groupName?: StringFieldUpdateOperationsInput | string
+    needsApproval?: BoolFieldUpdateOperationsInput | boolean
+    lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type HarnessToolUncheckedUpdateWithoutHarnessInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    groupName?: StringFieldUpdateOperationsInput | string
+    needsApproval?: BoolFieldUpdateOperationsInput | boolean
+    lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type HarnessToolUncheckedUpdateManyWithoutHarnessInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    groupName?: StringFieldUpdateOperationsInput | string
+    needsApproval?: BoolFieldUpdateOperationsInput | boolean
+    lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
 
 
   /**
@@ -21459,6 +35804,18 @@ export namespace Prisma {
      * @deprecated Use PromptVersionCountOutputTypeDefaultArgs instead
      */
     export type PromptVersionCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = PromptVersionCountOutputTypeDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use ObjectiveCountOutputTypeDefaultArgs instead
+     */
+    export type ObjectiveCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ObjectiveCountOutputTypeDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use WorkstreamCountOutputTypeDefaultArgs instead
+     */
+    export type WorkstreamCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = WorkstreamCountOutputTypeDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use HarnessCountOutputTypeDefaultArgs instead
+     */
+    export type HarnessCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = HarnessCountOutputTypeDefaultArgs<ExtArgs>
     /**
      * @deprecated Use ProjectDefaultArgs instead
      */
@@ -21511,6 +35868,38 @@ export namespace Prisma {
      * @deprecated Use ProviderCircuitStateDefaultArgs instead
      */
     export type ProviderCircuitStateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ProviderCircuitStateDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use ObjectiveDefaultArgs instead
+     */
+    export type ObjectiveArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ObjectiveDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use ObjectivePhaseDefaultArgs instead
+     */
+    export type ObjectivePhaseArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ObjectivePhaseDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use WorkstreamDefaultArgs instead
+     */
+    export type WorkstreamArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = WorkstreamDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use HarnessDefaultArgs instead
+     */
+    export type HarnessArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = HarnessDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use PulseDefaultArgs instead
+     */
+    export type PulseArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = PulseDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use InterventionDefaultArgs instead
+     */
+    export type InterventionArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = InterventionDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use PlaybookDefaultArgs instead
+     */
+    export type PlaybookArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = PlaybookDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use HarnessToolDefaultArgs instead
+     */
+    export type HarnessToolArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = HarnessToolDefaultArgs<ExtArgs>
 
   /**
    * Batch Payload for updateMany & deleteMany & createMany

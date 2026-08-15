@@ -25,9 +25,9 @@
     "build": "tsc",
     "prebuild": "prisma generate",
     "generate": "prisma generate",
-    "migrate": "DATABASE_URL=postgresql://localhost:5432/omega DATABASE_DIR=${DATABASE_DIR:-./pglite-data} tsx src/migrate.ts",
-    "migrate:deploy": "DATABASE_URL=postgresql://localhost:5432/omega DATABASE_DIR=${DATABASE_DIR:-./pglite-data} tsx src/migrate.ts",
-    "seed": "DATABASE_URL=postgresql://localhost:5432/omega DATABASE_DIR=${DATABASE_DIR:-./pglite-data} tsx src/seed.ts"
+    "migrate": "DATABASE_URL=postgresql://localhost:5432/omega DATABASE_DIR=${DATABASE_DIR:-../../pglite-data} node --import tsx src/migrate.ts",
+    "migrate:deploy": "DATABASE_URL=postgresql://localhost:5432/omega DATABASE_DIR=${DATABASE_DIR:-../../pglite-data} node --import tsx src/migrate.ts",
+    "seed": "DATABASE_URL=postgresql://localhost:5432/omega DATABASE_DIR=${DATABASE_DIR:-../../pglite-data} node --import tsx src/seed.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.3",

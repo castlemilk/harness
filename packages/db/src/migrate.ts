@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pglite as sharedPglite } from './client.js';
+import { pglite as sharedPglite, prisma } from './client.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -52,8 +52,13 @@ export async function applyMigrations(databaseDir?: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  await applyMigrations();
-  console.log('Migrations applied.');
+  try {
+    await applyMigrations();
+    console.log('Migrations applied.');
+  } finally {
+    await prisma.$disconnect();
+    await sharedPglite.close();
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

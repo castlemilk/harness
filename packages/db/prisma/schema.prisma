@@ -18,6 +18,7 @@ model Project {
   env         String? // JSON
   createdAt   DateTime @default(now())
   tasks       Task[]
+  objectives  Objective[]
 }
 
 model Task {
@@ -233,4 +234,157 @@ model ProviderCircuitState {
   trialRequestId String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+}
+
+model Objective {
+  id            String          @id @default(uuid())
+  projectId     String
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  status        String          @default("active")
+  targetDate    DateTime?
+  spendCapUsd   Float?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  phases        ObjectivePhase[]
+  workstreams   Workstream[]
+  harnesses     Harness[]
+  interventions Intervention[]
+
+  @@index([projectId])
+}
+
+model ObjectivePhase {
+  id          String    @id @default(uuid())
+  objectiveId String
+  objective   Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  name        String
+  state       String
+  weight      Float     @default(1)
+  detail      String?
+  orderIdx    Int
+
+  @@index([objectiveId])
+}
+
+model Workstream {
+  id            String    @id @default(uuid())
+  objectiveId   String
+  objective     Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  name          String
+  paused        Boolean   @default(false)
+  pausedAt      DateTime?
+  pausedNote    String?
+  orderIdx      Int       @default(0)
+  leadHarnessId String?
+  harnesses     Harness[]
+
+  @@index([objectiveId])
+}
+
+model Harness {
+  id               String        @id @default(uuid())
+  objectiveId      String
+  objective        Objective     @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  workstreamId     String?
+  workstream       Workstream?   @relation(fields: [workstreamId], references: [id], onDelete: SetNull)
+  parentId         String?
+  parent           Harness?      @relation("HarnessTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children         Harness[]     @relation("HarnessTree")
+  name             String
+  status           String        @default("ready")
+  statusBeforePause String?
+  activity         String?
+  mission          String
+  currentJob       String?
+  model            String
+  playbookId       String?
+  taskId           String?
+  branch           String?
+  heartbeatMinutes Int           @default(30)
+  nextPulseAt      DateTime?
+  maxChildren      Int           @default(3)
+  spendCapUsd      Float?
+  spendUsd         Float         @default(0)
+  contextTokens    Int           @default(0)
+  contextWindow    Int           @default(200000)
+  permissions      String        @default("[]")
+  dryRun           Boolean       @default(false)
+  lastPulseSeq     Int           @default(0)
+  idleSince        DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  retiredAt        DateTime?
+  pulses           Pulse[]
+  tools            HarnessTool[]
+
+  @@index([objectiveId, status])
+  @@index([parentId])
+  @@index([workstreamId])
+}
+
+model Pulse {
+  id        String   @id @default(uuid())
+  harnessId String
+  harness   Harness  @relation(fields: [harnessId], references: [id], onDelete: Cascade)
+  seq       Int
+  startedAt DateTime
+  endedAt   DateTime?
+  outcome   String
+  summary   String?
+  costUsd   Float    @default(0)
+  tokens    Int      @default(0)
+  weight    Float    @default(0.5)
+
+  @@unique([harnessId, seq])
+  @@index([harnessId, seq(sort: Desc)])
+  @@index([harnessId, startedAt(sort: Desc)])
+}
+
+model Intervention {
+  id          String    @id @default(uuid())
+  objectiveId String
+  objective   Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  harnessId   String
+  kind        String
+  title       String
+  detail      String?
+  impact      String?
+  payload     String?
+  status      String    @default("pending")
+  response    String?
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  @@index([objectiveId, status])
+}
+
+model Playbook {
+  id                String   @id @default(uuid())
+  projectId         String?
+  name              String
+  version           Int      @default(1)
+  variables         String   @default("[]")
+  cadence           String   @default("every 30m")
+  retireWhen        String?
+  steps             String   @default("[]")
+  previousVersionId String?
+  createdAt         DateTime @default(now())
+
+  @@unique([name, version])
+}
+
+model HarnessTool {
+  id              String    @id @default(uuid())
+  harnessId       String
+  harness         Harness   @relation(fields: [harnessId], references: [id], onDelete: Cascade)
+  name            String
+  groupName       String
+  needsApproval   Boolean   @default(false)
+  lastStatus      String?
+  lastResultLabel String?
+  lastRanAt       DateTime?
+
+  @@index([harnessId])
 }

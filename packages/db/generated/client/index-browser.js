@@ -309,6 +309,122 @@ exports.Prisma.ProviderCircuitStateScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.ObjectiveScalarFieldEnum = {
+  id: 'id',
+  projectId: 'projectId',
+  name: 'name',
+  description: 'description',
+  status: 'status',
+  targetDate: 'targetDate',
+  spendCapUsd: 'spendCapUsd',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ObjectivePhaseScalarFieldEnum = {
+  id: 'id',
+  objectiveId: 'objectiveId',
+  name: 'name',
+  state: 'state',
+  weight: 'weight',
+  detail: 'detail',
+  orderIdx: 'orderIdx'
+};
+
+exports.Prisma.WorkstreamScalarFieldEnum = {
+  id: 'id',
+  objectiveId: 'objectiveId',
+  name: 'name',
+  paused: 'paused',
+  pausedAt: 'pausedAt',
+  pausedNote: 'pausedNote',
+  orderIdx: 'orderIdx',
+  leadHarnessId: 'leadHarnessId'
+};
+
+exports.Prisma.HarnessScalarFieldEnum = {
+  id: 'id',
+  objectiveId: 'objectiveId',
+  workstreamId: 'workstreamId',
+  parentId: 'parentId',
+  name: 'name',
+  status: 'status',
+  statusBeforePause: 'statusBeforePause',
+  activity: 'activity',
+  mission: 'mission',
+  currentJob: 'currentJob',
+  model: 'model',
+  playbookId: 'playbookId',
+  taskId: 'taskId',
+  branch: 'branch',
+  heartbeatMinutes: 'heartbeatMinutes',
+  nextPulseAt: 'nextPulseAt',
+  maxChildren: 'maxChildren',
+  spendCapUsd: 'spendCapUsd',
+  spendUsd: 'spendUsd',
+  contextTokens: 'contextTokens',
+  contextWindow: 'contextWindow',
+  permissions: 'permissions',
+  dryRun: 'dryRun',
+  lastPulseSeq: 'lastPulseSeq',
+  idleSince: 'idleSince',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  retiredAt: 'retiredAt'
+};
+
+exports.Prisma.PulseScalarFieldEnum = {
+  id: 'id',
+  harnessId: 'harnessId',
+  seq: 'seq',
+  startedAt: 'startedAt',
+  endedAt: 'endedAt',
+  outcome: 'outcome',
+  summary: 'summary',
+  costUsd: 'costUsd',
+  tokens: 'tokens',
+  weight: 'weight'
+};
+
+exports.Prisma.InterventionScalarFieldEnum = {
+  id: 'id',
+  objectiveId: 'objectiveId',
+  harnessId: 'harnessId',
+  kind: 'kind',
+  title: 'title',
+  detail: 'detail',
+  impact: 'impact',
+  payload: 'payload',
+  status: 'status',
+  response: 'response',
+  createdAt: 'createdAt',
+  resolvedAt: 'resolvedAt'
+};
+
+exports.Prisma.PlaybookScalarFieldEnum = {
+  id: 'id',
+  projectId: 'projectId',
+  name: 'name',
+  version: 'version',
+  variables: 'variables',
+  cadence: 'cadence',
+  retireWhen: 'retireWhen',
+  steps: 'steps',
+  previousVersionId: 'previousVersionId',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.HarnessToolScalarFieldEnum = {
+  id: 'id',
+  harnessId: 'harnessId',
+  name: 'name',
+  groupName: 'groupName',
+  needsApproval: 'needsApproval',
+  lastStatus: 'lastStatus',
+  lastResultLabel: 'lastResultLabel',
+  lastRanAt: 'lastRanAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -338,7 +454,15 @@ exports.Prisma.ModelName = {
   PromptVersion: 'PromptVersion',
   BenchmarkHistory: 'BenchmarkHistory',
   BenchmarkRun: 'BenchmarkRun',
-  ProviderCircuitState: 'ProviderCircuitState'
+  ProviderCircuitState: 'ProviderCircuitState',
+  Objective: 'Objective',
+  ObjectivePhase: 'ObjectivePhase',
+  Workstream: 'Workstream',
+  Harness: 'Harness',
+  Pulse: 'Pulse',
+  Intervention: 'Intervention',
+  Playbook: 'Playbook',
+  HarnessTool: 'HarnessTool'
 };
 
 /**

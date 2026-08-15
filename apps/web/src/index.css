@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Foreman is a dark surface: this is what makes scrollbars, native selects,
+     checkboxes and range tracks render dark instead of light-on-black. */
+  color-scheme: dark;
+}
+
 body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+  @apply bg-canvas text-ink antialiased;
+}
+
+/* The legacy panels are still light, so they opt back out. */
+.legacy-surface {
+  color-scheme: light;
+}
+
+a {
+  @apply text-info;
+}
+a:hover {
+  @apply text-info-tint;
+}
+
+/* The pre-Foreman panels (benchmarks, providers, traces) are still light-themed.
+   They keep their own surface so the dark shell doesn't wash them out. */
+.legacy-surface {
+  @apply bg-gray-50 text-gray-900;
 }

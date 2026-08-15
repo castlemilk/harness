@@ -19,7 +19,7 @@ import {
   SectionLabel,
   StatusDot,
 } from '../ui/primitives.js';
-import { ago, duration, money, percent } from '../ui/format.js';
+import { ago, duration, money, percent, plural } from '../ui/format.js';
 
 /**
  * Shell 1b — Ops board.
@@ -375,7 +375,7 @@ function HarnessCard({
           <span>
             {percent(harness.contextUsed)} ctx ·{' '}
             {harness.childCount > 0
-              ? `${String(harness.childCount)} children`
+              ? plural(harness.childCount, 'child', 'children')
               : harness.latestPulseSeq != null
                 ? `#${String(harness.latestPulseSeq)}`
                 : 'no pulses'}

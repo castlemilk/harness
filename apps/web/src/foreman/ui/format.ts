@@ -63,3 +63,9 @@ export function clock(iso: string | null | undefined): string {
   if (Number.isNaN(d.getTime())) return '—';
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+
+/** "1 child" / "3 children" — count with a correctly pluralised noun. */
+export function plural(count: number, singular: string, pluralForm?: string): string {
+  const n = Number.isFinite(count) ? count : 0;
+  return `${String(n)} ${n === 1 ? singular : (pluralForm ?? `${singular}s`)}`;
+}

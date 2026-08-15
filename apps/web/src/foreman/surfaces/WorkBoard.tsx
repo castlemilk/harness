@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Ticket, TicketState } from '../types.js';
 import { SectionLabel, StatusDot } from '../ui/primitives.js';
+import { plural } from '../ui/format.js';
 
 /**
  * Surface 1g — Work board.
@@ -174,7 +175,7 @@ function Card({
           : ticket.prNumber != null
             ? ` · PR #${String(ticket.prNumber)}`
             : ticket.childCount > 0
-              ? ` · ${String(ticket.childCount)} children`
+              ? ` · ${plural(ticket.childCount, 'child', 'children')}`
               : ticket.assignmentNote
                 ? ` · ${ticket.assignmentNote}`
                 : ''}

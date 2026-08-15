@@ -19,7 +19,7 @@ import {
   StatusDot,
   statusColor,
 } from '../ui/primitives.js';
-import { duration, money, percent } from '../ui/format.js';
+import { duration, money, percent, plural } from '../ui/format.js';
 
 /**
  * Shell 1a — Console.
@@ -352,7 +352,8 @@ function FocusColumn({
                   {harness.name} · mission
                 </h2>
                 <div className="mt-1.5 font-mono text-[11px] text-muted">
-                  owns {harness.childCount} children · idle {duration(harness.idleMinutes)} ·{' '}
+                  owns {plural(harness.childCount, 'child', 'children')} · idle{' '}
+                  {duration(harness.idleMinutes)} ·{' '}
                   {harness.nextPulseInMinutes != null
                     ? `next pulse in ${duration(harness.nextPulseInMinutes)}`
                     : 'no pulse scheduled'}
@@ -565,7 +566,8 @@ function LeadCard({
           <div
             className={`mt-0.5 font-mono text-[9.5px] ${focused ? 'text-accent-dim' : 'text-muted'}`}
           >
-            {harness.status} · {harness.childCount} children · {duration(harness.idleMinutes)}
+            {harness.status} · {plural(harness.childCount, 'child', 'children')} ·{' '}
+            {duration(harness.idleMinutes)}
           </div>
         </div>
         <span className="flex-none font-mono text-[9.5px] font-medium text-accent">

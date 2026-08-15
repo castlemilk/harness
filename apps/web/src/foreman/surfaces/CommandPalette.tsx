@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Harness, Ticket } from '../types.js';
 import { Modal } from '../ui/Modal.js';
 import { SectionLabel, StatusDot } from '../ui/primitives.js';
-import { duration, percent } from '../ui/format.js';
+import { duration, percent, plural } from '../ui/format.js';
 
 /**
  * Surface 1k — Command palette.
@@ -92,7 +92,9 @@ export function CommandPalette({
         label: (
           <>
             {capitalise(verb)} <Mono>{target.name}</Mono>
-            {target.childCount > 0 ? ` and its ${String(target.childCount)} children` : ''}
+            {target.childCount > 0
+              ? ` and its ${plural(target.childCount, 'child', 'children')}`
+              : ''}
           </>
         ),
         hint: '↵',

@@ -14,7 +14,8 @@
     "db:seed": "pnpm --filter @omega/db seed",
     "bench:deepswe": "node apps/cli/dist/index.js bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 1 --sample-seed 5 --timeout 1800000 --provider kimi --model kimi-for-coding --docker",
     "bench:deepswe:30": "node apps/cli/dist/index.js bench run --suite deep-swe --path ./deep-swe/tasks --n-tasks 30 --sample-seed 0 --timeout 1800000 --provider kimi --model kimi-for-coding --docker",
-    "bench:pier": "node apps/cli/dist/index.js bench run --suite pier --path ./deep-swe/tasks --n-tasks 2 --sample-seed 0 --timeout 3600000 --model openai/glm-5.2 --env-file /tmp/pier-glm.env --n-concurrent 1"
+    "bench:pier": "node apps/cli/dist/index.js bench run --suite pier --path ./deep-swe/tasks --n-tasks 2 --sample-seed 0 --timeout 3600000 --model openai/glm-5.2 --env-file /tmp/pier-glm.env --n-concurrent 1",
+    "seed:foreman-e2e": "tsx scripts/seed-foreman-e2e.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

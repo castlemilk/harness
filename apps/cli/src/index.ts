@@ -3,6 +3,8 @@ import { program } from 'commander';
 import { projectCmd } from './commands/project.js';
 import { taskCmd } from './commands/task.js';
 import { uiCmd } from './commands/ui.js';
+import { devCmd } from './commands/dev.js';
+import { doctorCmd } from './commands/doctor.js';
 import { consoleCmd } from './commands/console.js';
 import { skillCmd } from './commands/skill.js';
 import { agentCmd } from './commands/agent.js';
@@ -16,6 +18,8 @@ program
   .version('0.1.0')
   .option('--api <url>', 'API base URL', 'http://localhost:4000');
 
+program.addCommand(devCmd);
+program.addCommand(doctorCmd);
 program.addCommand(projectCmd);
 program.addCommand(taskCmd);
 program.addCommand(uiCmd);

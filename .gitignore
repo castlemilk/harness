@@ -16,4 +16,7 @@ packages/bundle/dist/
 pglite-data.bak.*
 .serena/
 jobs/
-web/
+# Anchored: a bare `web/` also matched apps/web/ (source!), hiding every new
+# file there. Only the repo-root dir and the server's built UI are artifacts.
+/web/
+apps/server/web/

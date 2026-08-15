@@ -1,0 +1,246 @@
+# Local workflow for the Omega harness.
+#
+#   task            list everything
+#   task setup      first run on a fresh checkout
+#   task dev        API + web, one database, clean shutdown
+#   task check      what CI would run
+#
+# Every task that touches the database pins DATABASE_DIR to ONE absolute path.
+# That matters: each package's own npm scripts set `DATABASE_DIR=./pglite-data`
+# relative to the package directory, so `pnpm --filter @omega/server dev` and
+# `pnpm db:migrate` operate on *different* databases and migrations never reach
+# the one the server reads. `task doctor` reports that if it has already
+# happened to you.
+version: '3'
+
+vars:
+  DB_DIR: '{{.ROOT_DIR}}/pglite-data'
+  DB_URL: 'postgresql://localhost:5432/omega'
+  API_PORT: '4000'
+  WEB_PORT: '5173'
+
+env:
+  DATABASE_DIR: '{{.DB_DIR}}'
+  DATABASE_URL: '{{.DB_URL}}'
+
+tasks:
+  default:
+    desc: List available tasks
+    silent: true
+    cmds:
+      - task --list
+
+  # ---------------------------------------------------------------- setup --
+
+  setup:
+    desc: Install dependencies, generate the client, and migrate (fresh checkout)
+    cmds:
+      - pnpm install
+      - task: db:generate
+      - task: db:migrate
+      - cmd: echo "Ready. Next → task dev"
+
+  doctor:
+    desc: Diagnose the local environment (databases, ports, provider keys)
+    dir: apps/cli
+    cmds:
+      - node --import tsx src/index.ts doctor --api-port {{.API_PORT}}
+
+  # ------------------------------------------------------------------ dev --
+
+  dev:
+    desc: Run API + web against one database, with prefixed output
+    dir: apps/cli
+    interactive: true
+    cmds:
+      - node --import tsx src/index.ts dev --api-port {{.API_PORT}} --web-port {{.WEB_PORT}} {{.CLI_ARGS}}
+
+  dev:seed:
+    desc: Like `dev`, but seed the state-complete Foreman fixture first
+    cmds:
+      - task: dev
+        vars: { CLI_ARGS: '--seed e2e' }
+
+  dev:engine:
+    desc: Like `dev`, but also run the pulse engine (MAKES REAL PROVIDER CALLS)
+    cmds:
+      - task: dev
+        vars: { CLI_ARGS: '--engine' }
+
+  dev:server:
+    desc: API only
+    dir: apps/server
+    cmds:
+      - node --import tsx src/index.ts
+
+  dev:web:
+    desc: Web dev server only (expects an API on {{.API_PORT}})
+    dir: apps/web
+    env:
+      VITE_API_URL: 'http://localhost:{{.API_PORT}}'
+    cmds:
+      - node node_modules/vite/bin/vite.js --port {{.WEB_PORT}} --strictPort
+
+  ui:
+    desc: Open the built web UI via the CLI (serves from the API)
+    dir: apps/cli
+    interactive: true
+    cmds:
+      - node --import tsx src/index.ts ui {{.CLI_ARGS}}
+
+  console:
+    desc: Open the terminal console (TUI)
+    dir: apps/cli
+    interactive: true
+    cmds:
+      - node --import tsx src/index.ts console
+
+  # ------------------------------------------------------------------- db --
+
+  db:generate:
+    desc: Regenerate the Prisma client
+    cmds:
+      - pnpm --filter @omega/db generate
+
+  db:migrate:
+    desc: Apply migrations to the canonical database
+    dir: packages/db
+    cmds:
+      - node --import tsx src/migrate.ts
+
+  db:seed:
+    desc: Seed the default demo data
+    dir: packages/db
+    cmds:
+      - node --import tsx src/seed.ts
+
+  db:seed:e2e:
+    desc: Seed the state-complete Foreman fixture (every UI state)
+    dir: packages/db
+    cmds:
+      - node --import tsx ../../scripts/seed-foreman-e2e.ts
+
+  db:reset:
+    desc: Delete the canonical database and rebuild it from migrations + seed
+    prompt: This deletes {{.DB_DIR}}. Continue?
+    cmds:
+      - rm -rf '{{.DB_DIR}}'
+      - task: db:migrate
+      - task: db:seed
+
+  db:studio:
+    desc: Inspect the database with Prisma Studio
+    dir: packages/db
+    cmds:
+      - npx prisma studio
+
+  # ---------------------------------------------------------------- build --
+
+  build:
+    desc: Build every package
+    cmds:
+      - pnpm -r build
+
+  build:web:
+    desc: Build the web app
+    cmds:
+      - pnpm --filter @omega/web build
+
+  build:server:
+    desc: Build the API
+    cmds:
+      - pnpm --filter @omega/server build
+
+  build:cli:
+    desc: Build the CLI
+    cmds:
+      - pnpm --filter @omega/cli build
+
+  # ----------------------------------------------------------------- test --
+
+  test:
+    desc: Run every package's tests
+    cmds:
+      - pnpm -r test
+
+  test:server:
+    desc: API tests (against a throwaway database)
+    dir: apps/server
+    env:
+      DATABASE_DIR:
+        sh: mktemp -d
+    cmds:
+      - npx vitest run {{.CLI_ARGS}}
+
+  test:web:
+    desc: Web tests
+    dir: apps/web
+    cmds:
+      - npx vitest run {{.CLI_ARGS}}
+
+  test:foreman:
+    desc: Foreman tests only, both sides
+    cmds:
+      - task: test:server
+        vars: { CLI_ARGS: 'src/routes/foreman.test.ts src/lib/pulse-engine.test.ts' }
+      - task: test:web
+        vars: { CLI_ARGS: 'src/foreman' }
+
+  test:e2e:
+    desc: End-to-end suite
+    dir: apps/e2e
+    cmds:
+      - npx vitest run
+
+  # ---------------------------------------------------------------- check --
+
+  lint:
+    desc: Lint everything
+    cmds:
+      - npx eslint .
+
+  lint:fix:
+    desc: Lint and autofix
+    cmds:
+      - npx eslint . --fix
+
+  typecheck:
+    desc: Typecheck every package without emitting
+    cmds:
+      - npx tsc --noEmit -p apps/server/tsconfig.json
+      - npx tsc --noEmit -p apps/web/tsconfig.json
+      - npx tsc --noEmit -p apps/cli/tsconfig.json
+      - npx tsc --noEmit -p packages/core/tsconfig.json
+
+  check:
+    desc: Everything CI would run — lint, typecheck, build, test
+    cmds:
+      - task: lint
+      - task: typecheck
+      - task: build
+      - task: test
+
+  # --------------------------------------------------------------- engine --
+
+  engine:pulse:
+    desc: 'Pulse one harness now. Usage: task engine:pulse -- <harnessId>'
+    cmds:
+      - 'curl -sS -X POST "http://localhost:{{.API_PORT}}/foreman/harnesses/{{.CLI_ARGS}}/pulse" -H "Content-Type: application/json" -d "{}" | python3 -m json.tool'
+
+  engine:pulse:dry:
+    desc: 'Simulate a pulse (no provider call, no spend): task engine:pulse:dry -- <harnessId>'
+    cmds:
+      - 'curl -sS -X POST "http://localhost:{{.API_PORT}}/foreman/harnesses/{{.CLI_ARGS}}/pulse" -H "Content-Type: application/json" -d "{\"simulate\":true}" | python3 -m json.tool'
+
+  engine:status:
+    desc: Is the pulse engine running?
+    cmds:
+      - 'curl -sS "http://localhost:{{.API_PORT}}/foreman/engine" | python3 -m json.tool'
+
+  # ---------------------------------------------------------------- clean --
+
+  clean:
+    desc: Remove build output (leaves the database alone)
+    cmds:
+      - rm -rf apps/*/dist packages/*/dist apps/web/dist
+      - cmd: echo "Build output removed. Database at {{.DB_DIR}} left intact."

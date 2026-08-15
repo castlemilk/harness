@@ -13,6 +13,8 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err);
 });
 
+import { startForemanEngine } from './routes/foreman-engine.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PORT = Number(process.env.PORT ?? 4000);
@@ -67,6 +69,8 @@ async function bootstrap(): Promise<void> {
     console.log(`Serving web UI from ${WEB_DIST_DIR}`);
   });
 
+  const foremanEngine = startForemanEngine(prisma);
+
   const grpcServer = startGrpcServer(prisma, GRPC_PORT, HOST);
 
   // Initialize router (handles its own periodic persistence)
@@ -80,6 +84,7 @@ async function bootstrap(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     console.log(`${signal} received, shutting down…`);
     clearInterval(alertInterval);
+    foremanEngine?.stop();
 
     const status = queue.status();
     console.log(`Queue: ${String(status.active)} active, ${String(status.queued)} queued`);

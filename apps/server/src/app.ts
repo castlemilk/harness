@@ -15,6 +15,8 @@ import { benchRunRoutes } from './routes/bench-runs.js';
 import { traceRoutes } from './routes/traces.js';
 import { errorRoutes } from './routes/errors.js';
 import { providerCompareRoutes } from './routes/provider-compare.js';
+import { foremanRoutes } from './routes/foreman.js';
+import { foremanEngineRoutes } from './routes/foreman-engine.js';
 
 export const app: express.Express = express();
 
@@ -25,11 +27,24 @@ const allowedOrigins = new Set([
   'http://127.0.0.1:3000',
   'http://127.0.0.1:4000',
   'http://127.0.0.1:5173',
+  // Anything the launcher was told to expect, e.g. when 5173 was busy.
+  ...(process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean),
 ]);
+
+/**
+ * Loopback dev servers pick whatever port is free, so a fixed allowlist breaks
+ * the moment 5173 is taken. The server binds 127.0.0.1 and has no auth, so a
+ * loopback origin is no more privileged than a local curl — accept any of them
+ * and keep the strict list for everything else.
+ */
+const LOOPBACK_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d+$/;
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.has(origin)) {
+    if (!origin || allowedOrigins.has(origin) || LOOPBACK_ORIGIN.test(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -52,6 +67,8 @@ app.use('/bench/run', benchRunRoutes(prisma));
 app.use('/traces', traceRoutes());
 app.use('/errors', errorRoutes(prisma));
 app.use('/providers/compare', providerCompareRoutes(prisma));
+app.use('/foreman', foremanRoutes(prisma));
+app.use('/foreman', foremanEngineRoutes(prisma));
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

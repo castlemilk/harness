@@ -62,6 +62,7 @@ export function ForemanApp({
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
+  const [models, setModels] = useState<string[]>([]);
   const [playbookId, setPlaybookId] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [usageDays, setUsageDays] = useState(7);
@@ -106,6 +107,13 @@ export function ForemanApp({
         setPlaybookId((current) => current ?? list.at(0)?.id ?? null);
       })
       .catch(() => { setPlaybooks([]); });
+  }, []);
+
+  useEffect(() => {
+    void foremanApi
+      .listModels()
+      .then(setModels)
+      .catch(() => { setModels([]); });
   }, []);
 
   // Tools belong to the focused harness, so they reload as focus moves.
@@ -462,6 +470,7 @@ export function ForemanApp({
         objectiveName={objective.name}
         parent={spawnParent?.parent ?? null}
         playbooks={playbooks}
+        models={models}
         onSpawn={handleSpawn}
       />
     </div>

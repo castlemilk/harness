@@ -165,5 +165,26 @@ export const foremanApi = {
   resumeWorkstream: (id: string) =>
     request<Workstream>(`/foreman/workstreams/${id}/resume`, { method: 'POST' }),
 
+  /**
+   * Models the server can actually serve, from the configured providers.
+   * Offering a hardcoded list lets you spawn a harness onto a model nothing
+   * serves, which then silently runs on a substitute.
+   */
+  listModels: async (): Promise<string[]> => {
+    const providers = await request<
+      { defaultModel: string; enabled: boolean; capabilities?: unknown }[]
+    >('/providers');
+    const models = new Set<string>();
+    for (const p of providers) {
+      if (!p.enabled) continue;
+      if (p.defaultModel) models.add(p.defaultModel);
+      const caps = typeof p.capabilities === 'string'
+        ? (JSON.parse(p.capabilities) as { name?: string }[])
+        : (p.capabilities as { name?: string }[] | undefined);
+      for (const c of caps ?? []) if (c.name) models.add(c.name);
+    }
+    return [...models];
+  },
+
   streamUrl: (objectiveId: string) => sseUrl(`/foreman/stream?objectiveId=${objectiveId}`),
 };

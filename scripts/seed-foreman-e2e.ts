@@ -343,7 +343,6 @@ function pulseSeries(shape: PulseShape, count: number): { outcome: string; weigh
 
 async function main(): Promise<void> {
   const now = Date.now();
-  const startOfToday = new Date(new Date(now).setHours(0, 0, 0, 0));
 
   const project = await prisma.project.upsert({
     where: { id: PROJECT },
@@ -570,11 +569,12 @@ async function main(): Promise<void> {
     for (const [i, p] of series.entries()) {
       const seq = i + 1;
       // Oldest spread back over 6 days; the newest four land today.
+      // Strictly decreasing with distance from the newest pulse. The previous
+      // formula walked today's four newest FORWARD from 06:00, so a higher seq
+      // got an earlier timestamp and the transcript rendered out of order.
       const fromEnd = series.length - 1 - i;
-      const startedAt =
-        fromEnd < 4
-          ? new Date(startOfToday.getTime() + (6 + fromEnd * 2) * HOUR)
-          : new Date(now - (fromEnd - 3) * 6 * HOUR);
+      const hoursAgo = fromEnd < 4 ? fromEnd * 3 : 9 + (fromEnd - 3) * 6;
+      const startedAt = new Date(now - hoursAgo * HOUR);
 
       await prisma.pulse.create({
         data: {
@@ -743,6 +743,54 @@ async function main(): Promise<void> {
     },
   });
 
+  // --- transcript material ------------------------------------------------
+  // Transcript entries are built from the linked Task's traces; without any,
+  // the surface renders pulse dividers and nothing else.
+  const traceHarness = id('104'); // 554-webhook-retry, owns ticket 703
+  const traceTask = id('703');
+  await prisma.taskTrace.deleteMany({ where: { taskId: traceTask } });
+  const traceRows: { role: string; content: string; toolCalls?: string; minutesAgo: number }[] = [
+    {
+      role: 'assistant',
+      content:
+        'Three tests fail on expired-token replay. Reading the refresh middleware first, then patching the retry guard, then re-running only the oauth suite.',
+      minutesAgo: 190,
+    },
+    {
+      role: 'assistant',
+      content: 'Inspecting the retry path.',
+      toolCalls: JSON.stringify([
+        { name: 'read_file', arguments: { path: 'src/webhooks/retry.ts' } },
+        { name: 'run_tests', arguments: { suite: 'webhooks' } },
+      ]),
+      minutesAgo: 185,
+    },
+    {
+      role: 'assistant',
+      content:
+        'The retry guard treats 401 and 403 the same. Splitting them fixes both tests, but it changes behaviour other adapters rely on — flagging rather than assuming.',
+      minutesAgo: 180,
+    },
+    {
+      role: 'user',
+      content:
+        'Split them. Keep 403 fatal. Leave a note in the adapter README so the gmail one does not regress.',
+      minutesAgo: 175,
+    },
+  ];
+  for (const t of traceRows) {
+    await prisma.taskTrace.create({
+      data: {
+        taskId: traceTask,
+        role: t.role,
+        content: t.content,
+        toolCalls: t.toolCalls ?? null,
+        createdAt: new Date(now - t.minutesAgo * MINUTE),
+      },
+    });
+  }
+  await prisma.harness.update({ where: { id: traceHarness }, data: { taskId: traceTask } });
+
   const counts = {
     objectives: 2,
     workstreams: streams.length,
@@ -754,6 +802,7 @@ async function main(): Promise<void> {
     }),
     interventions: 3,
     tickets: tickets.length + 1,
+    traces: traceRows.length,
   };
   console.log('Seeded Foreman e2e fixture:', JSON.stringify(counts));
 }

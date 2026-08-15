@@ -81,8 +81,11 @@ export function PlaybookEditor({
   const save = () => {
     setSaving(true);
     setError(null);
+    // A blank row is an editing affordance, not a step. Sending it earns a
+    // bare "Validation error" from the server that names nothing.
+    const filled = steps.filter((s) => s.text.trim().length > 0);
     void onSave(playbook.id, {
-      steps: steps.map((s, i) => ({ index: i + 1, text: s.text, condition: s.condition })),
+      steps: filled.map((s, i) => ({ index: i + 1, text: s.text.trim(), condition: s.condition })),
       variables,
       cadence,
       retireWhen,

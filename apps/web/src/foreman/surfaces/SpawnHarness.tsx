@@ -26,7 +26,8 @@ const DEFAULT_PERMISSIONS: Permission[] = [
   { id: 'scope', label: 'Touch anything outside its scope', granted: false, needsApproval: false },
 ];
 
-const MODELS = ['opus-4.6', 'sonnet-4.6', 'haiku-4'];
+/** Fallback only — the real list comes from the server's providers. */
+const FALLBACK_MODELS = ['opus-4.6', 'sonnet-4.6', 'haiku-4'];
 const HEARTBEATS = [15, 30, 60, 120];
 const BUDGETS = [5, 15, 40, 100];
 const MAX_CHILDREN = [0, 3, 6, 16];
@@ -38,6 +39,7 @@ export function SpawnHarness({
   objectiveName,
   parent,
   playbooks,
+  models,
   onSpawn,
 }: {
   open: boolean;
@@ -46,18 +48,21 @@ export function SpawnHarness({
   objectiveName: string;
   parent: Harness | null;
   playbooks: Playbook[];
+  /** Models the server can serve; empty falls back to the static list. */
+  models: string[];
   onSpawn: (input: SpawnHarnessInput) => Promise<void>;
 }) {
   const [name, setName] = useState('');
   const [playbookId, setPlaybookId] = useState('');
   const [mission, setMission] = useState('');
-  const [model, setModel] = useState(MODELS[0]);
+  const [model, setModel] = useState('');
   const [heartbeat, setHeartbeat] = useState(30);
   const [budget, setBudget] = useState(15);
   const [maxChildren, setMaxChildren] = useState(3);
   const [permissions, setPermissions] = useState<Permission[]>(DEFAULT_PERMISSIONS);
   const [dryRun, setDryRun] = useState(false);
   const [busy, setBusy] = useState(false);
+  const available = models.length > 0 ? models : FALLBACK_MODELS;
   const [error, setError] = useState<string | null>(null);
 
   // Reopening the dialog for a different parent starts from a clean form.
@@ -66,7 +71,7 @@ export function SpawnHarness({
     setName('');
     setPlaybookId(playbooks[0]?.id ?? '');
     setMission('');
-    setModel(parent?.model ?? MODELS[0]);
+    setModel(parent?.model ?? available[0]);
     setHeartbeat(30);
     setBudget(15);
     setMaxChildren(3);
@@ -79,7 +84,7 @@ export function SpawnHarness({
      
   }, [open]);
 
-  const valid = name.trim().length > 0 && mission.trim().length > 0;
+  const valid = name.trim().length > 0 && mission.trim().length > 0 && model.length > 0;
 
   const submit = async () => {
     if (!valid || busy) return;
@@ -153,7 +158,7 @@ export function SpawnHarness({
               value={model}
               onChange={setModel}
               mono
-              options={MODELS.map((m) => ({ value: m, label: m }))}
+              options={available.map((m) => ({ value: m, label: m }))}
             />
           </Field>
           <Field label="Heartbeat" className="flex-1">

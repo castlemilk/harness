@@ -72,6 +72,20 @@ function, committed it, and recorded the diff against the task.
 These CLIs run with permissions skipped and write to the checkout — point them
 at a repo you are willing to have modified.
 
+### Usage from external CLIs
+
+Per-run usage comes from the CLI's own structured output, not from any vendor
+API — `agy`, `codex`, `claude-code` and `opencode` each have a parser under
+`packages/agent/src/*-output.ts` that feeds tokens (and cost, where the CLI
+reports it) into the run's `AgentRun`.
+
+agy reports tokens but **not cost**, and its envelope does not name the model,
+so an `external:agy` run records usage with cost `null`. Their interactive
+`/usage` command is a different thing — account-level quota, fetched with the
+credentials each CLI stores (e.g. `~/.codex/auth.json`). Reaching those means
+reusing another tool's OAuth token against an undocumented endpoint; prefer the
+vendors' official billing APIs if you need account-level spend.
+
 **If a PTY-based CLI fails with `posix_spawnp failed`**, node-pty's
 `spawn-helper` has lost its executable bit. `pnpm install` fixes it via
 postinstall; `node scripts/fix-node-pty.mjs` fixes it by hand, and `task doctor`
@@ -105,6 +119,9 @@ bounded query. The SSE stream opens with that same snapshot, then patches.
 - **`mergedToday` uses `Task.updatedAt`**, which any write bumps. There is no
   merge timestamp to key off.
 - **Day boundaries are UTC**, so "today's spend" rolls over at 10am AEST.
+- **Workspace packages resolve through `dist/`.** Editing `packages/*/src` has
+  no effect on a running server until that package is rebuilt — silent, and it
+  looks exactly like your change not working. `task doctor` reports it.
 - Four places can still resolve a database: the repo root (canonical), the two
   legacy per-package dirs, and `omegaStorageRoot()/pglite-data` when
   `DATABASE_DIR` is unset. `task doctor` reports the first three.

@@ -168,6 +168,24 @@ export const doctorCmd = new Command('doctor')
       detail: present.length > 0 ? present.join(', ') : undefined,
     });
 
+    // --- stale builds ----------------------------------------------------
+    // Workspace packages resolve through their `dist/`, so editing `src` has no
+    // effect on a running server until the package is rebuilt. Silent, and it
+    // looks exactly like your change not working.
+    const stale = stalePackages(root);
+    findings.push({
+      level: stale.length > 0 ? 'warn' : 'ok',
+      title:
+        stale.length > 0
+          ? `${String(stale.length)} package(s) have source newer than their build`
+          : 'Package builds are up to date with their sources',
+      detail:
+        stale.length > 0
+          ? `The server loads dist/, so these changes are NOT live:\n${stale.join('\n')}\n` +
+            `Rebuild: pnpm --filter ${stale[0]} build   (or task build)`
+          : undefined,
+    });
+
     // --- engine ---------------------------------------------------------
     findings.push({
       level: 'ok',
@@ -230,4 +248,50 @@ function onPath(command: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Workspace packages whose newest source file is newer than their newest build
+ * artefact. These resolve through `dist/`, so a running server keeps executing
+ * the old code.
+ */
+function stalePackages(root: string): string[] {
+  const pkgDir = path.join(root, 'packages');
+  if (!fs.existsSync(pkgDir)) return [];
+
+  const newest = (dir: string): number => {
+    let latest = 0;
+    const walk = (d: string, depth: number) => {
+      if (depth > 5) return;
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(d, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const e of entries) {
+        if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
+        const full = path.join(d, e.name);
+        if (e.isDirectory()) walk(full, depth + 1);
+        else {
+          try {
+            latest = Math.max(latest, fs.statSync(full).mtimeMs);
+          } catch {
+            /* raced */
+          }
+        }
+      }
+    };
+    walk(dir, 0);
+    return latest;
+  };
+
+  const stale: string[] = [];
+  for (const name of fs.readdirSync(pkgDir)) {
+    const src = path.join(pkgDir, name, 'src');
+    const dist = path.join(pkgDir, name, 'dist');
+    if (!fs.existsSync(src) || !fs.existsSync(dist)) continue;
+    if (newest(src) > newest(dist)) stale.push(`@omega/${name}`);
+  }
+  return stale;
 }

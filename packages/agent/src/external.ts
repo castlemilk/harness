@@ -8,6 +8,7 @@ import { logger } from './logger.js';
 import { spawnWithPty } from './pty-spawn.js';
 import { extractOpencodeResult, parseOpencodeMetrics } from './opencode-output.js';
 import { parseClaudeCodeStreamJson } from './claude-code-output.js';
+import { parseAgyMetrics } from './agy-output.js';
 import { runCodexTurn, getCodexAvailability, type CodexTurnResult } from './codex-driver.js';
 import { buildCodexTaskPrompt } from './codex-prompt.js';
 import { deriveVerificationCommand } from './project-utils.js';
@@ -252,15 +253,29 @@ function cliSpec(cli: ExternalCli): CliSpec {
     case 'agy':
       return {
         command: 'agy',
-        args: (prompt, cwd) => ['-p', prompt, '--dangerously-skip-permissions', ...(cwd ? ['--add-dir', cwd] : [])],
+        // JSON print mode so the run's token usage comes back with it; without
+        // it agy prints prose only and the run records no usage at all.
+        args: (prompt, cwd) => [
+          '-p', prompt,
+          '--output-format', 'json',
+          '--dangerously-skip-permissions',
+          ...(cwd ? ['--add-dir', cwd] : []),
+        ],
         pty: true,
+        metricsParser: parseAgyMetrics,
       };
     case 'gemini-cli':
       // @deprecated — gemini-cli was retired June 2026, use agy instead
       logger.warn('gemini-cli is deprecated, use agy instead');
       return {
         command: 'agy',
-        args: (prompt, cwd) => ['-p', prompt, '--dangerously-skip-permissions', ...(cwd ? ['--add-dir', cwd] : [])],
+        args: (prompt, cwd) => [
+          '-p', prompt,
+          '--output-format', 'json',
+          '--dangerously-skip-permissions',
+          ...(cwd ? ['--add-dir', cwd] : []),
+        ],
+        metricsParser: parseAgyMetrics,
         pty: true,
       };
     case 'opencode':

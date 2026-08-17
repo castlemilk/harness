@@ -315,6 +315,7 @@ exports.Prisma.ObjectiveScalarFieldEnum = {
   name: 'name',
   description: 'description',
   status: 'status',
+  useCase: 'useCase',
   targetDate: 'targetDate',
   spendCapUsd: 'spendCapUsd',
   createdAt: 'createdAt',

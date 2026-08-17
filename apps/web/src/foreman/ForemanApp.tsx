@@ -9,19 +9,27 @@ import type {
   TranscriptEntry,
   UsageSummary,
 } from './types.js';
-import { AppChrome, type ForemanView } from './ui/AppChrome.js';
-import { ConsoleShell, type ConsoleAction } from './shells/ConsoleShell.js';
-import { BoardShell } from './shells/BoardShell.js';
-import { GraphShell } from './shells/GraphShell.js';
+import { AppChrome } from './ui/AppChrome.js';
 import { SpawnHarness } from './surfaces/SpawnHarness.js';
 import { Interventions } from './surfaces/Interventions.js';
 import { Transcript } from './surfaces/Transcript.js';
-import { WorkBoard } from './surfaces/WorkBoard.js';
-import { Usage } from './surfaces/Usage.js';
 import { Toolkit } from './surfaces/Toolkit.js';
-import { PlaybookEditor } from './surfaces/PlaybookEditor.js';
 import { CommandPalette, type PaletteVerb } from './surfaces/CommandPalette.js';
 import { EmptyState } from './surfaces/EmptyState.js';
+// Importing the roster is what registers the use-case shells.
+import './usecases/index.js';
+import {
+  CORE_VIEWS,
+  DEFAULT_VIEW,
+  findCoreView,
+  type CoreViewContext,
+} from './usecases/core.js';
+import {
+  findUseCaseView,
+  getUseCase,
+  resolveViewId,
+  viewTabs,
+} from './usecases/registry.js';
 
 /**
  * The Foreman application shell: it owns which surface is showing, which
@@ -49,7 +57,7 @@ export function ForemanApp({
     reloadObjectives,
   } = useForeman(projectId);
 
-  const [view, setView] = useState<ForemanView>('console');
+  const [view, setView] = useState<string>(DEFAULT_VIEW);
   const [focusId, setFocusId] = useState<string | null>(null);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -184,31 +192,6 @@ export function ForemanApp({
     [loadTranscript],
   );
 
-  const handleConsoleAction = useCallback(
-    (action: ConsoleAction, harness: Harness) => {
-      switch (action) {
-        case 'reply':
-        case 'transcript':
-          openTranscript(harness.id);
-          break;
-        case 'pause':
-          void mutate(() => foremanApi.pauseHarness(harness.id, true));
-          break;
-        case 'resume':
-          void mutate(() => foremanApi.resumeHarness(harness.id, true));
-          break;
-        case 'rendezvous':
-          setFocusId(harness.id);
-          setView('graph');
-          break;
-        case 'run-tool':
-          setToolkitOpen(true);
-          break;
-      }
-    },
-    [mutate, openTranscript],
-  );
-
   const handleResolve = useCallback(
     async (item: Intervention, action: ResolveAction, payload?: { response?: string; value?: number }) => {
       await mutate(() =>
@@ -274,11 +257,55 @@ export function ForemanApp({
   }
 
   const objective = state.objective;
+  const shell = getUseCase(objective.useCase);
+  const tabs = viewTabs(CORE_VIEWS, objective.useCase);
+  // The active view outlives objective switches, so it can point at a tab the
+  // current objective doesn't have. Resolve rather than render nothing.
+  const activeView = resolveViewId(tabs, view);
+  const coreView = findCoreView(activeView);
+  const useCaseView = coreView ? null : findUseCaseView(objective.useCase, activeView);
+  const CoreSurface = coreView?.component;
+  const UseCaseSurface = useCaseView?.component;
+
+  /** Everything a core view is allowed to reach. See `usecases/core.tsx`. */
+  const coreContext: CoreViewContext = {
+    state,
+    harnesses,
+    focusId,
+    onFocus: setFocusId,
+    onOpenView: setView,
+    mutate,
+    onResolve: (item, action) => void handleResolve(item, action),
+    onOpenTranscript: openTranscript,
+    onOpenToolkit: () => { setToolkitOpen(true); },
+    onSpawnUnder: (parent) => { setSpawnParent({ parent }); },
+    onError: setActionError,
+    tools,
+    usage,
+    usageDays,
+    onUsageDaysChange: setUsageDays,
+    playbooks,
+    playbookId,
+    onSelectPlaybook: setPlaybookId,
+    onSavePlaybook: async (id, body) => {
+      const next = await foremanApi.savePlaybookVersion(id, body);
+      setPlaybooks((prev) => prev.map((p) => (p.id === id ? next : p)));
+      await refresh();
+    },
+  };
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-canvas text-ink">
+    <div
+      className="flex h-screen w-screen flex-col overflow-hidden bg-canvas text-ink"
+      // The skin seam: one variable the chrome and any use-case view can tint
+      // from. Without a shell it resolves to the stock accent, so nothing moves.
+      // '#e8963c' is tailwind.config.js's `accent.DEFAULT`.
+      style={{ '--uc-accent': shell?.accent ?? '#e8963c' } as React.CSSProperties}
+      data-usecase={shell?.id ?? undefined}
+    >
       <AppChrome
-        view={view}
+        view={activeView}
+        tabs={tabs}
         onViewChange={setView}
         objective={objective}
         objectives={objectives}
@@ -305,110 +332,18 @@ export function ForemanApp({
         </div>
       )}
 
-      {view === 'console' && (
-        <ConsoleShell
+      {CoreSurface ? (
+        <CoreSurface {...coreContext} />
+      ) : UseCaseSurface ? (
+        <UseCaseSurface
+          objectiveId={objective.id}
           state={state}
           focusId={focusId}
           onFocus={setFocusId}
-          tools={tools}
-          onAction={handleConsoleAction}
-          onSpawn={(parentId) => {
-            setSpawnParent({ parent: harnesses.find((h) => h.id === parentId) ?? null });
-          }}
+          onOpenView={setView}
+          mutate={mutate}
         />
-      )}
-
-      {view === 'board' && (
-        <BoardShell
-          state={state}
-          onFocus={(id) => {
-            setFocusId(id);
-            setView('console');
-          }}
-          onResolve={(item, action) => void handleResolve(item, action)}
-          onResolveCard={(harness, action) => {
-            if (action === 'reply' || action === 'logs') {
-              openTranscript(harness.id);
-            } else if (action === 'raise-cap') {
-              // The budget intervention is the record of the cap being hit, so
-              // resolving it is what actually raises the cap.
-              const item = state.interventions.find(
-                (i) => i.harnessId === harness.id && i.kind === 'budget',
-              );
-              if (item) void handleResolve(item, 'raise-cap');
-              else setActionError(`No budget request is open for ${harness.name}.`);
-            } else {
-              setSpawnParent({ parent: harnesses.find((h) => h.id === harness.parentId) ?? null });
-            }
-          }}
-          onOpenLane={(workstreamId) => {
-            const lead = harnesses.find(
-              (h) => h.workstreamId === workstreamId && !h.parentId,
-            );
-            if (lead) setFocusId(lead.id);
-            setView('console');
-          }}
-          onToggleWorkstream={(ws) => {
-            void mutate(() =>
-              ws.paused
-                ? foremanApi.resumeWorkstream(ws.id)
-                : foremanApi.pauseWorkstream(ws.id),
-            );
-          }}
-        />
-      )}
-
-      {view === 'graph' && (
-        <GraphShell
-          state={state}
-          focusId={focusId}
-          onFocus={(id) => { setFocusId(id || null); }}
-          onAction={(action, harness) => {
-            if (action === 'reply') openTranscript(harness.id);
-            else if (action === 'pause-subtree')
-              void mutate(() => foremanApi.pauseHarness(harness.id, true));
-            else setSpawnParent({ parent: harness });
-          }}
-        />
-      )}
-
-      {view === 'work' && (
-        <WorkBoard
-          tickets={state.tickets}
-          objectiveName={objective.name}
-          onOpenHarness={(id) => {
-            setFocusId(id);
-            setView('console');
-          }}
-        />
-      )}
-
-      {view === 'usage' && (
-        <Usage
-          usage={usage}
-          objectiveName={objective.name}
-          days={usageDays}
-          onDaysChange={setUsageDays}
-          onOpenHarness={(id) => {
-            setFocusId(id);
-            setView('console');
-          }}
-        />
-      )}
-
-      {view === 'playbooks' && (
-        <PlaybookEditor
-          playbooks={playbooks}
-          selectedId={playbookId}
-          onSelect={setPlaybookId}
-          harnesses={harnesses}
-          onSave={async (id, body) => {
-            const next = await foremanApi.savePlaybookVersion(id, body);
-            setPlaybooks((prev) => prev.map((p) => (p.id === id ? next : p)));
-            await refresh();
-          }}
-        />
-      )}
+      ) : null}
 
       <CommandPalette
         open={paletteOpen}

@@ -16244,6 +16244,7 @@ export namespace Prisma {
     name: string | null
     description: string | null
     status: string | null
+    useCase: string | null
     targetDate: Date | null
     spendCapUsd: number | null
     createdAt: Date | null
@@ -16256,6 +16257,7 @@ export namespace Prisma {
     name: string | null
     description: string | null
     status: string | null
+    useCase: string | null
     targetDate: Date | null
     spendCapUsd: number | null
     createdAt: Date | null
@@ -16268,6 +16270,7 @@ export namespace Prisma {
     name: number
     description: number
     status: number
+    useCase: number
     targetDate: number
     spendCapUsd: number
     createdAt: number
@@ -16290,6 +16293,7 @@ export namespace Prisma {
     name?: true
     description?: true
     status?: true
+    useCase?: true
     targetDate?: true
     spendCapUsd?: true
     createdAt?: true
@@ -16302,6 +16306,7 @@ export namespace Prisma {
     name?: true
     description?: true
     status?: true
+    useCase?: true
     targetDate?: true
     spendCapUsd?: true
     createdAt?: true
@@ -16314,6 +16319,7 @@ export namespace Prisma {
     name?: true
     description?: true
     status?: true
+    useCase?: true
     targetDate?: true
     spendCapUsd?: true
     createdAt?: true
@@ -16413,6 +16419,7 @@ export namespace Prisma {
     name: string
     description: string | null
     status: string
+    useCase: string | null
     targetDate: Date | null
     spendCapUsd: number | null
     createdAt: Date
@@ -16444,6 +16451,7 @@ export namespace Prisma {
     name?: boolean
     description?: boolean
     status?: boolean
+    useCase?: boolean
     targetDate?: boolean
     spendCapUsd?: boolean
     createdAt?: boolean
@@ -16462,6 +16470,7 @@ export namespace Prisma {
     name?: boolean
     description?: boolean
     status?: boolean
+    useCase?: boolean
     targetDate?: boolean
     spendCapUsd?: boolean
     createdAt?: boolean
@@ -16475,6 +16484,7 @@ export namespace Prisma {
     name?: boolean
     description?: boolean
     status?: boolean
+    useCase?: boolean
     targetDate?: boolean
     spendCapUsd?: boolean
     createdAt?: boolean
@@ -16508,6 +16518,11 @@ export namespace Prisma {
       name: string
       description: string | null
       status: string
+      /**
+       * Use-case shell id (a lowercase slug, e.g. "victoria"). Null means the
+       * objective renders with the core Foreman chrome only.
+       */
+      useCase: string | null
       targetDate: Date | null
       spendCapUsd: number | null
       createdAt: Date
@@ -16915,6 +16930,7 @@ export namespace Prisma {
     readonly name: FieldRef<"Objective", 'String'>
     readonly description: FieldRef<"Objective", 'String'>
     readonly status: FieldRef<"Objective", 'String'>
+    readonly useCase: FieldRef<"Objective", 'String'>
     readonly targetDate: FieldRef<"Objective", 'DateTime'>
     readonly spendCapUsd: FieldRef<"Objective", 'Float'>
     readonly createdAt: FieldRef<"Objective", 'DateTime'>
@@ -24981,6 +24997,7 @@ export namespace Prisma {
     name: 'name',
     description: 'description',
     status: 'status',
+    useCase: 'useCase',
     targetDate: 'targetDate',
     spendCapUsd: 'spendCapUsd',
     createdAt: 'createdAt',
@@ -26369,6 +26386,7 @@ export namespace Prisma {
     name?: StringFilter<"Objective"> | string
     description?: StringNullableFilter<"Objective"> | string | null
     status?: StringFilter<"Objective"> | string
+    useCase?: StringNullableFilter<"Objective"> | string | null
     targetDate?: DateTimeNullableFilter<"Objective"> | Date | string | null
     spendCapUsd?: FloatNullableFilter<"Objective"> | number | null
     createdAt?: DateTimeFilter<"Objective"> | Date | string
@@ -26386,6 +26404,7 @@ export namespace Prisma {
     name?: SortOrder
     description?: SortOrderInput | SortOrder
     status?: SortOrder
+    useCase?: SortOrderInput | SortOrder
     targetDate?: SortOrderInput | SortOrder
     spendCapUsd?: SortOrderInput | SortOrder
     createdAt?: SortOrder
@@ -26406,6 +26425,7 @@ export namespace Prisma {
     name?: StringFilter<"Objective"> | string
     description?: StringNullableFilter<"Objective"> | string | null
     status?: StringFilter<"Objective"> | string
+    useCase?: StringNullableFilter<"Objective"> | string | null
     targetDate?: DateTimeNullableFilter<"Objective"> | Date | string | null
     spendCapUsd?: FloatNullableFilter<"Objective"> | number | null
     createdAt?: DateTimeFilter<"Objective"> | Date | string
@@ -26423,6 +26443,7 @@ export namespace Prisma {
     name?: SortOrder
     description?: SortOrderInput | SortOrder
     status?: SortOrder
+    useCase?: SortOrderInput | SortOrder
     targetDate?: SortOrderInput | SortOrder
     spendCapUsd?: SortOrderInput | SortOrder
     createdAt?: SortOrder
@@ -26443,6 +26464,7 @@ export namespace Prisma {
     name?: StringWithAggregatesFilter<"Objective"> | string
     description?: StringNullableWithAggregatesFilter<"Objective"> | string | null
     status?: StringWithAggregatesFilter<"Objective"> | string
+    useCase?: StringNullableWithAggregatesFilter<"Objective"> | string | null
     targetDate?: DateTimeNullableWithAggregatesFilter<"Objective"> | Date | string | null
     spendCapUsd?: FloatNullableWithAggregatesFilter<"Objective"> | number | null
     createdAt?: DateTimeWithAggregatesFilter<"Objective"> | Date | string
@@ -28440,6 +28462,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -28457,6 +28480,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -28472,6 +28496,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -28489,6 +28514,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -28505,6 +28531,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -28516,6 +28543,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -28528,6 +28556,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30303,6 +30332,7 @@ export namespace Prisma {
     name?: SortOrder
     description?: SortOrder
     status?: SortOrder
+    useCase?: SortOrder
     targetDate?: SortOrder
     spendCapUsd?: SortOrder
     createdAt?: SortOrder
@@ -30319,6 +30349,7 @@ export namespace Prisma {
     name?: SortOrder
     description?: SortOrder
     status?: SortOrder
+    useCase?: SortOrder
     targetDate?: SortOrder
     spendCapUsd?: SortOrder
     createdAt?: SortOrder
@@ -30331,6 +30362,7 @@ export namespace Prisma {
     name?: SortOrder
     description?: SortOrder
     status?: SortOrder
+    useCase?: SortOrder
     targetDate?: SortOrder
     spendCapUsd?: SortOrder
     createdAt?: SortOrder
@@ -32013,6 +32045,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -32028,6 +32061,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -32111,6 +32145,7 @@ export namespace Prisma {
     name?: StringFilter<"Objective"> | string
     description?: StringNullableFilter<"Objective"> | string | null
     status?: StringFilter<"Objective"> | string
+    useCase?: StringNullableFilter<"Objective"> | string | null
     targetDate?: DateTimeNullableFilter<"Objective"> | Date | string | null
     spendCapUsd?: FloatNullableFilter<"Objective"> | number | null
     createdAt?: DateTimeFilter<"Objective"> | Date | string
@@ -33588,6 +33623,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -33604,6 +33640,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -33634,6 +33671,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -33650,6 +33688,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -33664,6 +33703,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -33680,6 +33720,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -33786,6 +33827,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -33802,6 +33844,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -33832,6 +33875,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -33848,6 +33892,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -34116,6 +34161,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -34132,6 +34178,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -34482,6 +34529,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -34498,6 +34546,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -34528,6 +34577,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -34544,6 +34594,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -34724,6 +34775,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     status?: string
+    useCase?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -34799,6 +34851,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -34814,6 +34867,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -34829,6 +34883,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
+    useCase?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string

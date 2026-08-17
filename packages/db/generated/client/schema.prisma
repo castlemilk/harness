@@ -243,6 +243,9 @@ model Objective {
   name          String
   description   String?
   status        String           @default("active")
+  /// Use-case shell id (a lowercase slug, e.g. "victoria"). Null means the
+  /// objective renders with the core Foreman chrome only.
+  useCase       String?
   targetDate    DateTime?
   spendCapUsd   Float?
   createdAt     DateTime         @default(now())

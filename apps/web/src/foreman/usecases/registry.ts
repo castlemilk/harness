@@ -1,0 +1,174 @@
+import type { ComponentType } from 'react';
+import type { ObjectiveState } from '../data/api.js';
+
+/**
+ * Use-case shells.
+ *
+ * Foreman has two axes. The *presentation* axis is the core chrome — Console,
+ * Board, Graph, Work, Usage, Playbooks — which every objective gets regardless
+ * of what it is doing. The *domain* axis is the use case: what this particular
+ * objective is FOR (trading a book, triaging support, shipping a feature), which
+ * brings its own vocabulary, its own accent, and its own extra tabs.
+ *
+ * A use-case shell is the domain axis, registered at module load from the roster
+ * in `./index.ts` and keyed by `Objective.useCase` on the server. Registration
+ * is deliberately eager and static — there is no dynamic import, no plugin
+ * discovery and no network fetch, so a missing shell is a build error in the
+ * roster rather than a blank tab at runtime.
+ */
+
+/**
+ * The contract a use-case view is handed. This is the plugin API surface, so it
+ * is deliberately the *smallest* set that lets a domain view be useful:
+ *
+ *   - the objective it is rendering, by id and as resolved state
+ *   - the harness in focus, and the ability to move focus
+ *   - the ability to send the operator to another registered view
+ *   - one funnel for mutations, so a domain view's failures surface in the same
+ *     error rail as the core views' instead of being swallowed
+ *
+ * It is intentionally NOT the core views' context: those get privileged access
+ * to Foreman internals (the tool list, the playbook draft, the usage window)
+ * because they are the app. A use-case view is a guest, and everything it can
+ * reach here is either already on the wire or a callback Foreman owns. Growing
+ * this interface is a real API decision — prefer deriving from `state`.
+ */
+export interface UseCaseViewProps {
+  /** The objective this view is scoped to. Never empty. */
+  objectiveId: string;
+  /** The same snapshot the core views render, straight off the wire. */
+  state: ObjectiveState;
+  /** The harness currently in focus across the app, or null. */
+  focusId: string | null;
+  /** Move focus. Passing null clears it. */
+  onFocus: (harnessId: string | null) => void;
+  /** Switch to another registered view by id — core or use-case. */
+  onOpenView: (viewId: string) => void;
+  /** Run a mutation; refreshes state on success, surfaces failures in the rail. */
+  mutate: (fn: () => Promise<unknown>) => Promise<void>;
+}
+
+/** A tab a shell contributes, rendered inside the core Foreman chrome. */
+export interface UseCaseView {
+  /** Tab id, unique within the shell and distinct from every core view id. */
+  id: string;
+  label: string;
+  component: ComponentType<UseCaseViewProps>;
+  /** Lower sorts first. Views without one keep roster order, after those with. */
+  order?: number;
+}
+
+/** Display terms a shell may rename. Anything omitted keeps the Foreman word. */
+export type Vocabulary = Partial<Record<'harness' | 'pulse' | 'objective', string>>;
+
+export interface UseCaseShell {
+  /** Matches `Objective.useCase` on the server. Lowercase slug. */
+  id: string;
+  /** Human name, e.g. "Victoria — market trading". */
+  name: string;
+  /** CSS color driving `--uc-accent` while this shell is active. */
+  accent?: string;
+  vocabulary?: Vocabulary;
+  /** Domain tabs ADDED to the core tabs — a shell never removes core chrome. */
+  views: UseCaseView[];
+}
+
+/** Same slug rule the server enforces on `POST /objectives`. */
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+const shells = new Map<string, UseCaseShell>();
+
+/**
+ * Register a shell. Throws rather than overwriting: two shells claiming one id
+ * means one of them silently never renders, which is far harder to find at
+ * runtime than a stack trace at import time.
+ */
+export function registerUseCase(shell: UseCaseShell): void {
+  if (!SLUG.test(shell.id)) {
+    throw new Error(`Use-case id must be a lowercase slug: "${shell.id}"`);
+  }
+  if (shells.has(shell.id)) {
+    throw new Error(`Use case "${shell.id}" is already registered`);
+  }
+  const seen = new Set<string>();
+  for (const view of shell.views) {
+    if (seen.has(view.id)) {
+      throw new Error(`Use case "${shell.id}" registers view "${view.id}" twice`);
+    }
+    seen.add(view.id);
+  }
+  shells.set(shell.id, shell);
+}
+
+/** Unwind a registration. Exists for tests; nothing in the app calls it. */
+export function unregisterUseCase(id: string): boolean {
+  return shells.delete(id);
+}
+
+/** The shell for an objective's `useCase`, or null when there isn't one. */
+export function getUseCase(id: string | null | undefined): UseCaseShell | null {
+  if (!id) return null;
+  return shells.get(id) ?? null;
+}
+
+/** Every registered shell, in registration order. */
+export function getUseCases(): UseCaseShell[] {
+  return [...shells.values()];
+}
+
+/** The minimum a view needs to appear in the tab bar. */
+export interface ViewDescriptor {
+  id: string;
+  label: string;
+  order?: number;
+}
+
+export interface ViewTab {
+  id: string;
+  label: string;
+  /** Core tabs are chrome; use-case tabs are the domain, and are tinted. */
+  source: 'core' | 'usecase';
+}
+
+function byOrder<T extends ViewDescriptor>(views: readonly T[]): T[] {
+  return [...views].sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER));
+}
+
+/**
+ * The tab bar for one objective: the core views, then the active shell's views.
+ * Core always comes first and always survives — a use case extends the chrome,
+ * it does not replace it.
+ */
+export function viewTabs(
+  coreViews: readonly ViewDescriptor[],
+  useCaseId?: string | null,
+): ViewTab[] {
+  const tabs: ViewTab[] = byOrder(coreViews).map((v) => ({ id: v.id, label: v.label, source: 'core' }));
+  const shell = getUseCase(useCaseId);
+  if (shell) {
+    for (const view of byOrder(shell.views)) {
+      // A shell that shadows a core id would make a core view unreachable.
+      if (tabs.some((t) => t.id === view.id)) continue;
+      tabs.push({ id: view.id, label: view.label, source: 'usecase' });
+    }
+  }
+  return tabs;
+}
+
+/**
+ * Resolve the view to render. The active view is a plain string that outlives
+ * objective switches, so it can point at a tab that no longer exists (switching
+ * away from a demo objective while its own tab is open). Falling back to the
+ * first core view keeps the app on a real surface instead of a blank pane.
+ */
+export function resolveViewId(tabs: readonly ViewTab[], viewId: string): string {
+  if (tabs.some((t) => t.id === viewId)) return viewId;
+  const core = tabs.find((t) => t.source === 'core');
+  return core?.id ?? viewId;
+}
+
+/** The component for a use-case view id, or null when it isn't one. */
+export function findUseCaseView(useCaseId: string | null | undefined, viewId: string): UseCaseView | null {
+  const shell = getUseCase(useCaseId);
+  return shell?.views.find((v) => v.id === viewId) ?? null;
+}

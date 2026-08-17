@@ -26,10 +26,21 @@ const permissionSchema = z.object({
   needsApproval: z.boolean(),
 });
 
+/**
+ * A use-case shell id. Kept to a lowercase slug because it is a registry key on
+ * the client, not free text — `Victoria Trading` would never match a shell and
+ * would fail silently as "no extra tabs appeared".
+ */
+const useCaseSchema = z
+  .string()
+  .max(64)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'useCase must be a lowercase slug, e.g. "victoria"');
+
 const createObjectiveSchema = z.object({
   projectId: z.string().uuid(),
   name: z.string().min(1).max(500),
   description: z.string().max(100_000).optional(),
+  useCase: useCaseSchema.optional(),
   targetDate: z.coerce.date().optional(),
   spendCapUsd: z.number().finite().nonnegative().optional(),
 });

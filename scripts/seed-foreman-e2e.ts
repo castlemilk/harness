@@ -40,6 +40,7 @@ const id = (n: string) => `e2e00000-0000-4000-8000-${n.padStart(12, '0')}`;
 const PROJECT = id('1');
 const OBJ_MAIN = id('10');
 const OBJ_QUEUE = id('11');
+const OBJ_DEMO = id('12');
 const PB_LEAD = id('20');
 const PB_LEAD_V2 = id('21');
 const PB_WORKER = id('22');
@@ -452,6 +453,23 @@ async function main(): Promise<void> {
     },
   });
 
+  // A third objective carrying a use case, so the use-case shell path is
+  // visible without a real domain: selecting it adds the demo tab after
+  // Playbooks and re-tints the active underline.
+  await prisma.objective.upsert({
+    where: { id: OBJ_DEMO },
+    update: { useCase: 'demo' },
+    create: {
+      id: OBJ_DEMO,
+      projectId: project.id,
+      name: 'Demo the use-case shell',
+      description: 'Carries useCase "demo", which contributes one extra tab.',
+      status: 'active',
+      useCase: 'demo',
+      spendCapUsd: 25,
+    },
+  });
+
   const phases = [
     { name: 'Frame the mission', state: 'done', weight: 1.4, detail: 'Contract agreed.' },
     { name: 'Build the control plane', state: 'active', weight: 3.2, detail: '18 of 24 tickets' },
@@ -792,7 +810,7 @@ async function main(): Promise<void> {
   await prisma.harness.update({ where: { id: traceHarness }, data: { taskId: traceTask } });
 
   const counts = {
-    objectives: 2,
+    objectives: 3,
     workstreams: streams.length,
     harnesses: HARNESSES.length,
     retired: HARNESSES.filter((h) => h.retired).length,

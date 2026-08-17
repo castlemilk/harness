@@ -9,7 +9,7 @@ playbook **routine** once, records a **pulse**, and escalates to a human as an
 
 ```bash
 task setup          # first run on a fresh checkout
-task db:seed:e2e    # load the fixture (21 harnesses, 234 pulses, 2 objectives)
+task db:seed:e2e    # load the fixture (21 harnesses, 234 pulses, 3 objectives)
 task dev            # API :4000 + web :5173, one database, Ctrl-C stops both
 ```
 
@@ -27,7 +27,50 @@ occupancy and provider keys.
 | **⌘K** | `pause runtime` → acts on the match. `⌘↵` widens to the subtree. |
 
 The second objective ("Keep the support queue at zero") is deliberately empty —
-it exists to prove objective-scoping and the empty states.
+it exists to prove objective-scoping and the empty states. The third ("Demo the
+use-case shell") carries `useCase: "demo"`, so selecting it adds a seventh tab.
+
+## Use-case shells
+
+Foreman has **two axes**, and conflating them is what produced the triplicated
+view list this replaced.
+
+- The **presentation axis** is the core chrome: Console, Board, Graph, Work,
+  Usage, Playbooks. Six views, every objective, always. They are the app.
+- The **domain axis** is the *use case*: what an objective is actually for.
+  A use case brings extra tabs, an accent, and (eventually) vocabulary — it
+  **adds** to the core chrome and can never remove or shadow it.
+
+```
+apps/web/src/foreman/usecases/registry.ts  the seam: shells, tabs, resolution
+apps/web/src/foreman/usecases/core.tsx     CORE_VIEWS — the six, and their wiring
+apps/web/src/foreman/usecases/index.ts     the roster: who is registered, when
+apps/web/src/foreman/usecases/demo.tsx     the proof shell (dev/test only)
+```
+
+`CORE_VIEWS` is the single source of truth for both the tab bar and what
+`ForemanApp` renders. `viewTabs(CORE_VIEWS, objective.useCase)` derives the bar;
+`resolveViewId` falls back to Console when the active view id doesn't exist on
+this objective (switching away from a use-case objective with its own tab open).
+
+**Core views are not a use case**, and are deliberately not modelled as a
+reserved shell. They receive `CoreViewContext` — Foreman's internals, including
+the focused harness's tools and the playbook draft. A use-case view receives
+`UseCaseViewProps`: objective id, state, focus + `onFocus`, `onOpenView`, and
+`mutate`. That is the whole plugin surface, and widening it is an API decision.
+Registering core views as a fake use case would have forced one of those two
+contracts to become the other.
+
+`Objective.useCase` (nullable `TEXT`, lowercase slug, validated identically on
+`POST /objectives` and in `registerUseCase`) is the discriminator. Null means
+core chrome only, which is what every pre-existing objective is.
+
+The skin seam is one CSS variable, `--uc-accent`, set on the Foreman root from
+the active shell's `accent` (stock `#e8963c` without one). Exactly one piece of
+core chrome reads it today: the active underline on a use-case tab. UC-2 and
+UC-3 exploit that seam — vocabulary substitution and a real domain shell — so
+resist tinting more of the app by hand.
+
 
 ## Running it for real
 
@@ -129,7 +172,7 @@ bounded query. The SSE stream opens with that same snapshot, then patches.
 ## Tests
 
 ```bash
-task test:foreman   # 46 server + 16 web
+task test:foreman   # 50 server + 28 web
 task check          # lint, typecheck, build, test
 ```
 

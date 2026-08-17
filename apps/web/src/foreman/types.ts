@@ -21,6 +21,11 @@ export type PulseOutcome = 'ok' | 'warn' | 'fail' | 'idle';
 export interface Objective {
   id: string;
   name: string;
+  /**
+   * The use-case shell this objective renders in — a registry id, not a label.
+   * Absent or unregistered means the core Foreman chrome only.
+   */
+  useCase?: string | null;
   /** 0..1 across all tickets in the objective. */
   progress: number;
   ticketsTotal: number;

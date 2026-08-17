@@ -1,22 +1,5 @@
 import type { Objective } from '../types.js';
-
-export type ForemanView =
-  | 'console'
-  | 'board'
-  | 'graph'
-  | 'work'
-  | 'usage'
-  | 'playbooks'
-  | 'legacy';
-
-export const FOREMAN_TABS: { id: ForemanView; label: string }[] = [
-  { id: 'console', label: 'Console' },
-  { id: 'board', label: 'Board' },
-  { id: 'graph', label: 'Graph' },
-  { id: 'work', label: 'Work' },
-  { id: 'usage', label: 'Usage' },
-  { id: 'playbooks', label: 'Playbooks' },
-];
+import type { ViewTab } from '../usecases/registry.js';
 
 /**
  * The 44px bar that persists across every shell: identity, the objective in
@@ -25,6 +8,7 @@ export const FOREMAN_TABS: { id: ForemanView; label: string }[] = [
  */
 export function AppChrome({
   view,
+  tabs,
   onViewChange,
   objective,
   objectives,
@@ -35,8 +19,10 @@ export function AppChrome({
   onOpenLegacy,
   right,
 }: {
-  view: ForemanView;
-  onViewChange: (v: ForemanView) => void;
+  view: string;
+  /** Core tabs plus the active use case's, already derived and ordered. */
+  tabs: ViewTab[];
+  onViewChange: (v: string) => void;
   objective: Objective | null;
   objectives: Objective[];
   onObjectiveChange: (id: string) => void;
@@ -73,20 +59,36 @@ export function AppChrome({
         </label>
       )}
 
-      <nav className="ml-2 flex gap-4 self-stretch text-[11.5px] font-medium">
-        {FOREMAN_TABS.map((t) => {
+      <nav className="ml-2 flex items-stretch gap-4 self-stretch text-[11.5px] font-medium">
+        {tabs.map((t, i) => {
           const active = view === t.id;
+          // A hairline where the core chrome ends and the use case begins, so
+          // the domain tabs read as an addition rather than more chrome.
+          const opensUseCase = t.source === 'usecase' && tabs[i - 1]?.source === 'core';
           return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => { onViewChange(t.id); }}
-              className={`self-stretch border-b-2 transition-colors ${
-                active ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink2'
-              }`}
-            >
-              {t.label}
-            </button>
+            <div key={t.id} className={`flex self-stretch ${opensUseCase ? 'gap-4' : ''}`}>
+              {opensUseCase && (
+                // `line` is a borderColor token, so this draws as a border
+                // rather than a background — `bg-line` is not a class.
+                <span className="my-2.5 flex-none border-l border-line" aria-hidden="true" />
+              )}
+              <button
+                type="button"
+                onClick={() => { onViewChange(t.id); }}
+                // The only place the use-case accent touches core chrome: an
+                // active domain tab underlines in the shell's colour.
+                style={
+                  active && t.source === 'usecase'
+                    ? { borderBottomColor: 'var(--uc-accent)' }
+                    : undefined
+                }
+                className={`self-stretch border-b-2 transition-colors ${
+                  active ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink2'
+                }`}
+              >
+                {t.label}
+              </button>
+            </div>
           );
         })}
       </nav>

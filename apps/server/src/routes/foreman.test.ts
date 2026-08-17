@@ -198,6 +198,7 @@ describe('Foreman persistence', () => {
     }
     expect(schema).toContain('@relation("HarnessTree"');
     expect(schema).toMatch(/statusBeforePause\s+String\?/);
+    expect(schema).toMatch(/useCase\s+String\?/);
     expect(schema).toContain('@@index([harnessId, startedAt(sort: Desc)])');
   });
 
@@ -217,6 +218,14 @@ describe('Foreman persistence', () => {
     expect(migrationSql).toContain(
       'CREATE INDEX "Pulse_harnessId_startedAt_idx" ON "Pulse"("harnessId", "startedAt" DESC)',
     );
+
+    // The use-case discriminator has to be additive: every existing objective
+    // predates it and must keep rendering the core chrome.
+    const useCaseDefinition = migrationSql
+      .split('\n')
+      .find((line) => line.includes('ADD COLUMN "useCase"')) ?? '';
+    expect(useCaseDefinition).toBe('ALTER TABLE "Objective" ADD COLUMN "useCase" TEXT;');
+    expect(useCaseDefinition).not.toContain('NOT NULL');
   });
 });
 
@@ -971,6 +980,53 @@ describe('Foreman routes with PGlite', () => {
       objective: { progress: 0, ticketsTotal: 0, ticketsDone: 0 },
       tickets: [],
     });
+  });
+
+  it('round-trips a use-case objective through create, list and state', async () => {
+    const created = await invokeRoute(router, 'post', '/objectives', {
+      body: {
+        projectId,
+        name: 'Demo the use-case shell',
+        useCase: 'demo',
+      },
+    });
+    expect(created.status).toBe(201);
+    const objective = created.body as { id: string; useCase: string | null };
+    expect(objective.useCase).toBe('demo');
+
+    const listResult = await invokeRoute(router, 'get', '/objectives', { query: { projectId } });
+    const listed = (listResult.body as { id: string; useCase: string | null }[])
+      .find((entry) => entry.id === objective.id);
+    expect(listed?.useCase).toBe('demo');
+
+    // Objectives created before use cases existed must serialise a null, not
+    // undefined — the client keys its registry lookup off this field.
+    const seeded = (listResult.body as { id: string; useCase: string | null }[])
+      .find((entry) => entry.id === objectiveId);
+    expect(seeded?.useCase).toBeNull();
+
+    const stateResult = await invokeRoute(router, 'get', '/objectives/:id/state', {
+      params: { id: objective.id },
+    });
+    expect(stateResult.status).toBe(200);
+    expect((stateResult.body as { objective: { useCase: string | null } }).objective.useCase)
+      .toBe('demo');
+  });
+
+  it('rejects a useCase that is not a lowercase slug', async () => {
+    // A label like "Victoria Trading" can never match a registry id, and would
+    // otherwise persist and fail silently as "no extra tabs appeared".
+    for (const useCase of ['Victoria Trading', 'victoria_trading', '-victoria', 'víctoria']) {
+      const rejection: unknown = await invokeRoute(router, 'post', '/objectives', {
+        body: { projectId, name: 'Invalid use case', useCase },
+      }).then(() => null, (err: unknown) => err);
+
+      const issues = (rejection as { issues?: { path: (string | number)[]; message: string }[] }).issues;
+      expect(issues?.map((issue) => issue.path.join('.'))).toEqual(['useCase']);
+      expect(issues?.[0].message).toBe('useCase must be a lowercase slug, e.g. "victoria"');
+    }
+
+    expect(await prisma.objective.count({ where: { name: 'Invalid use case' } })).toBe(0);
   });
 
   it('creates objectives and enforces spawn capacity while preserving dry-run scheduling', async () => {

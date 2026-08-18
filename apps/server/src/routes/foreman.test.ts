@@ -2053,6 +2053,22 @@ describe('Foreman routes with PGlite', () => {
     };
     const initialLead = initialState.harnesses?.find((harness) => harness.id === leadHarnessId);
     expect(initialLead).toBeDefined();
+    // A harness patch has to carry `recentPulses`: a client that is already
+    // watching learns about a harness it has never seen on this path, and every
+    // shell maps over that array. This pulse is the newest by seq, so it is
+    // what the patch's list must lead with.
+    const patchedPulse = await prisma.pulse.create({
+      data: {
+        harnessId: leadHarnessId,
+        seq: 999,
+        startedAt: new Date(),
+        endedAt: new Date(),
+        outcome: 'ok',
+        summary: 'Pulse the harness patch must carry',
+        costUsd: 0.02,
+        tokens: 20,
+      },
+    });
     const childHarness = await prisma.harness.findFirstOrThrow({
       where: { parentId: leadHarnessId, status: { not: 'retired' }, retiredAt: null },
       orderBy: { createdAt: 'asc' },
@@ -2077,7 +2093,14 @@ describe('Foreman routes with PGlite', () => {
     const harnessPayloads = chunks.join('').split('\n\n').flatMap((frame) => {
       if (!frame.startsWith('event: harness\n')) return [];
       const data = frame.split('\ndata: ')[1];
-      return data ? [JSON.parse(data) as { id: string; subtreeSpend: number; childCount: number }] : [];
+      return data
+        ? [JSON.parse(data) as {
+            id: string;
+            subtreeSpend: number;
+            childCount: number;
+            recentPulses?: { id: string; seq: number }[];
+          }]
+        : [];
     });
     const leadHarnessPayload = harnessPayloads.find((harness) => harness.id === leadHarnessId);
     expect(leadHarnessPayload).toMatchObject({
@@ -2087,6 +2110,16 @@ describe('Foreman routes with PGlite', () => {
     expect(leadHarnessPayload?.subtreeSpend).toBeCloseTo(
       (initialLead?.subtreeSpend ?? 0) + spendIncrement,
     );
+    // Newest first, exactly as the init snapshot serialises it — a patch that
+    // omitted this appended a harness whose pulse list was `undefined`.
+    expect(leadHarnessPayload?.recentPulses?.[0]).toMatchObject({
+      id: patchedPulse.id,
+      seq: 999,
+      summary: 'Pulse the harness patch must carry',
+    });
+    // Every harness in the pass carries the field, including the ones with no
+    // pulses in the stream's window — an empty list, never a missing one.
+    expect(harnessPayloads.every((harness) => Array.isArray(harness.recentPulses))).toBe(true);
 
     const streamedPulse = await prisma.pulse.create({
       data: {
@@ -2100,10 +2133,15 @@ describe('Foreman routes with PGlite', () => {
         tokens: 10,
       },
     });
+    // Find the frame for *this* pulse rather than the last one written: several
+    // pulses can land in one poll, and they go out newest-startedAt first.
     await vi.waitFor(() => {
-      expect(chunks.join('')).toContain('event: pulse\n');
+      expect(chunks.join('')).toContain(`"pulse":{"id":"${streamedPulse.id}"`);
     }, { timeout: 20_000 });
-    const pulseFrame = chunks.join('').split('event: pulse\n').at(-1) ?? '';
+    const pulseFrame = chunks
+      .join('')
+      .split('\n\n')
+      .find((frame) => frame.startsWith('event: pulse\n') && frame.includes(streamedPulse.id)) ?? '';
     expect(pulseFrame).toContain(`"harnessId":"${leadHarnessId}"`);
     expect(pulseFrame).toContain(`"pulse":{"id":"${streamedPulse.id}"`);
 

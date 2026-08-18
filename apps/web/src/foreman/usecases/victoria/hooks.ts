@@ -218,9 +218,55 @@ export function useVictoriaLiveStream(enabled = true): LiveStream {
 
 // ── Trades ───────────────────────────────────────────────────────────────────
 
+/** A trade source that rejected while the other one answered. */
+export interface TradeSourceFailure {
+  /** The endpoint, named the way the view already labels its table footers. */
+  source: string;
+  error: Error;
+}
+
 export interface TradesData {
   details: TradeDetail[];
   rpc: RpcTrade[];
+  /** Empty when both sources answered. Never swallowed — the view renders it. */
+  failures: TradeSourceFailure[];
+}
+
+/** The two endpoint labels, shared with the view's table footers. */
+export const TRADE_DETAILS_SOURCE = '/api/v1/training/trade-details';
+export const TRADE_RPC_SOURCE = 'VictoriaService/GetTrades';
+
+function asError(reason: unknown): Error {
+  return reason instanceof Error ? reason : new Error(String(reason));
+}
+
+/**
+ * Fold the two settled sources into what the view renders.
+ *
+ * Exported so the partial-failure case — the one that used to render "No
+ * trades" over a source that had actually 500'd — is assertable without a
+ * renderer. Both rejected is still a failure of the whole panel; one rejected
+ * keeps the good half AND carries why the other is missing.
+ */
+export function settleTrades(
+  details: PromiseSettledResult<TradeDetail[]>,
+  rpc: PromiseSettledResult<RpcTrade[]>,
+): TradesData {
+  if (details.status === 'rejected' && rpc.status === 'rejected') {
+    throw asError(details.reason);
+  }
+  const failures: TradeSourceFailure[] = [];
+  if (details.status === 'rejected') {
+    failures.push({ source: TRADE_DETAILS_SOURCE, error: asError(details.reason) });
+  }
+  if (rpc.status === 'rejected') {
+    failures.push({ source: TRADE_RPC_SOURCE, error: asError(rpc.reason) });
+  }
+  return {
+    details: details.status === 'fulfilled' ? details.value : [],
+    rpc: rpc.status === 'fulfilled' ? rpc.value : [],
+    failures,
+  };
 }
 
 /**
@@ -234,19 +280,16 @@ export interface TradesData {
  *
  * `Promise.allSettled`: an unseeded database makes one of these fail while the
  * other is fine, and losing the good half to the bad half would be a worse
- * empty state than either source produces alone.
+ * empty state than either source produces alone. The half that was lost is
+ * reported rather than absorbed — one source failing while the other returns
+ * nothing is not "there are no trades", and saying so was a lie the operator
+ * had no way to catch.
  */
 export function useVictoriaTrades(version?: string): Async<TradesData> {
   return useAsync(
     async () => {
       const [details, rpc] = await Promise.allSettled([getTradeDetails(version), getTrades(200)]);
-      if (details.status === 'rejected' && rpc.status === 'rejected') {
-        throw details.reason instanceof Error ? details.reason : new Error(String(details.reason));
-      }
-      return {
-        details: details.status === 'fulfilled' ? details.value : [],
-        rpc: rpc.status === 'fulfilled' ? rpc.value : [],
-      };
+      return settleTrades(details, rpc);
     },
     [version],
   );

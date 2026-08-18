@@ -20,6 +20,7 @@ import {
   statusColor,
 } from '../ui/primitives.js';
 import { duration, money, percent, plural } from '../ui/format.js';
+import { useVocabulary } from '../usecases/vocabulary.js';
 
 /**
  * Shell 1a — Console.
@@ -44,6 +45,9 @@ export function ConsoleShell({
 }) {
   const { objective, harnesses, workstreams } = state;
   const focus = harnesses.find((h) => h.id === focusId) ?? harnesses.at(0) ?? null;
+  // One of the chrome-level labels the active shell may rename; see
+  // `usecases/vocabulary.tsx` for the (short) list.
+  const words = useVocabulary();
 
   return (
     <div className="flex min-h-0 flex-1 bg-canvas text-ink">
@@ -65,7 +69,7 @@ export function ConsoleShell({
         />
       ) : (
         <div className="flex flex-1 items-center justify-center text-[12px] text-muted">
-          No harness selected.
+          No {words.harness} selected.
         </div>
       )}
       <RosterRail
@@ -108,6 +112,7 @@ function FleetTree({
   onSpawn: (parentId: string | null) => void;
 }) {
   const [filter, setFilter] = useState('');
+  const words = useVocabulary();
   // Collapsed-sets rather than expanded-sets: a harness or workstream that
   // arrives over the stream after mount defaults to visible.
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(() => new Set());
@@ -141,7 +146,7 @@ function FleetTree({
         <input
           value={filter}
           onChange={(e) => { setFilter(e.target.value); }}
-          placeholder="Filter harnesses…"
+          placeholder={`Filter ${words.harnesses}…`}
           className="w-full rounded-md border border-hair bg-control px-2.5 py-1.5 text-[11px] text-ink outline-none placeholder:text-muted focus:border-edge"
         />
       </div>

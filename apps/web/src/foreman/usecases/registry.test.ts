@@ -178,6 +178,21 @@ describe('registerRoster', () => {
     expect(getUseCase('alpha')).toBeNull();
   });
 
+  it('forgets an id that was unregistered, so a later owner of it survives', () => {
+    // `unregisterUseCase` used to delete from the map but leave the id on the
+    // roster's provenance list, so the next pass evicted whoever held that id
+    // by then — a foreign shell the roster never registered.
+    registerRoster([shell('alpha', ['a'])]);
+    expect(unregisterUseCase('alpha')).toBe(true);
+
+    const foreign: UseCaseShell = { ...shell('alpha', ['a']), name: 'registered by someone else' };
+    register(foreign);
+    registerRoster([shell('beta', ['b'])]);
+
+    expect(getUseCase('alpha')).toBe(foreign);
+    expect(getUseCase('beta')?.name).toBe('beta shell');
+  });
+
   it('leaves the registry describing what really landed when a pass throws midway', () => {
     registerRoster([shell('alpha', ['a'])]);
     expect(() => {

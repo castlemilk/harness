@@ -1,5 +1,5 @@
 import type { ObjectiveState } from './api.js';
-import type { Harness, Workstream } from '../types.js';
+import type { Harness, Intervention, Pulse, Workstream } from '../types.js';
 
 /**
  * The adapter layer.
@@ -9,14 +9,22 @@ import type { Harness, Workstream } from '../types.js';
  * one would only be a second place to keep in sync. What this module owns is
  * the other half of an adapter's job:
  *
- *   1. The BOUNDARY CHECK (`projectObjectiveState`). Everything downstream —
- *      three shells, the surfaces, every use-case view — indexes into arrays and
- *      does arithmetic on numbers straight off the wire. A malformed payload
- *      (a proxy returning HTML, a half-written SSE frame, a server regression
- *      that nulls a column) used to flow in silently and surface as a render
- *      crash or, worse, a plausible-looking `NaN`. The projector asserts the
- *      invariants the shells actually rely on, at the one place state enters.
- *   2. The PROJECTIONS: pure functions that turn the flat wire lists into what a
+ *   1. The BOUNDARY CHECKS. Everything downstream — three shells, the surfaces,
+ *      every use-case view — indexes into arrays and does arithmetic on numbers
+ *      straight off the wire. A malformed payload (a proxy returning HTML, a
+ *      half-written SSE frame, a server regression that nulls a column) used to
+ *      flow in silently and surface as a render crash or, worse, a
+ *      plausible-looking `NaN`. State enters the app by four doors and each one
+ *      has a projector here: `projectObjectiveState` for a whole snapshot (the
+ *      fetch and the SSE `init` frame), and `projectHarnessPatch`,
+ *      `projectPulse` and `projectIntervention` for the three per-entity SSE
+ *      patches. No door is unguarded.
+ *   2. The PATCH APPLIERS (`applyHarnessPatch`, `applyPulse`,
+ *      `applyIntervention`): how a validated patch folds into the state the
+ *      shells hold. Pure and React-free, so the merge rules — which are where
+ *      "a harness spawned by another client" used to arrive half-formed — are
+ *      testable without a renderer.
+ *   3. The PROJECTIONS: pure functions that turn the flat wire lists into what a
  *      view renders — the harness tree, the workstream lanes, the live fleet.
  *      They live here rather than in `useForeman` so they are reachable (and
  *      testable) without React.
@@ -58,12 +66,13 @@ function finite(value: unknown, what: string): number {
 }
 
 /**
- * Validate a wire payload and hand back the state the shells render.
+ * Validate a whole-state wire payload and hand back what the shells render.
  *
- * Called on both paths state can arrive by — the fetched snapshot and the SSE
- * `init` frame — so there is exactly one door. Throws with the offending field
- * named, because "cannot read properties of undefined" three components deep is
- * how this used to be reported.
+ * Called on both paths a *snapshot* can arrive by — the fetched state and the
+ * SSE `init` frame. The per-entity SSE patches go through the projectors below
+ * instead. Throws with the offending field named, because "cannot read
+ * properties of undefined" three components deep is how this used to be
+ * reported.
  */
 export function projectObjectiveState(wire: unknown): ObjectiveState {
   const state = record(wire, 'state');
@@ -89,6 +98,124 @@ export function projectObjectiveState(wire: unknown): ObjectiveState {
   }
 
   return state as unknown as ObjectiveState;
+}
+
+/** How many pulses a harness keeps client-side; matches the server's window. */
+const RECENT_PULSE_CAP = 12;
+
+/**
+ * Validate an SSE `harness` patch.
+ *
+ * A patch is not a partial in practice — the server sends a whole serialised
+ * harness — but it is a patch in *effect*: for a harness the client already has
+ * it merges, and for one it has never seen (another operator spawned it while
+ * this client was watching) it is appended whole. That second case is the one
+ * that bit: the patch used to be cast straight to `Harness`, so a payload
+ * missing `recentPulses` appended an entry whose array-valued fields were
+ * `undefined`, and the next render — or the next pulse frame — threw inside
+ * `.map`/`.filter` with nothing pointing at the frame that caused it.
+ *
+ * So the two list fields every shell walks are defaulted to empty rather than
+ * trusted: `recentPulses`, which the stream now sends, and `routine`, which it
+ * does not (it needs a playbook join the stream deliberately doesn't do — an
+ * appended harness shows no routine until the next full refresh, which is a
+ * missing detail rather than a crash).
+ */
+export function projectHarnessPatch(wire: unknown): Harness {
+  const harness = record(wire, 'harness patch');
+  id(harness.id, 'harness patch id');
+  finite(harness.spend, `harness patch ${String(harness.id)}.spend`);
+  if (harness.recentPulses === undefined) harness.recentPulses = [];
+  array(harness.recentPulses, `harness patch ${String(harness.id)}.recentPulses`);
+  if (harness.routine === undefined) harness.routine = [];
+  array(harness.routine, `harness patch ${String(harness.id)}.routine`);
+  return harness as unknown as Harness;
+}
+
+export interface PulsePatch {
+  harnessId: string;
+  pulse: Pulse;
+}
+
+/** Validate an SSE `pulse` frame: which harness, and a pulse with an id and seq. */
+export function projectPulse(wire: unknown): PulsePatch {
+  const frame = record(wire, 'pulse frame');
+  const harnessId = id(frame.harnessId, 'pulse frame harnessId');
+  const pulse = record(frame.pulse, 'pulse frame pulse');
+  id(pulse.id, 'pulse frame pulse.id');
+  // The seq drives `latestPulseSeq`, which renders as "#204" and sorts the list.
+  finite(pulse.seq, 'pulse frame pulse.seq');
+  return { harnessId, pulse: pulse as unknown as Pulse };
+}
+
+/** An intervention patch carries a status the wire model itself doesn't have. */
+export type InterventionPatch = Intervention & { status?: string };
+
+export function projectIntervention(wire: unknown): InterventionPatch {
+  const item = record(wire, 'intervention patch');
+  id(item.id, 'intervention patch id');
+  id(item.harnessId, `intervention patch ${String(item.id)}.harnessId`);
+  return item as unknown as InterventionPatch;
+}
+
+// ─── Patch appliers ──────────────────────────────────────────────────────────
+
+/**
+ * Fold a harness patch into the fleet: merge onto the known one, append a new.
+ *
+ * `recentPulses` is the one field the merge does not take blindly. The stream's
+ * pulse window is narrower than the snapshot's, so a quiet harness patches in
+ * with an empty list — taking it would erase pulse history the operator can see
+ * on screen. An empty patch list therefore means "nothing recent", not "nothing
+ * ever", and the known list wins. For an appended harness there is nothing to
+ * preserve, so the patch's list (already defaulted) is what it starts with.
+ */
+export function applyHarnessPatch(state: ObjectiveState, patch: Harness): ObjectiveState {
+  const known = state.harnesses.some((h) => h.id === patch.id);
+  return {
+    ...state,
+    harnesses: known
+      ? state.harnesses.map((h) =>
+          h.id === patch.id
+            ? {
+                ...h,
+                ...patch,
+                recentPulses: patch.recentPulses.length > 0 ? patch.recentPulses : h.recentPulses,
+                routine: patch.routine.length > 0 ? patch.routine : h.routine,
+              }
+            : h,
+        )
+      : [...state.harnesses, patch],
+  };
+}
+
+/** Put a pulse at the head of its harness's list, replacing any earlier copy. */
+export function applyPulse(state: ObjectiveState, { harnessId, pulse }: PulsePatch): ObjectiveState {
+  return {
+    ...state,
+    harnesses: state.harnesses.map((h) =>
+      h.id === harnessId
+        ? {
+            ...h,
+            latestPulseSeq: pulse.seq,
+            recentPulses: [pulse, ...h.recentPulses.filter((p) => p.id !== pulse.id)].slice(
+              0,
+              RECENT_PULSE_CAP,
+            ),
+          }
+        : h,
+    ),
+  };
+}
+
+/** A resolved intervention leaves the queue; a pending one replaces its entry. */
+export function applyIntervention(state: ObjectiveState, item: InterventionPatch): ObjectiveState {
+  const resolved = item.status !== undefined && item.status !== 'pending';
+  const without = state.interventions.filter((i) => i.id !== item.id);
+  return {
+    ...state,
+    interventions: resolved ? without : [...without, item],
+  };
 }
 
 // ─── Projections ─────────────────────────────────────────────────────────────

@@ -123,6 +123,13 @@ becomes a union of its plugins. Before adding a field, check whether you can
 derive it from `state` — that is almost always the answer, and widening is a
 real API decision, not a convenience.
 
+**Enforced, not just asked for.** `eslint.config.js` restricts imports inside
+the shell directories (`victoria/`, `polymarket/`, `demo.tsx`; the seam's own
+`core.tsx`, `registry.ts`, `data-source.ts` and `health.tsx` are exempt, as are
+test files): a shell may not import `usecases/core.js` (the core views'
+privileged context), `data/api.js` or `data/useForeman.js` (Foreman's own API
+client), or `ForemanApp.js`. Each is a lint error naming what to use instead.
+
 ### View ordering
 
 `order` sorts ascending; views without one keep roster order, after those with.
@@ -158,12 +165,29 @@ Picking a colour:
 `vocabulary` renames display terms — `harness`, `pulse`, `objective`. Anything
 omitted keeps the Foreman word.
 
-Rename only when the domain word is genuinely better **everywhere the chrome
-uses it**. Victoria renames `harness` → `desk agent` because "spawn a desk
-agent" and "3 desk agents working" both read correctly. It leaves `pulse` and
-`objective` alone: no trading word improves on them, and renaming for the sake
-of symmetry makes the app harder to talk about across two objectives in one
-project. Polymarket renames nothing, which is a fine answer.
+**It reaches exactly four chrome-level labels, and nothing else:**
+
+| Where | Foreman | With Victoria active |
+| --- | --- | --- |
+| Console roster filter (`ConsoleShell`) | `Filter harnesses…` | `Filter desk agents…` |
+| Console empty focus column (`ConsoleShell`) | `No harness selected.` | `No desk agent selected.` |
+| Command palette prompt + result heading (`CommandPalette`) | `Jump to a harness or ticket…` / `Harnesses` | `Jump to a desk agent or ticket…` / `Desk agents` |
+| Graph inspector cost heading (`GraphShell`) | `This harness` | `This desk agent` |
+
+It does **not** rename body copy, tooltips, dialog titles, mission text, or a
+shell's own views — and it is not "chrome-wide". Delivery is
+`usecases/vocabulary.tsx`: `<VocabularyProvider>` at the root of `ForemanApp`,
+`useVocabulary()` at each label, with `pluralise` and `caps` for the two forms
+the labels need. Adding a label to the list is a one-line change at the label;
+threading the rename through every sentence in six core views is not, and the
+promise the manifest makes is deliberately the small one that is kept exactly.
+
+Rename only when the domain word is genuinely better in those places. Victoria
+renames `harness` → `desk agent` because "spawn a desk agent" and "3 desk agents
+working" both read correctly. It leaves `pulse` and `objective` alone: no
+trading word improves on them, and renaming for the sake of symmetry makes the
+app harder to talk about across two objectives in one project. Polymarket
+renames nothing, which is a fine answer.
 
 ## Data sources
 
@@ -265,6 +289,14 @@ stringified message, so the renderer can still ask whether it was a
 Mutations go through `props.mutate`, which lands failures in the core error
 rail alongside every other failure in the app.
 
+**A partial failure is not an empty state.** A view reading two sources with
+`Promise.allSettled` (Victoria's Trades reads the training JSONL *and*
+`GetTrades`) must keep the good half AND say which half is missing — see
+`settleTrades` in `victoria/hooks.ts`, which returns the rows plus a `failures`
+list the view renders as an `ErrorNote` per source. Drawing "no rows" over a
+source that answered 500 sends the operator to look for a seeding problem that
+does not exist.
+
 ### Shell inactive ⇒ zero requests
 
 **A registered shell that no objective has selected must cost zero requests.**
@@ -282,17 +314,36 @@ How to hold the line:
   is a plain function rather than a hook precisely so that gating is testable
   without a renderer.
 
-How to verify:
+How to verify — **and the file this goes in matters**:
 
 ```ts
-const fetchSpy = vi.fn();
-vi.stubGlobal('fetch', fetchSpy);
-await import('./index.js');            // re-execute the manifest
-expect(fetchSpy).not.toHaveBeenCalled();
+// usecases/<shell>/manifest-cost.test.ts — its OWN file, with no static import
+// of the manifest (or of anything that pulls it in, including `../index.js`).
+it('opens no request and no stream when the shell is merely registered', async () => {
+  vi.resetModules();
+  const fetchSpy = vi.fn();
+  const eventSourceSpy = vi.fn();
+  vi.stubGlobal('fetch', fetchSpy);
+  vi.stubGlobal('EventSource', eventSourceSpy);
+
+  const module = await import('./index.js');   // the manifest really executing
+
+  expect(module.<shell>UseCase.id).toBe('<shell>');   // proof the import ran
+  expect(fetchSpy).toHaveBeenCalledTimes(0);
+  expect(eventSourceSpy).toHaveBeenCalledTimes(0);
+});
 ```
 
-Both shells carry this test. In the browser: open devtools' network tab on an
-objective with **no** use case and confirm nothing goes to the shell's backend.
+The isolation is the whole test. Written next to a **static** import of the same
+module — which is what `shell.test.ts` has — the dynamic import returns the
+cached module, the manifest never re-executes, and a module-scope `fetch` fires
+before the stub exists. That guard passes over a real regression; it was
+verified doing exactly that before this file was split out. `vi.resetModules()`
+plus no static import is what makes it able to fail.
+
+Both shells carry this test, in `manifest-cost.test.ts`. In the browser: open
+devtools' network tab on an objective with **no** use case and confirm nothing
+goes to the shell's backend.
 
 ## Anatomy: the Victoria walkthrough
 

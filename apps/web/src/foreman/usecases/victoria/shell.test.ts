@@ -5,12 +5,14 @@
  * `ForemanApp` does — so these assertions cover the real registration path, not
  * a hand-built shell that happens to look like it.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { CORE_VIEWS, getUseCase, resolveViewId, viewTabs } from '../index.js';
 import { victoriaUseCase } from './index.js';
 import { predecessorOf, sortVersions } from './views/Runs.js';
 import { summariseByRegime } from './views/Trades.js';
 import { maxDrawdown } from './views/Equity.js';
+import { settleTrades, TRADE_DETAILS_SOURCE, TRADE_RPC_SOURCE } from './hooks.js';
+import { DataSourceError } from '../data-source.js';
 import { pct, pnlClass, ratio, regimeColor, signedPct, signedUsd, usd } from './format.js';
 import type { VersionInfo } from './client.js';
 
@@ -88,16 +90,9 @@ describe('tab derivation', () => {
   });
 });
 
-describe('the manifest costs nothing until a view mounts', () => {
-  it('issues no request when the shell is merely registered', async () => {
-    const fetchSpy = vi.fn();
-    vi.stubGlobal('fetch', fetchSpy);
-    // Re-importing the manifest constructs the data source but must not call it.
-    await import('./index.js');
-    expect(fetchSpy).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
-  });
-});
+// The zero-requests guard lives in `./manifest-cost.test.ts`, not here: this
+// file statically imports the manifest, so a dynamic re-import inside a test
+// would return the cached module and the guard could never fail.
 
 // ── View-level pure logic ────────────────────────────────────────────────────
 
@@ -181,6 +176,48 @@ describe('summariseByRegime', () => {
 
   it('is empty for no trades', () => {
     expect(summariseByRegime([])).toEqual([]);
+  });
+});
+
+describe('settleTrades', () => {
+  const rejected = (error: Error): PromiseSettledResult<never> => ({
+    status: 'rejected',
+    reason: error,
+  });
+  const fulfilled = <T,>(value: T): PromiseSettledResult<T> => ({ status: 'fulfilled', value });
+
+  it('reports the source that failed instead of calling the view empty', () => {
+    // The defect: one source 500s, the other legitimately has no rows, and the
+    // view drew "No trades — neither source has rows". That reads as an
+    // unseeded database and sends the operator looking in the wrong place.
+    const boom = new DataSourceError('Omega API: VictoriaService/GetTrades', 500, 'no such table');
+    const data = settleTrades(fulfilled([]), rejected(boom));
+
+    expect(data.details).toEqual([]);
+    expect(data.rpc).toEqual([]);
+    expect(data.failures).toHaveLength(1);
+    expect(data.failures[0].source).toBe(TRADE_RPC_SOURCE);
+    expect(data.failures[0].error).toBe(boom);
+    expect((data.failures[0].error as DataSourceError).bodyExcerpt).toBe('no such table');
+  });
+
+  it('keeps the good half and still names the bad one', () => {
+    const data = settleTrades(
+      rejected(new Error('trade-details is missing')),
+      fulfilled([{ sym: 'BTC' }]),
+    );
+    expect(data.rpc).toEqual([{ sym: 'BTC' }]);
+    expect(data.failures.map((f) => f.source)).toEqual([TRADE_DETAILS_SOURCE]);
+  });
+
+  it('reports no failure when both sources answer, however empty', () => {
+    expect(settleTrades(fulfilled([]), fulfilled([])).failures).toEqual([]);
+  });
+
+  it('still fails the panel when both sources fail', () => {
+    expect(() =>
+      settleTrades(rejected(new Error('details down')), rejected(new Error('rpc down'))),
+    ).toThrow('details down');
   });
 });
 

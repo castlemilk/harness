@@ -84,12 +84,24 @@ phase-2 path. Read it before writing a shell.
 `ObjectiveState` exactly as the shells consume it, so there is no field mapping
 to keep in sync. `data/adapt.ts` owns what is left at that seam:
 
-- `projectObjectiveState(wire)` — the boundary check, run on the fetched
-  snapshot *and* the SSE `init` frame. It asserts only the load-bearing
-  invariants (arrays are arrays, ids are non-empty strings, spend is finite) and
-  throws naming the field. It is deliberately not a schema validator: that would
-  be `types.ts` in a second dialect, free to drift. A bad SSE frame drops the app
-  onto polling instead of rendering `NaN`.
+- `projectObjectiveState(wire)` — the boundary check for a whole snapshot, run
+  on the fetched state *and* the SSE `init` frame. It asserts only the
+  load-bearing invariants (arrays are arrays, ids are non-empty strings, spend
+  is finite) and throws naming the field. It is deliberately not a schema
+  validator: that would be `types.ts` in a second dialect, free to drift. A bad
+  SSE frame drops the app onto polling instead of rendering `NaN`.
+- `projectHarnessPatch` / `projectPulse` / `projectIntervention` — the same door
+  for the three per-entity SSE patches, which used to be plain casts. A harness
+  patch is a *patch* only in effect: for a harness this client has never seen
+  (another operator spawned one while this one watched) it is appended whole, so
+  a payload without `recentPulses` put `undefined` where every shell calls
+  `.map`. The projectors default the two list fields a shell walks
+  (`recentPulses`, `routine`) rather than trusting them. The server now sends
+  `recentPulses` on the patch as well — both halves of that bug were real.
+- `applyHarnessPatch` / `applyPulse` / `applyIntervention` — the merge rules,
+  pure and React-free. An empty `recentPulses` on a patch means "nothing recent"
+  (the stream's pulse window is narrower than the snapshot's), so it never
+  erases pulses already on screen.
 - The projections — `buildTree`, `flattenTree`, `groupByWorkstream`,
   `liveHarnesses` — pure, React-free, testable. `useForeman` re-exports them for
   the existing shells; new code imports from `data/adapt.js`.

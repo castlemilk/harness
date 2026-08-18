@@ -26,8 +26,8 @@ import { clock } from '../../../ui/format.js';
 import type { UseCaseViewProps } from '../../registry.js';
 import type { RpcTrade, TradeDetail } from '../client.js';
 import { pct, pnlClass, price, ratio, regimeColor, sideColor, signedUsd } from '../format.js';
-import { useVictoriaTrades } from '../hooks.js';
-import { Async, Card, EmptyNote, Num, Stat, Table, Txt, ViewFrame } from './chrome.js';
+import { TRADE_DETAILS_SOURCE, TRADE_RPC_SOURCE, useVictoriaTrades } from '../hooks.js';
+import { Async, Card, EmptyNote, ErrorNote, Num, Stat, Table, Txt, ViewFrame } from './chrome.js';
 
 export interface RegimeSummary {
   regime: string;
@@ -137,14 +137,34 @@ export function VictoriaTrades(_props: UseCaseViewProps) {
       subtitle="Closed trades, with the decision context behind them where the training run recorded it."
     >
       <Async state={state} what="loading trades">
-        {({ details, rpc }) => {
+        {({ details, rpc, failures }) => {
+          // A source that failed is not a source that is empty. Claiming
+          // "neither has rows" over a 500 sends the operator looking for a
+          // seeding problem that isn't there, so the failure is named — with
+          // its status and body excerpt, via the shared ErrorNote — and the
+          // empty state only claims what it can actually see.
+          const failureNotes = failures.map((f) => (
+            <ErrorNote key={f.source} error={f.error} what={`${f.source} failed`} />
+          ));
+
           if (details.length === 0 && rpc.length === 0) {
+            const surviving = failures.length === 1
+              ? failures[0].source === TRADE_DETAILS_SOURCE
+                ? 'The victoria_trades table returned no rows, and the other source failed:'
+                : "The training run's trade-details JSONL returned no rows, and the other source failed:"
+              : null;
             return (
               <Card>
-                <EmptyNote
-                  title="No trades"
-                  detail="Neither the training run's trade-details JSONL nor the victoria_trades table has rows. Both fill in during a paper or live run."
-                />
+                <div className="flex flex-col gap-3">
+                  <EmptyNote
+                    title={failures.length > 0 ? 'No trades to show' : 'No trades'}
+                    detail={
+                      surviving ??
+                      "Neither the training run's trade-details JSONL nor the victoria_trades table has rows. Both fill in during a paper or live run."
+                    }
+                  />
+                  {failureNotes}
+                </div>
               </Card>
             );
           }
@@ -152,14 +172,13 @@ export function VictoriaTrades(_props: UseCaseViewProps) {
           const useDetails = details.length > 0;
           return (
             <div className="flex flex-col gap-4">
+              {failureNotes}
               {useDetails && <RegimeStrip rows={details} />}
               <Card
                 label={`${String(useDetails ? details.length : rpc.length)} trades`}
                 right={
                   <span className="font-mono text-[9.5px] text-faint">
-                    {useDetails
-                      ? '/api/v1/training/trade-details'
-                      : 'VictoriaService/GetTrades'}
+                    {useDetails ? TRADE_DETAILS_SOURCE : TRADE_RPC_SOURCE}
                   </span>
                 }
               >

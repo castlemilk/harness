@@ -1304,10 +1304,30 @@ export function foremanRoutes(prisma: PrismaClient): Router {
         if (harnessesChanged) {
           const subtreeSpend = subtreeSpendByHarness(harnesses);
           const childCounts = activeChildCountsByHarness(harnesses);
+          // A harness patch has to carry `recentPulses`, because a harness the
+          // client has never seen arrives on this path: another client's spawn
+          // appends a *new* entry to the fleet rather than merging into an
+          // existing one, and every shell maps over that array on render. The
+          // shape matches the init snapshot's — newest first, capped the same
+          // way — but the source is the stream's own bounded window, so a
+          // harness whose pulses predate it patches in with an empty list
+          // rather than a stale one.
+          const streamPulsesByHarness = new Map<string, Pulse[]>();
+          for (const pulse of pulses) {
+            const rows = streamPulsesByHarness.get(pulse.harnessId) ?? [];
+            rows.push(pulse);
+            streamPulsesByHarness.set(pulse.harnessId, rows);
+          }
+          for (const rows of streamPulsesByHarness.values()) {
+            rows.sort((a, b) => b.seq - a.seq || b.startedAt.getTime() - a.startedAt.getTime());
+          }
           for (const harness of harnesses) {
             send('harness', {
               ...serializeHarness(harness, subtreeSpend.get(harness.id) ?? harness.spendUsd),
               childCount: childCounts.get(harness.id) ?? 0,
+              recentPulses: (streamPulsesByHarness.get(harness.id) ?? [])
+                .slice(0, recentPulseLimit)
+                .map(serializePulse),
             });
           }
         }

@@ -119,8 +119,16 @@ export function registerUseCase(shell: UseCaseShell): void {
   shells.set(shell.id, shell);
 }
 
-/** Unwind a registration. Exists for tests; nothing in the app calls it. */
+/**
+ * Unwind a registration. Exists for tests; nothing in the app calls it.
+ *
+ * It also drops the id from `rosterIds`, because leaving it there means the
+ * next `registerRoster` pass deletes whatever now holds that id — including a
+ * shell someone else registered afterwards, which is exactly the eviction the
+ * provenance list exists to prevent.
+ */
 export function unregisterUseCase(id: string): boolean {
+  rosterIds = rosterIds.filter((rosterId) => rosterId !== id);
   return shells.delete(id);
 }
 

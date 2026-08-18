@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { foremanApi, type ObjectiveState } from './api.js';
-import { projectObjectiveState } from './adapt.js';
-import type { Harness, Intervention, Objective, Pulse } from '../types.js';
+import {
+  applyHarnessPatch,
+  applyIntervention,
+  applyPulse,
+  projectHarnessPatch,
+  projectIntervention,
+  projectObjectiveState,
+  projectPulse,
+} from './adapt.js';
+import type { Objective } from '../types.js';
 
 /**
  * Live objective state.
@@ -118,7 +126,8 @@ export function useForeman(projectId?: string): ForemanConnection {
       if (cancelled) return;
       try {
         // Same door as the fetched snapshot: a frame that fails the boundary
-        // check throws here and drops us onto the polling path below.
+        // check throws here and drops us onto the polling path below. The three
+        // patch handlers have their own doors — see `adapt.ts`.
         setState(projectObjectiveState(JSON.parse((ev as MessageEvent<string>).data)));
         setLive(true);
         setError(null);
@@ -133,20 +142,15 @@ export function useForeman(projectId?: string): ForemanConnection {
       }
     });
 
+    // The three patch handlers share a shape: project the frame (throwing if it
+    // is malformed), then fold it in with the pure applier. Both halves live in
+    // `adapt.ts`, so what a patch is allowed to be — and what merging one means
+    // — is asserted without a renderer.
     source.addEventListener('harness', (ev) => {
       if (cancelled) return;
       try {
-        const patch = JSON.parse((ev as MessageEvent<string>).data) as Harness;
-        setState((prev) =>
-          prev
-            ? {
-                ...prev,
-                harnesses: prev.harnesses.some((h) => h.id === patch.id)
-                  ? prev.harnesses.map((h) => (h.id === patch.id ? { ...h, ...patch } : h))
-                  : [...prev.harnesses, patch],
-              }
-            : prev,
-        );
+        const patch = projectHarnessPatch(JSON.parse((ev as MessageEvent<string>).data));
+        setState((prev) => (prev ? applyHarnessPatch(prev, patch) : prev));
       } catch {
         /* a malformed frame shouldn't tear down the stream */
       }
@@ -155,27 +159,8 @@ export function useForeman(projectId?: string): ForemanConnection {
     source.addEventListener('pulse', (ev) => {
       if (cancelled) return;
       try {
-        const { harnessId, pulse } = JSON.parse((ev as MessageEvent<string>).data) as {
-          harnessId: string;
-          pulse: Pulse;
-        };
-        setState((prev) =>
-          prev
-            ? {
-                ...prev,
-                harnesses: prev.harnesses.map((h) =>
-                  h.id === harnessId
-                    ? {
-                        ...h,
-                        latestPulseSeq: pulse.seq,
-                        recentPulses: [pulse, ...h.recentPulses.filter((p) => p.id !== pulse.id)]
-                          .slice(0, 12),
-                      }
-                    : h,
-                ),
-              }
-            : prev,
-        );
+        const patch = projectPulse(JSON.parse((ev as MessageEvent<string>).data));
+        setState((prev) => (prev ? applyPulse(prev, patch) : prev));
       } catch {
         /* ignore */
       }
@@ -184,18 +169,8 @@ export function useForeman(projectId?: string): ForemanConnection {
     source.addEventListener('intervention', (ev) => {
       if (cancelled) return;
       try {
-        const item = JSON.parse((ev as MessageEvent<string>).data) as Intervention & {
-          status?: string;
-        };
-        setState((prev) => {
-          if (!prev) return prev;
-          const resolved = item.status && item.status !== 'pending';
-          const without = prev.interventions.filter((i) => i.id !== item.id);
-          return {
-            ...prev,
-            interventions: resolved ? without : [...without, item],
-          };
-        });
+        const item = projectIntervention(JSON.parse((ev as MessageEvent<string>).data));
+        setState((prev) => (prev ? applyIntervention(prev, item) : prev));
       } catch {
         /* ignore */
       }

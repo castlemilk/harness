@@ -3,6 +3,7 @@ import type { Harness, Ticket } from '../types.js';
 import { Modal } from '../ui/Modal.js';
 import { SectionLabel, StatusDot } from '../ui/primitives.js';
 import { duration, percent, plural } from '../ui/format.js';
+import { caps, useVocabulary } from '../usecases/vocabulary.js';
 
 /**
  * Surface 1k — Command palette.
@@ -50,6 +51,9 @@ export function CommandPalette({
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  // The palette's result heading and prompt are chrome-level labels a shell may
+  // rename — see `usecases/vocabulary.tsx`.
+  const words = useVocabulary();
 
   useEffect(() => {
     if (open) {
@@ -190,7 +194,7 @@ export function CommandPalette({
                 if (first) setQuery(`${verb ?? 'open'} ${first.name} `);
               }
             }}
-            placeholder="Jump to a harness or ticket, or type a verb…"
+            placeholder={`Jump to a ${words.harness} or ticket, or type a verb…`}
             className="flex-1 bg-transparent font-mono text-[13.5px] text-ink outline-none placeholder:text-faint"
           />
           <span className="font-mono text-[10px] text-faint">⌘K</span>
@@ -221,7 +225,7 @@ export function CommandPalette({
             )}
 
             {matchedHarnesses.length > 0 && (
-              <Section label="Harnesses">
+              <Section label={caps(words.harnesses)}>
                 {matchedHarnesses.map((h, i) => {
                   const index = actions.length + i;
                   return (

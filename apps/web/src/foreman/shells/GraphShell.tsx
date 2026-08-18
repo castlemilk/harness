@@ -12,6 +12,7 @@ import {
   statusColor,
 } from '../ui/primitives.js';
 import { ago, clock, duration, money, percent } from '../ui/format.js';
+import { useVocabulary } from '../usecases/vocabulary.js';
 
 /**
  * Shell 1c — Topology.
@@ -660,9 +661,12 @@ function PulseList({ pulses }: { pulses: Pulse[] }) {
 function CostTab({ harness }: { harness: Harness }) {
   const cap = harness.spendCap;
   const ratio = capRatio(harness.spend, cap);
+  // The inspector's own heading for the thing in focus — a chrome-level label
+  // the active shell may rename; see `usecases/vocabulary.tsx`.
+  const words = useVocabulary();
   return (
     <>
-      <SectionLabel className="mb-2">This harness</SectionLabel>
+      <SectionLabel className="mb-2">This {words.harness}</SectionLabel>
       <div className="mb-4 text-[21px] font-semibold">{money(harness.spend)}</div>
       {ratio != null && cap != null && (
         <>

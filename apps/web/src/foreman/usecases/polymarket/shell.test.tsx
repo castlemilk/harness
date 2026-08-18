@@ -90,15 +90,9 @@ describe('tab derivation', () => {
   });
 });
 
-describe('the manifest costs nothing', () => {
-  it('issues no request when the shell is merely registered', async () => {
-    const fetchSpy = vi.fn();
-    vi.stubGlobal('fetch', fetchSpy);
-    await import('./index.js');
-    expect(fetchSpy).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
-  });
-});
+// The zero-requests guard lives in `./manifest-cost.test.ts`, not here: this
+// file statically imports the manifest, so a dynamic re-import inside a test
+// would return the cached module and the guard could never fail.
 
 describe('the pipeline transcription', () => {
   it('carries the five steps of projects/polymarket.yaml, in order', () => {

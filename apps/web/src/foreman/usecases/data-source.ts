@@ -174,8 +174,16 @@ export function createDataSource(config: UseCaseDataSourceConfig): UseCaseDataSo
         for (const name of named) source.removeEventListener(name, listener);
         source.close();
       };
-      // `once` so an already-aborted signal still closes and the listener is
-      // not left attached to a long-lived controller.
+      // An abort listener never fires on a signal that is ALREADY aborted, so
+      // the stream a caller thought it had cancelled would stay open for the
+      // life of the page. React 18's strict-mode double-effect and a fast
+      // unmount both produce exactly that: the controller aborts in the cleanup
+      // before the effect that opens the stream has run again.
+      if (opts?.signal?.aborted) {
+        close();
+        return close;
+      }
+      // `once` so the listener is not left attached to a long-lived controller.
       opts?.signal?.addEventListener('abort', close, { once: true });
       return close;
     },

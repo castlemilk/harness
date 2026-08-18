@@ -196,4 +196,44 @@ describe('sse', () => {
     controller.abort();
     expect(closed).toEqual(['http://localhost:8080/stream']);
   });
+
+  it('closes immediately when handed a signal that has already aborted', () => {
+    // An abort listener never fires on an already-aborted signal, so this used
+    // to leave the EventSource open for the life of the page — the shape a
+    // fast unmount (or strict mode's double effect) produces.
+    const closed: string[] = [];
+    const listeners: string[] = [];
+    class StubEventSource {
+      onmessage: ((ev: MessageEvent) => void) | null = null;
+      onerror: ((ev: Event) => void) | null = null;
+      constructor(readonly url: string) {}
+      addEventListener(name: string) {
+        listeners.push(name);
+      }
+      removeEventListener(name: string) {
+        listeners.splice(listeners.indexOf(name), 1);
+      }
+      close() {
+        closed.push(this.url);
+      }
+    }
+    vi.stubGlobal('EventSource', StubEventSource);
+
+    const controller = new AbortController();
+    controller.abort();
+    const close = createDataSource(config).sse('/stream', () => undefined, {
+      signal: controller.signal,
+      events: ['progress'],
+    });
+    expect(closed).toEqual(['http://localhost:8080/stream']);
+    // And the named-event listener is detached rather than left attached to a
+    // source nobody holds a reference to any more.
+    expect(listeners).toEqual([]);
+    // The returned closer stays callable from the caller's side.
+    close();
+    expect(closed).toEqual([
+      'http://localhost:8080/stream',
+      'http://localhost:8080/stream',
+    ]);
+  });
 });

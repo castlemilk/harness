@@ -31,6 +31,7 @@ import {
   viewTabs,
 } from './usecases/registry.js';
 import { SourceHealthDots } from './usecases/health.js';
+import { VocabularyProvider } from './usecases/vocabulary.js';
 
 /**
  * The Foreman application shell: it owns which surface is showing, which
@@ -296,125 +297,130 @@ export function ForemanApp({
   };
 
   return (
-    <div
-      className="flex h-screen w-screen flex-col overflow-hidden bg-canvas text-ink"
-      // The skin seam: one variable the chrome and any use-case view can tint
-      // from. Without a shell it resolves to the stock accent, so nothing moves.
-      // '#e8963c' is tailwind.config.js's `accent.DEFAULT`.
-      style={{ '--uc-accent': shell?.accent ?? '#e8963c' } as React.CSSProperties}
-      data-usecase={shell?.id ?? undefined}
-    >
-      <AppChrome
-        view={activeView}
-        tabs={tabs}
-        onViewChange={setView}
-        objective={objective}
-        objectives={objectives}
-        onObjectiveChange={setObjectiveId}
-        pendingInterventions={state.interventions.length}
-        onOpenPalette={() => { setPaletteOpen(true); }}
-        onOpenInterventions={() => { setInterventionsOpen(true); }}
-        onOpenLegacy={onOpenLegacy}
-        right={
-          <>
-            {/* Domain backends first, then Foreman's own stream: both answer
-                "is what I'm looking at actually live?". */}
-            <SourceHealthDots shell={shell} />
-            {!live && (
-              <span
-                title="The live stream is unavailable; polling instead."
-                className="font-mono text-[10px] text-warn"
-              >
-                ◌ polling
-              </span>
-            )}
-          </>
-        }
-      />
-
-      {(error ?? actionError) && (
-        <div className="flex-none border-b border-danger/30 bg-danger/10 px-4 py-1.5 text-[11px] text-danger-tint">
-          {actionError ?? error}
-        </div>
-      )}
-
-      {CoreSurface ? (
-        <CoreSurface {...coreContext} />
-      ) : UseCaseSurface ? (
-        <UseCaseSurface
-          objectiveId={objective.id}
-          state={state}
-          focusId={focusId}
-          onFocus={setFocusId}
-          onOpenView={setView}
-          mutate={mutate}
+    // The other half of the skin seam: the active shell's words reach the
+    // chrome-level labels listed in `usecases/vocabulary.tsx`. No shell, or a
+    // shell that renames nothing, and every label keeps Foreman's word.
+    <VocabularyProvider vocabulary={shell?.vocabulary}>
+      <div
+        className="flex h-screen w-screen flex-col overflow-hidden bg-canvas text-ink"
+        // The skin seam: one variable the chrome and any use-case view can tint
+        // from. Without a shell it resolves to the stock accent, so nothing moves.
+        // '#e8963c' is tailwind.config.js's `accent.DEFAULT`.
+        style={{ '--uc-accent': shell?.accent ?? '#e8963c' } as React.CSSProperties}
+        data-usecase={shell?.id ?? undefined}
+      >
+        <AppChrome
+          view={activeView}
+          tabs={tabs}
+          onViewChange={setView}
+          objective={objective}
+          objectives={objectives}
+          onObjectiveChange={setObjectiveId}
+          pendingInterventions={state.interventions.length}
+          onOpenPalette={() => { setPaletteOpen(true); }}
+          onOpenInterventions={() => { setInterventionsOpen(true); }}
+          onOpenLegacy={onOpenLegacy}
+          right={
+            <>
+              {/* Domain backends first, then Foreman's own stream: both answer
+                  "is what I'm looking at actually live?". */}
+              <SourceHealthDots shell={shell} />
+              {!live && (
+                <span
+                  title="The live stream is unavailable; polling instead."
+                  className="font-mono text-[10px] text-warn"
+                >
+                  ◌ polling
+                </span>
+              )}
+            </>
+          }
         />
-      ) : null}
 
-      <CommandPalette
-        open={paletteOpen}
-        onClose={() => { setPaletteOpen(false); }}
-        harnesses={harnesses}
-        tickets={state.tickets}
-        onOpenHarness={(id) => {
-          setFocusId(id);
-          setView('console');
-        }}
-        onOpenTicket={() => { setView('work'); }}
-        onRunVerb={handleVerb}
-      />
+        {(error ?? actionError) && (
+          <div className="flex-none border-b border-danger/30 bg-danger/10 px-4 py-1.5 text-[11px] text-danger-tint">
+            {actionError ?? error}
+          </div>
+        )}
 
-      <Interventions
-        open={interventionsOpen}
-        onClose={() => { setInterventionsOpen(false); }}
-        interventions={state.interventions}
-        onResolve={handleResolve}
-        onOpenSession={(harnessId) => {
-          setInterventionsOpen(false);
-          openTranscript(harnessId);
-        }}
-      />
+        {CoreSurface ? (
+          <CoreSurface {...coreContext} />
+        ) : UseCaseSurface ? (
+          <UseCaseSurface
+            objectiveId={objective.id}
+            state={state}
+            focusId={focusId}
+            onFocus={setFocusId}
+            onOpenView={setView}
+            mutate={mutate}
+          />
+        ) : null}
 
-      <Transcript
-        open={transcriptOpen}
-        onClose={() => { setTranscriptOpen(false); }}
-        harness={focus}
-        parentName={harnesses.find((h) => h.id === focus?.parentId)?.name ?? null}
-        entries={transcript}
-        loading={transcriptLoading}
-        onInterject={async (text) => {
-          if (!focus) return;
-          await foremanApi.interject(focus.id, text);
-          loadTranscript(focus.id);
-        }}
-        onInterrupt={() => {
-          if (focus) void mutate(() => foremanApi.pauseHarness(focus.id, false));
-        }}
-      />
+        <CommandPalette
+          open={paletteOpen}
+          onClose={() => { setPaletteOpen(false); }}
+          harnesses={harnesses}
+          tickets={state.tickets}
+          onOpenHarness={(id) => {
+            setFocusId(id);
+            setView('console');
+          }}
+          onOpenTicket={() => { setView('work'); }}
+          onRunVerb={handleVerb}
+        />
 
-      <Toolkit
-        open={toolkitOpen}
-        onClose={() => { setToolkitOpen(false); }}
-        harnessName={focus?.name ?? ''}
-        tools={tools}
-        onRun={async (tool) => {
-          if (!focus) return;
-          const updated = await foremanApi.runTool(focus.id, tool.id);
-          setTools((prev) => prev.map((t) => (t.id === tool.id ? updated : t)));
-        }}
-      />
+        <Interventions
+          open={interventionsOpen}
+          onClose={() => { setInterventionsOpen(false); }}
+          interventions={state.interventions}
+          onResolve={handleResolve}
+          onOpenSession={(harnessId) => {
+            setInterventionsOpen(false);
+            openTranscript(harnessId);
+          }}
+        />
 
-      <SpawnHarness
-        open={spawnParent !== null}
-        onClose={() => { setSpawnParent(null); }}
-        objectiveId={objective.id}
-        objectiveName={objective.name}
-        parent={spawnParent?.parent ?? null}
-        playbooks={playbooks}
-        models={models}
-        onSpawn={handleSpawn}
-      />
-    </div>
+        <Transcript
+          open={transcriptOpen}
+          onClose={() => { setTranscriptOpen(false); }}
+          harness={focus}
+          parentName={harnesses.find((h) => h.id === focus?.parentId)?.name ?? null}
+          entries={transcript}
+          loading={transcriptLoading}
+          onInterject={async (text) => {
+            if (!focus) return;
+            await foremanApi.interject(focus.id, text);
+            loadTranscript(focus.id);
+          }}
+          onInterrupt={() => {
+            if (focus) void mutate(() => foremanApi.pauseHarness(focus.id, false));
+          }}
+        />
+
+        <Toolkit
+          open={toolkitOpen}
+          onClose={() => { setToolkitOpen(false); }}
+          harnessName={focus?.name ?? ''}
+          tools={tools}
+          onRun={async (tool) => {
+            if (!focus) return;
+            const updated = await foremanApi.runTool(focus.id, tool.id);
+            setTools((prev) => prev.map((t) => (t.id === tool.id ? updated : t)));
+          }}
+        />
+
+        <SpawnHarness
+          open={spawnParent !== null}
+          onClose={() => { setSpawnParent(null); }}
+          objectiveId={objective.id}
+          objectiveName={objective.name}
+          parent={spawnParent?.parent ?? null}
+          playbooks={playbooks}
+          models={models}
+          onSpawn={handleSpawn}
+        />
+      </div>
+    </VocabularyProvider>
   );
 }
 

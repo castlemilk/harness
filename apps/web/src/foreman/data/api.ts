@@ -15,10 +15,28 @@ import type {
 
 const API = String(import.meta.env.VITE_API_URL ?? 'http://localhost:4000');
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * The server's `FOREMAN_TOOLS_SECRET`, if this build was given it, sent on the
+ * two routes that can cause a shell command to run.
+ *
+ * This is DEV CONVENIENCE, not a security boundary: a secret compiled into a
+ * served SPA is readable by anyone who can load the page, so all it really buys
+ * is that a cross-origin page cannot forge the request without it — CSRF-grade.
+ * The posture that actually holds is the loopback bind.
+ */
+const TOOLS_SECRET = String(import.meta.env.VITE_FOREMAN_TOOLS_SECRET ?? '');
+
+function toolsHeaders(): Record<string, string> {
+  return TOOLS_SECRET.length > 0 ? { 'x-foreman-tools-secret': TOOLS_SECRET } : {};
+}
+
+async function request<T>(
+  path: string,
+  init?: Omit<RequestInit, 'headers'> & { headers?: Record<string, string> },
+): Promise<T> {
   const res = await fetch(`${API}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...init,
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
   });
   const data = (await res.json().catch(() => null)) as unknown;
   if (!res.ok) {
@@ -91,7 +109,10 @@ export const foremanApi = {
   getTools: (id: string) => request<Tool[]>(`/foreman/harnesses/${id}/tools`),
 
   runTool: (harnessId: string, toolId: string) =>
-    request<Tool>(`/foreman/harnesses/${harnessId}/tools/${toolId}/run`, { method: 'POST' }),
+    request<Tool>(`/foreman/harnesses/${harnessId}/tools/${toolId}/run`, {
+      method: 'POST',
+      headers: toolsHeaders(),
+    }),
 
   spawnHarness: (body: SpawnHarnessInput) =>
     request<Harness>('/foreman/harnesses', { method: 'POST', body: JSON.stringify(body) }),
@@ -132,6 +153,9 @@ export const foremanApi = {
     request<Intervention>(`/foreman/interventions/${id}/resolve`, {
       method: 'POST',
       body: JSON.stringify(body),
+      // Sent unconditionally: the client does not know the intervention's kind
+      // here, and the server ignores the header for every kind but `approval`.
+      headers: toolsHeaders(),
     }),
 
   listPlaybooks: () => request<Playbook[]>('/foreman/playbooks'),

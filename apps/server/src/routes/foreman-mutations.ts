@@ -13,7 +13,12 @@ import { asyncHandler } from '../lib/async-handler.js';
 import { safeJsonParse } from '../lib/utils.js';
 import { parsePermissions } from '../lib/harness-permissions.js';
 import { serializeTool } from '../lib/tool-dto.js';
-import { runHarnessTool } from '../lib/tool-runner.js';
+import {
+  isConcurrencyRejection,
+  runHarnessTool,
+  TOOLS_SECRET_HEADER,
+  toolsSecretAccepted,
+} from '../lib/tool-runner.js';
 
 const permissionSchema = z.object({
   id: z.string().min(1).max(100),
@@ -976,6 +981,12 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
   }));
 
   r.post('/harnesses/:id/tools/:toolId/run', asyncHandler(async (req, res) => {
+    // Before the lookup, so a wrong secret cannot even probe which tool ids
+    // exist, and so no row and no permission entry is written on the way out.
+    if (!toolsSecretAccepted(req.headers[TOOLS_SECRET_HEADER])) {
+      res.status(401).json({ error: 'Tool execution requires a valid tools secret' });
+      return;
+    }
     const tool = await prisma.harnessTool.findFirst({
       where: { id: req.params.toolId, harnessId: req.params.id },
     });
@@ -983,8 +994,23 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
       res.status(404).json({ error: 'Harness tool not found' });
       return;
     }
-    const { tool: updated, run } = await runHarnessTool(prisma, tool);
-    res.json(serializeTool(updated, run));
+    const outcome = await runHarnessTool(prisma, tool);
+    if (isConcurrencyRejection(outcome)) {
+      // No audit row on purpose: writing one per refusal would turn the cap
+      // into its own unbounded write amplifier. The count goes in the body so
+      // the caller still learns what stopped it.
+      res.status(429).json({
+        error:
+          outcome.scope === 'tool'
+            ? 'This tool is already running'
+            : 'Too many tools are already running on this harness',
+        scope: outcome.scope,
+        running: outcome.running,
+        limit: outcome.limit,
+      });
+      return;
+    }
+    res.json(serializeTool(outcome.tool, outcome.run));
   }));
 
   r.post('/interventions/:id/resolve', asyncHandler(async (req, res) => {
@@ -996,6 +1022,18 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
     }
     if (intervention.status !== 'pending') {
       res.status(409).json({ error: 'Intervention is already resolved' });
+      return;
+    }
+    // Resolving an APPROVAL is what authorises a command to run — one-shot via
+    // `approve`, standing via `approve-always` — so it sits behind the same
+    // secret as the run route. Every other kind (question, budget, retire) is
+    // untouched. Checked before the transaction: a rejected call resolves
+    // nothing and grants nothing.
+    if (
+      intervention.kind === 'approval' &&
+      !toolsSecretAccepted(req.headers[TOOLS_SECRET_HEADER])
+    ) {
+      res.status(401).json({ error: 'Resolving an approval requires a valid tools secret' });
       return;
     }
     const status = body.action === 'deny'
@@ -1063,6 +1101,17 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
           }
           await tx.harness.update({ where: { id: harness.id }, data: { spendCapUsd: body.value } });
         } else if (body.action === 'approve-always') {
+          // Only an APPROVAL can grant a permission. `matchingPermissionId`
+          // will happily pull an `id` or `toolId` out of any payload, so a
+          // diff/question/budget intervention that happened to carry one could
+          // otherwise be resolved into a standing grant — a confused deputy
+          // with the operator's own hands.
+          if (currentIntervention.kind !== 'approval') {
+            throw new ForemanMutationError(
+              400,
+              'Only an approval intervention can grant a permission',
+            );
+          }
           const permissionId = matchingPermissionId(currentIntervention.payload);
           const currentPermissions = permissions(harness.permissions);
           if (!permissionId || !currentPermissions.some((entry) => entry.id === permissionId)) {
@@ -1078,8 +1127,11 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
         } else if (body.action === 'approve') {
           // "Approve once" on a tool request authorises exactly ONE later run.
           // The grant lives on the tool and the next run consumes it, so an
-          // approval can never quietly become standing permission.
-          const toolId = interventionToolId(currentIntervention.payload);
+          // approval can never quietly become standing permission. Same rule as
+          // approve-always: a non-approval intervention never hands out a grant.
+          const toolId = currentIntervention.kind === 'approval'
+            ? interventionToolId(currentIntervention.payload)
+            : null;
           if (toolId) {
             const claimedTool = await tx.harnessTool.updateMany({
               where: { id: toolId, harnessId: harness.id },

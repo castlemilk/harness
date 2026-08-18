@@ -205,40 +205,115 @@ reports it.
 
 A `HarnessTool` is a button in the Toolkit that runs a **shell command in the
 objective's project checkout**. That is a browser button running a command on
-the host, so it is fenced on four sides:
+the host, as you.
 
 ```bash
 FOREMAN_TOOLS=1 task dev      # without this, tools execute NOTHING
 ```
 
-1. **Off by default.** With `FOREMAN_TOOLS` unset, running a tool records the
-   request and returns the same "Not executed: execution is not configured;
-   request recorded only" it always did. A tool with no `command` behaves that
-   way regardless of the flag.
-2. **Permission gate.** Execution needs a *granted* entry in
-   `Harness.permissions` whose id is the tool's `permissionId` (default
-   `tool:<id>`). No grant → nothing runs: the run is recorded as
-   `blocked-pending-approval` and one `approval` intervention is raised for the
-   Needs-you rail (deduplicated per tool). A tool flagged `needsApproval` asks
-   every single time, granted or not.
-3. **Approval round trip.** Resolving that intervention with **approve** stores
-   the intervention id on the tool as a one-shot grant, which the *next* run
-   consumes and clears — an approval can never become standing permission.
-   **approve-always** flips the permission to granted through the existing
-   resolve path, so every later run executes. **deny** changes nothing.
-4. **Bounds.** 60s default timeout (`HarnessTool.timeoutMs`, capped at 10m),
-   killed as a process group (SIGTERM, then SIGKILL); 64 KB of output captured
-   and a 2 000-character excerpt persisted; cwd is the project path, and a
-   missing checkout is record-only, not a guess.
+### What is actually load-bearing
 
-Every attempt — recorded, blocked, executed, failed, timed out — writes a
-`HarnessToolRun`: command, cwd, exit code, duration, output excerpt, and the
-permission id *or* intervention id that authorised it. The Toolkit renders that
-row: real status, the command, and the output.
+Be precise about which of these stop an adversary and which are workflow. Only
+four are controls:
 
-The environment is an **allowlist** (`PATH`, `HOME`, `SHELL`, `USER`, `LOGNAME`,
-`LANG`, `LC_ALL`, `TZ`, `TMPDIR` plus `GIT_TERMINAL_PROMPT=0`, `TERM=dumb`,
-`CI=1`). Provider keys and `DATABASE_URL` are not visible to a tool command.
+1. **The flag.** With `FOREMAN_TOOLS` unset nothing executes, ever. This is the
+   only fence that holds against a caller who can reach the API at all.
+2. **The command text is not writable over HTTP.** It comes from the stored tool
+   definition; the request body is ignored, and no route accepts a command
+   string. The gate decides *whether*, never *what*. (Whoever can write the
+   database, or run `POST /foreman/harnesses/:id/tools`, defines commands — that
+   is a different, higher privilege.)
+3. **The loopback bind.** `HOST` defaults to `127.0.0.1`. On any other bind,
+   `FOREMAN_TOOLS=1` is a remote shell for everyone who can reach the port, and
+   the server prints a loud multi-line warning at startup saying exactly that.
+4. **`FOREMAN_TOOLS_SECRET`, when set.** `POST /harnesses/:id/tools/:toolId/run`
+   and `POST /interventions/:id/resolve` **for `approval`-kind interventions**
+   then require header `x-foreman-tools-secret` to match (timing-safe compare).
+   A missing or wrong secret is `401` with **no side effects at all**: no run
+   row, no permission entry, no intervention, no resolution. Every other
+   intervention kind (question, budget, diff, retire) resolves unauthenticated
+   as before. Unset means the routes are unauthenticated — the local-trusted
+   posture, where the loopback bind is the whole story.
+
+**Permissions and approvals are operator workflow, not an adversarial
+boundary** — unless the secret is set. `PATCH /foreman/harnesses/:id` writes
+`permissions` verbatim, and until this change resolve was unauthenticated, so
+any caller who could reach the run route could also grant itself the permission
+that route checks. The permission list answers "did a human mean to allow
+this?", which is a real and useful question; it does not answer "is this caller
+allowed to ask?". The secret is what answers that.
+
+### The gate, mechanically
+
+- **Permission gate.** Execution needs a *granted* entry in
+  `Harness.permissions` whose id is the tool's `permissionId` (default
+  `tool:<id>`) **whose own `needsApproval` is not set**. No grant → nothing
+  runs: the run is recorded as `blocked-pending-approval` and one `approval`
+  intervention is raised for the Needs-you rail, deduplicated **per tool** (the
+  match is on the tool id in the payload, so alternating two blocked tools
+  raises two interventions, not one per click). A tool flagged `needsApproval`
+  asks every single time, granted or not — and the intervention says so instead
+  of promising "always allow" will stop the asking, which it cannot.
+- **Approval round trip.** Resolving with **approve** stores the intervention id
+  on the tool as a one-shot grant. The next run **claims** that grant with a
+  conditional update *before* it spawns, so N simultaneous runs cannot all
+  consume one approval — the losers fall through to the ordinary blocked path.
+  **approve-always** flips the permission to granted, and only an
+  `approval`-kind intervention can do that: a diff/budget/question intervention
+  carrying a `permissionId` in its payload is refused with `400`.
+- **Concurrency.** One in-flight run per tool, three per harness, counted from
+  the pre-spawn `running` rows. Over the cap is `429` with `{scope, running,
+  limit}` in the body and **no run row** — a row per rejected request would make
+  the rate limiter its own unbounded write amplifier, which is the DoS the cap
+  exists to prevent. A `running` row older than 11 minutes (the hardest timeout
+  plus a minute) cannot be live, so it is excluded from the count: a crash
+  cannot brick a tool permanently.
+- **Bounds.** 60s default timeout (`HarnessTool.timeoutMs`, capped at 10m),
+  killed as a process group (SIGTERM, then SIGKILL) — POSIX-only and
+  best-effort: a child that calls `setsid` leaves the group and survives. 64 KB
+  of output captured (decoded with a `StringDecoder`, so a multi-byte character
+  spanning the boundary is not mangled) and a 2 000-character excerpt persisted;
+  cwd must `statSync().isDirectory()`, and anything else is record-only, not a
+  guess.
+
+Every attempt writes a `HarnessToolRun` — **except** a concurrency rejection,
+which writes nothing by design. An executing run gets its row **before** the
+spawn with status `running`, updated in place to `ok`/`fail`/`timeout`/`error`
+when it settles: one attempt is one row, with a stable id. A run whose server
+died mid-command stays `running` forever, which is the truth. The row carries
+command, cwd, exit code, duration, output excerpt, and the permission id *or*
+intervention id that authorised it.
+
+### Disclosure and blast radius — read this before exposing anything
+
+- **Run output is readable by any caller of the tools route.** The ≤2 000-char
+  excerpt is returned on the run response and on `GET /harnesses/:id/tools`,
+  neither of which is behind the secret (only *running* is). A tool that prints
+  a token, a connection string or a customer record has published it to anyone
+  who can read the API.
+- **The scrubbed environment protects the SERVER's secrets, not the host.** The
+  allowlist (`PATH`, `HOME`, `SHELL`, `USER`, `LOGNAME`, `LANG`, `LC_ALL`, `TZ`,
+  `TMPDIR` plus `GIT_TERMINAL_PROMPT=0`, `TERM=dumb`, `CI=1`) keeps provider API
+  keys and `DATABASE_URL` out of the child. It does nothing about the
+  filesystem: the command runs as the invoking user with that user's full
+  rights — `~/.ssh`, `~/.aws`, gcloud's application-default credentials, and the
+  checkout's own `.env` are all readable, and `curl` is on `PATH`.
+- **Binding a tool to a generic, already-granted permission skips the
+  ceremony.** `HarnessTool.permissionId` is free text. Point it at a broad
+  permission the harness already holds (the seeded `run-command` is exactly
+  this) and the tool executes on first click with no intervention, because the
+  gate only asks "is *that id* granted?". Custom `permissionId` plus the seeded
+  generic grants is an operator decision, and a deliberately quiet one.
+- **`DELETE /projects/:id` cascades away the entire tool audit trail.**
+  Project → Objective → Harness → HarnessTool → HarnessToolRun are all
+  `onDelete: Cascade`, so deleting a project silently destroys every record of
+  what was ever executed against it. There is no archive.
+- **The web UI's `VITE_FOREMAN_TOOLS_SECRET` is not authentication.** The
+  Toolkit and intervention surfaces send the header when the build was given
+  that variable, which is dev convenience. A secret compiled into a served SPA
+  is readable by anyone who loads the page; all it really buys is that a
+  cross-origin page cannot forge the request — CSRF-grade. Real deployments
+  should keep the loopback bind.
 
 Known deviation: tool runs do **not** emit their own SSE event. The stream
 diffs harnesses, pulses and interventions, so a *blocked* run surfaces live via
@@ -246,8 +321,13 @@ its intervention, while a successful run surfaces in the run response and the
 next `GET /harnesses/:id/tools`. Adding a `tool` event means teaching the
 stream a fourth table — worth doing when a background caller can fire tools.
 
-The command text always comes from the stored tool definition; the request body
-is ignored. The gate decides *whether*, never *what*.
+Behaviour change worth knowing, since an earlier draft of this page claimed the
+flag-off path was byte-identical to the pre-execution API — it is not. With
+`FOREMAN_TOOLS` unset, running a tool now **inserts a `HarnessToolRun` row**
+(status `recorded`) where it previously wrote nothing but the tool's two
+columns, and the response now carries `executable` and `lastRun`. The
+`lastStatus` / `lastResultLabel` / `lastRanAt` triple and the "Not executed:
+execution is not configured; request recorded only" label are unchanged.
 
 ## Layout
 
@@ -290,7 +370,7 @@ bounded query. The SSE stream opens with that same snapshot, then patches.
 ## Tests
 
 ```bash
-task test:foreman   # 62 server + 84 web
+task test:foreman   # 79 server + 84 web
 task check          # lint, typecheck, build, test
 ```
 

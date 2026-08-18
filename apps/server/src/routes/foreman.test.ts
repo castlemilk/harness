@@ -7,6 +7,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { applyMigrations, prisma, seedForemanDemo, type PrismaClient } from '@omega/db';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { app } from '../app.js';
+import { parsePermissions } from '../lib/harness-permissions.js';
+import { remoteExposureWarning } from '../lib/tool-runner.js';
 import * as foremanModule from './foreman.js';
 
 vi.hoisted(() => {
@@ -71,6 +73,7 @@ async function invokeRoute(
     params?: Record<string, string>;
     query?: Record<string, string>;
     body?: unknown;
+    headers?: Record<string, string>;
   } = {},
 ): Promise<RouteResult> {
   const handler = findRouteHandler(router, method, path);
@@ -101,6 +104,7 @@ async function invokeRoute(
       params: input.params ?? {},
       query: input.query ?? {},
       body: input.body ?? {},
+      headers: input.headers ?? {},
     };
     const next: NextFunction = (error?: unknown) => {
       if (error) reject(error);
@@ -2179,9 +2183,10 @@ describe('Foreman tool execution', () => {
       },
     });
 
-  const run = (toolId: string) =>
+  const run = (toolId: string, headers?: Record<string, string>) =>
     invokeRoute(router, 'post', '/harnesses/:id/tools/:toolId/run', {
       params: { id: harnessId, toolId },
+      headers,
     });
 
   const grant = (permissionId: string, needsApproval = false) =>
@@ -2211,6 +2216,7 @@ describe('Foreman tool execution', () => {
 
   afterEach(async () => {
     delete process.env.FOREMAN_TOOLS;
+    delete process.env.FOREMAN_TOOLS_SECRET;
     delete process.env.OMEGA_TOOL_SECRET;
     await prisma.harness.update({ where: { id: harnessId }, data: { permissions: '[]' } });
     await prisma.intervention.deleteMany({ where: { harnessId } });
@@ -2506,5 +2512,372 @@ describe('Foreman tool execution', () => {
     expect(
       (await prisma.harnessTool.findUniqueOrThrow({ where: { id: foreignTool.id } })).approvedInterventionId,
     ).toBe(null);
+  });
+
+  // ------------------------------------------------------------- the secret --
+
+  it('rejects a run with no tools secret when one is configured, writing nothing', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    process.env.FOREMAN_TOOLS_SECRET = 'correct-horse-battery-staple';
+    const marker = join(projectPath, 'no-secret-marker');
+    const tool = await makeTool({ name: 'Secret gated', command: `touch ${marker}` });
+    await grant(`tool:${tool.id}`);
+
+    const missing = await run(tool.id);
+    const wrong = await run(tool.id, { 'x-foreman-tools-secret': 'correct-horse-battery-stapl' });
+
+    expect(missing.status).toBe(401);
+    expect(missing.body).toEqual({ error: 'Tool execution requires a valid tools secret' });
+    expect(wrong.status).toBe(401);
+    expect(existsSync(marker)).toBe(false);
+    // No side effects at all: no audit row, no permission entry, no ask.
+    expect(await prisma.harnessToolRun.count({ where: { toolId: tool.id } })).toBe(0);
+    expect(await prisma.intervention.count({ where: { harnessId } })).toBe(0);
+    expect(
+      (await prisma.harnessTool.findUniqueOrThrow({ where: { id: tool.id } })).lastStatus,
+    ).toBe(null);
+  });
+
+  it('runs when the tools secret matches', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    process.env.FOREMAN_TOOLS_SECRET = 'correct-horse-battery-staple';
+    const tool = await makeTool({ name: 'Secret ok', command: 'echo authorised' });
+    await grant(`tool:${tool.id}`);
+
+    const result = await run(tool.id, {
+      'x-foreman-tools-secret': 'correct-horse-battery-staple',
+    });
+
+    expect(result.status).toBe(200);
+    expect((result.body as { lastStatus: string }).lastStatus).toBe('ok');
+    expect((result.body as { lastRun: { output: string } }).lastRun.output).toBe('authorised');
+  });
+
+  it('refuses to resolve an approval without the tools secret, and resolves with it', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'Gated approval', command: 'echo gated' });
+    await run(tool.id);
+    const intervention = await prisma.intervention.findFirstOrThrow({ where: { harnessId } });
+
+    process.env.FOREMAN_TOOLS_SECRET = 'shibboleth';
+    const denied = await invokeRoute(router, 'post', '/interventions/:id/resolve', {
+      params: { id: intervention.id },
+      body: { action: 'approve-always' },
+    });
+    expect(denied.status).toBe(401);
+    expect(denied.body).toEqual({ error: 'Resolving an approval requires a valid tools secret' });
+    // Nothing resolved, nothing granted.
+    expect(
+      (await prisma.intervention.findUniqueOrThrow({ where: { id: intervention.id } })).status,
+    ).toBe('pending');
+    expect(
+      parsePermissions(
+        (await prisma.harness.findUniqueOrThrow({ where: { id: harnessId } })).permissions,
+      ).every((entry) => !entry.granted),
+    ).toBe(true);
+
+    const allowed = await invokeRoute(router, 'post', '/interventions/:id/resolve', {
+      params: { id: intervention.id },
+      body: { action: 'approve-always' },
+      headers: { 'x-foreman-tools-secret': 'shibboleth' },
+    });
+    expect(allowed.status).toBe(200);
+    expect(
+      parsePermissions(
+        (await prisma.harness.findUniqueOrThrow({ where: { id: harnessId } })).permissions,
+      ).find((entry) => entry.id === `tool:${tool.id}`)?.granted,
+    ).toBe(true);
+  });
+
+  it('leaves non-approval interventions unauthenticated when the secret is set', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    process.env.FOREMAN_TOOLS_SECRET = 'shibboleth';
+    const question = await prisma.intervention.create({
+      data: {
+        objectiveId,
+        harnessId,
+        kind: 'question',
+        title: 'Which branch?',
+        status: 'pending',
+      },
+    });
+
+    const result = await invokeRoute(router, 'post', '/interventions/:id/resolve', {
+      params: { id: question.id },
+      body: { action: 'answer', response: 'main' },
+    });
+
+    expect(result.status).toBe(200);
+    expect(
+      (await prisma.intervention.findUniqueOrThrow({ where: { id: question.id } })).status,
+    ).toBe('answered');
+  });
+
+  // ------------------------------------------------- permission.needsApproval --
+
+  it('blocks a granted permission whose entry itself asks for per-use approval', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const marker = join(projectPath, 'per-use-marker');
+    const tool = await makeTool({ name: 'Per-use permission', command: `touch ${marker}` });
+    // The tool does NOT set needsApproval; the PERMISSION does. That entry was
+    // parsed, stored and rendered but never consulted before.
+    await grant(`tool:${tool.id}`, true);
+
+    const result = await run(tool.id);
+
+    expect((result.body as { lastStatus: string }).lastStatus).toBe('blocked');
+    expect(existsSync(marker)).toBe(false);
+    const interventions = await prisma.intervention.findMany({ where: { harnessId } });
+    expect(interventions).toHaveLength(1);
+    expect(interventions[0].kind).toBe('approval');
+    expect(JSON.parse(interventions[0].payload ?? '{}')).toMatchObject({ toolId: tool.id });
+  });
+
+  // ----------------------------------------------------- one-shot atomicity --
+
+  it('lets exactly one of two concurrent runs consume a single "approve"', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'Approve once race', command: 'echo raced' });
+    await run(tool.id);
+    const intervention = await prisma.intervention.findFirstOrThrow({ where: { harnessId } });
+    await invokeRoute(router, 'post', '/interventions/:id/resolve', {
+      params: { id: intervention.id },
+      body: { action: 'approve' },
+    });
+
+    await Promise.all([run(tool.id), run(tool.id)]);
+
+    const runs = await prisma.harnessToolRun.findMany({
+      where: { toolId: tool.id },
+      orderBy: { createdAt: 'asc' },
+    });
+    // Three attempts: the original block, then the two racers.
+    expect(runs).toHaveLength(3);
+    expect(runs.filter((entry) => entry.status === 'ok')).toHaveLength(1);
+    expect(runs.filter((entry) => entry.status === 'blocked-pending-approval')).toHaveLength(2);
+    expect(runs.filter((entry) => entry.output === 'raced')).toHaveLength(1);
+    expect(
+      (await prisma.harnessTool.findUniqueOrThrow({ where: { id: tool.id } })).approvedInterventionId,
+    ).toBe(null);
+  });
+
+  // ------------------------------------------------------------ concurrency --
+
+  it('caps a single tool at one run in flight and answers 429 without a row', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'Slow tool', command: 'sleep 1 && echo slow', timeoutMs: 10_000 });
+    await grant(`tool:${tool.id}`);
+
+    const [first, second] = await Promise.all([run(tool.id), run(tool.id)]);
+
+    const statuses = [first.status, second.status].sort((a, b) => a - b);
+    expect(statuses).toEqual([200, 429]);
+    const rejected = first.status === 429 ? first : second;
+    expect(rejected.body).toEqual({
+      error: 'This tool is already running',
+      scope: 'tool',
+      running: 1,
+      limit: 1,
+    });
+    // One attempt, one row — the refusal is deliberately not persisted.
+    const runs = await prisma.harnessToolRun.findMany({ where: { toolId: tool.id } });
+    expect(runs).toHaveLength(1);
+    expect(runs[0].status).toBe('ok');
+  }, 20_000);
+
+  it('caps a harness at three runs in flight across its whole toolkit', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tools = await Promise.all(
+      [1, 2, 3, 4].map((n) =>
+        makeTool({ name: `Parallel ${String(n)}`, command: 'sleep 1', timeoutMs: 10_000 }),
+      ),
+    );
+    await prisma.harness.update({
+      where: { id: harnessId },
+      data: {
+        permissions: JSON.stringify(
+          tools.map((tool) => ({
+            id: `tool:${tool.id}`,
+            label: 'Run the tool',
+            granted: true,
+            needsApproval: false,
+          })),
+        ),
+      },
+    });
+
+    const results = await Promise.all(tools.map((tool) => run(tool.id)));
+
+    expect(results.filter((entry) => entry.status === 200)).toHaveLength(3);
+    const rejected = results.filter((entry) => entry.status === 429);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].body).toEqual({
+      error: 'Too many tools are already running on this harness',
+      scope: 'harness',
+      running: 3,
+      limit: 3,
+    });
+    expect(
+      await prisma.harnessToolRun.count({ where: { toolId: { in: tools.map((t) => t.id) } } }),
+    ).toBe(3);
+  }, 20_000);
+
+  // ------------------------------------------------------- intervention dedup --
+
+  it('raises exactly one approval per tool when two blocked tools alternate', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const alpha = await makeTool({ name: 'Alpha', command: 'echo alpha' });
+    const beta = await makeTool({ name: 'Beta', command: 'echo beta' });
+
+    for (let pass = 0; pass < 3; pass += 1) {
+      await run(alpha.id);
+      await run(beta.id);
+    }
+
+    const interventions = await prisma.intervention.findMany({
+      where: { harnessId, kind: 'approval', status: 'pending' },
+    });
+    expect(interventions).toHaveLength(2);
+    const toolIds = interventions
+      .map((entry) => (JSON.parse(entry.payload ?? '{}') as { toolId: string }).toolId)
+      .sort();
+    expect(toolIds).toEqual([alpha.id, beta.id].sort());
+    expect(await prisma.harnessToolRun.count({ where: { toolId: alpha.id } })).toBe(3);
+  });
+
+  // ------------------------------------------------------- confused deputies --
+
+  it('never flips a permission from a non-approval intervention', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'Deputy target', command: 'echo deputy' });
+    await run(tool.id);
+    // The un-granted entry now exists; forge a DIFF intervention naming it.
+    const forged = await prisma.intervention.create({
+      data: {
+        objectiveId,
+        harnessId,
+        kind: 'diff',
+        title: 'Review this diff',
+        payload: JSON.stringify({ permissionId: `tool:${tool.id}`, toolId: tool.id }),
+        status: 'pending',
+      },
+    });
+
+    const result = await invokeRoute(router, 'post', '/interventions/:id/resolve', {
+      params: { id: forged.id },
+      body: { action: 'approve-always' },
+    });
+
+    expect(result.status).toBe(400);
+    expect(result.body).toEqual({
+      error: 'Only an approval intervention can grant a permission',
+    });
+    expect(
+      parsePermissions(
+        (await prisma.harness.findUniqueOrThrow({ where: { id: harnessId } })).permissions,
+      ).find((entry) => entry.id === `tool:${tool.id}`)?.granted,
+    ).toBe(false);
+    expect(
+      (await prisma.intervention.findUniqueOrThrow({ where: { id: forged.id } })).status,
+    ).toBe('pending');
+  });
+
+  it('never hands a one-shot grant to a non-approval intervention', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'Deputy one-shot', command: 'echo deputy' });
+    const forged = await prisma.intervention.create({
+      data: {
+        objectiveId,
+        harnessId,
+        kind: 'budget',
+        title: 'Spend cap reached',
+        payload: JSON.stringify({ toolId: tool.id }),
+        status: 'pending',
+      },
+    });
+
+    const result = await invokeRoute(router, 'post', '/interventions/:id/resolve', {
+      params: { id: forged.id },
+      body: { action: 'approve' },
+    });
+
+    expect(result.status).toBe(200);
+    expect(
+      (await prisma.harnessTool.findUniqueOrThrow({ where: { id: tool.id } })).approvedInterventionId,
+    ).toBe(null);
+  });
+
+  it('tells the truth about "always allow" on a tool that needs per-use approval', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'Force push', command: 'echo dangerous', needsApproval: true });
+
+    await run(tool.id);
+
+    const intervention = await prisma.intervention.findFirstOrThrow({ where: { harnessId } });
+    expect(intervention.detail).toContain('asks EVERY time');
+    expect(intervention.detail).toContain('will still stop here for sign-off');
+    expect(intervention.detail).not.toContain('for every future run');
+  });
+
+  // ------------------------------------------------------------ audit timing --
+
+  it('opens the audit row before the spawn and settles the same row afterwards', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'Pre-spawn row', command: 'sleep 1 && echo settled', timeoutMs: 10_000 });
+    await grant(`tool:${tool.id}`);
+
+    const pending = run(tool.id);
+    // While the command sleeps, the row already exists and says so.
+    await vi.waitFor(async () => {
+      const rows = await prisma.harnessToolRun.findMany({ where: { toolId: tool.id } });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe('running');
+      expect(rows[0].command).toBe('sleep 1 && echo settled');
+      expect(rows[0].cwd).toBe(projectPath);
+    }, { timeout: 3_000, interval: 50 });
+    const runningId = (await prisma.harnessToolRun.findFirstOrThrow({ where: { toolId: tool.id } })).id;
+
+    const result = await pending;
+
+    // Same row, updated in place — one attempt is one row, id stable.
+    const rows = await prisma.harnessToolRun.findMany({ where: { toolId: tool.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(runningId);
+    expect(rows[0].status).toBe('ok');
+    expect(rows[0].output).toBe('settled');
+    expect((result.body as { lastRun: { id: string } }).lastRun.id).toBe(runningId);
+  }, 20_000);
+});
+
+describe('Foreman tool exposure warning', () => {
+  it('says nothing when tools are off, whatever the bind', () => {
+    expect(remoteExposureWarning({}, '0.0.0.0')).toBe(null);
+    expect(remoteExposureWarning({ FOREMAN_TOOLS: '0' }, '0.0.0.0')).toBe(null);
+  });
+
+  it('says nothing on a loopback bind with tools on', () => {
+    for (const host of ['127.0.0.1', 'localhost', '::1']) {
+      expect.soft(remoteExposureWarning({ FOREMAN_TOOLS: '1' }, host), host).toBe(null);
+    }
+  });
+
+  it('warns loudly, naming the host and the remote-shell consequence', () => {
+    const warning = remoteExposureWarning({ FOREMAN_TOOLS: '1' }, '0.0.0.0');
+    expect(warning).not.toBe(null);
+    expect(warning).toContain('NOT BOUND TO LOOPBACK');
+    expect(warning).toContain('HOST=0.0.0.0');
+    expect(warning).toContain('run shell commands');
+    expect(warning).toContain('FOREMAN_TOOLS_SECRET is NOT set');
+    expect((warning ?? '').split('\n')).toHaveLength(7);
+  });
+
+  it('still warns when the secret is set, but says the secret is the only fence', () => {
+    const warning = remoteExposureWarning(
+      { FOREMAN_TOOLS: '1', FOREMAN_TOOLS_SECRET: 's3cret' },
+      '10.0.0.4',
+    );
+    expect(warning).toContain('HOST=10.0.0.4');
+    expect(warning).toContain('FOREMAN_TOOLS_SECRET is set');
+    expect(warning).not.toContain('is NOT set');
   });
 });

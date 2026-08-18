@@ -64,6 +64,13 @@ async function bootstrap(): Promise<void> {
     res.sendFile(path.join(WEB_DIST_DIR, 'index.html'));
   });
 
+  // Tool execution is a browser button that runs shell commands here. On a
+  // loopback bind that is a local-trust decision; on any other bind it is a
+  // remote shell for whoever can reach the port. Say so at startup.
+  const { remoteExposureWarning } = await import('./lib/tool-runner.js');
+  const exposure = remoteExposureWarning(process.env, HOST);
+  if (exposure !== null) console.warn(exposure);
+
   const server = app.listen(PORT, HOST, () => {
     console.log(`Omega harness server on http://${HOST}:${PORT.toString()}`);
     console.log(`Serving web UI from ${WEB_DIST_DIR}`);

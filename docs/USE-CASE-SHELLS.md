@@ -8,6 +8,7 @@ summarises it; everything below is the detail you need to actually write one.
 - [The two axes](#the-two-axes)
 - [When to build a shell](#when-to-build-a-shell)
 - [The contract](#the-contract)
+- [The `/ui` entry: shared presentation](#the-ui-entry-shared-presentation)
 - [Data sources](#data-sources)
 - [Anatomy: the Victoria walkthrough](#anatomy-the-victoria-walkthrough)
 - [Honesty rules](#honesty-rules)
@@ -60,16 +61,34 @@ apps/web/src/foreman/usecases/plugin-module.ts  one entry module → one shell, 
 apps/web/src/foreman/usecases/health.tsx      probing + the chrome's health dots
 apps/web/src/foreman/usecases/vocabulary.tsx  the provider that renders a shell's words
 apps/web/src/foreman/usecases/demo.tsx        the proof shell (dev/test only)
-apps/web/src/foreman/usecases/victoria/       the trading shell (UC-3) — the worked example
-apps/web/src/foreman/usecases/polymarket/     the prediction-markets stub (UC-4)
+
+../foreman-plugins/victoria/                  OUT OF TREE — the trading shell (UC-3), in the omega repo
+../foreman-plugins/polymarket/                OUT OF TREE — the prediction-markets stub (UC-4)
 ```
 
+The last two are not in this repository. They live in **omega**
+(`~/projects/omega/foreman-plugins/`), depend on nothing but the kit, and are
+compiled into this app by the discovery config. That is the whole point of the
+seam and it is now load-bearing rather than aspirational: if you are reading
+this because a Victoria tab is wrong, the file you want is in the other repo.
+
 `@omega-harness/usecase-kit` is a workspace package that imports nothing from
-the harness: a plugin depends on the kit, the kit depends on React's *types*
-alone, and the harness depends on both. Consumers resolve it through its
-`dist/`, so **rebuild it after changing it** (`task build:kit`, and every task
-that needs it declares that dependency) or you are typechecking against the
-previous contract.
+the harness: a plugin depends on the kit, the harness depends on both.
+Consumers resolve it through its `dist/`, so **rebuild it after changing it**
+(`task build:kit`, and every task that needs it declares that dependency) or you
+are typechecking against the previous contract.
+
+It has **two entry points**:
+
+| Import | What it is | React |
+| --- | --- | --- |
+| `@omega-harness/usecase-kit` | the contract — `UseCaseShell`, `UseCaseViewProps`, the `ObjectiveState` wire types, `createDataSource` | types only |
+| `@omega-harness/usecase-kit/ui` | the shared presentation — `Panel`, `Pill`, `SectionLabel`, `StatusDot`, `statusColor`, `statusTextClass`, and the time formatters `clock`, `ago`, `duration`, `elapsed` | runtime components |
+
+The split is so that anything needing only the contract pays no React runtime;
+`/ui` is opted into by importing it. See [The `/ui`
+entry](#the-ui-entry-shared-presentation) for what is in it and, more usefully,
+what is deliberately not.
 
 ## When to build a shell
 
@@ -148,9 +167,10 @@ derive it from `state` — that is almost always the answer, and widening is a
 real API decision, not a convenience.
 
 **Enforced, not just asked for.** `eslint.config.js` restricts imports inside
-the shell directories (`victoria/`, `polymarket/`, `demo.tsx`; the host's own
-`core.tsx`, `registry.ts` and `health.tsx` are exempt, as are test files). A
-shell may not import:
+the shell files that are still in this repository — since OT-3 that is `demo.tsx`
+alone, the other two having moved to omega where the constraint is physical
+rather than linted (the host's own `core.tsx`, `registry.ts` and `health.tsx`
+are exempt, as are test files). A shell may not import:
 
 - `usecases/core.js` — the core views' privileged context;
 - `data/api.js` or `data/useForeman.js` — Foreman's own API client;
@@ -161,7 +181,9 @@ shell may not import:
 
 Each is a lint error naming what to use instead. The last group is the one that
 keeps a shell portable: reaching for `../registry.js` compiles fine in-tree and
-is exactly what would break the day the shell moves to its own repository.
+is exactly what broke when the shells moved — Victoria and Polymarket cleared it
+before the move, and the only thing they needed a new home for was presentation,
+which is now the kit's `/ui` entry.
 
 ### View ordering
 
@@ -221,6 +243,51 @@ working" both read correctly. It leaves `pulse` and `objective` alone: no
 trading word improves on them, and renaming for the sake of symmetry makes the
 app harder to talk about across two objectives in one project. Polymarket
 renames nothing, which is a fine answer.
+
+## The `/ui` entry: shared presentation
+
+A domain tab has to look like Foreman, and looking like Foreman is a set of
+class names. While every shell lived in this repository they imported the
+chrome's own `ui/primitives.tsx` by relative path; out of tree that is not a
+path that exists, and the alternative — every plugin owning its own copy of what
+a panel looks like — is how a plugin seam turns into six slightly different
+design systems.
+
+So the shared pieces moved into the kit, and the app re-exports them from there.
+`import { Panel } from '../ui/primitives.js'` still works in the chrome and
+means exactly what it meant before; there is simply one definition now.
+
+**What moved**, and it is a short list on purpose:
+
+| Export | Why it is shared |
+| --- | --- |
+| `Panel` | every domain block is one |
+| `Pill` | the status/label chip, tinted from a colour the shell picks |
+| `SectionLabel` | the mono micro-heading over every block |
+| `StatusDot` | a harness's state as a mark — the shell renders fleet state too |
+| `statusColor`, `statusTextClass` | the decision `StatusDot` is drawn from, and the same one the chrome uses |
+| `clock`, `ago`, `duration`, `elapsed` | the time family. `clock` is what Victoria's Live and Trades need; the other three came with it because "how long is that" having two answers is exactly the drift the package exists to prevent |
+
+**What stayed in the app**, and why the line is there: `PulseSparkline` and
+`ContextRing` render *Foreman's* concepts (a pulse history, a context window),
+`Meter`, `SliderReadout` and `Avatar` are chrome furniture, and `Button` and
+`Modal` are interactive chrome whose behaviour the host owns. `money`,
+`moneyShort`, `percent` and `compactCount` stayed too — money and percentages
+are precisely where a domain disagrees with the chrome (Victoria wants grouped,
+signed dollars and *unclamped* percentages), so a shell brings its own.
+
+A shell that wants a chart draws its own: Victoria's `charts.tsx` is three
+bespoke SVGs over pure geometry, and that is the intended answer. The kit is not
+a design system and should not grow into one — the test for adding something is
+"the chrome and two shells all need this and would otherwise copy it", not "a
+shell could use this".
+
+**Tailwind.** These components' classes now live in the kit, which means the
+kit's source is in `tailwind.config.js`'s `content`. It has to be: a plugin
+writes `<Panel>` and never writes `bg-panel`, so without that glob the class has
+no occurrence anywhere Tailwind scans and gets purged, and the panels arrive
+unstyled. Same failure mode as an unscanned plugin directory, one level further
+in.
 
 ## Data sources
 
@@ -358,7 +425,7 @@ How to hold the line:
 How to verify — **and the file this goes in matters**:
 
 ```ts
-// usecases/<shell>/manifest-cost.test.ts — its OWN file, with no static import
+// <shell>/manifest-cost.test.ts — its OWN file, with no static import
 // of the manifest (or of anything that pulls it in, including `../index.js`).
 it('opens no request and no stream when the shell is merely registered', async () => {
   vi.resetModules();
@@ -388,9 +455,9 @@ goes to the shell's backend.
 
 ## Anatomy: the Victoria walkthrough
 
-`usecases/victoria/` is the worked example — six tabs reading the omega Go API
-on `:8080`. Read it in this order; the dependency direction is strictly
-downward, and nothing below imports anything above it.
+`../foreman-plugins/victoria/` **in the omega repo** is the worked example — six
+tabs reading the omega Go API on `:8080`. Read it in this order; the dependency
+direction is strictly downward, and nothing below imports anything above it.
 
 ```
 victoria/index.ts          the manifest — data only, fetches nothing
@@ -400,7 +467,13 @@ victoria/geometry.ts       chart maths — pure, React-free, asserted to exact c
 victoria/charts.tsx        bespoke SVG: Sparkline, LineChart, HeatGrid
 victoria/format.ts         trading formatters (signed money, unclamped pct, regime colour)
 victoria/views/            Overview, Runs, Live, Trades, Equity, Signals + shared chrome
+victoria/package.json      name, peer react, and the kit as a `file:` dependency
 ```
+
+Its only imports outside its own directory are `react`,
+`@omega-harness/usecase-kit` and `@omega-harness/usecase-kit/ui`. That is the
+test of whether a shell is portable, and it is now checkable by reading four
+lines rather than by trying the move.
 
 **manifest** (`index.ts`) — the `UseCaseShell` object and the accent constant,
 with the reasoning for both in comments. It imports the views and the source
@@ -501,8 +574,8 @@ recorded.
 
 ### Polymarket: the honest stub
 
-`usecases/polymarket/` (UC-4) is what a shell looks like when the domain is real
-and the backend is not. Polymarket has six Python nodes
+`../foreman-plugins/polymarket/` (UC-4) is what a shell looks like when the
+domain is real and the backend is not. Polymarket has six Python nodes
 (`omega/nodes/polymarket/`), a Go client (`internal/polymarket/client.go`) and a
 project definition — but `cmd/omega-api` and `internal/handler` register **no
 Connect service and no REST route** for any of it. So the shell:
@@ -557,11 +630,27 @@ the repo root lists plugin locations, and a location may be **outside this
 repository** — that is the point of the file: a domain team keeps its shell in
 its own repo, depending on nothing but `@omega-harness/usecase-kit`.
 
+This repository's own config is the cross-repo case, not an example of one:
+
 ```json
 {
   "plugins": [
-    "./apps/web/src/foreman/usecases/victoria",
-    "../omega/foreman/polymarket",
+    "../foreman-plugins/victoria",
+    "../foreman-plugins/polymarket"
+  ]
+}
+```
+
+Both paths point into the **omega repo**, which on this layout is the directory
+the harness is checked out inside (`~/projects/omega/harness` → `..` is
+`~/projects/omega`). An in-tree plugin, an out-of-tree one and an absolute path
+are all equally valid:
+
+```json
+{
+  "plugins": [
+    "./apps/web/src/foreman/usecases/some-in-tree-shell",
+    "../foreman-plugins/victoria",
     "/abs/path/to/a/plugin"
   ]
 }
@@ -597,15 +686,26 @@ JS because two config files import it *before* any build step exists:
 | `apps/web/tailwind.config.js` | `pluginContentGlobs()` | **the pitfall**: a plugin dir missing from Tailwind `content` renders *unstyled*, because every class in it was purged. Same source of truth, so it cannot drift |
 
 Resolution happens **at config load**, and it throws. A configured plugin that
-is not on disk fails `vite build` *and* `task dev` before either starts:
+is not on disk fails `vite build` *and* `task dev` before either starts — and
+since the plugins are in another repository, the message says which side is
+missing:
 
 ```
 failed to load config from …/apps/web/vite.config.ts
 error during build:
-Error: Foreman plugin discovery: plugin "./apps/web/src/foreman/usecases/nonexistent" (from foreman-plugins.json) does not exist.
-  looked for: /…/harness/apps/web/src/foreman/usecases/nonexistent
+Error: Foreman plugin discovery: plugin "../foreman-plugins/victoria" (from foreman-plugins.json) does not exist.
+  looked for: /Users/…/projects/omega/foreman-plugins/victoria
+That path is outside the harness repo (/Users/…/projects/omega/harness), so this plugin comes from another checkout — clone or update the repository that provides it, at exactly that path.
 Fix the path in foreman-plugins.json, remove the entry if the plugin is gone, or check out the repository that provides it.
 ```
+
+The out-of-tree line only appears when the resolved path really is outside this
+repo, because for an in-tree plugin "clone the other repo" would be the wrong
+instruction. **A harness cloned on its own therefore does not build** until omega
+is checked out beside it — which is correct and deliberate: a build that
+silently dropped two domains would be worse. To work without them, say so in the
+config (`{ "plugins": [] }`) or override for the run
+(`FOREMAN_PLUGINS=./apps/web/src/foreman/usecases/demo.tsx`).
 
 That is the whole guarantee restated: **configured-but-missing is a loud build
 failure, never a tab that quietly is not there.** The same applies to a
@@ -616,6 +716,55 @@ unchanged: Rollup still sees the full module graph, tree-shaking still works,
 and vitest — which uses `vite.config.ts` — resolves the virtual module too, so
 the tests exercise the real roster rather than a fixture (`roster.test.ts`,
 `plugin-discovery.test.mjs`).
+
+#### How an out-of-tree plugin resolves the kit
+
+This is the part that does not work by itself, and the failure is silent rather
+than loud, so it is worth understanding.
+
+Node resolution walks up from the **importing file**. A view in
+`../foreman-plugins/victoria/views/` that says `import … from
+'@omega-harness/usecase-kit'` resolves against *omega's* `node_modules`, not
+this workspace's. It does find something there — the plugin declares the kit as
+a `file:` dependency pointing back into this checkout, which is what gives
+editors and `tsc` over there the contract's types — but "finds something" is not
+"finds the same thing". Two copies of the kit means two `setUseCaseEnv` bags:
+the host fills one, every shell reads the other, and every shell silently pins
+to its declared `baseUrl` with nothing in the console to say so. React is the
+same hazard with a louder symptom — a plugin repo has React installed for its
+own tests, so a bare `import { useState } from 'react'` in an out-of-tree view
+would load a second React and every hook in the shell would throw.
+
+`vite.config.ts` fixes both, and this is the only bundler intervention the
+design needs:
+
+```ts
+resolve: {
+  alias: [
+    { find: /^@omega-harness\/usecase-kit$/,    replacement: <repo>/packages/usecase-kit/dist/index.js },
+    { find: /^@omega-harness\/usecase-kit\/ui$/, replacement: <repo>/packages/usecase-kit/dist/ui/index.js },
+  ],
+  dedupe: ['react', 'react-dom'],
+}
+```
+
+- The alias names both entry points because an alias replacement bypasses the
+  package's `exports` map, so `/ui` needs its own line. It points at built files,
+  which is the same `task build:kit`-first rule the rest of the repo already has.
+- `dedupe` forces `react` and `react-dom` — including `react/jsx-runtime` — to
+  resolve from this root wherever they are imported from.
+
+Everything else is ordinary. `server.fs.allow` already carries the out-of-tree
+directories (Vite refuses to serve outside its root otherwise), Rollup follows
+the static imports across the repo boundary without noticing, and the plugin's
+`file:` dependency is doing no work at build time at all — it exists for the
+other repo's editor and typecheck.
+
+**Dev is fully live across the boundary.** Vite watches every file in the module
+graph regardless of where it lives, so editing a view in the omega checkout
+hot-reloads the harness's dev server (`hmr update /@fs/…/foreman-plugins/…`),
+and Tailwind's JIT — with those directories in `content` — generates a class
+written over there without a restart. Verified live, both of them.
 
 #### It is a build-time choice
 
@@ -639,14 +788,13 @@ which is the whole design. Write the plugin as if the rule were on: if a
 relative `../../../` import into the harness appears, the shell is not portable
 yet.
 
-**Victoria and Polymarket are not portable yet, for exactly that reason.** Their
-views import the host's presentational primitives — `../../../ui/primitives.js`
-(`Panel`, `Pill`, `SectionLabel`, `StatusDot`) and `../../../ui/format.js`
-(`clock`) — which the restricted-imports rule does not currently cover because
-those are chrome, not the seam. Discovery resolves an out-of-tree plugin today
-(verified by building one from `/tmp`), but moving these two out of the repo
-means giving those primitives a home the plugin can reach: the kit, most likely.
-That is OT-3's first decision, not a discovery problem.
+**Victoria and Polymarket have made that move** (OT-3). The blocker was exactly
+the one described above — their views imported the host's presentational
+primitives by relative path — and the fix was to give those primitives a home a
+plugin can reach: [the kit's `/ui` entry](#the-ui-entry-shared-presentation).
+Their only remaining dependency on Foreman is `@omega-harness/usecase-kit`, and
+the lint rule that used to name their directories now names only `demo.tsx`,
+because there is nothing else in this repository for it to protect.
 
 ### Collision rules
 
@@ -707,12 +855,29 @@ the roster at all.
 
 ## Testing
 
-Conventions, all visible in `victoria/shell.test.ts`, `victoria/geometry.test.ts`
-and `polymarket/shell.test.tsx`:
+### Which repository a test belongs in
 
-**Import the roster, not a hand-built shell.** `import '../index.js'` registers
-the shell exactly as `ForemanApp` does, so the assertions cover the real
-registration path rather than an object that happens to look like one.
+The move out of tree cut the shells' tests in half, along a line worth stating
+because it is the same line for any plugin:
+
+| Assertion | Where | Why it cannot be the other one |
+| --- | --- | --- |
+| the manifest (accent, sources, vocabulary, namespaced view ids), pure view logic, geometry, the client against captured responses, the zero-requests guard, a static view's rendered text | **beside the shell**, in its own repo | it is what the shell decides; the harness has no opinion and would only be re-asserting a copy |
+| that the shell reaches the roster, that its tabs land after the core six in order, that no core tab is shadowed, that `resolveViewId` falls back | **the harness**, `usecases/roster.test.ts` | it is an assertion about *this app*. Written over there it would run against an object that never went through the registry |
+
+So the harness's suite still covers the out-of-tree shells — through the real
+generated roster (`virtual:foreman-plugins`), which is exactly the path the app
+uses — and it does it without importing a single plugin file by path.
+
+### Conventions
+
+All visible in the shells' own tests (`victoria/shell.test.ts`,
+`victoria/geometry.test.ts`, `polymarket/shell.test.tsx` in the omega repo) and
+in `usecases/roster.test.ts` here:
+
+**Go through the seam, not around it.** In the harness, assert on the generated
+roster and the registry (`getUseCase`, `viewTabs`), never on an imported shell
+object — the roster is how a plugin actually arrives.
 
 **Assert values, not shapes.** `expect(rows).toHaveLength(5)` passes while every
 node type is wrong. Assert the actual step ids, labels, colours and paths:
@@ -734,10 +899,11 @@ click — `react-dom/server` gives you the text that reaches the operator with n
 test environment to carry. Reach for a DOM only when there is interaction worth
 driving; an e2e test is usually the better answer.
 
-**Every shell carries the zero-requests test** (above) and a tab-derivation
-test: the exact tab ids in order, `source: 'usecase'` on the shell's own, no
-core tab shadowed, and `resolveViewId` falling back to Console when the shell's
-tab is open on an objective that does not have it.
+**Every shell carries the zero-requests test** (above), in its own repo. Its
+tab-derivation counterpart — the exact tab ids in order, `source: 'usecase'` on
+the shell's own, no core tab shadowed, and `resolveViewId` falling back to
+Console — lives in the harness's `roster.test.ts`, and a new shell adds its case
+there.
 
 **Seed a fixture objective.** Add one to `scripts/seed-foreman-e2e.ts` carrying
 your `useCase`, so the shell is reachable by clicking after `task db:seed:e2e`
@@ -746,7 +912,12 @@ comment what that objective is *for* — Victoria's exists partly to exercise th
 unreachable-backend path (the fixture deliberately does not stand up omega),
 Polymarket's to exercise the no-backend-at-all path.
 
-Run them with `task test:web -- src/foreman/usecases`.
+Run them with `task test:web -- src/foreman/usecases` here, and
+`make foreman-plugins-check` (or `npm run check` in `foreman-plugins/`) in the
+omega repo, which typechecks the shells against the kit's `.d.ts` and runs their
+vitest suite. That check is deliberately **not** wired into omega's `make
+quality`: it needs a harness checkout beside it for the kit, and a Go/Python
+pipeline should not start failing because a TypeScript sibling is missing.
 
 ## Phase 2: growing a shell
 

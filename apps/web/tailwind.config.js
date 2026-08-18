@@ -10,9 +10,25 @@ import { pluginContentGlobs } from './plugin-discovery.mjs';
  * step. The globs are absolute so it does not matter which directory the build
  * was launched from.
  */
+/**
+ * The kit's `/ui` entry is scanned for the same reason, and it is easy to miss.
+ * `Panel`, `Pill`, `SectionLabel` and `StatusDot` moved into
+ * `@omega-harness/usecase-kit/ui` (OT-3) so out-of-tree plugins could reach
+ * them — which took their class names out of `./src/**` and out of every plugin
+ * directory, since a plugin writes `<Panel>` and never the classes. Nothing
+ * broke on the day of the move only because the chrome happens to use the same
+ * classes elsewhere; the next class added in the kit would have been purged in
+ * silence. The source is scanned rather than `dist/` so this does not depend on
+ * a build having run.
+ */
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}', ...pluginContentGlobs()],
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+    '../../packages/usecase-kit/src/**/*.{js,ts,jsx,tsx}',
+    ...pluginContentGlobs(),
+  ],
   theme: {
     extend: {
       fontFamily: {

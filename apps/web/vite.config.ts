@@ -63,8 +63,41 @@ const outOfTreeDirs = [...new Set(plugins.map((p) => p.dir))].filter(
   (dir) => dir !== REPO_ROOT && !dir.startsWith(REPO_ROOT + '/')
 );
 
+// The kit, by absolute path.
+//
+// This is what makes an out-of-tree plugin actually work, and it is not
+// optional. Node resolution walks up from the *importing* file, and the
+// importing file is in another repository: `import … from
+// '@omega-harness/usecase-kit'` inside `../omega/foreman-plugins/victoria`
+// resolves against *that* repo's `node_modules`, not this workspace's. It does
+// resolve there — the plugin declares the kit as a `file:` dependency so
+// editors and `tsc` over there have types — but it would resolve to a second
+// copy, and the two copies' `setUseCaseEnv` bags are different objects: the
+// host would fill one and every shell would read the other, silently pinning
+// each to its declared `baseUrl`. Aliasing the package name (and its `/ui`
+// entry) to this workspace's build means there is exactly one kit in the graph
+// however far away the plugin lives.
+//
+// The alias points at the built files rather than the package directory
+// because an alias replacement bypasses the `exports` map; naming both entries
+// keeps `/ui` working. Consequence, and it is the same one the whole repo
+// already lives with: `task build:kit` before anything that reads it.
+const KIT_DIR = join(REPO_ROOT, 'packages/usecase-kit');
+
 export default defineConfig({
   plugins: [react(), foremanPlugins()],
+  resolve: {
+    alias: [
+      { find: /^@omega-harness\/usecase-kit$/, replacement: join(KIT_DIR, 'dist/index.js') },
+      { find: /^@omega-harness\/usecase-kit\/ui$/, replacement: join(KIT_DIR, 'dist/ui/index.js') },
+    ],
+    // Same hazard, worse symptom. A plugin repo has its own React installed
+    // (its tests render), so a bare `import { useState } from 'react'` in an
+    // out-of-tree view would resolve to *that* copy — two Reacts in one page,
+    // and every hook in the shell throws "invalid hook call". `dedupe` forces
+    // every request for these to resolve from this root.
+    dedupe: ['react', 'react-dom'],
+  },
   server: {
     port: 5173,
     fs: {

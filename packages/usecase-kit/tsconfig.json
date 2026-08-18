@@ -3,6 +3,11 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
+    // The `/ui` entry point is React components, so the build compiles .tsx.
+    // `react-jsx` (not `react`) because the kit ships to consumers that no
+    // longer import React themselves — the automatic runtime emits
+    // `react/jsx-runtime` imports, which every React 18 host resolves.
+    "jsx": "react-jsx",
     "lib": ["ES2022", "DOM"]
   },
   "include": ["src/**/*"]

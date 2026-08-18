@@ -112,6 +112,27 @@ describe('resolvePlugin', () => {
     );
   });
 
+  it('says it is another checkout that is missing when the path is out-of-tree', () => {
+    // The live case since OT-3: the configured plugins are in the omega repo,
+    // and a harness cloned on its own resolves them to a path that is simply
+    // not there. "Fix the path" would be the wrong instruction — the path is
+    // right and the checkout is absent.
+    const statPath = fakeStat([], []);
+    expect(() => resolvePlugin('../foreman-plugins/victoria', { root, statPath })).toThrow(
+      /That path is outside the harness repo \(\/repo\), so this plugin comes from another checkout — clone or update the repository that provides it/
+    );
+  });
+
+  it('does not blame another checkout for an in-repo plugin', () => {
+    const statPath = fakeStat([], []);
+    expect(() => resolvePlugin('./plugins/gone', { root, statPath })).toThrow(
+      /does not exist[\s\S]*Fix the path in foreman-plugins\.json/
+    );
+    expect(() => resolvePlugin('./plugins/gone', { root, statPath })).not.toThrow(
+      /outside the harness repo/
+    );
+  });
+
   it('fails when the directory exists but has no entry module', () => {
     const statPath = fakeStat(['/repo/plugins/hollow'], []);
     expect(() => resolvePlugin('./plugins/hollow', { root, statPath })).toThrow(

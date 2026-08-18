@@ -102,9 +102,19 @@ export function resolvePlugin(spec, { root = REPO_ROOT, source = CONFIG_FILE, st
 
   const stat = tryStat(abs, statPath);
   if (stat === null) {
+    // The common failure since OT-3 is not a typo, it is a missing *checkout*:
+    // the shells live in the omega repo, and a harness cloned on its own has
+    // nothing at `../foreman-plugins/*`. Saying which side of the seam is
+    // absent is the difference between "fix your config" (wrong, the config is
+    // right) and "clone the other repo" (what actually has to happen).
+    const outOfTree = !isInside(abs, root);
     throw new Error(
       `Foreman plugin discovery: plugin "${spec}" (from ${source}) does not exist.\n` +
         `  looked for: ${abs}\n` +
+        (outOfTree
+          ? `That path is outside the harness repo (${root}), so this plugin comes from another ` +
+            `checkout — clone or update the repository that provides it, at exactly that path.\n`
+          : '') +
         `Fix the path in ${CONFIG_FILE}, remove the entry if the plugin is gone, ` +
         `or check out the repository that provides it.`
     );
@@ -174,6 +184,11 @@ export function pluginEntries(options) {
 /** Tailwind `content` globs for the configured plugins, absolute so the cwd cannot matter. */
 export function pluginContentGlobs(options) {
   return pluginDirs(options).map((dir) => join(dir, '**/*.{js,ts,jsx,tsx}'));
+}
+
+/** Is `path` the root itself, or under it? String comparison on purpose — no realpath, no fs. */
+function isInside(path, root) {
+  return path === root || path.startsWith(root.endsWith('/') ? root : root + '/');
 }
 
 function tryStat(path, statPath) {

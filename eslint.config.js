@@ -72,17 +72,20 @@ export default ts.config(
     // `../../types.js` still compiles in-tree and is exactly what would fail
     // the day the shell moves to its own repository, so it is an error here.
     //
-    // Scoped to the shell directories only. `core.tsx`, `registry.ts` and
-    // `health.tsx` are the seam itself and legitimately import these. Test
-    // files are excluded: they assert *about* the seam, and they import the
-    // roster (`../index.js`) to exercise the real registration path.
-    files: [
-      'apps/web/src/foreman/usecases/victoria/**/*.ts',
-      'apps/web/src/foreman/usecases/victoria/**/*.tsx',
-      'apps/web/src/foreman/usecases/polymarket/**/*.ts',
-      'apps/web/src/foreman/usecases/polymarket/**/*.tsx',
-      'apps/web/src/foreman/usecases/demo.tsx',
-    ],
+    // Scoped to the shell files that are still in this repository, which since
+    // OT-3 is exactly one: `demo.tsx`, the host-owned proof shell. Victoria and
+    // Polymarket now live in the omega repo (`foreman-plugins/`), where the
+    // constraint holds far more strongly than a lint rule could — none of the
+    // paths below are reachable from over there at all, and the kit is the only
+    // dependency they have on Foreman. The rule stays because it is what an
+    // in-repo shell (a new one, or the demo) would be measured against, and
+    // because the messages are the documentation of the seam.
+    //
+    // `core.tsx`, `registry.ts` and `health.tsx` are the seam itself and
+    // legitimately import these, so they are not listed. Test files are
+    // excluded: they assert *about* the seam, and import the roster
+    // (`./index.js`) to exercise the real registration path.
+    files: ['apps/web/src/foreman/usecases/demo.tsx'],
     ignores: ['**/*.test.ts', '**/*.test.tsx'],
     rules: {
       'no-restricted-imports': ['error', {

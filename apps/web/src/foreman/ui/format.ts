@@ -1,5 +1,15 @@
 /** Formatting used across the Foreman surfaces. Kept in one place so a duration
- *  or a dollar figure reads identically in the tree, on a card, and in usage. */
+ *  or a dollar figure reads identically in the tree, on a card, and in usage.
+ *
+ *  The **time** family — `duration`, `elapsed`, `ago`, `clock` — now lives in
+ *  `@omega-harness/usecase-kit/ui` and is re-exported below, so this module is
+ *  still the one import site for the chrome. It moved with the shells (OT-3):
+ *  Victoria's Live and Trades tabs render wall-clock times and, out-of-tree,
+ *  cannot import this file. Money and percentages stayed, because that is
+ *  exactly where a domain disagrees with the chrome — Victoria wants grouped,
+ *  signed dollars and unclamped percentages, and brings its own. */
+
+export { ago, clock, duration, elapsed } from '@omega-harness/usecase-kit/ui';
 
 /** "$1.02", "$41.20" — always two decimals, matching the wireframes. */
 export function money(value: number): string {
@@ -24,44 +34,6 @@ export function compactCount(value: number): string {
   if (v >= 1e6) return `${String(Math.round(v / 1e6))}M`;
   if (v >= 1e3) return `${String(Math.round(v / 1e3))}k`;
   return String(Math.round(v));
-}
-
-/** Minutes -> "4m", "1.1h", "13h", "2d". Null renders as an em dash. */
-export function duration(minutes: number | null | undefined): string {
-  if (minutes == null || !Number.isFinite(minutes)) return '—';
-  const m = Math.max(0, minutes);
-  if (m < 60) return `${String(Math.round(m))}m`;
-  const hours = m / 60;
-  if (hours < 10) return `${hours.toFixed(1)}h`;
-  if (hours < 48) return `${String(Math.round(hours))}h`;
-  return `${String(Math.round(hours / 24))}d`;
-}
-
-/** Milliseconds -> "6m 11s" / "0.4s", for pulse and tool-call timings. */
-export function elapsed(ms: number | null | undefined): string {
-  if (ms == null || !Number.isFinite(ms)) return '—';
-  const s = ms / 1000;
-  if (s < 10) return `${s.toFixed(1)}s`;
-  if (s < 60) return `${String(Math.round(s))}s`;
-  const mins = Math.floor(s / 60);
-  const rem = Math.round(s % 60);
-  return `${String(mins)}m ${String(rem)}s`;
-}
-
-/** An ISO timestamp as "how long ago", e.g. "4m ago". */
-export function ago(iso: string | null | undefined, now = Date.now()): string {
-  if (!iso) return '—';
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return '—';
-  return `${duration((now - t) / 60000)} ago`;
-}
-
-/** An ISO timestamp as wall-clock "14:02". */
-export function clock(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 /** "1 child" / "3 children" — count with a correctly pluralised noun. */

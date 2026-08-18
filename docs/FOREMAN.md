@@ -61,14 +61,24 @@ apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the six, and their 
 apps/web/src/foreman/usecases/index.ts        the roster: who is registered, when
 apps/web/src/foreman/usecases/health.tsx      probing + the chrome's health dots
 apps/web/src/foreman/usecases/demo.tsx        the proof shell (dev/test only)
-apps/web/src/foreman/usecases/victoria/       the trading shell (UC-3) — six tabs, omega API
-apps/web/src/foreman/usecases/polymarket/     the prediction-markets stub (UC-4) — no backend
+
+../foreman-plugins/victoria/                  OUT OF TREE (omega repo) — the trading shell (UC-3), six tabs, omega API
+../foreman-plugins/polymarket/                OUT OF TREE (omega repo) — the prediction-markets stub (UC-4), no backend
 ```
+
+The two real domain shells are **not in this repository**. They live in omega
+(`foreman-plugins/`), depend on nothing but the kit, and are compiled in by
+`foreman-plugins.json` — so a harness cloned without omega beside it fails the
+build with the missing path in the message, and omega can add a tab without
+touching the harness at all.
 
 The contract — `UseCaseShell`, `UseCaseViewProps`, the `ObjectiveState` wire
 shapes and `createDataSource` — lives in the workspace package
-`@omega-harness/usecase-kit`, which imports nothing from the harness. A shell
-imports the kit; the registry (host state) stays in the app. Consumers resolve
+`@omega-harness/usecase-kit`, which imports nothing from the harness, together
+with the shared presentation (`Panel`, `Pill`, `SectionLabel`, `StatusDot`, the
+time formatters) on its `/ui` entry, which the app re-exports from
+`ui/primitives.tsx` and `ui/format.ts`. A shell imports the kit; the registry
+(host state) stays in the app. Consumers resolve
 the kit through its `dist/`, so it is built before anything that reads it
 (`task build:kit`, declared as a dependency of `lint`, `typecheck`, `test` and
 `dev`).

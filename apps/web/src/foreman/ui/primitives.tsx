@@ -1,60 +1,37 @@
 import type { ReactNode } from 'react';
 import type { HarnessStatus, PulseOutcome } from '../types.js';
+import { statusColor } from '@omega-harness/usecase-kit/ui';
 
 /**
  * The visual vocabulary shared by all three shells and the supporting surfaces.
- * Status colour is decided here once so a harness reads the same in the tree,
- * on a board card, and as a node on the graph.
+ * Status colour is decided once so a harness reads the same in the tree, on a
+ * board card, and as a node on the graph.
+ *
+ * **Four of these no longer live here.** `Panel`, `Pill`, `SectionLabel` and
+ * `StatusDot` — with the `statusColor` / `statusTextClass` pair they are drawn
+ * from — moved into `@omega-harness/usecase-kit/ui` when the use-case shells
+ * moved to the omega repository (OT-3). An out-of-tree plugin cannot import a
+ * relative path into this app, and the alternative to a shared home was every
+ * plugin owning its own copy of what a panel looks like. They are re-exported
+ * below, unchanged, so nothing in the chrome had to move with them and
+ * `import { Panel } from '../ui/primitives.js'` still means exactly what it
+ * meant before.
+ *
+ * What stayed is what the *host* renders and a guest has no business drawing:
+ * `PulseSparkline` and `ContextRing` (Foreman's own concepts — a pulse history,
+ * a context window), `Meter` and `SliderReadout` (chrome furniture), `Avatar`,
+ * `Button` (interactive chrome the host owns the behaviour of) and the
+ * `capRatio` / `clamp01` helpers those use.
  */
 
-const STATUS_COLOR: Record<HarnessStatus, string> = {
-  working: '#4ec97a',
-  watching: '#e8963c',
-  waiting: '#e5c04a',
-  failed: '#e5675b',
-  paused: '#3d3d45',
-  ready: '#565660',
-  retired: '#2b2b33',
-};
-
-const STATUS_TEXT: Record<HarnessStatus, string> = {
-  working: 'text-ok',
-  watching: 'text-accent',
-  waiting: 'text-warn',
-  failed: 'text-danger',
-  paused: 'text-muted',
-  ready: 'text-faint',
-  retired: 'text-faint',
-};
-
-export function statusColor(status: HarnessStatus): string {
-  return STATUS_COLOR[status];
-}
-
-export function statusTextClass(status: HarnessStatus): string {
-  return STATUS_TEXT[status];
-}
-
-/** A harness's state as a single dot. Live states breathe; settled ones don't. */
-export function StatusDot({
-  status,
-  size = 6,
-  pulse,
-}: {
-  status: HarnessStatus;
-  size?: number;
-  pulse?: boolean;
-}) {
-  const live = pulse ?? (status === 'watching' || status === 'waiting');
-  return (
-    <span
-      role="img"
-      aria-label={status}
-      className={`flex-none rounded-full ${live ? 'animate-bp' : ''}`}
-      style={{ width: size, height: size, background: statusColor(status) }}
-    />
-  );
-}
+export {
+  Panel,
+  Pill,
+  SectionLabel,
+  StatusDot,
+  statusColor,
+  statusTextClass,
+} from '@omega-harness/usecase-kit/ui';
 
 /** Horizontal fraction bar — context used, objective progress, spend against cap. */
 export function Meter({
@@ -198,23 +175,6 @@ export function ContextRing({
   );
 }
 
-/** Mono micro-heading that labels every block in the design. */
-export function SectionLabel({
-  children,
-  className = '',
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`font-mono text-[9.5px] font-semibold uppercase tracking-[.08em] text-faint ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
-
 type ButtonTone = 'primary' | 'accent' | 'secondary' | 'ok' | 'warn' | 'danger';
 
 const BUTTON_TONE: Record<ButtonTone, string> = {
@@ -251,44 +211,6 @@ export function Button({
     >
       {children}
     </button>
-  );
-}
-
-/** Small status/label chip. */
-export function Pill({
-  children,
-  color,
-  className = '',
-}: {
-  children: ReactNode;
-  color?: string;
-  className?: string;
-}) {
-  const style = color
-    ? { color, background: `${color}1a`, borderColor: `${color}4d` }
-    : undefined;
-  return (
-    <span
-      style={style}
-      className={`flex-none rounded-full border px-2.5 py-1 font-mono text-[10px] font-medium ${color ? '' : 'border-line bg-control text-muted'} ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-/** Bordered surface used for every panel in the shells. */
-export function Panel({
-  children,
-  className = '',
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={`overflow-hidden rounded-[9px] border border-line bg-panel ${className}`}>
-      {children}
-    </div>
   );
 }
 

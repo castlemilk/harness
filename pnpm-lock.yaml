@@ -414,14 +414,19 @@ importers:
         version: 1.6.1(@types/node@20.19.43)
 
   packages/usecase-kit:
-    dependencies:
-      react:
-        specifier: '>=18'
-        version: 19.2.7
     devDependencies:
       '@types/react':
         specifier: ^18.3.3
         version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.31)
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
       typescript:
         specifier: ^5.4.0
         version: 5.9.3

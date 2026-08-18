@@ -10,10 +10,16 @@ name, an accent, an optional vocabulary, some extra tabs, and the backends those
 tabs read.
 
 This package is everything a shell may know about the harness, and nothing else.
-It imports nothing from the harness — a plugin depends on the kit, the kit
-depends on React's *types* alone, and the harness depends on both.
+It imports nothing from the harness — a plugin depends on the kit, and the
+harness depends on both.
 
 ## What is in it
+
+Two entry points, and the split is the point: the root is types and transport
+and pulls in no React runtime, so anything that needs only the contract pays
+nothing for the components.
+
+### `@omega-harness/usecase-kit` — the contract
 
 | Export | What it is |
 | --- | --- |
@@ -21,10 +27,39 @@ depends on React's *types* alone, and the harness depends on both.
 | `ObjectiveState` and its constituents (`Objective`, `Harness`, `Pulse`, `Workstream`, `Intervention`, `Ticket`, `ActivityEntry`, …) | The wire shapes `props.state` is made of |
 | `createDataSource`, `resolveBaseUrl`, `DataSourceError`, `UseCaseDataSourceConfig`, `UseCaseDataSource`, `ProbeResult`, `SseOptions` | The transport a shell reaches its own backend with |
 
+### `@omega-harness/usecase-kit/ui` — the shared presentation
+
+React components, so this entry is where the runtime dependency lives.
+
+| Export | What it is |
+| --- | --- |
+| `Panel` | the bordered surface every domain block is |
+| `Pill` | the status/label chip, tinted from a colour you pass |
+| `SectionLabel` | the mono micro-heading over every block |
+| `StatusDot` | a harness's state as a mark; live states breathe |
+| `statusColor`, `statusTextClass` | the decision `StatusDot` is drawn from, and the chrome's too |
+| `clock`, `ago`, `duration`, `elapsed` | time formatting. Absent or unparseable renders as an em dash, never a zero |
+
+They are here because a shell outside the harness repo cannot import the app's
+`ui/primitives.tsx` by relative path, and the alternative — a copy of "what a
+panel looks like" per plugin — is how a plugin seam becomes six design systems.
+The app re-exports them, so there is one definition.
+
+Their styling is Tailwind classes from the harness palette (`bg-panel`,
+`border-line`, `text-faint`). That is contract, not implementation detail: a
+plugin renders inside the harness's stylesheet, and the harness's
+`tailwind.config.js` scans this package's source *and* every configured plugin
+directory so those classes survive the purge.
+
 What is deliberately **not** in it: the registry (host state), the health-probe
 machinery and dots (host chrome), the vocabulary provider (host rendering), the
 core views' context, Foreman's own API client, and any domain formatting. A
-shell's trading formatters, charts and typed client belong to the shell.
+shell's trading formatters, charts and typed client belong to the shell — and so
+do its charts: `PulseSparkline`, `ContextRing`, `Meter`, `Avatar` and `Button`
+stayed in the app because they draw Foreman's own concepts or carry behaviour
+the host owns. This is not a design system and should not become one; the test
+for adding something is "the chrome and two shells all need it and would
+otherwise copy it".
 
 ## The rules
 
@@ -66,9 +101,17 @@ types or auth.
 
 ## Peer dependencies
 
-`react` (>=18), for types only — `UseCaseView.component` is a
-`ComponentType<UseCaseViewProps>`. The kit itself imports no React runtime, so a
-shell brings its own React and the host's copy is the one that renders it.
+`react` (>=18). The root entry needs it for types alone —
+`UseCaseView.component` is a `ComponentType<UseCaseViewProps>` — while `/ui` is
+real components compiled with the automatic JSX runtime. Either way the kit
+brings no React of its own: the host's copy is the one that renders everything.
+
+If you consume this from another repository, that is a thing to get right rather
+than assume. Node resolves `react` from *your* directory, so a plugin repo with
+React installed for its own tests can put a second React in the page and every
+hook in your shell will throw. The harness's `vite.config.ts` dedupes
+`react`/`react-dom` and aliases both of this package's entry points to its own
+build for exactly this reason.
 
 ## Consuming it from another repository
 
@@ -81,11 +124,17 @@ Inside this monorepo:
 "dependencies": { "@omega-harness/usecase-kit": "workspace:*" }
 ```
 
-From a foreign repo, before the package is published, point at a checkout:
+From a foreign repo, before the package is published, point at a checkout — this
+is what `omega/foreman-plugins/{victoria,polymarket}` do:
 
 ```jsonc
-"dependencies": { "@omega-harness/usecase-kit": "file:../harness/packages/usecase-kit" }
+"dependencies": { "@omega-harness/usecase-kit": "file:../../harness/packages/usecase-kit" }
 ```
+
+That dependency is what gives the foreign repo's editor and `tsc` the contract.
+It is **not** what the bundle resolves: the harness builds the plugin, and it
+aliases this package name to its own workspace copy so there is exactly one kit
+(and one `setUseCaseEnv` bag) in the graph.
 
 Either way the consumer resolves through `dist/`, so **rebuild the kit after
 changing it** (`pnpm --filter @omega-harness/usecase-kit build`) or the
@@ -110,4 +159,11 @@ export const exampleUseCase: UseCaseShell = {
 
 `src/example-plugin.test.ts` is that shell as a compile-checked test: it imports
 only the kit, and any change here that would break a conforming plugin fails
-there rather than in a repository this one cannot see.
+there rather than in a repository this one cannot see. `src/ui/ui.test.tsx` does
+the same job for `/ui`, asserting the exact class names and colours the
+components emit — those strings are what an out-of-tree shell is depending on,
+so "it rendered a span" would pass while every plugin quietly stopped matching
+the app.
+
+The real shells are in the omega repo (`foreman-plugins/`); the harness's
+`docs/USE-CASE-SHELLS.md` is the long-form guide.

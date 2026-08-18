@@ -156,6 +156,7 @@ tasks:
 
   build:web:
     desc: Build the web app
+    deps: [build:kit]
     cmds:
       - pnpm --filter @omega/web build
 
@@ -228,7 +229,10 @@ tasks:
       - npx tsc --noEmit -p apps/web/tsconfig.json
       - npx tsc --noEmit -p apps/cli/tsconfig.json
       - npx tsc --noEmit -p packages/core/tsconfig.json
-      - npx tsc --noEmit -p packages/usecase-kit/tsconfig.json
+      # `tsconfig.test.json`, not `tsconfig.json`: the build config excludes
+      # `*.test.*` so they stay out of `dist/`, and the test project is the one
+      # that still covers `example-plugin.test.ts` — the kit's type-level test.
+      - npx tsc --noEmit -p packages/usecase-kit/tsconfig.test.json
 
   check:
     desc: Everything CI would run — lint, typecheck, build, test

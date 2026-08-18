@@ -1,0 +1,17 @@
+{
+  // The kit's tests, typechecked but never emitted.
+  //
+  // `tsconfig.json` excludes `*.test.*` so they stay out of `dist/`; this
+  // project puts them back (`"exclude": []`) with `noEmit`, so the type-level
+  // gate that `src/example-plugin.test.ts` provides — a change to
+  // `UseCaseShell` / `UseCaseViewProps` / the data-source types that would
+  // break a conforming out-of-tree plugin fails HERE, not in a repository the
+  // harness cannot see — keeps running on every build. vitest cannot stand in
+  // for it: esbuild strips types rather than checking them.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src/**/*"],
+  "exclude": []
+}

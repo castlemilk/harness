@@ -711,6 +711,23 @@ That is the whole guarantee restated: **configured-but-missing is a loud build
 failure, never a tab that quietly is not there.** The same applies to a
 directory with no entry module, and to malformed JSON.
 
+**Where that guarantee stops is worth stating exactly.** Discovery validates
+*paths*: it resolves every configured spec, throws on the first one that is
+missing or entryless, and rejects two specs that resolve to the same entry
+module. It does not open the modules, so it knows nothing about what is *in*
+them — and in particular two different plugins that both declare `"id":
+"victoria"` in their manifests pass config load and `vite build` happily, then
+throw `Use case "victoria" is already registered` when the generated roster is
+evaluated at import time (see [Collision rules](#collision-rules)). Loud, but
+one stage later than the config error: at module evaluation, not at build
+configuration.
+
+The pre-ship gate for that class of mistake is `task test:web`, which resolves
+the same virtual roster through `vite.config.ts` and evaluates it for real — so
+a duplicate id fails there rather than in front of an operator. **Run it after
+editing `foreman-plugins.json`**; a config change that only rearranges paths
+still deserves the roster being evaluated once.
+
 Because the generated roster is static imports, everything downstream is
 unchanged: Rollup still sees the full module graph, tree-shaking still works,
 and vitest — which uses `vite.config.ts` — resolves the virtual module too, so
@@ -780,21 +797,41 @@ and different plugin sets are different builds.
 
 The `no-restricted-imports` rule below is scoped by path to the in-repo shell
 directories, so it keeps applying to plugins that live here. A plugin in another
-repository is linted by *that* repository — but the constraint holds anyway and
-more strongly: once moved, it physically cannot import the harness's `core.js`,
-`registry.js`, `data/api.js` or `ForemanApp`, because none of them are on a path
-it can reach. `@omega-harness/usecase-kit` is its only dependency on Foreman,
-which is the whole design. Write the plugin as if the rule were on: if a
-relative `../../../` import into the harness appears, the shell is not portable
-yet.
+repository is linted by *that* repository.
+
+**It is worth being precise about what stops an out-of-tree plugin reaching back
+in, because it is not physics.** In the layout omega and the harness actually
+use, the harness is a *child* of the omega checkout (`omega/harness/`), so from
+`foreman-plugins/victoria/` the path
+`../../harness/apps/web/src/foreman/usecases/core.js` exists and resolves:
+omega's `tsc` follows it, the dev server serves it (those directories are
+already in `server.fs.allow`), and Rollup bundles it without complaint. Nothing
+in the module system forbids it. A plugin repo cloned *beside* the harness
+rather than around it would have a longer path to the same files, not no path.
+
+What actually holds the line is two things, both of them deliberate:
+
+- **Convention.** The kit is the only dependency a shell is meant to have, and
+  the plugin's `package.json` declares exactly that. Write the plugin as if the
+  lint rule were on: if a relative `../../../` import into the harness appears,
+  the shell is not portable.
+- **A guard test on the omega side** — `foreman-plugins/imports.test.ts`, run by
+  `make foreman-plugins-check`. It reads every non-test `.ts`/`.tsx` under the
+  shell directories, extracts every import/export/`import()` specifier, and
+  fails the file if any specifier contains `harness/` or is a bare specifier
+  other than `react`, `react-dom`, `@omega-harness/usecase-kit` or
+  `@omega-harness/usecase-kit/ui`. The failure names the file and the offending
+  specifier. That is the enforcement; the lint rule here is the in-repo half of
+  the same contract.
 
 **Victoria and Polymarket have made that move** (OT-3). The blocker was exactly
 the one described above — their views imported the host's presentational
 primitives by relative path — and the fix was to give those primitives a home a
 plugin can reach: [the kit's `/ui` entry](#the-ui-entry-shared-presentation).
-Their only remaining dependency on Foreman is `@omega-harness/usecase-kit`, and
-the lint rule that used to name their directories now names only `demo.tsx`,
-because there is nothing else in this repository for it to protect.
+Their only remaining dependency on Foreman is `@omega-harness/usecase-kit` —
+asserted, per file, by the guard test named above — and the lint rule that used
+to name their directories now names only `demo.tsx`, because there is nothing
+else in this repository for it to protect.
 
 ### Collision rules
 
@@ -809,6 +846,13 @@ because there is nothing else in this repository for it to protect.
 
 Silently overwriting means one registration never renders and there is nothing
 at runtime to point at, so a stack trace at import time is the kinder failure.
+
+Note the stage: these are **module-evaluation** failures, not build ones. Two
+plugins declaring the same manifest id are two different paths as far as
+[discovery](#plugin-discovery-foreman-pluginsjson) is concerned, so `vite build` succeeds
+and the throw arrives when the roster is imported. `task test:web` evaluates the
+real roster, which is why it — not the build — is the gate to run after editing
+`foreman-plugins.json`.
 
 Two things are *not* errors: a view id that collides with a **core** view is
 dropped by `viewTabs` (a shell must never make Console unreachable), and an

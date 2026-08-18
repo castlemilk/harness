@@ -64,7 +64,7 @@ export function parsePluginSpecs({ configText, env = {} }) {
     throw new Error(
       `Foreman plugin discovery: ${CONFIG_FILE} not found at the repo root.\n` +
         `Create it with the plugins this build should ship, e.g.\n` +
-        `  { "plugins": ["./apps/web/src/foreman/usecases/victoria"] }\n` +
+        `  { "plugins": ["../foreman-plugins/victoria"] }\n` +
         `or set FOREMAN_PLUGINS=<comma-separated paths> to override it for this run.`
     );
   }
@@ -181,12 +181,32 @@ export function pluginEntries(options) {
   return loadPlugins(options);
 }
 
-/** Tailwind `content` globs for the configured plugins, absolute so the cwd cannot matter. */
+/**
+ * Tailwind `content` globs for the configured plugins, absolute so the cwd
+ * cannot matter.
+ *
+ * The glob is unfiltered: it would descend into a `node_modules` inside a
+ * plugin directory if one ever appeared there. None does today — plugins
+ * install at their repo root, not per-directory — but a plugin that grew its
+ * own `node_modules` would make every Tailwind scan walk its dependency tree.
+ * Add an ignore then; there is nothing to ignore now.
+ */
 export function pluginContentGlobs(options) {
   return pluginDirs(options).map((dir) => join(dir, '**/*.{js,ts,jsx,tsx}'));
 }
 
-/** Is `path` the root itself, or under it? String comparison on purpose — no realpath, no fs. */
+/**
+ * Is `path` the root itself, or under it? String comparison on purpose — no
+ * realpath, no fs.
+ *
+ * That makes it a *lexical* answer, and it is only used to choose the wording
+ * of an error, so being wrong is cosmetic. It can be wrong two ways: a plugin
+ * symlinked from inside the repo to a directory outside it reads as in-tree,
+ * and a path outside the repo that symlinks back in reads as out-of-tree. Both
+ * would print the less helpful half of the "clone the other repo" message and
+ * nothing else. Resolving symlinks here would mean an fs call on a path that,
+ * at the one moment this runs, is known not to exist.
+ */
 function isInside(path, root) {
   return path === root || path.startsWith(root.endsWith('/') ? root : root + '/');
 }

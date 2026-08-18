@@ -74,12 +74,20 @@ export default ts.config(
     //
     // Scoped to the shell files that are still in this repository, which since
     // OT-3 is exactly one: `demo.tsx`, the host-owned proof shell. Victoria and
-    // Polymarket now live in the omega repo (`foreman-plugins/`), where the
-    // constraint holds far more strongly than a lint rule could — none of the
-    // paths below are reachable from over there at all, and the kit is the only
-    // dependency they have on Foreman. The rule stays because it is what an
-    // in-repo shell (a new one, or the demo) would be measured against, and
-    // because the messages are the documentation of the seam.
+    // Polymarket now live in the omega repo (`foreman-plugins/`), and this rule
+    // does not reach them — a plugin is linted by its own repository.
+    //
+    // Do NOT read that as "the seam is enforced by physics over there". In the
+    // layout we actually ship, the harness is a CHILD of the omega checkout
+    // (`omega/harness/`), so `../../harness/apps/web/src/foreman/usecases/…` is
+    // a perfectly reachable relative path from a plugin: omega's `tsc` would
+    // follow it, the dev server's `server.fs.allow` would serve it, and Rollup
+    // would bundle it. What holds the constraint out of tree is convention plus
+    // omega's own guard — `foreman-plugins/imports.test.ts`, which scans every
+    // shell source file and fails on any specifier containing `harness/` or any
+    // bare import that is not React or the kit. That test is the enforcement;
+    // this rule is the in-repo half of the same contract, and its messages are
+    // the documentation of the seam.
     //
     // `core.tsx`, `registry.ts` and `health.tsx` are the seam itself and
     // legitimately import these, so they are not listed. Test files are

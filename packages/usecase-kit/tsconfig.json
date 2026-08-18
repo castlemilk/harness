@@ -10,5 +10,16 @@
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  // `dist/` is what consumers resolve, and a consumer has no use for the kit's
+  // own tests — before this they shipped as `dist/*.test.js` (+ maps + `.d.ts`),
+  // dead weight in every bundle that pulls the package in.
+  //
+  // The tests are still typechecked, just not by THIS project: `tsconfig.test.json`
+  // is the same settings with the exclusion lifted and `noEmit`, and the kit's
+  // `build` script runs it straight after the emit. That matters because
+  // `src/example-plugin.test.ts` is the kit's type-level test — the compiler is
+  // its real assertion — and vitest would not have caught it, esbuild strips
+  // types without checking them. Same gate, same command, no emitted tests.
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

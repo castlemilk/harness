@@ -52,6 +52,17 @@ export interface SseOptions {
   onError?: (ev: Event) => void;
   /** Aborting the signal closes the stream, for callers already holding one. */
   signal?: AbortSignal;
+  /**
+   * Named event types to deliver to `onMessage` in addition to unnamed frames.
+   *
+   * Added for UC-3: the omega Go API's training stream
+   * (`/api/v1/training/events/stream`) writes `event: connected` and
+   * `event: progress`, which `onmessage` never sees — an EventSource only
+   * routes frames with no `event:` line there. Naming the events a shell cares
+   * about is opt-in and additive, so every existing caller keeps unnamed-only
+   * behaviour; read `ev.type` in the handler to tell them apart.
+   */
+  events?: string[];
 }
 
 export interface UseCaseDataSource {
@@ -63,10 +74,12 @@ export interface UseCaseDataSource {
   /**
    * Subscribe to an SSE endpoint. Returns the close function.
    *
-   * `onMessage` receives unnamed frames only. A stream that uses named events
-   * (Foreman's own `init`/`harness`/`pulse` shape) needs `addEventListener` per
-   * name — deliberately not wrapped here, because guessing a shell's event
-   * vocabulary is how you end up with a second, worse EventSource.
+   * `onMessage` receives unnamed frames by default. A stream that uses named
+   * events (Foreman's own `init`/`harness`/`pulse` shape, or the omega API's
+   * `connected`/`progress`) names them in `opts.events` and reads `ev.type` to
+   * tell them apart. The names stay the *caller's* to supply — this never
+   * guesses a shell's event vocabulary, which is how you end up with a second,
+   * worse EventSource.
    */
   sse: (path: string, onMessage: (ev: MessageEvent) => void, opts?: SseOptions) => () => void;
   probe: () => Promise<ProbeResult>;
@@ -153,7 +166,14 @@ export function createDataSource(config: UseCaseDataSourceConfig): UseCaseDataSo
       const source = new EventSource(url(path));
       source.onmessage = onMessage;
       if (opts?.onError) source.onerror = opts.onError;
-      const close = () => { source.close(); };
+      // Named frames are opt-in; `onmessage` alone would silently drop them.
+      const named = [...new Set(opts?.events ?? [])];
+      const listener = (ev: Event) => { onMessage(ev as MessageEvent); };
+      for (const name of named) source.addEventListener(name, listener);
+      const close = () => {
+        for (const name of named) source.removeEventListener(name, listener);
+        source.close();
+      };
       // `once` so an already-aborted signal still closes and the listener is
       // not left attached to a long-lived controller.
       opts?.signal?.addEventListener('abort', close, { once: true });

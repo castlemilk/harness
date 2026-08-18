@@ -75,6 +75,34 @@ describe('registerUseCase', () => {
     expect(getUseCase('dupe')).toBeNull();
   });
 
+  it('rejects a data source id repeated inside one shell', () => {
+    // Two sources under one id means one health dot silently replaces the
+    // other, and the operator watches a backend they aren't looking at.
+    const source = { id: 'omega-api', label: 'Omega API', baseUrl: 'http://localhost:8080' };
+    expect(() => {
+      registerUseCase(
+        shell('dupe-source', ['a'], { dataSources: [source, { ...source, label: 'Other' }] }),
+      );
+    }).toThrow('Use case "dupe-source" declares data source "omega-api" twice');
+    expect(getUseCase('dupe-source')).toBeNull();
+  });
+
+  it('keeps the declared sources on the shell for the chrome to probe', () => {
+    const source = {
+      id: 'omega-api',
+      label: 'Omega API',
+      baseUrl: 'http://localhost:8080',
+      envVar: 'VITE_UC_VICTORIA_URL',
+      probePath: '/api/v1/dashboard/status',
+    };
+    register(shell('victoria', ['positions'], { dataSources: [source] }));
+    expect(getUseCase('victoria')?.dataSources).toEqual([source]);
+    // A shell that declares none is the normal case and must stay undefined,
+    // so the chrome renders nothing rather than an empty indicator.
+    register(shell('plain', ['a']));
+    expect(getUseCase('plain')?.dataSources).toBeUndefined();
+  });
+
   it('rejects an id that is not a lowercase slug, matching the server rule', () => {
     expect(() => { registerUseCase(shell('Victoria Trading', ['a'])); }).toThrow(
       'Use-case id must be a lowercase slug: "Victoria Trading"',

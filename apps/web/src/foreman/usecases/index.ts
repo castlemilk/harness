@@ -17,4 +17,15 @@ if (import.meta.env.DEV) {
 }
 
 export * from './registry.js';
+export * from './data-source.js';
+export {
+  healthTooltip,
+  PROBE_INTERVAL_MS,
+  shellSources,
+  SourceHealthDots,
+  startHealthProbes,
+  useSourceHealth,
+  type HealthMap,
+  type SourceHealth,
+} from './health.js';
 export { CORE_VIEWS, DEFAULT_VIEW, findCoreView, type CoreView, type CoreViewContext } from './core.js';

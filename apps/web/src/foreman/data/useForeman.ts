@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { foremanApi, type ObjectiveState } from './api.js';
-import type { Harness, Intervention, Objective, Pulse, Workstream } from '../types.js';
+import { projectObjectiveState } from './adapt.js';
+import type { Harness, Intervention, Objective, Pulse } from '../types.js';
 
 /**
  * Live objective state.
@@ -60,7 +61,7 @@ export function useForeman(projectId?: string): ForemanConnection {
     const id = activeObjective.current;
     if (!id) return;
     try {
-      const next = await foremanApi.getState(id);
+      const next = projectObjectiveState(await foremanApi.getState(id));
       if (activeObjective.current !== id) return;
       setState(next);
       setError(null);
@@ -116,7 +117,9 @@ export function useForeman(projectId?: string): ForemanConnection {
     source.addEventListener('init', (ev) => {
       if (cancelled) return;
       try {
-        setState(JSON.parse((ev as MessageEvent<string>).data) as ObjectiveState);
+        // Same door as the fetched snapshot: a frame that fails the boundary
+        // check throws here and drops us onto the polling path below.
+        setState(projectObjectiveState(JSON.parse((ev as MessageEvent<string>).data)));
         setLive(true);
         setError(null);
         stopPolling();
@@ -228,108 +231,19 @@ export function useForeman(projectId?: string): ForemanConnection {
   );
 }
 
-/** A harness plus its resolved children, for the tree and graph shells. */
-export interface HarnessNode {
-  harness: Harness;
-  children: HarnessNode[];
-  depth: number;
-}
-
 /**
- * Rebuild the hierarchy from the flat list. Harnesses whose parent isn't in the
- * payload are surfaced as roots rather than dropped, so a partial fetch never
- * silently hides part of the fleet. Cycles are broken by visit-tracking.
+ * The projections and the boundary check live in `./adapt.ts`, which is the
+ * adapter seam this hook feeds. They are re-exported here because the shells
+ * have always imported them from this module and moving the import sites adds
+ * churn without adding meaning — new code should import from `./adapt.js`.
  */
-export function buildTree(harnesses: Harness[]): HarnessNode[] {
-  const byId = new Map(harnesses.map((h) => [h.id, h]));
-  const childrenOf = new Map<string | null, Harness[]>();
-  for (const h of harnesses) {
-    const key = h.parentId && byId.has(h.parentId) ? h.parentId : null;
-    const list = childrenOf.get(key);
-    if (list) list.push(h);
-    else childrenOf.set(key, [h]);
-  }
-
-  const seen = new Set<string>();
-  const build = (harness: Harness, depth: number): HarnessNode => {
-    seen.add(harness.id);
-    const kids = (childrenOf.get(harness.id) ?? []).filter((c) => !seen.has(c.id));
-    return { harness, depth, children: kids.map((c) => build(c, depth + 1)) };
-  };
-
-  const roots = (childrenOf.get(null) ?? []).map((h) => build(h, 0));
-
-  // A parent/child cycle leaves every node with a present parent, so the null
-  // bucket is empty and nothing would render. Promote the unreached to roots.
-  for (const h of harnesses) {
-    if (!seen.has(h.id)) roots.push(build(h, 0));
-  }
-
-  return roots;
-}
-
-/** Flatten a tree honouring which nodes are expanded, for virtualised rows. */
-export function flattenTree(
-  nodes: HarnessNode[],
-  expanded: Set<string>,
-): { node: HarnessNode; hasChildren: boolean }[] {
-  const out: { node: HarnessNode; hasChildren: boolean }[] = [];
-  const walk = (list: HarnessNode[]) => {
-    for (const n of list) {
-      out.push({ node: n, hasChildren: n.children.length > 0 });
-      if (n.children.length > 0 && expanded.has(n.harness.id)) walk(n.children);
-    }
-  };
-  walk(nodes);
-  return out;
-}
-
-export interface FleetGroup {
-  id: string;
-  name: string;
-  /** Null for the synthetic bucket holding harnesses with no workstream. */
-  workstream: Workstream | null;
-  harnesses: Harness[];
-}
-
-export const UNASSIGNED_GROUP = '__unassigned';
-
-/**
- * Group the fleet for the tree, roster and lanes.
- *
- * Rendering by iterating workstreams alone drops any harness whose
- * `workstreamId` is null or dangling — which is exactly what a freshly spawned
- * top-level harness looks like. Those land in an "Unassigned" bucket instead of
- * vanishing while still being counted. Retired harnesses are excluded outright.
- */
-export function groupByWorkstream(
-  harnesses: Harness[],
-  workstreams: Workstream[],
-): FleetGroup[] {
-  const live = harnesses.filter((h) => h.status !== 'retired');
-  const known = new Set(workstreams.map((w) => w.id));
-
-  const groups: FleetGroup[] = workstreams.map((ws) => ({
-    id: ws.id,
-    name: ws.name,
-    workstream: ws,
-    harnesses: live.filter((h) => h.workstreamId === ws.id),
-  }));
-
-  const orphans = live.filter((h) => h.workstreamId == null || !known.has(h.workstreamId));
-  if (orphans.length > 0) {
-    groups.push({
-      id: UNASSIGNED_GROUP,
-      name: 'Unassigned',
-      workstream: null,
-      harnesses: orphans,
-    });
-  }
-
-  return groups;
-}
-
-/** The fleet as the shells count it: everything except retired harnesses. */
-export function liveHarnesses(harnesses: Harness[]): Harness[] {
-  return harnesses.filter((h) => h.status !== 'retired');
-}
+export {
+  buildTree,
+  flattenTree,
+  groupByWorkstream,
+  liveHarnesses,
+  projectObjectiveState,
+  UNASSIGNED_GROUP,
+  type FleetGroup,
+  type HarnessNode,
+} from './adapt.js';

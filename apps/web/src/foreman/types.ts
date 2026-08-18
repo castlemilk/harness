@@ -1,10 +1,17 @@
 /**
  * The Foreman view model.
  *
- * These are the shapes the three shells and the supporting surfaces render.
- * They are deliberately *not* the server's wire types: the adapter layer in
- * `data/adapt.ts` projects live server state onto these, so a shell never has
- * to know which endpoint a number came from.
+ * These are the shapes the three shells and the supporting surfaces render, and
+ * they are also what the server puts on the wire: `/foreman/objectives/:id/state`
+ * serialises exactly this, so there is no per-field remapping to maintain and no
+ * second dialect to drift from.
+ *
+ * What that leaves at the seam is validation, not translation. `data/adapt.ts`
+ * owns it: `projectObjectiveState` checks the invariants these types promise
+ * (arrays are arrays, ids are strings, money is finite) at the one point state
+ * enters — fetched snapshot and SSE frame alike — and the projections there
+ * (`buildTree`, `groupByWorkstream`, …) turn these flat lists into what a view
+ * renders, so a shell never rebuilds the hierarchy itself.
  */
 
 export type HarnessStatus =

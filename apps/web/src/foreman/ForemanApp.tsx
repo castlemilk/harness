@@ -30,6 +30,7 @@ import {
   resolveViewId,
   viewTabs,
 } from './usecases/registry.js';
+import { SourceHealthDots } from './usecases/health.js';
 
 /**
  * The Foreman application shell: it owns which surface is showing, which
@@ -315,14 +316,19 @@ export function ForemanApp({
         onOpenInterventions={() => { setInterventionsOpen(true); }}
         onOpenLegacy={onOpenLegacy}
         right={
-          !live && (
-            <span
-              title="The live stream is unavailable; polling instead."
-              className="font-mono text-[10px] text-warn"
-            >
-              ◌ polling
-            </span>
-          )
+          <>
+            {/* Domain backends first, then Foreman's own stream: both answer
+                "is what I'm looking at actually live?". */}
+            <SourceHealthDots shell={shell} />
+            {!live && (
+              <span
+                title="The live stream is unavailable; polling instead."
+                className="font-mono text-[10px] text-warn"
+              >
+                ◌ polling
+              </span>
+            )}
+          </>
         }
       />
 

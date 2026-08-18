@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import type { ObjectiveState } from '../data/api.js';
+import type { UseCaseDataSourceConfig } from './data-source.js';
 
 /**
  * Use-case shells.
@@ -71,6 +72,15 @@ export interface UseCaseShell {
   vocabulary?: Vocabulary;
   /** Domain tabs ADDED to the core tabs — a shell never removes core chrome. */
   views: UseCaseView[];
+  /**
+   * Backends this shell reads from. Declaring one does NOT hand the shell's
+   * views anything — a view builds its own typed client with
+   * `createDataSource` (see `./data-source.ts`). What declaring buys is chrome:
+   * while this shell is active Foreman probes each source and shows a health
+   * dot, so "the domain tab is empty" and "the backend is down" are
+   * distinguishable without opening devtools.
+   */
+  dataSources?: UseCaseDataSourceConfig[];
 }
 
 /** Same slug rule the server enforces on `POST /objectives`. */
@@ -96,6 +106,15 @@ export function registerUseCase(shell: UseCaseShell): void {
       throw new Error(`Use case "${shell.id}" registers view "${view.id}" twice`);
     }
     seen.add(view.id);
+  }
+  const sources = new Set<string>();
+  for (const source of shell.dataSources ?? []) {
+    // Two sources under one id means one dot silently replaces the other, and
+    // the operator watches the health of a backend they aren't looking at.
+    if (sources.has(source.id)) {
+      throw new Error(`Use case "${shell.id}" declares data source "${source.id}" twice`);
+    }
+    sources.add(source.id);
   }
   shells.set(shell.id, shell);
 }

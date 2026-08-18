@@ -42,10 +42,13 @@ view list this replaced.
   **adds** to the core chrome and can never remove or shadow it.
 
 ```
-apps/web/src/foreman/usecases/registry.ts  the seam: shells, tabs, resolution
-apps/web/src/foreman/usecases/core.tsx     CORE_VIEWS — the six, and their wiring
-apps/web/src/foreman/usecases/index.ts     the roster: who is registered, when
-apps/web/src/foreman/usecases/demo.tsx     the proof shell (dev/test only)
+apps/web/src/foreman/usecases/registry.ts     the seam: shells, tabs, resolution
+apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the six, and their wiring
+apps/web/src/foreman/usecases/index.ts        the roster: who is registered, when
+apps/web/src/foreman/usecases/demo.tsx        the proof shell (dev/test only)
+apps/web/src/foreman/usecases/data-source.ts  how a shell reaches its own backend
+apps/web/src/foreman/usecases/health.tsx      probing + the chrome's health dots
+apps/web/src/foreman/data/adapt.ts            Foreman's own seam: boundary check
 ```
 
 `CORE_VIEWS` is the single source of truth for both the tab bar and what
@@ -67,9 +70,71 @@ core chrome only, which is what every pre-existing objective is.
 
 The skin seam is one CSS variable, `--uc-accent`, set on the Foreman root from
 the active shell's `accent` (stock `#e8963c` without one). Exactly one piece of
-core chrome reads it today: the active underline on a use-case tab. UC-2 and
-UC-3 exploit that seam — vocabulary substitution and a real domain shell — so
-resist tinting more of the app by hand.
+core chrome reads it today: the active underline on a use-case tab. UC-3 exploits
+that seam further with a real domain shell, so resist tinting more of the app by
+hand.
+
+### Data sources
+
+A use-case shell usually fronts a backend that is not Foreman's — Victoria's
+numbers come from the omega Go API on :8080. A shell **declares** its backends
+and **builds its own typed client**:
+
+```ts
+const OMEGA = { id: 'omega-api', label: 'Omega API',
+                baseUrl: 'http://localhost:8080',
+                envVar: 'VITE_UC_OMEGA_API_URL',
+                probePath: '/api/v1/dashboard/status' }
+
+const omega = createDataSource(OMEGA)                       // in the shell's module
+const portfolio = await omega.postConnect('omega.v1.VictoriaService', 'GetPortfolio')
+
+export const victoria: UseCaseShell = { …, dataSources: [OMEGA] }
+```
+
+`createDataSource` gives you `getJson`, `postConnect` (Connect-JSON unary:
+`POST /<service>/<method>` with `Connect-Protocol-Version: 1`), `sse` and
+`probe` — plain `fetch`, no client codegen, the same shape as
+`web/dashboard/src/lib/api.ts` in the omega repo, because that is what the Go
+API actually serves. Failures throw a `DataSourceError` carrying the status and
+a 400-character body excerpt; run them through `mutate` and they land in the
+same error rail as everything else.
+
+**The guest contract stays six fields.** `UseCaseViewProps` does not widen to
+carry domain data, ever. A shell's client lives in the shell's own module and
+its views import it directly, so Foreman never learns a shell's endpoints,
+types or auth. The registry only learns that a source exists.
+
+**Env override convention: `VITE_UC_<ID>_URL`.** When set and non-empty it
+replaces `baseUrl`; that is the only supported way to repoint a shell at another
+backend. `registerUseCase` rejects duplicate source ids within a shell.
+
+### Backend health
+
+An empty domain tab and a dead backend look identical, so while a shell with
+declared sources is active the chrome shows one dot per source next to the
+stream indicator — green reachable, red unreachable, dim while probing, with the
+label, resolved URL and latency (or error) on hover. Probed on mount and every
+30s; **no active shell, or no declared sources, means no timer and no requests**
+(`startHealthProbes` is a plain function so that gating is testable without a
+renderer). Colours come from the fleet's status palette, so red means the same
+thing in the chrome as it does on a harness.
+
+### Where the wire becomes the view model
+
+`types.ts` is both the render model and the wire format — the server serialises
+`ObjectiveState` exactly as the shells consume it, so there is no field mapping
+to keep in sync. `data/adapt.ts` owns what is left at that seam:
+
+- `projectObjectiveState(wire)` — the boundary check, run on the fetched
+  snapshot *and* the SSE `init` frame. It asserts only the load-bearing
+  invariants (arrays are arrays, ids are non-empty strings, spend is finite) and
+  throws naming the field. It is deliberately not a schema validator: that would
+  be `types.ts` in a second dialect, free to drift. A bad SSE frame drops the app
+  onto polling instead of rendering `NaN`.
+- The projections — `buildTree`, `flattenTree`, `groupByWorkstream`,
+  `liveHarnesses` — pure, React-free, testable. `useForeman` re-exports them for
+  the existing shells; new code imports from `data/adapt.js`.
 
 
 ## Running it for real

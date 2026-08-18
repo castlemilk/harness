@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildTree, flattenTree, groupByWorkstream, liveHarnesses } from './useForeman.js';
+// The projections moved to the adapter seam; `useForeman` re-exports them for
+// the shells, but the tests follow the code.
+import { buildTree, flattenTree, groupByWorkstream, liveHarnesses } from './adapt.js';
 import { capRatio, clamp01 } from '../ui/primitives.js';
 import { duration, money, percent } from '../ui/format.js';
 import type { Harness, HarnessStatus, Workstream } from '../types.js';

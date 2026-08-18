@@ -6,10 +6,17 @@
  * every shell in the app is visible in this one file.
  *
  * Shells themselves are **pure exports**: each module exports a `UseCaseShell`
- * object and registers nothing, so the list below is the whole truth about what
- * the app ships, and a shell can be moved to another repository without moving
- * a side effect with it. The file is deliberately a flat list of imports and one
- * array for exactly that reason.
+ * object and registers nothing, so a shell can be moved to another repository
+ * without moving a side effect with it.
+ *
+ * *Which* shells those are is configuration, not code. `foreman-plugins.json`
+ * at the repo root lists the plugin directories; `vite.config.ts` resolves that
+ * list at config load and generates `virtual:foreman-plugins` — static imports,
+ * one per configured plugin. The imports below are therefore still eager and
+ * static, and a configured plugin that is not on disk still fails the *build*,
+ * with its path in the message, rather than becoming a blank tab. The list just
+ * lives somewhere a plugin outside this repository can appear in. See
+ * `apps/web/plugin-discovery.mjs` and docs/USE-CASE-SHELLS.md.
  *
  * It goes through `registerRoster` rather than calling `registerUseCase` per
  * shell, because Vite re-executes this module on every HMR update that reaches
@@ -18,26 +25,23 @@
  * fingerprint check. Duplicate ids still throw.
  */
 import type { UseCaseShell } from '@omega-harness/usecase-kit';
+import { shells as configuredShells } from 'virtual:foreman-plugins';
 import { registerRoster } from './registry.js';
 import { demoUseCase } from './demo.js';
-import { victoriaUseCase } from './victoria/index.js';
-import { polymarketUseCase } from './polymarket/index.js';
 
-const roster: UseCaseShell[] = [
-  // Victoria ships in every build: it is a real domain shell with a real
-  // backend, and an operator whose objective carries `useCase: 'victoria'` must
-  // find its tabs in production. Registering it costs one map insert — the
-  // shell issues no requests until one of its views mounts.
-  victoriaUseCase,
-  // Polymarket ships too, for the same reason: the objective exists, so the tab
-  // must. It declares no data sources because it genuinely has no backend yet
-  // (UC-4), which is a thing its one view says out loud rather than hides.
-  polymarketUseCase,
-];
+// Every configured plugin ships in every build: each is a real domain an
+// objective can carry, and an operator whose objective says `useCase:
+// 'victoria'` must find its tabs in production. Registering one costs a map
+// insert — a shell issues no requests until one of its views mounts. That
+// includes backend-less shells like Polymarket (UC-4): the objective exists, so
+// the tab must, and the view says out loud that there is no backend yet.
+const roster: UseCaseShell[] = [...configuredShells];
 
-// Dev and test only: the demo shell proves the path without shipping an empty
-// tab to an operator. `import.meta.env.DEV` is false in `vite build`, so the
-// registration — and, via tree-shaking, the view itself — never reaches prod.
+// The demo shell is deliberately NOT in `foreman-plugins.json`: it is host-owned
+// dev tooling that exists to prove the seam, not a domain anybody deploys, and
+// putting it in the config would invite someone to ship it. Dev and test only —
+// `import.meta.env.DEV` is false in `vite build`, so the registration and, via
+// tree-shaking, the view itself never reach production.
 if (import.meta.env.DEV) {
   roster.push(demoUseCase);
 }

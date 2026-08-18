@@ -1,6 +1,18 @@
+import { pluginContentGlobs } from './plugin-discovery.mjs';
+
+/**
+ * Plugin directories are in `content` from the same config Vite reads.
+ *
+ * This is the quiet failure mode of an out-of-tree plugin: its views import
+ * fine, render fine, and arrive unstyled, because Tailwind never scanned the
+ * files its classes are written in and purged every one of them. Deriving the
+ * globs from `foreman-plugins.json` means adding a plugin cannot forget this
+ * step. The globs are absolute so it does not matter which directory the build
+ * was launched from.
+ */
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}', ...pluginContentGlobs()],
   theme: {
     extend: {
       fontFamily: {

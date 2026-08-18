@@ -12,6 +12,7 @@ summarises it; everything below is the detail you need to actually write one.
 - [Anatomy: the Victoria walkthrough](#anatomy-the-victoria-walkthrough)
 - [Honesty rules](#honesty-rules)
 - [Registration, the roster and HMR](#registration-the-roster-and-hmr)
+- [Plugin discovery: `foreman-plugins.json`](#plugin-discovery-foreman-pluginsjson)
 - [Testing](#testing)
 - [Phase 2: growing a shell](#phase-2-growing-a-shell)
 
@@ -49,9 +50,13 @@ packages/usecase-kit/src/state.ts             the wire shapes `props.state` is m
 packages/usecase-kit/src/data-source.ts       how a shell reaches its own backend
 packages/usecase-kit/README.md                what a plugin author reads first
 
+foreman-plugins.json                          WHICH PLUGINS THIS BUILD SHIPS (paths, in- or out-of-tree)
+apps/web/plugin-discovery.mjs                 resolves that config for Vite and Tailwind, and fails loudly
+
 apps/web/src/foreman/usecases/registry.ts     the host: the shell map, tabs, resolution
 apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the six, and their wiring
 apps/web/src/foreman/usecases/index.ts        the roster: who is registered, when
+apps/web/src/foreman/usecases/plugin-module.ts  one entry module → one shell, enforced
 apps/web/src/foreman/usecases/health.tsx      probing + the chrome's health dots
 apps/web/src/foreman/usecases/vocabulary.tsx  the provider that renders a shell's words
 apps/web/src/foreman/usecases/demo.tsx        the proof shell (dev/test only)
@@ -518,9 +523,9 @@ what "the seam works" means.
 
 ## Registration, the roster and HMR
 
-Registration is **eager and static**. There is no dynamic import, no plugin
-discovery and no network fetch, so a missing shell is a build error in the
-roster rather than a blank tab at runtime.
+Registration is **eager and static**. Plugin discovery is a build-time read of a
+config file, not a dynamic import and never a network fetch, so a missing shell
+is a build error with a path in it rather than a blank tab at runtime.
 
 **A shell is a pure export.** Its module exports a `UseCaseShell` object and
 does nothing else at import time — no `registerUseCase`, no fetching, no side
@@ -530,11 +535,12 @@ could not be tested without the app, and would make import order behaviour.
 
 `usecases/index.ts` is the roster and the only place registration happens.
 Importing it is what makes shells exist; `ForemanApp` imports it for that side
-effect. Every shell in the app is visible in that one file — a flat list of
-imports and one array — rather than scattered across self-registering modules.
+effect.
 
 ```ts
-const roster: UseCaseShell[] = [victoriaUseCase, polymarketUseCase];
+import { shells as configuredShells } from 'virtual:foreman-plugins';
+
+const roster: UseCaseShell[] = [...configuredShells];
 if (import.meta.env.DEV) roster.push(demoUseCase);   // false in `vite build`
 registerRoster(roster);
 ```
@@ -543,6 +549,104 @@ Ship a shell in every build if a real objective can carry its `useCase` — that
 includes backend-less ones like Polymarket, because the objective exists so the
 tab must. Gate on `import.meta.env.DEV` only for shells that exist to prove the
 path (`demo`), where tree-shaking then removes the view from prod entirely.
+
+### Plugin discovery: `foreman-plugins.json`
+
+*Which* shells the roster contains is configuration. `foreman-plugins.json` at
+the repo root lists plugin locations, and a location may be **outside this
+repository** — that is the point of the file: a domain team keeps its shell in
+its own repo, depending on nothing but `@omega-harness/usecase-kit`.
+
+```json
+{
+  "plugins": [
+    "./apps/web/src/foreman/usecases/victoria",
+    "../omega/foreman/polymarket",
+    "/abs/path/to/a/plugin"
+  ]
+}
+```
+
+- Paths are resolved **relative to the harness repo root**; absolute paths are
+  allowed. An entry may name a directory (its `index.ts` / `.tsx` / `.js` /
+  `.mjs` is the entry module) or a module file directly.
+- **`FOREMAN_PLUGINS`** (comma-separated) overrides the file *entirely*, for CI
+  and experiments — `FOREMAN_PLUGINS=/tmp/my-plugin task dev`. It replaces
+  rather than appends, because an override that merged would give you no way to
+  ask for *fewer* plugins. An empty value is treated as unset; to ship none, say
+  `{ "plugins": [] }` in the file.
+- The **demo shell is deliberately not in the config**. It is host-owned dev
+  tooling that proves the seam, gated on `import.meta.env.DEV` in the roster;
+  putting it in the config would invite someone to ship it.
+- The config sets the *list*; a shell's own `id` still comes from its manifest,
+  and the registry still enforces uniqueness on it.
+
+**An entry module exports exactly one `UseCaseShell`**, under any name or as the
+default export. The generated roster imports each plugin as a namespace (it
+cannot know your export's name) and `shellFromModule` picks the shell out, so
+zero, or two unrelated shells, is an error naming your plugin's path.
+
+#### What resolves it, and when
+
+`apps/web/plugin-discovery.mjs` is the single resolver — plain, dependency-free
+JS because two config files import it *before* any build step exists:
+
+| Consumer | What it takes | Why it matters |
+| --- | --- | --- |
+| `apps/web/vite.config.ts` | `pluginEntries()` | generates `virtual:foreman-plugins` — one static `import` per plugin — and adds out-of-tree dirs to `server.fs.allow` so dev can serve them |
+| `apps/web/tailwind.config.js` | `pluginContentGlobs()` | **the pitfall**: a plugin dir missing from Tailwind `content` renders *unstyled*, because every class in it was purged. Same source of truth, so it cannot drift |
+
+Resolution happens **at config load**, and it throws. A configured plugin that
+is not on disk fails `vite build` *and* `task dev` before either starts:
+
+```
+failed to load config from …/apps/web/vite.config.ts
+error during build:
+Error: Foreman plugin discovery: plugin "./apps/web/src/foreman/usecases/nonexistent" (from foreman-plugins.json) does not exist.
+  looked for: /…/harness/apps/web/src/foreman/usecases/nonexistent
+Fix the path in foreman-plugins.json, remove the entry if the plugin is gone, or check out the repository that provides it.
+```
+
+That is the whole guarantee restated: **configured-but-missing is a loud build
+failure, never a tab that quietly is not there.** The same applies to a
+directory with no entry module, and to malformed JSON.
+
+Because the generated roster is static imports, everything downstream is
+unchanged: Rollup still sees the full module graph, tree-shaking still works,
+and vitest — which uses `vite.config.ts` — resolves the virtual module too, so
+the tests exercise the real roster rather than a fixture (`roster.test.ts`,
+`plugin-discovery.test.mjs`).
+
+#### It is a build-time choice
+
+`packages/bundle` ships `apps/web/dist`. A build made with a given
+`foreman-plugins.json` **bakes those plugins into the bundle** — there is no
+runtime plugin loading and no way to add a domain to a distributed build without
+rebuilding it. That is deliberate (a runtime loader would mean dynamic imports,
+a blank-tab failure mode and a plugin the type system never saw), but it means
+"which plugins does this bundle have" is answered by the config at build time,
+and different plugin sets are different builds.
+
+#### Linting an out-of-tree plugin
+
+The `no-restricted-imports` rule below is scoped by path to the in-repo shell
+directories, so it keeps applying to plugins that live here. A plugin in another
+repository is linted by *that* repository — but the constraint holds anyway and
+more strongly: once moved, it physically cannot import the harness's `core.js`,
+`registry.js`, `data/api.js` or `ForemanApp`, because none of them are on a path
+it can reach. `@omega-harness/usecase-kit` is its only dependency on Foreman,
+which is the whole design. Write the plugin as if the rule were on: if a
+relative `../../../` import into the harness appears, the shell is not portable
+yet.
+
+**Victoria and Polymarket are not portable yet, for exactly that reason.** Their
+views import the host's presentational primitives — `../../../ui/primitives.js`
+(`Panel`, `Pill`, `SectionLabel`, `StatusDot`) and `../../../ui/format.js`
+(`clock`) — which the restricted-imports rule does not currently cover because
+those are chrome, not the seam. Discovery resolves an out-of-tree plugin today
+(verified by building one from `/tmp`), but moving these two out of the repo
+means giving those primitives a home the plugin can reach: the kit, most likely.
+That is OT-3's first decision, not a discovery problem.
 
 ### Collision rules
 

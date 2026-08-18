@@ -54,6 +54,8 @@ back to Console when the active view id doesn't exist on this objective.
 
 ```
 packages/usecase-kit/                         THE CONTRACT: @omega-harness/usecase-kit
+foreman-plugins.json                          WHICH PLUGINS THIS BUILD SHIPS — paths, in- or out-of-tree
+apps/web/plugin-discovery.mjs                 resolves that config for Vite + Tailwind; missing plugin = build error
 apps/web/src/foreman/usecases/registry.ts     the host: the shell map, tabs, resolution
 apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the six, and their wiring
 apps/web/src/foreman/usecases/index.ts        the roster: who is registered, when
@@ -83,6 +85,10 @@ Three properties are load-bearing and easy to break:
 - **A shell is a pure export.** It exports a `UseCaseShell` object and registers
   nothing; `usecases/index.ts` is the single registration point. That is what
   lets a shell live in another repository with only the kit as a dependency.
+- **Which plugins a build ships is configuration**, read at build time from
+  `foreman-plugins.json` (override: `FOREMAN_PLUGINS=…`) and turned into static
+  imports. A configured plugin that is not on disk fails `task dev` and
+  `vite build` with its path in the message — never a blank tab.
 
 📖 **[docs/USE-CASE-SHELLS.md](./USE-CASE-SHELLS.md) is the authoring guide** —
 the full contract, data sources and the health dot, the Victoria file-by-file

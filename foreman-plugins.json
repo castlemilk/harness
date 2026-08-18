@@ -1,0 +1,6 @@
+{
+  "plugins": [
+    "./apps/web/src/foreman/usecases/victoria",
+    "./apps/web/src/foreman/usecases/polymarket"
+  ]
+}

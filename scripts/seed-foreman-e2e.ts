@@ -42,6 +42,7 @@ const OBJ_MAIN = id('10');
 const OBJ_QUEUE = id('11');
 const OBJ_DEMO = id('12');
 const OBJ_VICTORIA = id('13');
+const OBJ_POLYMARKET = id('14');
 const PB_LEAD = id('20');
 const PB_LEAD_V2 = id('21');
 const PB_WORKER = id('22');
@@ -493,6 +494,29 @@ async function main(): Promise<void> {
     },
   });
 
+  // A fifth objective carrying the Polymarket shell (UC-4). Its value in the
+  // fixture is that it is the *other* shape of use-case shell: Victoria has a
+  // backend that can be down, Polymarket has no backend at all. So selecting it
+  // exercises the path where a shell declares no data sources — no health dot
+  // in the chrome, no requests from the tab, and a domain view whose whole job
+  // is to say so honestly. Two shells registered at once also keeps the
+  // accent seam visible: switching between these two objectives is the only way
+  // to see `--uc-accent` actually change.
+  await prisma.objective.upsert({
+    where: { id: OBJ_POLYMARKET },
+    update: { useCase: 'polymarket' },
+    create: {
+      id: OBJ_POLYMARKET,
+      projectId: project.id,
+      name: 'Trade prediction markets',
+      description:
+        'Carries useCase "polymarket", which contributes one domain tab and declares no backend.',
+      status: 'active',
+      useCase: 'polymarket',
+      spendCapUsd: 60,
+    },
+  });
+
   const phases = [
     { name: 'Frame the mission', state: 'done', weight: 1.4, detail: 'Contract agreed.' },
     { name: 'Build the control plane', state: 'active', weight: 3.2, detail: '18 of 24 tickets' },
@@ -833,7 +857,10 @@ async function main(): Promise<void> {
   await prisma.harness.update({ where: { id: traceHarness }, data: { taskId: traceTask } });
 
   const counts = {
-    objectives: 3,
+    // Counted, not hardcoded: this literal said 3 while the fixture had 4
+    // (UC-3's Victoria objective landed without it), and the summary line is
+    // the only thing anyone reads to confirm the seed did what they expected.
+    objectives: await prisma.objective.count({ where: { projectId: project.id } }),
     workstreams: streams.length,
     harnesses: HARNESSES.length,
     retired: HARNESSES.filter((h) => h.retired).length,

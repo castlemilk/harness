@@ -9,7 +9,7 @@ playbook **routine** once, records a **pulse**, and escalates to a human as an
 
 ```bash
 task setup          # first run on a fresh checkout
-task db:seed:e2e    # load the fixture (21 harnesses, 234 pulses, 3 objectives)
+task db:seed:e2e    # load the fixture (21 harnesses, 234 pulses, 5 objectives)
 task dev            # API :4000 + web :5173, one database, Ctrl-C stops both
 ```
 
@@ -27,8 +27,13 @@ occupancy and provider keys.
 | **⌘K** | `pause runtime` → acts on the match. `⌘↵` widens to the subtree. |
 
 The second objective ("Keep the support queue at zero") is deliberately empty —
-it exists to prove objective-scoping and the empty states. The third ("Demo the
-use-case shell") carries `useCase: "demo"`, so selecting it adds a seventh tab.
+it exists to prove objective-scoping and the empty states. The other three carry
+a `useCase` and are how the shell seam is reached by clicking: "Demo the
+use-case shell" adds one proof tab, "Run the Victoria trading desk" adds six
+domain tabs against the omega API (which the fixture deliberately does not stand
+up, so it also exercises the unreachable-backend path), and "Trade prediction
+markets" adds one tab for a shell with no backend at all. Switching between the
+last two is where `--uc-accent` visibly changes.
 
 ## Use-case shells
 
@@ -37,166 +42,41 @@ view list this replaced.
 
 - The **presentation axis** is the core chrome: Console, Board, Graph, Work,
   Usage, Playbooks. Six views, every objective, always. They are the app.
-- The **domain axis** is the *use case*: what an objective is actually for.
-  A use case brings extra tabs, an accent, and (eventually) vocabulary — it
-  **adds** to the core chrome and can never remove or shadow it.
-
-```
-apps/web/src/foreman/usecases/registry.ts     the seam: shells, tabs, resolution
-apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the six, and their wiring
-apps/web/src/foreman/usecases/index.ts        the roster: who is registered, when
-apps/web/src/foreman/usecases/demo.tsx        the proof shell (dev/test only)
-apps/web/src/foreman/usecases/victoria/       the Victoria trading shell (UC-3)
-apps/web/src/foreman/usecases/data-source.ts  how a shell reaches its own backend
-apps/web/src/foreman/usecases/health.tsx      probing + the chrome's health dots
-apps/web/src/foreman/data/adapt.ts            Foreman's own seam: boundary check
-```
-
-`CORE_VIEWS` is the single source of truth for both the tab bar and what
-`ForemanApp` renders. `viewTabs(CORE_VIEWS, objective.useCase)` derives the bar;
-`resolveViewId` falls back to Console when the active view id doesn't exist on
-this objective (switching away from a use-case objective with its own tab open).
-
-**Core views are not a use case**, and are deliberately not modelled as a
-reserved shell. They receive `CoreViewContext` — Foreman's internals, including
-the focused harness's tools and the playbook draft. A use-case view receives
-`UseCaseViewProps`: objective id, state, focus + `onFocus`, `onOpenView`, and
-`mutate`. That is the whole plugin surface, and widening it is an API decision.
-Registering core views as a fake use case would have forced one of those two
-contracts to become the other.
+- The **domain axis** is the *use case*: what an objective is actually for. A
+  use case brings extra tabs, an accent and optionally vocabulary — it **adds**
+  to the core chrome and can never remove or shadow it.
 
 `Objective.useCase` (nullable `TEXT`, lowercase slug, validated identically on
 `POST /objectives` and in `registerUseCase`) is the discriminator. Null means
 core chrome only, which is what every pre-existing objective is.
-
-The skin seam is one CSS variable, `--uc-accent`, set on the Foreman root from
-the active shell's `accent` (stock `#e8963c` without one). Exactly one piece of
-core chrome reads it today: the active underline on a use-case tab. Victoria
-(UC-3) uses it *inside its own views* — the equity curve's stroke, the loading
-pulse — which is the intended way to exploit the seam; resist tinting more of the
-core chrome by hand.
-
-### Data sources
-
-A use-case shell usually fronts a backend that is not Foreman's — Victoria's
-numbers come from the omega Go API on :8080. A shell **declares** its backends
-and **builds its own typed client**:
-
-```ts
-const OMEGA = { id: 'omega-api', label: 'Omega API',
-                baseUrl: 'http://localhost:8080',
-                envVar: 'VITE_UC_VICTORIA_URL',
-                probePath: '/api/v1/training/versions' }
-
-const omega = createDataSource(OMEGA)                       // in the shell's module
-const portfolio = await omega.postConnect('omega.v1.VictoriaService', 'GetPortfolio')
-
-export const victoria: UseCaseShell = { …, dataSources: [OMEGA] }
-```
-
-`createDataSource` gives you `getJson`, `postConnect` (Connect-JSON unary:
-`POST /<service>/<method>` with `Connect-Protocol-Version: 1`), `sse` and
-`probe` — plain `fetch`, no client codegen, the same shape as
-`web/dashboard/src/lib/api.ts` in the omega repo, because that is what the Go
-API actually serves. Failures throw a `DataSourceError` carrying the status and
-a 400-character body excerpt; run them through `mutate` and they land in the
-same error rail as everything else.
-
-**The guest contract stays six fields.** `UseCaseViewProps` does not widen to
-carry domain data, ever. A shell's client lives in the shell's own module and
-its views import it directly, so Foreman never learns a shell's endpoints,
-types or auth. The registry only learns that a source exists.
-
-**Env override convention: `VITE_UC_<ID>_URL`.** When set and non-empty it
-replaces `baseUrl`; that is the only supported way to repoint a shell at another
-backend. `registerUseCase` rejects duplicate source ids within a shell.
-
-`sse` delivers unnamed frames to `onMessage` by default. A stream that uses
-**named** events lists them in `opts.events` and reads `ev.type` to tell them
-apart — the omega API's training stream writes `event: connected` then
-`event: progress`, neither of which an `onmessage` handler ever sees. The names
-stay the caller's to supply; the seam never guesses a shell's event vocabulary.
-
-### Victoria — the trading shell (UC-3)
-
-`usecases/victoria/` is the first real domain plugin. An objective carrying
-`useCase: 'victoria'` gets six tabs after the core six, all reading the **omega
-Go API on :8080** through the shell's own typed client.
+`viewTabs(CORE_VIEWS, objective.useCase)` derives the bar; `resolveViewId` falls
+back to Console when the active view id doesn't exist on this objective.
 
 ```
-victoria/index.ts          the manifest — data only, fetches nothing
-victoria/client.ts         typed client: 8 Connect RPCs + 6 REST endpoints + the SSE stream
-victoria/hooks.ts          one hook per view, each returning the same Async<T> triple
-victoria/geometry.ts       chart maths — pure, React-free, asserted to exact coordinates
-victoria/charts.tsx        bespoke SVG: Sparkline, LineChart, HeatGrid
-victoria/format.ts         trading formatters (signed money, unclamped pct, regime colour)
-victoria/views/            Overview, Runs, Live, Trades, Equity, Signals + shared chrome
+apps/web/src/foreman/usecases/registry.ts     the seam: shells, tabs, resolution, roster
+apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the six, and their wiring
+apps/web/src/foreman/usecases/index.ts        the roster: who is registered, when
+apps/web/src/foreman/usecases/data-source.ts  how a shell reaches its own backend
+apps/web/src/foreman/usecases/health.tsx      probing + the chrome's health dots
+apps/web/src/foreman/usecases/demo.tsx        the proof shell (dev/test only)
+apps/web/src/foreman/usecases/victoria/       the trading shell (UC-3) — six tabs, omega API
+apps/web/src/foreman/usecases/polymarket/     the prediction-markets stub (UC-4) — no backend
 ```
 
-| Tab | Shows | Reads |
-| --- | --- | --- |
-| Overview | Portfolio value, cash, exposure, PnL, open positions, equity sparkline, risk grid | `GetPortfolio`, `GetPnL`, `GetPositions`, `GetEquityCurve` |
-| Runs | The training-version ledger (586 runs locally), filterable, with a per-run delta against its predecessor | `/api/v1/training/versions`, `/compare` |
-| Live | Cycle counter, PnL/win-rate sparklines, regime badge, activity log, event stream | `/api/v1/training/metrics`, `/progress`, SSE `/events/stream` |
-| Trades | Blotter with conviction, regime, filters applied — or fills where only the table has rows | `/api/v1/training/trade-details`, `GetTrades` |
-| Equity | Full SVG line chart, benchmark overlay, drawdown panel, IS/OOS `train_end` marker | `GetEquityCurve` |
-| Signals | Latest sub-signal snapshot + correlation heat grid | `GetSignals`, `/api/v1/signals/correlation` |
+Three properties are load-bearing and easy to break:
 
-**Dependency.** The shell needs `omega-api` running from the omega repo
-(`go run ./cmd/omega-api`, port 8080, reads Postgres plus the repo's `data/`
-directory). It is not vendored and the harness has no build-time dependency on
-it — every type in `client.ts` is hand-derived from
-`proto/omega/v1/victoria_service.proto` and `internal/handler/training_handler.go`,
-with a provenance comment naming its source. Override the address with
-**`VITE_UC_VICTORIA_URL`**. CORS needs nothing: the Go API's default allowlist
-(`OMEGA_CORS_ORIGINS`, unset) already contains `http://localhost:5173`, which is
-Foreman's dev origin, so no Vite proxy is required.
+- **`UseCaseViewProps` is six fields and never widens.** A shell that needs
+  domain data builds its own typed client from `createDataSource` in its own
+  module. Foreman never learns a shell's endpoints, types or auth.
+- **A registered shell that is not active costs zero requests.** Manifests are
+  data; every fetch originates in a view-level hook.
+- **Registration goes through `registerRoster`**, which replaces the previous
+  roster so Vite HMR doesn't collide with it. Duplicate ids still throw.
 
-**Two properties of the wire drive most of the code.** Connect-JSON serialises
-fields as lowerCamelCase *and* omits zero-valued ones — `GetPositions` against an
-empty database answers `{}`, not `{"positions":[]}`. So every RPC type is fully
-optional, "absent" renders as an em dash rather than `0.00`, and every view has a
-real empty state. The REST half is Go structs with snake_case tags and means what
-it says.
-
-**Known backend defect.** `/api/v1/training/progress` decodes
-`data/training_progress.json` into a *struct*, but omega's `run_training.py`
-writes a JSON *array* of per-cycle records to that path — so it answers
-**HTTP 500** whenever a real run has happened. The Live view treats it as
-enrichment over `/metrics` (which is DB-backed and always answers) and renders
-the 500 in its own panel with an explanation, rather than catching it and
-reporting an idle run that is really a broken endpoint.
-
-**Phase 2, pending backend endpoints** — named so the roadmap stays visible:
-
-- **Gate board** — the six hard gates per run (PnL floor, regime parity,
-  drawdown ceiling, trade-count floor, signal integrity, auto-apply audit). The
-  data is written to `data/{version}_gate_result.json`; nothing serves it.
-- **Conviction funnel** — the four-stage filter pipeline (time filter →
-  agreement ratio → weighted conviction → regime/vol gate) with drop counts per
-  stage. `/decision-traces` carries the raw per-cycle traces; the funnel
-  aggregate does not exist.
-- **Forensics diff** — the per-symbol / per-conviction-bucket run comparison
-  `omega.tools.forensics.run_diff` produces. `/compare` only returns four scalar
-  deltas and a PnL-only verdict.
-- **Training-log narrative** — the run's own log as a readable timeline.
-- **Richer run rows** — profit factor and max drawdown are in each
-  `_results.json` but not in the `/versions` projection, and no endpoint exposes
-  the raw file. `sharpe_ratio` is 0 for every row for the same reason (the
-  handler reads a key the files do not carry), so the ledger shows an em dash.
-- **MAE/MFE per trade** — recorded nowhere today. `sit_out_reason` exists only
-  per *cycle* on the progress record, not per trade.
-
-### Backend health
-
-An empty domain tab and a dead backend look identical, so while a shell with
-declared sources is active the chrome shows one dot per source next to the
-stream indicator — green reachable, red unreachable, dim while probing, with the
-label, resolved URL and latency (or error) on hover. Probed on mount and every
-30s; **no active shell, or no declared sources, means no timer and no requests**
-(`startHealthProbes` is a plain function so that gating is testable without a
-renderer). Colours come from the fleet's status palette, so red means the same
-thing in the chrome as it does on a harness.
+📖 **[docs/USE-CASE-SHELLS.md](./USE-CASE-SHELLS.md) is the authoring guide** —
+the full contract, data sources and the health dot, the Victoria file-by-file
+walkthrough, the honesty rules, HMR semantics, testing conventions and the
+phase-2 path. Read it before writing a shell.
 
 ### Where the wire becomes the view model
 
@@ -315,7 +195,7 @@ bounded query. The SSE stream opens with that same snapshot, then patches.
 ## Tests
 
 ```bash
-task test:foreman   # 50 server + 28 web
+task test:foreman   # 50 server + 153 web
 task check          # lint, typecheck, build, test
 ```
 

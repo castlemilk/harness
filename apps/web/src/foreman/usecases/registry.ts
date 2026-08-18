@@ -124,6 +124,54 @@ export function unregisterUseCase(id: string): boolean {
   return shells.delete(id);
 }
 
+/**
+ * Ids the roster claimed on its last pass. Module-level, and deliberately NOT
+ * derived from `shells` — the roster owns exactly what it registered, and must
+ * not be able to evict a shell somebody else put in the map.
+ */
+let rosterIds: string[] = [];
+
+/**
+ * Register the whole roster, replacing the previous roster.
+ *
+ * This exists for Vite HMR. `shells` lives in *this* module, which is a
+ * dependency of the roster rather than an importer of it, so it is not
+ * re-executed when a shell file changes — but the roster is. Editing
+ * `victoria/index.ts` invalidates it and every importer up to the nearest
+ * accepting boundary (`ForemanApp.tsx`, self-accepting via react-refresh);
+ * re-importing that boundary re-executes the roster against a `shells` map that
+ * still holds the old entries, and `registerUseCase` throws "already
+ * registered". The app then sits on a red overlay until a full reload.
+ *
+ * Two alternatives were rejected:
+ *
+ *   - **`import.meta.hot.dispose` in the roster.** Vite 5's client looks the
+ *     disposer up as `disposeMap.get(acceptedPath)` (client.mjs, `fetchUpdate`),
+ *     so it only fires for the module that *accepted* the update. That is
+ *     `ForemanApp.tsx`, not the roster, so a roster disposer would simply never
+ *     run — unless the roster self-accepted, which would strand ForemanApp on
+ *     the stale `CORE_VIEWS` binding it imports through the roster.
+ *   - **Tolerating a same-fingerprint re-registration.** Any edit that changes
+ *     the manifest — a view label, an accent — changes the fingerprint, so the
+ *     one edit most likely to re-execute the roster is the one it would not
+ *     forgive.
+ *
+ * Replacing by *provenance* needs neither. The collision guarantee is untouched:
+ * `registerUseCase` still throws on every duplicate, including two roster
+ * entries claiming one id (the first is in the map by the time the second is
+ * offered) and a roster entry colliding with a shell registered elsewhere.
+ */
+export function registerRoster(roster: readonly UseCaseShell[]): void {
+  for (const id of rosterIds) shells.delete(id);
+  rosterIds = [];
+  for (const shell of roster) {
+    // Push only after it lands, so a mid-roster throw leaves `rosterIds`
+    // describing what is really in the map rather than what was intended.
+    registerUseCase(shell);
+    rosterIds.push(shell.id);
+  }
+}
+
 /** The shell for an objective's `useCase`, or null when there isn't one. */
 export function getUseCase(id: string | null | undefined): UseCaseShell | null {
   if (!id) return null;

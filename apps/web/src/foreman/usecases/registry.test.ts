@@ -4,6 +4,7 @@ import {
   findUseCaseView,
   getUseCase,
   getUseCases,
+  registerRoster,
   registerUseCase,
   resolveViewId,
   unregisterUseCase,
@@ -115,6 +116,93 @@ describe('registerUseCase', () => {
     registered.pop();
     expect(getUseCase('temp')).toBeNull();
     expect(unregisterUseCase('temp')).toBe(false);
+  });
+});
+
+/**
+ * `registerRoster` exists for Vite HMR: editing a shell file re-executes the
+ * roster against a registry that was never torn down, and `registerUseCase`
+ * throws on the second pass. Replacing by provenance fixes that without
+ * softening any collision rule, which is what these assert.
+ */
+describe('registerRoster', () => {
+  // The real roster, as `./index.js` registered it on import. Every test here
+  // replaces it, so it has to be put back or the rest of the file loses 'demo'.
+  const appRoster = getUseCases();
+  afterEach(() => { registerRoster(appRoster); });
+
+  it('replaces the previous roster instead of colliding with it', () => {
+    // The HMR path: same ids, brand-new shell objects, no reload in between.
+    registerRoster([shell('alpha', ['a']), shell('beta', ['b'])]);
+    const renamed: UseCaseShell = { ...shell('alpha', ['a']), name: 'edited in place' };
+    expect(() => { registerRoster([renamed, shell('beta', ['b'])]); }).not.toThrow();
+    expect(getUseCase('alpha')).toBe(renamed);
+    expect(getUseCases().filter((s) => s.id === 'alpha')).toHaveLength(1);
+  });
+
+  it('tolerates an edit to the manifest itself, not just to a view body', () => {
+    // The case a fingerprint check would have failed: relabelling a tab is the
+    // most likely reason to touch a manifest, and it must not need a reload.
+    registerRoster([shell('alpha', ['a'])]);
+    registerRoster([shell('alpha', ['a', 'a2'], { accent: '#a67ff0' })]);
+    expect(getUseCase('alpha')?.views.map((v) => v.id)).toEqual(['a', 'a2']);
+    expect(getUseCase('alpha')?.accent).toBe('#a67ff0');
+  });
+
+  it('drops a shell that left the roster', () => {
+    registerRoster([shell('alpha', ['a']), shell('beta', ['b'])]);
+    registerRoster([shell('alpha', ['a'])]);
+    expect(getUseCase('beta')).toBeNull();
+  });
+
+  it('still throws when one roster claims an id twice', () => {
+    // The genuine duplicate. Softening this is exactly what the HMR fix must
+    // not do — two shells under one id means one of them never renders.
+    expect(() => {
+      registerRoster([shell('alpha', ['a']), shell('alpha', ['b'])]);
+    }).toThrow('Use case "alpha" is already registered');
+  });
+
+  it('still throws when a roster shell collides with one registered elsewhere', () => {
+    register(shell('outsider', ['a']));
+    expect(() => { registerRoster([shell('outsider', ['b'])]); }).toThrow(
+      'Use case "outsider" is already registered',
+    );
+  });
+
+  it('evicts only what it registered, never a shell someone else owns', () => {
+    register(shell('outsider', ['a']));
+    registerRoster([shell('alpha', ['a'])]);
+    registerRoster([shell('beta', ['b'])]);
+    expect(getUseCase('outsider')?.name).toBe('outsider shell');
+    expect(getUseCase('alpha')).toBeNull();
+  });
+
+  it('leaves the registry describing what really landed when a pass throws midway', () => {
+    registerRoster([shell('alpha', ['a'])]);
+    expect(() => {
+      registerRoster([shell('beta', ['b']), shell('beta', ['c']), shell('gamma', ['g'])]);
+    }).toThrow();
+    // 'alpha' went out with the old roster, 'beta' got in, 'gamma' never ran.
+    expect(getUseCase('alpha')).toBeNull();
+    expect(getUseCase('gamma')).toBeNull();
+    // The next pass must be able to clear 'beta', or the app stays wedged.
+    expect(() => { registerRoster([shell('beta', ['b'])]); }).not.toThrow();
+  });
+
+  it('validates roster shells exactly as a direct registration would', () => {
+    expect(() => { registerRoster([shell('Not A Slug', ['a'])]); }).toThrow(
+      'Use-case id must be a lowercase slug',
+    );
+    expect(() => { registerRoster([shell('dupe-view', ['a', 'a'])]); }).toThrow(
+      'Use case "dupe-view" registers view "a" twice',
+    );
+  });
+
+  it('registers the app roster in order, victoria first', () => {
+    // Order is registration order, and the roster is the only thing that
+    // registers in the app — so this is the tab-independent record of who ships.
+    expect(appRoster.map((s) => s.id)).toEqual(['victoria', 'polymarket', 'demo']);
   });
 });
 

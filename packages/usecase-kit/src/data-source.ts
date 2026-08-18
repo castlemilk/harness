@@ -118,22 +118,66 @@ function stripTrailingSlash(url: string): string {
   return url.endsWith('/') ? url.slice(0, -1) : url;
 }
 
+let injected: Record<string, string | undefined> | null = null;
+
+/**
+ * Hand the kit the host's build-time env.
+ *
+ * `envVar` overrides are resolved out of this bag, and the HOST has to supply
+ * it. It cannot be read from here: `import.meta.env` is Vite's, and Vite
+ * substitutes it in the source it compiles — not in a dependency that ships
+ * pre-built `dist/`, which is exactly how this package is consumed. A bare
+ * `import.meta.env` inside this file survives into the bundle unreplaced and
+ * evaluates to `undefined` in the browser, silently pinning every shell to its
+ * declared `baseUrl`. So the app calls this once with its own `import.meta.env`
+ * (see `main.tsx`) and the substitution happens where it works.
+ *
+ * Resolution is lazy, so the order does not matter: a client built at module
+ * scope — which every shell does — still reads the bag that is current when it
+ * first makes a request or renders its `config.baseUrl`.
+ *
+ * Passing `null` clears it and restores the fallback below; that exists for
+ * tests, which need to hand over a bag and then stop.
+ */
+export function setUseCaseEnv(env: Record<string, string | undefined> | null): void {
+  injected = env;
+}
+
+/**
+ * The env bag overrides resolve against: the host's, or — when nothing set one
+ * — this module's own `import.meta.env`, which is populated whenever the kit is
+ * compiled from source rather than consumed as `dist/` (its own vitest run, or
+ * a host that aliases the package to `src/`).
+ */
+function readEnv(): Record<string, string | undefined> {
+  if (injected) return injected;
+  const meta = import.meta as unknown as { env?: Record<string, string | undefined> };
+  return meta.env ?? {};
+}
+
 /**
  * The base URL a source actually uses: the env override when it is set and
  * non-empty, otherwise the declared default. Exported because the health
  * indicator's tooltip and the tests both need it without building a client.
  */
 export function resolveBaseUrl(config: UseCaseDataSourceConfig): string {
-  const env = import.meta.env as unknown as Record<string, string | undefined>;
-  const override = config.envVar ? env[config.envVar] : undefined;
+  const override = config.envVar ? readEnv()[config.envVar] : undefined;
   const chosen = override && override.length > 0 ? override : config.baseUrl;
   return stripTrailingSlash(chosen);
 }
 
 export function createDataSource(config: UseCaseDataSourceConfig): UseCaseDataSource {
-  const baseUrl = resolveBaseUrl(config);
-  const resolved: UseCaseDataSourceConfig = { ...config, baseUrl };
-  const url = (path: string) => `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  // A getter, not a value: see `setUseCaseEnv`. A shell constructs its client at
+  // module scope, which is before the host has had a chance to say anything, so
+  // resolving eagerly here would bake in the un-overridden URL forever.
+  const resolved: UseCaseDataSourceConfig = {
+    ...config,
+    get baseUrl(): string {
+      return resolveBaseUrl(config);
+    },
+  };
+  const url = (path: string) =>
+    `${resolveBaseUrl(config)}${path.startsWith('/') ? path : `/${path}`}`;
 
   async function readError(res: Response, what: string): Promise<never> {
     const text = await res.text().catch(() => '');

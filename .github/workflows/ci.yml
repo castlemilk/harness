@@ -19,6 +19,10 @@ jobs:
           node-version: 20
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
+      # The use-case plugin contract is consumed through its `dist/`, so it has
+      # to exist before anything that typechecks against it — including the
+      # typed lint rules, which run before `pnpm build`.
+      - run: pnpm --filter @omega-harness/usecase-kit build
       - run: pnpm lint
       - run: pnpm db:migrate
       - run: pnpm db:seed

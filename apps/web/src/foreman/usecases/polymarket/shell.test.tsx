@@ -16,8 +16,7 @@ import { describe, expect, it, vi } from 'vitest';
 // text that reaches the operator, without adding a test environment to carry.
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CORE_VIEWS, getUseCase, resolveViewId, viewTabs } from '../index.js';
-import type { ObjectiveState } from '../../data/api.js';
-import type { UseCaseViewProps } from '../registry.js';
+import type { ObjectiveState, UseCaseViewProps } from '@omega-harness/usecase-kit';
 import { polymarketUseCase } from './index.js';
 import { POLYMARKET_PIPELINE, POLYMARKET_TARGETS, PolymarketPipeline } from './views/Pipeline.js';
 

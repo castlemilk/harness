@@ -12,7 +12,7 @@ import { predecessorOf, sortVersions } from './views/Runs.js';
 import { summariseByRegime } from './views/Trades.js';
 import { maxDrawdown } from './views/Equity.js';
 import { settleTrades, TRADE_DETAILS_SOURCE, TRADE_RPC_SOURCE } from './hooks.js';
-import { DataSourceError } from '../data-source.js';
+import { DataSourceError } from '@omega-harness/usecase-kit';
 import { pct, pnlClass, ratio, regimeColor, signedPct, signedUsd, usd } from './format.js';
 import type { VersionInfo } from './client.js';
 

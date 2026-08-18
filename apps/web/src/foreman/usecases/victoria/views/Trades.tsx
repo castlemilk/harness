@@ -23,7 +23,7 @@
 import { useMemo } from 'react';
 import { Pill } from '../../../ui/primitives.js';
 import { clock } from '../../../ui/format.js';
-import type { UseCaseViewProps } from '../../registry.js';
+import type { UseCaseViewProps } from '@omega-harness/usecase-kit';
 import type { RpcTrade, TradeDetail } from '../client.js';
 import { pct, pnlClass, price, ratio, regimeColor, sideColor, signedUsd } from '../format.js';
 import { TRADE_DETAILS_SOURCE, TRADE_RPC_SOURCE, useVictoriaTrades } from '../hooks.js';

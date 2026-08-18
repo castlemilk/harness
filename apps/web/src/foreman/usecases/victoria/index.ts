@@ -12,7 +12,7 @@
  * every request originates in a view's hook. `registry.ts` never learns an
  * endpoint.
  */
-import type { UseCaseShell } from '../registry.js';
+import type { UseCaseShell } from '@omega-harness/usecase-kit';
 import { OMEGA_SOURCE } from './client.js';
 import { VictoriaOverview } from './views/Overview.js';
 import { VictoriaRuns } from './views/Runs.js';

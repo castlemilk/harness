@@ -6,7 +6,7 @@ import {
   startHealthProbes,
   type HealthMap,
 } from './health.js';
-import type { ProbeResult, UseCaseDataSource, UseCaseDataSourceConfig } from './data-source.js';
+import type { ProbeResult, UseCaseDataSource, UseCaseDataSourceConfig } from '@omega-harness/usecase-kit';
 
 /**
  * The probe scheduler, which is the part with teeth: it decides whether Foreman

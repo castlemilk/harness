@@ -4,8 +4,8 @@ import {
   createDataSource,
   type UseCaseDataSource,
   type UseCaseDataSourceConfig,
-} from './data-source.js';
-import type { UseCaseShell } from './registry.js';
+  type UseCaseShell,
+} from '@omega-harness/usecase-kit';
 
 /**
  * Backend health for the active use-case shell.

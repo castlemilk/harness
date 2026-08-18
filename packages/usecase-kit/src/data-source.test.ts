@@ -3,6 +3,7 @@ import {
   createDataSource,
   DataSourceError,
   resolveBaseUrl,
+  setUseCaseEnv,
   type UseCaseDataSourceConfig,
 } from './data-source.js';
 
@@ -47,6 +48,9 @@ function json(body: unknown, status = 200): Response {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  // Back to the fallback bag — this module's own `import.meta.env`, which is
+  // what `vi.stubEnv` writes to and what the tests below read.
+  setUseCaseEnv(null);
 });
 
 describe('resolveBaseUrl', () => {
@@ -64,6 +68,30 @@ describe('resolveBaseUrl', () => {
   it('ignores an empty override rather than pointing the shell at nothing', () => {
     vi.stubEnv('VITE_UC_OMEGA_API_URL', '');
     expect(resolveBaseUrl(config)).toBe('http://localhost:8080');
+  });
+
+  it('resolves overrides out of the env the host injects', () => {
+    // The bag the kit reads in a real build: `dist/` is not rewritten by Vite,
+    // so `import.meta.env` inside this package is empty there and the host
+    // hands its own over with `setUseCaseEnv`.
+    setUseCaseEnv({ VITE_UC_OMEGA_API_URL: 'https://injected.example:9000' });
+    expect(resolveBaseUrl(config)).toBe('https://injected.example:9000');
+  });
+
+  it('resolves lazily, so a client built before the host spoke still sees it', () => {
+    // Every shell constructs its client at module scope — before `main.tsx` has
+    // run a line. Resolving eagerly in `createDataSource` would bake in the
+    // un-overridden URL and no operator could repoint the shell.
+    setUseCaseEnv({});
+    const source = createDataSource(config);
+    expect(source.config.baseUrl).toBe('http://localhost:8080');
+
+    setUseCaseEnv({ VITE_UC_OMEGA_API_URL: 'https://late.example:9443/' });
+    expect(source.config.baseUrl).toBe('https://late.example:9443');
+
+    const calls = stubFetch(() => json({}));
+    void source.getJson('/things');
+    expect(calls[0].url).toBe('https://late.example:9443/things');
   });
 
   it('strips a trailing slash so paths do not double up', () => {

@@ -15,7 +15,7 @@
  * is the state a fresh checkout is in.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DataSourceError } from '../data-source.js';
+import { DataSourceError } from '@omega-harness/usecase-kit';
 import {
   compareVersions,
   getEquityCurve,

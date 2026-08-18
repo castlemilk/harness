@@ -20,7 +20,7 @@
  */
 import { Pill, StatusDot } from '../../../ui/primitives.js';
 import { clock } from '../../../ui/format.js';
-import type { UseCaseViewProps } from '../../registry.js';
+import type { UseCaseViewProps } from '@omega-harness/usecase-kit';
 import { Sparkline } from '../charts.js';
 import type { TrainingMetrics } from '../client.js';
 import { pct, pnlClass, regimeColor, signedUsd } from '../format.js';

@@ -3,8 +3,13 @@
  *
  * Registration happens here, once, at module load — importing this module is
  * what makes a shell exist. `ForemanApp` imports it for that side effect, so
- * every shell in the app is visible in this one file rather than scattered
- * across self-registering modules.
+ * every shell in the app is visible in this one file.
+ *
+ * Shells themselves are **pure exports**: each module exports a `UseCaseShell`
+ * object and registers nothing, so the list below is the whole truth about what
+ * the app ships, and a shell can be moved to another repository without moving
+ * a side effect with it. The file is deliberately a flat list of imports and one
+ * array for exactly that reason.
  *
  * It goes through `registerRoster` rather than calling `registerUseCase` per
  * shell, because Vite re-executes this module on every HMR update that reaches
@@ -12,7 +17,8 @@
  * it; see its comment in `./registry.ts` for why that beats a dispose hook or a
  * fingerprint check. Duplicate ids still throw.
  */
-import { registerRoster, type UseCaseShell } from './registry.js';
+import type { UseCaseShell } from '@omega-harness/usecase-kit';
+import { registerRoster } from './registry.js';
 import { demoUseCase } from './demo.js';
 import { victoriaUseCase } from './victoria/index.js';
 import { polymarketUseCase } from './polymarket/index.js';
@@ -38,8 +44,11 @@ if (import.meta.env.DEV) {
 
 registerRoster(roster);
 
+// The host half of the seam. The *contract* — `UseCaseShell`,
+// `UseCaseViewProps`, `createDataSource` — is imported from
+// `@omega-harness/usecase-kit` directly, by the app and by shells alike, so
+// there is exactly one path to it and no barrel that could drift from it.
 export * from './registry.js';
-export * from './data-source.js';
 export {
   healthTooltip,
   PROBE_INTERVAL_MS,

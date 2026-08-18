@@ -13,7 +13,7 @@
  */
 import { useMemo } from 'react';
 import { Pill } from '../../../ui/primitives.js';
-import type { UseCaseViewProps } from '../../registry.js';
+import type { UseCaseViewProps } from '@omega-harness/usecase-kit';
 import { ChartLegend, LineChart, type LineSeries } from '../charts.js';
 import { pct, ratio, usd } from '../format.js';
 import { useVictoriaEquity } from '../hooks.js';

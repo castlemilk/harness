@@ -1,4 +1,5 @@
 import { sseUrl } from '../../lib/api.js';
+import type { ObjectiveState } from '@omega-harness/usecase-kit';
 import type {
   Harness,
   Intervention,
@@ -10,7 +11,6 @@ import type {
   TranscriptEntry,
   UsageSummary,
   Workstream,
-  ActivityEntry,
 } from '../types.js';
 
 const API = String(import.meta.env.VITE_API_URL ?? 'http://localhost:4000');
@@ -31,16 +31,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-/** The single payload every shell renders from. */
-export interface ObjectiveState {
-  objective: Objective;
-  workstreams: Workstream[];
-  /** Flat — the tree is rebuilt client-side from parentId. */
-  harnesses: Harness[];
-  interventions: Intervention[];
-  tickets: Ticket[];
-  activity: ActivityEntry[];
-}
+/**
+ * The single payload every shell renders from.
+ *
+ * Defined in `@omega-harness/usecase-kit` — it is `UseCaseViewProps.state`, so
+ * an out-of-tree shell has to be able to name it — and re-exported here because
+ * this is where the app has always imported it from and this module is what
+ * fetches it.
+ */
+export type { ObjectiveState };
 
 export interface SpawnHarnessInput {
   objectiveId: string;

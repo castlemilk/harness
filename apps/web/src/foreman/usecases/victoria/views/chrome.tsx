@@ -8,7 +8,7 @@
  */
 import type { ReactNode } from 'react';
 import { Panel, SectionLabel } from '../../../ui/primitives.js';
-import { DataSourceError } from '../../data-source.js';
+import { DataSourceError } from '@omega-harness/usecase-kit';
 import type { Async as AsyncState } from '../hooks.js';
 
 /** A view's outer frame: scrolls, breathes, and carries the page heading. */

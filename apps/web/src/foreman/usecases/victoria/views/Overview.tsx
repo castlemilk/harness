@@ -11,7 +11,7 @@
  * so, in words, and names what would fill it.
  */
 import { Pill } from '../../../ui/primitives.js';
-import type { UseCaseViewProps } from '../../registry.js';
+import type { UseCaseViewProps } from '@omega-harness/usecase-kit';
 import { Sparkline } from '../charts.js';
 import type { Portfolio, Position } from '../client.js';
 import { pct, pnlClass, price, ratio, sideColor, signedUsd, usd } from '../format.js';

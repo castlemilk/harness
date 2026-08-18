@@ -9,9 +9,8 @@ import {
   resolveViewId,
   unregisterUseCase,
   viewTabs,
-  type UseCaseShell,
-  type UseCaseViewProps,
 } from './registry.js';
+import type { UseCaseShell, UseCaseViewProps } from '@omega-harness/usecase-kit';
 import { CORE_VIEWS, DEFAULT_VIEW } from './core.js';
 // Importing the roster is what registers the demo shell, exactly as the app
 // does. Nothing here registers 'demo' itself, so the two cannot collide.

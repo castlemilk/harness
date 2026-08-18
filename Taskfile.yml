@@ -50,6 +50,7 @@ tasks:
 
   dev:
     desc: Run API + web against one database, with prefixed output
+    deps: [build:kit]
     dir: apps/cli
     interactive: true
     cmds:
@@ -75,6 +76,7 @@ tasks:
 
   dev:web:
     desc: Web dev server only (expects an API on {{.API_PORT}})
+    deps: [build:kit]
     dir: apps/web
     env:
       VITE_API_URL: 'http://localhost:{{.API_PORT}}'
@@ -141,6 +143,17 @@ tasks:
     cmds:
       - pnpm -r build
 
+  build:kit:
+    desc: Build the use-case plugin contract
+    # Everything that consumes `@omega-harness/usecase-kit` — the web app's
+    # typecheck, its lint (typed rules), vitest and Vite itself — resolves it
+    # through `dist/`, never through its source. So the kit is built before any
+    # of them run, and `tsc` here is also the kit's own typecheck. `pnpm -r
+    # build` gets this ordering for free (pnpm is topological); the tasks that
+    # do NOT build first are the ones that need it declared.
+    cmds:
+      - pnpm --filter @omega-harness/usecase-kit build
+
   build:web:
     desc: Build the web app
     cmds:
@@ -160,6 +173,7 @@ tasks:
 
   test:
     desc: Run every package's tests
+    deps: [build:kit]
     cmds:
       - pnpm -r test
 
@@ -174,6 +188,7 @@ tasks:
 
   test:web:
     desc: Web tests
+    deps: [build:kit]
     dir: apps/web
     cmds:
       - npx vitest run {{.CLI_ARGS}}
@@ -196,6 +211,7 @@ tasks:
 
   lint:
     desc: Lint everything
+    deps: [build:kit]
     cmds:
       - npx eslint .
 
@@ -206,11 +222,13 @@ tasks:
 
   typecheck:
     desc: Typecheck every package without emitting
+    deps: [build:kit]
     cmds:
       - npx tsc --noEmit -p apps/server/tsconfig.json
       - npx tsc --noEmit -p apps/web/tsconfig.json
       - npx tsc --noEmit -p apps/cli/tsconfig.json
       - npx tsc --noEmit -p packages/core/tsconfig.json
+      - npx tsc --noEmit -p packages/usecase-kit/tsconfig.json
 
   check:
     desc: Everything CI would run — lint, typecheck, build, test

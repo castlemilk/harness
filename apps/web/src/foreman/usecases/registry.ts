@@ -1,87 +1,21 @@
-import type { ComponentType } from 'react';
-import type { ObjectiveState } from '../data/api.js';
-import type { UseCaseDataSourceConfig } from './data-source.js';
+import type { UseCaseShell, UseCaseView } from '@omega-harness/usecase-kit';
 
 /**
- * Use-case shells.
+ * The use-case registry — the host half of the plugin seam.
  *
- * Foreman has two axes. The *presentation* axis is the core chrome — Console,
- * Board, Graph, Work, Usage, Playbooks — which every objective gets regardless
- * of what it is doing. The *domain* axis is the use case: what this particular
- * objective is FOR (trading a book, triaging support, shipping a feature), which
- * brings its own vocabulary, its own accent, and its own extra tabs.
+ * The *contract* lives in `@omega-harness/usecase-kit`: `UseCaseShell`, the
+ * view props, the vocabulary, the data-source transport. That package is what a
+ * shell depends on, in this repository or another one. This module is what the
+ * harness does with the shells it is given, and it deliberately stays here —
+ * the map of registered shells is host state, not contract, and a plugin has no
+ * business being able to read or mutate it.
  *
- * A use-case shell is the domain axis, registered at module load from the roster
- * in `./index.ts` and keyed by `Objective.useCase` on the server. Registration
- * is deliberately eager and static — there is no dynamic import, no plugin
- * discovery and no network fetch, so a missing shell is a build error in the
- * roster rather than a blank tab at runtime.
+ * Registration is eager and static: the roster in `./index.ts` hands
+ * `registerRoster` a flat list of exported shell objects at module load. There
+ * is no dynamic import, no plugin discovery and no network fetch, so a missing
+ * shell is a build error in the roster rather than a blank tab at runtime. A
+ * shell never registers itself — it exports an object and nothing else.
  */
-
-/**
- * The contract a use-case view is handed. This is the plugin API surface, so it
- * is deliberately the *smallest* set that lets a domain view be useful:
- *
- *   - the objective it is rendering, by id and as resolved state
- *   - the harness in focus, and the ability to move focus
- *   - the ability to send the operator to another registered view
- *   - one funnel for mutations, so a domain view's failures surface in the same
- *     error rail as the core views' instead of being swallowed
- *
- * It is intentionally NOT the core views' context: those get privileged access
- * to Foreman internals (the tool list, the playbook draft, the usage window)
- * because they are the app. A use-case view is a guest, and everything it can
- * reach here is either already on the wire or a callback Foreman owns. Growing
- * this interface is a real API decision — prefer deriving from `state`.
- */
-export interface UseCaseViewProps {
-  /** The objective this view is scoped to. Never empty. */
-  objectiveId: string;
-  /** The same snapshot the core views render, straight off the wire. */
-  state: ObjectiveState;
-  /** The harness currently in focus across the app, or null. */
-  focusId: string | null;
-  /** Move focus. Passing null clears it. */
-  onFocus: (harnessId: string | null) => void;
-  /** Switch to another registered view by id — core or use-case. */
-  onOpenView: (viewId: string) => void;
-  /** Run a mutation; refreshes state on success, surfaces failures in the rail. */
-  mutate: (fn: () => Promise<unknown>) => Promise<void>;
-}
-
-/** A tab a shell contributes, rendered inside the core Foreman chrome. */
-export interface UseCaseView {
-  /** Tab id, unique within the shell and distinct from every core view id. */
-  id: string;
-  label: string;
-  component: ComponentType<UseCaseViewProps>;
-  /** Lower sorts first. Views without one keep roster order, after those with. */
-  order?: number;
-}
-
-/** Display terms a shell may rename. Anything omitted keeps the Foreman word. */
-export type Vocabulary = Partial<Record<'harness' | 'pulse' | 'objective', string>>;
-
-export interface UseCaseShell {
-  /** Matches `Objective.useCase` on the server. Lowercase slug. */
-  id: string;
-  /** Human name, e.g. "Victoria — market trading". */
-  name: string;
-  /** CSS color driving `--uc-accent` while this shell is active. */
-  accent?: string;
-  vocabulary?: Vocabulary;
-  /** Domain tabs ADDED to the core tabs — a shell never removes core chrome. */
-  views: UseCaseView[];
-  /**
-   * Backends this shell reads from. Declaring one does NOT hand the shell's
-   * views anything — a view builds its own typed client with
-   * `createDataSource` (see `./data-source.ts`). What declaring buys is chrome:
-   * while this shell is active Foreman probes each source and shows a health
-   * dot, so "the domain tab is empty" and "the backend is down" are
-   * distinguishable without opening devtools.
-   */
-  dataSources?: UseCaseDataSourceConfig[];
-}
 
 /** Same slug rule the server enforces on `POST /objectives`. */
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -168,6 +102,9 @@ let rosterIds: string[] = [];
  * `registerUseCase` still throws on every duplicate, including two roster
  * entries claiming one id (the first is in the map by the time the second is
  * offered) and a roster entry colliding with a shell registered elsewhere.
+ *
+ * It is also the ONLY registration path in the app: shells are pure exports, so
+ * nothing is in the map that this function did not put there.
  */
 export function registerRoster(roster: readonly UseCaseShell[]): void {
   for (const id of rosterIds) shells.delete(id);

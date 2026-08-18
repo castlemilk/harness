@@ -182,6 +182,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@omega-harness/usecase-kit':
+        specifier: workspace:*
+        version: link:../../packages/usecase-kit
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -409,6 +412,22 @@ importers:
       vitest:
         specifier: ^1.6.0
         version: 1.6.1(@types/node@20.19.43)
+
+  packages/usecase-kit:
+    dependencies:
+      react:
+        specifier: '>=18'
+        version: 19.2.7
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.3
+        version: 18.3.31
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+      vitest:
+        specifier: ^1.6.0
+        version: 1.6.1(@types/node@26.1.0)
 
 packages:
 

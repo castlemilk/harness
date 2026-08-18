@@ -40,16 +40,31 @@ use case would have forced one of those two contracts to become the other:
 either widen the guest contract to everything the app holds, or lie about a
 'core' use case no objective can be assigned.
 
+The contract and the host are two different places, and the split is the point:
+a shell imports the **kit** and never the app.
+
 ```
-apps/web/src/foreman/usecases/registry.ts     the seam: shells, tabs, resolution, roster
+packages/usecase-kit/src/shell.ts             THE CONTRACT: UseCaseShell, UseCaseView(Props), Vocabulary
+packages/usecase-kit/src/state.ts             the wire shapes `props.state` is made of
+packages/usecase-kit/src/data-source.ts       how a shell reaches its own backend
+packages/usecase-kit/README.md                what a plugin author reads first
+
+apps/web/src/foreman/usecases/registry.ts     the host: the shell map, tabs, resolution
 apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the six, and their wiring
 apps/web/src/foreman/usecases/index.ts        the roster: who is registered, when
-apps/web/src/foreman/usecases/data-source.ts  how a shell reaches its own backend
 apps/web/src/foreman/usecases/health.tsx      probing + the chrome's health dots
+apps/web/src/foreman/usecases/vocabulary.tsx  the provider that renders a shell's words
 apps/web/src/foreman/usecases/demo.tsx        the proof shell (dev/test only)
 apps/web/src/foreman/usecases/victoria/       the trading shell (UC-3) — the worked example
 apps/web/src/foreman/usecases/polymarket/     the prediction-markets stub (UC-4)
 ```
+
+`@omega-harness/usecase-kit` is a workspace package that imports nothing from
+the harness: a plugin depends on the kit, the kit depends on React's *types*
+alone, and the harness depends on both. Consumers resolve it through its
+`dist/`, so **rebuild it after changing it** (`task build:kit`, and every task
+that needs it declares that dependency) or you are typechecking against the
+previous contract.
 
 ## When to build a shell
 
@@ -73,6 +88,10 @@ shell — see [Polymarket](#polymarket-the-honest-stub) for what that looks like
 done honestly. What you may **not** do is invent numbers to fill it.
 
 ## The contract
+
+Everything in this section is exported from `@omega-harness/usecase-kit`. A
+shell imports it from there — `import type { UseCaseShell, UseCaseViewProps }
+from '@omega-harness/usecase-kit'` — in this repository and in any other.
 
 ### `UseCaseShell`
 
@@ -124,11 +143,20 @@ derive it from `state` — that is almost always the answer, and widening is a
 real API decision, not a convenience.
 
 **Enforced, not just asked for.** `eslint.config.js` restricts imports inside
-the shell directories (`victoria/`, `polymarket/`, `demo.tsx`; the seam's own
-`core.tsx`, `registry.ts`, `data-source.ts` and `health.tsx` are exempt, as are
-test files): a shell may not import `usecases/core.js` (the core views'
-privileged context), `data/api.js` or `data/useForeman.js` (Foreman's own API
-client), or `ForemanApp.js`. Each is a lint error naming what to use instead.
+the shell directories (`victoria/`, `polymarket/`, `demo.tsx`; the host's own
+`core.tsx`, `registry.ts` and `health.tsx` are exempt, as are test files). A
+shell may not import:
+
+- `usecases/core.js` — the core views' privileged context;
+- `data/api.js` or `data/useForeman.js` — Foreman's own API client;
+- `ForemanApp.js` — the app shell;
+- `usecases/registry.js`, `usecases/health.js` or `foreman/types.js` — the
+  **host's** copy of the seam. Import the contract from
+  `@omega-harness/usecase-kit` instead.
+
+Each is a lint error naming what to use instead. The last group is the one that
+keeps a shell portable: reaching for `../registry.js` compiles fine in-tree and
+is exactly what would break the day the shell moves to its own repository.
 
 ### View ordering
 
@@ -240,7 +268,15 @@ red dot and teaches the operator to ignore it.
 
 When set and non-empty it replaces `baseUrl`; it is the only supported way to
 repoint a shell at another backend, so it is part of the shell's public surface
-and belongs in the shell's doc comment. `registerUseCase` rejects duplicate
+and belongs in the shell's doc comment.
+
+The lookup goes through a bag the **host** injects: `main.tsx` calls
+`setUseCaseEnv(import.meta.env)` once. The kit cannot read `import.meta.env`
+itself — it ships pre-built `dist/`, which Vite does not rewrite, so a bare
+`import.meta.env` in there survives into the bundle unreplaced and evaluates to
+`undefined`, silently pinning every shell to its declared `baseUrl`. Resolution
+is lazy, so a client built at module scope (which every shell does) still sees
+the bag; `setUseCaseEnv` is the host's to call and a plugin's never to. `registerUseCase` rejects duplicate
 source ids within a shell — two sources under one id means one health dot
 silently replaces the other.
 
@@ -486,10 +522,16 @@ Registration is **eager and static**. There is no dynamic import, no plugin
 discovery and no network fetch, so a missing shell is a build error in the
 roster rather than a blank tab at runtime.
 
+**A shell is a pure export.** Its module exports a `UseCaseShell` object and
+does nothing else at import time — no `registerUseCase`, no fetching, no side
+effects. The convention is a named export (`export const victoriaUseCase:
+UseCaseShell = { … }`). A shell that registered itself could not be tree-shaken,
+could not be tested without the app, and would make import order behaviour.
+
 `usecases/index.ts` is the roster and the only place registration happens.
 Importing it is what makes shells exist; `ForemanApp` imports it for that side
-effect. Every shell in the app is visible in that one file rather than scattered
-across self-registering modules.
+effect. Every shell in the app is visible in that one file — a flat list of
+imports and one array — rather than scattered across self-registering modules.
 
 ```ts
 const roster: UseCaseShell[] = [victoriaUseCase, polymarketUseCase];
@@ -617,7 +659,7 @@ Adding endpoints to a shell that already exists is a small, local change:
    first backend, add the source to `dataSources` and the health dot appears on
    its own.
 
-Nothing in `registry.ts`, `core.tsx`, `data-source.ts` or `ForemanApp` changes.
+Nothing in `registry.ts`, `core.tsx`, the kit or `ForemanApp` changes.
 If you find yourself needing to touch one of them, that is the signal to stop
 and reconsider — most often it means a view wants something that belongs on
 `state`, or wants `UseCaseViewProps` to widen, which it does not.

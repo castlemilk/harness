@@ -16,7 +16,7 @@
  * there is one and that it has nothing to report.
  */
 import { Panel, Pill, SectionLabel } from '../../../ui/primitives.js';
-import type { UseCaseViewProps } from '../../registry.js';
+import type { UseCaseViewProps } from '@omega-harness/usecase-kit';
 
 /**
  * The configured pipeline.

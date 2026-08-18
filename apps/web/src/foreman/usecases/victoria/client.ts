@@ -24,7 +24,7 @@
  * json tags, so those types are snake_case and their required fields really are
  * always present.
  */
-import { createDataSource, type UseCaseDataSourceConfig } from '../data-source.js';
+import { createDataSource, type UseCaseDataSourceConfig } from '@omega-harness/usecase-kit';
 
 /**
  * The omega Go API.

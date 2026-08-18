@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import type { Vocabulary } from './registry.js';
+import type { Vocabulary } from '@omega-harness/usecase-kit';
 
 /**
  * The vocabulary seam.

@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
-import { createDataSource } from './data-source.js';
-import type { UseCaseShell, UseCaseViewProps } from './registry.js';
+import {
+  createDataSource,
+  type UseCaseShell,
+  type UseCaseViewProps,
+} from '@omega-harness/usecase-kit';
 
 /**
  * The proof shell.

@@ -16,7 +16,7 @@
  * `/tmp/{version}_signal_correlation.json` is absent, which it is unless a run
  * has written one. That is an empty state, not an error, and it says so.
  */
-import type { UseCaseViewProps } from '../../registry.js';
+import type { UseCaseViewProps } from '@omega-harness/usecase-kit';
 import { HeatGrid } from '../charts.js';
 import type { Signal } from '../client.js';
 import { ratio } from '../format.js';

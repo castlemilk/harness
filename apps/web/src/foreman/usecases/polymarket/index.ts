@@ -19,7 +19,7 @@
  * Like Victoria's, this module is the manifest and nothing else: data only, no
  * client constructed, no fetch. Registered by the roster in `../index.ts`.
  */
-import type { UseCaseShell } from '../registry.js';
+import type { UseCaseShell } from '@omega-harness/usecase-kit';
 import { PolymarketPipeline } from './views/Pipeline.js';
 
 /**

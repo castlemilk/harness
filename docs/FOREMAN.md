@@ -53,15 +53,23 @@ core chrome only, which is what every pre-existing objective is.
 back to Console when the active view id doesn't exist on this objective.
 
 ```
-apps/web/src/foreman/usecases/registry.ts     the seam: shells, tabs, resolution, roster
+packages/usecase-kit/                         THE CONTRACT: @omega-harness/usecase-kit
+apps/web/src/foreman/usecases/registry.ts     the host: the shell map, tabs, resolution
 apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the six, and their wiring
 apps/web/src/foreman/usecases/index.ts        the roster: who is registered, when
-apps/web/src/foreman/usecases/data-source.ts  how a shell reaches its own backend
 apps/web/src/foreman/usecases/health.tsx      probing + the chrome's health dots
 apps/web/src/foreman/usecases/demo.tsx        the proof shell (dev/test only)
 apps/web/src/foreman/usecases/victoria/       the trading shell (UC-3) — six tabs, omega API
 apps/web/src/foreman/usecases/polymarket/     the prediction-markets stub (UC-4) — no backend
 ```
+
+The contract — `UseCaseShell`, `UseCaseViewProps`, the `ObjectiveState` wire
+shapes and `createDataSource` — lives in the workspace package
+`@omega-harness/usecase-kit`, which imports nothing from the harness. A shell
+imports the kit; the registry (host state) stays in the app. Consumers resolve
+the kit through its `dist/`, so it is built before anything that reads it
+(`task build:kit`, declared as a dependency of `lint`, `typecheck`, `test` and
+`dev`).
 
 Three properties are load-bearing and easy to break:
 
@@ -72,6 +80,9 @@ Three properties are load-bearing and easy to break:
   data; every fetch originates in a view-level hook.
 - **Registration goes through `registerRoster`**, which replaces the previous
   roster so Vite HMR doesn't collide with it. Duplicate ids still throw.
+- **A shell is a pure export.** It exports a `UseCaseShell` object and registers
+  nothing; `usecases/index.ts` is the single registration point. That is what
+  lets a shell live in another repository with only the kit as a dependency.
 
 📖 **[docs/USE-CASE-SHELLS.md](./USE-CASE-SHELLS.md) is the authoring guide** —
 the full contract, data sources and the health dot, the Victoria file-by-file
@@ -82,7 +93,12 @@ phase-2 path. Read it before writing a shell.
 
 `types.ts` is both the render model and the wire format — the server serialises
 `ObjectiveState` exactly as the shells consume it, so there is no field mapping
-to keep in sync. `data/adapt.ts` owns what is left at that seam:
+to keep in sync. The half of it that `ObjectiveState` is made of is defined in
+`@omega-harness/usecase-kit` (a plugin is handed `state`, so it has to be able
+to name the type) and re-exported by `types.ts`, which still owns what only the
+core chrome renders: transcripts, usage, tools, playbooks. Validation stayed in
+the app — the kit ships the contract, the host enforces it. `data/adapt.ts` owns
+what is left at that seam:
 
 - `projectObjectiveState(wire)` — the boundary check for a whole snapshot, run
   on the fetched state *and* the SSE `init` frame. It asserts only the

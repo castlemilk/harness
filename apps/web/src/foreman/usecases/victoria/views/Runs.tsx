@@ -27,7 +27,7 @@
  */
 import { useMemo, useState } from 'react';
 import { Pill } from '../../../ui/primitives.js';
-import type { UseCaseViewProps } from '../../registry.js';
+import type { UseCaseViewProps } from '@omega-harness/usecase-kit';
 import type { VersionInfo } from '../client.js';
 import { pct, pnlClass, ratio, signedCount, signedPct, signedUsd } from '../format.js';
 import { useVictoriaCompare, useVictoriaVersions } from '../hooks.js';

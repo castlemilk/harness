@@ -66,10 +66,16 @@ export default ts.config(
     // or into the app shell — is how a plugin seam quietly becomes a second
     // copy of the app. It was a convention held by review until now.
     //
-    // Scoped to the shell directories only. `core.tsx`, `registry.ts`,
-    // `data-source.ts` and `health.tsx` are the seam itself and legitimately
-    // import these. Test files are excluded: they assert *about* the seam, and
-    // one already imports `ObjectiveState` from `data/api.js` to build a state.
+    // Since the contract moved to `@omega-harness/usecase-kit`, the rule also
+    // enforces the direction of the dependency: a shell imports the KIT, never
+    // the host's copy of the seam. Reaching for `../registry.js` or
+    // `../../types.js` still compiles in-tree and is exactly what would fail
+    // the day the shell moves to its own repository, so it is an error here.
+    //
+    // Scoped to the shell directories only. `core.tsx`, `registry.ts` and
+    // `health.tsx` are the seam itself and legitimately import these. Test
+    // files are excluded: they assert *about* the seam, and they import the
+    // roster (`../index.js`) to exercise the real registration path.
     files: [
       'apps/web/src/foreman/usecases/victoria/**/*.ts',
       'apps/web/src/foreman/usecases/victoria/**/*.tsx',
@@ -95,6 +101,26 @@ export default ts.config(
             group: ['**/ForemanApp.js', '**/ForemanApp'],
             message:
               'A shell must not reach into the app shell. Everything it may touch is on UseCaseViewProps.',
+          },
+          {
+            // The host's registry, health machinery and view model. Each has a
+            // kit equivalent, and the relative paths below are the only shapes
+            // these imports can take from inside a shell directory.
+            group: [
+              '../registry.js',
+              '../../registry.js',
+              '**/usecases/registry.js',
+              '../health.js',
+              '../../health.js',
+              '**/usecases/health.js',
+              '../data-source.js',
+              '../../data-source.js',
+              '../../types.js',
+              '../../../types.js',
+              '**/foreman/types.js',
+            ],
+            message:
+              "Import the contract from '@omega-harness/usecase-kit', not from the host. The registry and the health probes are Foreman's; the types a shell may name are the kit's.",
           },
         ],
       }],

@@ -118,6 +118,12 @@ export type Playbook = $Result.DefaultSelection<Prisma.$PlaybookPayload>
  * 
  */
 export type HarnessTool = $Result.DefaultSelection<Prisma.$HarnessToolPayload>
+/**
+ * Model HarnessToolRun
+ * One attempted invocation of a HarnessTool — recorded, blocked, or executed.
+ * This is the audit trail: it exists even when nothing ran.
+ */
+export type HarnessToolRun = $Result.DefaultSelection<Prisma.$HarnessToolRunPayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -451,6 +457,16 @@ export class PrismaClient<
     * ```
     */
   get harnessTool(): Prisma.HarnessToolDelegate<ExtArgs>;
+
+  /**
+   * `prisma.harnessToolRun`: Exposes CRUD operations for the **HarnessToolRun** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more HarnessToolRuns
+    * const harnessToolRuns = await prisma.harnessToolRun.findMany()
+    * ```
+    */
+  get harnessToolRun(): Prisma.HarnessToolRunDelegate<ExtArgs>;
 }
 
 export namespace Prisma {
@@ -912,7 +928,8 @@ export namespace Prisma {
     Pulse: 'Pulse',
     Intervention: 'Intervention',
     Playbook: 'Playbook',
-    HarnessTool: 'HarnessTool'
+    HarnessTool: 'HarnessTool',
+    HarnessToolRun: 'HarnessToolRun'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -928,7 +945,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "skillArtifact" | "promptVersion" | "benchmarkHistory" | "benchmarkRun" | "providerCircuitState" | "objective" | "objectivePhase" | "workstream" | "harness" | "pulse" | "intervention" | "playbook" | "harnessTool"
+      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "skillArtifact" | "promptVersion" | "benchmarkHistory" | "benchmarkRun" | "providerCircuitState" | "objective" | "objectivePhase" | "workstream" | "harness" | "pulse" | "intervention" | "playbook" | "harnessTool" | "harnessToolRun"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2402,6 +2419,76 @@ export namespace Prisma {
           }
         }
       }
+      HarnessToolRun: {
+        payload: Prisma.$HarnessToolRunPayload<ExtArgs>
+        fields: Prisma.HarnessToolRunFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.HarnessToolRunFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolRunPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.HarnessToolRunFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolRunPayload>
+          }
+          findFirst: {
+            args: Prisma.HarnessToolRunFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolRunPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.HarnessToolRunFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolRunPayload>
+          }
+          findMany: {
+            args: Prisma.HarnessToolRunFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolRunPayload>[]
+          }
+          create: {
+            args: Prisma.HarnessToolRunCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolRunPayload>
+          }
+          createMany: {
+            args: Prisma.HarnessToolRunCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.HarnessToolRunCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolRunPayload>[]
+          }
+          delete: {
+            args: Prisma.HarnessToolRunDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolRunPayload>
+          }
+          update: {
+            args: Prisma.HarnessToolRunUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolRunPayload>
+          }
+          deleteMany: {
+            args: Prisma.HarnessToolRunDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.HarnessToolRunUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.HarnessToolRunUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$HarnessToolRunPayload>
+          }
+          aggregate: {
+            args: Prisma.HarnessToolRunAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateHarnessToolRun>
+          }
+          groupBy: {
+            args: Prisma.HarnessToolRunGroupByArgs<ExtArgs>
+            result: $Utils.Optional<HarnessToolRunGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.HarnessToolRunCountArgs<ExtArgs>
+            result: $Utils.Optional<HarnessToolRunCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -2835,6 +2922,37 @@ export namespace Prisma {
    */
   export type HarnessCountOutputTypeCountToolsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: HarnessToolWhereInput
+  }
+
+
+  /**
+   * Count Type HarnessToolCountOutputType
+   */
+
+  export type HarnessToolCountOutputType = {
+    runs: number
+  }
+
+  export type HarnessToolCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    runs?: boolean | HarnessToolCountOutputTypeCountRunsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * HarnessToolCountOutputType without action
+   */
+  export type HarnessToolCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolCountOutputType
+     */
+    select?: HarnessToolCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * HarnessToolCountOutputType without action
+   */
+  export type HarnessToolCountOutputTypeCountRunsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: HarnessToolRunWhereInput
   }
 
 
@@ -23788,8 +23906,18 @@ export namespace Prisma {
 
   export type AggregateHarnessTool = {
     _count: HarnessToolCountAggregateOutputType | null
+    _avg: HarnessToolAvgAggregateOutputType | null
+    _sum: HarnessToolSumAggregateOutputType | null
     _min: HarnessToolMinAggregateOutputType | null
     _max: HarnessToolMaxAggregateOutputType | null
+  }
+
+  export type HarnessToolAvgAggregateOutputType = {
+    timeoutMs: number | null
+  }
+
+  export type HarnessToolSumAggregateOutputType = {
+    timeoutMs: number | null
   }
 
   export type HarnessToolMinAggregateOutputType = {
@@ -23801,6 +23929,10 @@ export namespace Prisma {
     lastStatus: string | null
     lastResultLabel: string | null
     lastRanAt: Date | null
+    command: string | null
+    permissionId: string | null
+    timeoutMs: number | null
+    approvedInterventionId: string | null
   }
 
   export type HarnessToolMaxAggregateOutputType = {
@@ -23812,6 +23944,10 @@ export namespace Prisma {
     lastStatus: string | null
     lastResultLabel: string | null
     lastRanAt: Date | null
+    command: string | null
+    permissionId: string | null
+    timeoutMs: number | null
+    approvedInterventionId: string | null
   }
 
   export type HarnessToolCountAggregateOutputType = {
@@ -23823,9 +23959,21 @@ export namespace Prisma {
     lastStatus: number
     lastResultLabel: number
     lastRanAt: number
+    command: number
+    permissionId: number
+    timeoutMs: number
+    approvedInterventionId: number
     _all: number
   }
 
+
+  export type HarnessToolAvgAggregateInputType = {
+    timeoutMs?: true
+  }
+
+  export type HarnessToolSumAggregateInputType = {
+    timeoutMs?: true
+  }
 
   export type HarnessToolMinAggregateInputType = {
     id?: true
@@ -23836,6 +23984,10 @@ export namespace Prisma {
     lastStatus?: true
     lastResultLabel?: true
     lastRanAt?: true
+    command?: true
+    permissionId?: true
+    timeoutMs?: true
+    approvedInterventionId?: true
   }
 
   export type HarnessToolMaxAggregateInputType = {
@@ -23847,6 +23999,10 @@ export namespace Prisma {
     lastStatus?: true
     lastResultLabel?: true
     lastRanAt?: true
+    command?: true
+    permissionId?: true
+    timeoutMs?: true
+    approvedInterventionId?: true
   }
 
   export type HarnessToolCountAggregateInputType = {
@@ -23858,6 +24014,10 @@ export namespace Prisma {
     lastStatus?: true
     lastResultLabel?: true
     lastRanAt?: true
+    command?: true
+    permissionId?: true
+    timeoutMs?: true
+    approvedInterventionId?: true
     _all?: true
   }
 
@@ -23899,6 +24059,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: HarnessToolAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: HarnessToolSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: HarnessToolMinAggregateInputType
@@ -23929,6 +24101,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: HarnessToolCountAggregateInputType | true
+    _avg?: HarnessToolAvgAggregateInputType
+    _sum?: HarnessToolSumAggregateInputType
     _min?: HarnessToolMinAggregateInputType
     _max?: HarnessToolMaxAggregateInputType
   }
@@ -23942,7 +24116,13 @@ export namespace Prisma {
     lastStatus: string | null
     lastResultLabel: string | null
     lastRanAt: Date | null
+    command: string | null
+    permissionId: string | null
+    timeoutMs: number | null
+    approvedInterventionId: string | null
     _count: HarnessToolCountAggregateOutputType | null
+    _avg: HarnessToolAvgAggregateOutputType | null
+    _sum: HarnessToolSumAggregateOutputType | null
     _min: HarnessToolMinAggregateOutputType | null
     _max: HarnessToolMaxAggregateOutputType | null
   }
@@ -23970,7 +24150,13 @@ export namespace Prisma {
     lastStatus?: boolean
     lastResultLabel?: boolean
     lastRanAt?: boolean
+    command?: boolean
+    permissionId?: boolean
+    timeoutMs?: boolean
+    approvedInterventionId?: boolean
     harness?: boolean | HarnessDefaultArgs<ExtArgs>
+    runs?: boolean | HarnessTool$runsArgs<ExtArgs>
+    _count?: boolean | HarnessToolCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["harnessTool"]>
 
   export type HarnessToolSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -23982,6 +24168,10 @@ export namespace Prisma {
     lastStatus?: boolean
     lastResultLabel?: boolean
     lastRanAt?: boolean
+    command?: boolean
+    permissionId?: boolean
+    timeoutMs?: boolean
+    approvedInterventionId?: boolean
     harness?: boolean | HarnessDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["harnessTool"]>
 
@@ -23994,10 +24184,16 @@ export namespace Prisma {
     lastStatus?: boolean
     lastResultLabel?: boolean
     lastRanAt?: boolean
+    command?: boolean
+    permissionId?: boolean
+    timeoutMs?: boolean
+    approvedInterventionId?: boolean
   }
 
   export type HarnessToolInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     harness?: boolean | HarnessDefaultArgs<ExtArgs>
+    runs?: boolean | HarnessTool$runsArgs<ExtArgs>
+    _count?: boolean | HarnessToolCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type HarnessToolIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     harness?: boolean | HarnessDefaultArgs<ExtArgs>
@@ -24007,6 +24203,7 @@ export namespace Prisma {
     name: "HarnessTool"
     objects: {
       harness: Prisma.$HarnessPayload<ExtArgs>
+      runs: Prisma.$HarnessToolRunPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -24017,6 +24214,10 @@ export namespace Prisma {
       lastStatus: string | null
       lastResultLabel: string | null
       lastRanAt: Date | null
+      command: string | null
+      permissionId: string | null
+      timeoutMs: number | null
+      approvedInterventionId: string | null
     }, ExtArgs["result"]["harnessTool"]>
     composites: {}
   }
@@ -24382,6 +24583,7 @@ export namespace Prisma {
   export interface Prisma__HarnessToolClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     harness<T extends HarnessDefaultArgs<ExtArgs> = {}>(args?: Subset<T, HarnessDefaultArgs<ExtArgs>>): Prisma__HarnessClient<$Result.GetResult<Prisma.$HarnessPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    runs<T extends HarnessTool$runsArgs<ExtArgs> = {}>(args?: Subset<T, HarnessTool$runsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$HarnessToolRunPayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -24419,6 +24621,10 @@ export namespace Prisma {
     readonly lastStatus: FieldRef<"HarnessTool", 'String'>
     readonly lastResultLabel: FieldRef<"HarnessTool", 'String'>
     readonly lastRanAt: FieldRef<"HarnessTool", 'DateTime'>
+    readonly command: FieldRef<"HarnessTool", 'String'>
+    readonly permissionId: FieldRef<"HarnessTool", 'String'>
+    readonly timeoutMs: FieldRef<"HarnessTool", 'Int'>
+    readonly approvedInterventionId: FieldRef<"HarnessTool", 'String'>
   }
     
 
@@ -24737,6 +24943,26 @@ export namespace Prisma {
   }
 
   /**
+   * HarnessTool.runs
+   */
+  export type HarnessTool$runsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolRun
+     */
+    select?: HarnessToolRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolRunInclude<ExtArgs> | null
+    where?: HarnessToolRunWhereInput
+    orderBy?: HarnessToolRunOrderByWithRelationInput | HarnessToolRunOrderByWithRelationInput[]
+    cursor?: HarnessToolRunWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: HarnessToolRunScalarFieldEnum | HarnessToolRunScalarFieldEnum[]
+  }
+
+  /**
    * HarnessTool without action
    */
   export type HarnessToolDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -24748,6 +24974,1085 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: HarnessToolInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model HarnessToolRun
+   */
+
+  export type AggregateHarnessToolRun = {
+    _count: HarnessToolRunCountAggregateOutputType | null
+    _avg: HarnessToolRunAvgAggregateOutputType | null
+    _sum: HarnessToolRunSumAggregateOutputType | null
+    _min: HarnessToolRunMinAggregateOutputType | null
+    _max: HarnessToolRunMaxAggregateOutputType | null
+  }
+
+  export type HarnessToolRunAvgAggregateOutputType = {
+    exitCode: number | null
+    durationMs: number | null
+  }
+
+  export type HarnessToolRunSumAggregateOutputType = {
+    exitCode: number | null
+    durationMs: number | null
+  }
+
+  export type HarnessToolRunMinAggregateOutputType = {
+    id: string | null
+    toolId: string | null
+    harnessId: string | null
+    status: string | null
+    label: string | null
+    command: string | null
+    cwd: string | null
+    exitCode: number | null
+    durationMs: number | null
+    permissionId: string | null
+    interventionId: string | null
+    output: string | null
+    createdAt: Date | null
+  }
+
+  export type HarnessToolRunMaxAggregateOutputType = {
+    id: string | null
+    toolId: string | null
+    harnessId: string | null
+    status: string | null
+    label: string | null
+    command: string | null
+    cwd: string | null
+    exitCode: number | null
+    durationMs: number | null
+    permissionId: string | null
+    interventionId: string | null
+    output: string | null
+    createdAt: Date | null
+  }
+
+  export type HarnessToolRunCountAggregateOutputType = {
+    id: number
+    toolId: number
+    harnessId: number
+    status: number
+    label: number
+    command: number
+    cwd: number
+    exitCode: number
+    durationMs: number
+    permissionId: number
+    interventionId: number
+    output: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type HarnessToolRunAvgAggregateInputType = {
+    exitCode?: true
+    durationMs?: true
+  }
+
+  export type HarnessToolRunSumAggregateInputType = {
+    exitCode?: true
+    durationMs?: true
+  }
+
+  export type HarnessToolRunMinAggregateInputType = {
+    id?: true
+    toolId?: true
+    harnessId?: true
+    status?: true
+    label?: true
+    command?: true
+    cwd?: true
+    exitCode?: true
+    durationMs?: true
+    permissionId?: true
+    interventionId?: true
+    output?: true
+    createdAt?: true
+  }
+
+  export type HarnessToolRunMaxAggregateInputType = {
+    id?: true
+    toolId?: true
+    harnessId?: true
+    status?: true
+    label?: true
+    command?: true
+    cwd?: true
+    exitCode?: true
+    durationMs?: true
+    permissionId?: true
+    interventionId?: true
+    output?: true
+    createdAt?: true
+  }
+
+  export type HarnessToolRunCountAggregateInputType = {
+    id?: true
+    toolId?: true
+    harnessId?: true
+    status?: true
+    label?: true
+    command?: true
+    cwd?: true
+    exitCode?: true
+    durationMs?: true
+    permissionId?: true
+    interventionId?: true
+    output?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type HarnessToolRunAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which HarnessToolRun to aggregate.
+     */
+    where?: HarnessToolRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of HarnessToolRuns to fetch.
+     */
+    orderBy?: HarnessToolRunOrderByWithRelationInput | HarnessToolRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: HarnessToolRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` HarnessToolRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` HarnessToolRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned HarnessToolRuns
+    **/
+    _count?: true | HarnessToolRunCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: HarnessToolRunAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: HarnessToolRunSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: HarnessToolRunMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: HarnessToolRunMaxAggregateInputType
+  }
+
+  export type GetHarnessToolRunAggregateType<T extends HarnessToolRunAggregateArgs> = {
+        [P in keyof T & keyof AggregateHarnessToolRun]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateHarnessToolRun[P]>
+      : GetScalarType<T[P], AggregateHarnessToolRun[P]>
+  }
+
+
+
+
+  export type HarnessToolRunGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: HarnessToolRunWhereInput
+    orderBy?: HarnessToolRunOrderByWithAggregationInput | HarnessToolRunOrderByWithAggregationInput[]
+    by: HarnessToolRunScalarFieldEnum[] | HarnessToolRunScalarFieldEnum
+    having?: HarnessToolRunScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: HarnessToolRunCountAggregateInputType | true
+    _avg?: HarnessToolRunAvgAggregateInputType
+    _sum?: HarnessToolRunSumAggregateInputType
+    _min?: HarnessToolRunMinAggregateInputType
+    _max?: HarnessToolRunMaxAggregateInputType
+  }
+
+  export type HarnessToolRunGroupByOutputType = {
+    id: string
+    toolId: string
+    harnessId: string
+    status: string
+    label: string
+    command: string | null
+    cwd: string | null
+    exitCode: number | null
+    durationMs: number | null
+    permissionId: string | null
+    interventionId: string | null
+    output: string | null
+    createdAt: Date
+    _count: HarnessToolRunCountAggregateOutputType | null
+    _avg: HarnessToolRunAvgAggregateOutputType | null
+    _sum: HarnessToolRunSumAggregateOutputType | null
+    _min: HarnessToolRunMinAggregateOutputType | null
+    _max: HarnessToolRunMaxAggregateOutputType | null
+  }
+
+  type GetHarnessToolRunGroupByPayload<T extends HarnessToolRunGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<HarnessToolRunGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof HarnessToolRunGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], HarnessToolRunGroupByOutputType[P]>
+            : GetScalarType<T[P], HarnessToolRunGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type HarnessToolRunSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    toolId?: boolean
+    harnessId?: boolean
+    status?: boolean
+    label?: boolean
+    command?: boolean
+    cwd?: boolean
+    exitCode?: boolean
+    durationMs?: boolean
+    permissionId?: boolean
+    interventionId?: boolean
+    output?: boolean
+    createdAt?: boolean
+    tool?: boolean | HarnessToolDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["harnessToolRun"]>
+
+  export type HarnessToolRunSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    toolId?: boolean
+    harnessId?: boolean
+    status?: boolean
+    label?: boolean
+    command?: boolean
+    cwd?: boolean
+    exitCode?: boolean
+    durationMs?: boolean
+    permissionId?: boolean
+    interventionId?: boolean
+    output?: boolean
+    createdAt?: boolean
+    tool?: boolean | HarnessToolDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["harnessToolRun"]>
+
+  export type HarnessToolRunSelectScalar = {
+    id?: boolean
+    toolId?: boolean
+    harnessId?: boolean
+    status?: boolean
+    label?: boolean
+    command?: boolean
+    cwd?: boolean
+    exitCode?: boolean
+    durationMs?: boolean
+    permissionId?: boolean
+    interventionId?: boolean
+    output?: boolean
+    createdAt?: boolean
+  }
+
+  export type HarnessToolRunInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    tool?: boolean | HarnessToolDefaultArgs<ExtArgs>
+  }
+  export type HarnessToolRunIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    tool?: boolean | HarnessToolDefaultArgs<ExtArgs>
+  }
+
+  export type $HarnessToolRunPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "HarnessToolRun"
+    objects: {
+      tool: Prisma.$HarnessToolPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      toolId: string
+      harnessId: string
+      /**
+       * recorded | blocked-pending-approval | ok | fail | timeout | error
+       */
+      status: string
+      label: string
+      command: string | null
+      cwd: string | null
+      exitCode: number | null
+      durationMs: number | null
+      /**
+       * The permission id that authorised the run, if a standing permission did.
+       */
+      permissionId: string | null
+      /**
+       * The intervention that authorised (one-shot approval) or blocked this run.
+       */
+      interventionId: string | null
+      /**
+       * Bounded excerpt of the combined stdout/stderr.
+       */
+      output: string | null
+      createdAt: Date
+    }, ExtArgs["result"]["harnessToolRun"]>
+    composites: {}
+  }
+
+  type HarnessToolRunGetPayload<S extends boolean | null | undefined | HarnessToolRunDefaultArgs> = $Result.GetResult<Prisma.$HarnessToolRunPayload, S>
+
+  type HarnessToolRunCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<HarnessToolRunFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: HarnessToolRunCountAggregateInputType | true
+    }
+
+  export interface HarnessToolRunDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['HarnessToolRun'], meta: { name: 'HarnessToolRun' } }
+    /**
+     * Find zero or one HarnessToolRun that matches the filter.
+     * @param {HarnessToolRunFindUniqueArgs} args - Arguments to find a HarnessToolRun
+     * @example
+     * // Get one HarnessToolRun
+     * const harnessToolRun = await prisma.harnessToolRun.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends HarnessToolRunFindUniqueArgs>(args: SelectSubset<T, HarnessToolRunFindUniqueArgs<ExtArgs>>): Prisma__HarnessToolRunClient<$Result.GetResult<Prisma.$HarnessToolRunPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one HarnessToolRun that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {HarnessToolRunFindUniqueOrThrowArgs} args - Arguments to find a HarnessToolRun
+     * @example
+     * // Get one HarnessToolRun
+     * const harnessToolRun = await prisma.harnessToolRun.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends HarnessToolRunFindUniqueOrThrowArgs>(args: SelectSubset<T, HarnessToolRunFindUniqueOrThrowArgs<ExtArgs>>): Prisma__HarnessToolRunClient<$Result.GetResult<Prisma.$HarnessToolRunPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first HarnessToolRun that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolRunFindFirstArgs} args - Arguments to find a HarnessToolRun
+     * @example
+     * // Get one HarnessToolRun
+     * const harnessToolRun = await prisma.harnessToolRun.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends HarnessToolRunFindFirstArgs>(args?: SelectSubset<T, HarnessToolRunFindFirstArgs<ExtArgs>>): Prisma__HarnessToolRunClient<$Result.GetResult<Prisma.$HarnessToolRunPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first HarnessToolRun that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolRunFindFirstOrThrowArgs} args - Arguments to find a HarnessToolRun
+     * @example
+     * // Get one HarnessToolRun
+     * const harnessToolRun = await prisma.harnessToolRun.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends HarnessToolRunFindFirstOrThrowArgs>(args?: SelectSubset<T, HarnessToolRunFindFirstOrThrowArgs<ExtArgs>>): Prisma__HarnessToolRunClient<$Result.GetResult<Prisma.$HarnessToolRunPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more HarnessToolRuns that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolRunFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all HarnessToolRuns
+     * const harnessToolRuns = await prisma.harnessToolRun.findMany()
+     * 
+     * // Get first 10 HarnessToolRuns
+     * const harnessToolRuns = await prisma.harnessToolRun.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const harnessToolRunWithIdOnly = await prisma.harnessToolRun.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends HarnessToolRunFindManyArgs>(args?: SelectSubset<T, HarnessToolRunFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$HarnessToolRunPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a HarnessToolRun.
+     * @param {HarnessToolRunCreateArgs} args - Arguments to create a HarnessToolRun.
+     * @example
+     * // Create one HarnessToolRun
+     * const HarnessToolRun = await prisma.harnessToolRun.create({
+     *   data: {
+     *     // ... data to create a HarnessToolRun
+     *   }
+     * })
+     * 
+     */
+    create<T extends HarnessToolRunCreateArgs>(args: SelectSubset<T, HarnessToolRunCreateArgs<ExtArgs>>): Prisma__HarnessToolRunClient<$Result.GetResult<Prisma.$HarnessToolRunPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many HarnessToolRuns.
+     * @param {HarnessToolRunCreateManyArgs} args - Arguments to create many HarnessToolRuns.
+     * @example
+     * // Create many HarnessToolRuns
+     * const harnessToolRun = await prisma.harnessToolRun.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends HarnessToolRunCreateManyArgs>(args?: SelectSubset<T, HarnessToolRunCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many HarnessToolRuns and returns the data saved in the database.
+     * @param {HarnessToolRunCreateManyAndReturnArgs} args - Arguments to create many HarnessToolRuns.
+     * @example
+     * // Create many HarnessToolRuns
+     * const harnessToolRun = await prisma.harnessToolRun.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many HarnessToolRuns and only return the `id`
+     * const harnessToolRunWithIdOnly = await prisma.harnessToolRun.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends HarnessToolRunCreateManyAndReturnArgs>(args?: SelectSubset<T, HarnessToolRunCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$HarnessToolRunPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a HarnessToolRun.
+     * @param {HarnessToolRunDeleteArgs} args - Arguments to delete one HarnessToolRun.
+     * @example
+     * // Delete one HarnessToolRun
+     * const HarnessToolRun = await prisma.harnessToolRun.delete({
+     *   where: {
+     *     // ... filter to delete one HarnessToolRun
+     *   }
+     * })
+     * 
+     */
+    delete<T extends HarnessToolRunDeleteArgs>(args: SelectSubset<T, HarnessToolRunDeleteArgs<ExtArgs>>): Prisma__HarnessToolRunClient<$Result.GetResult<Prisma.$HarnessToolRunPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one HarnessToolRun.
+     * @param {HarnessToolRunUpdateArgs} args - Arguments to update one HarnessToolRun.
+     * @example
+     * // Update one HarnessToolRun
+     * const harnessToolRun = await prisma.harnessToolRun.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends HarnessToolRunUpdateArgs>(args: SelectSubset<T, HarnessToolRunUpdateArgs<ExtArgs>>): Prisma__HarnessToolRunClient<$Result.GetResult<Prisma.$HarnessToolRunPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more HarnessToolRuns.
+     * @param {HarnessToolRunDeleteManyArgs} args - Arguments to filter HarnessToolRuns to delete.
+     * @example
+     * // Delete a few HarnessToolRuns
+     * const { count } = await prisma.harnessToolRun.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends HarnessToolRunDeleteManyArgs>(args?: SelectSubset<T, HarnessToolRunDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more HarnessToolRuns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolRunUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many HarnessToolRuns
+     * const harnessToolRun = await prisma.harnessToolRun.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends HarnessToolRunUpdateManyArgs>(args: SelectSubset<T, HarnessToolRunUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one HarnessToolRun.
+     * @param {HarnessToolRunUpsertArgs} args - Arguments to update or create a HarnessToolRun.
+     * @example
+     * // Update or create a HarnessToolRun
+     * const harnessToolRun = await prisma.harnessToolRun.upsert({
+     *   create: {
+     *     // ... data to create a HarnessToolRun
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the HarnessToolRun we want to update
+     *   }
+     * })
+     */
+    upsert<T extends HarnessToolRunUpsertArgs>(args: SelectSubset<T, HarnessToolRunUpsertArgs<ExtArgs>>): Prisma__HarnessToolRunClient<$Result.GetResult<Prisma.$HarnessToolRunPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of HarnessToolRuns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolRunCountArgs} args - Arguments to filter HarnessToolRuns to count.
+     * @example
+     * // Count the number of HarnessToolRuns
+     * const count = await prisma.harnessToolRun.count({
+     *   where: {
+     *     // ... the filter for the HarnessToolRuns we want to count
+     *   }
+     * })
+    **/
+    count<T extends HarnessToolRunCountArgs>(
+      args?: Subset<T, HarnessToolRunCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], HarnessToolRunCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a HarnessToolRun.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolRunAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends HarnessToolRunAggregateArgs>(args: Subset<T, HarnessToolRunAggregateArgs>): Prisma.PrismaPromise<GetHarnessToolRunAggregateType<T>>
+
+    /**
+     * Group by HarnessToolRun.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {HarnessToolRunGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends HarnessToolRunGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: HarnessToolRunGroupByArgs['orderBy'] }
+        : { orderBy?: HarnessToolRunGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, HarnessToolRunGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetHarnessToolRunGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the HarnessToolRun model
+   */
+  readonly fields: HarnessToolRunFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for HarnessToolRun.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__HarnessToolRunClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    tool<T extends HarnessToolDefaultArgs<ExtArgs> = {}>(args?: Subset<T, HarnessToolDefaultArgs<ExtArgs>>): Prisma__HarnessToolClient<$Result.GetResult<Prisma.$HarnessToolPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the HarnessToolRun model
+   */ 
+  interface HarnessToolRunFieldRefs {
+    readonly id: FieldRef<"HarnessToolRun", 'String'>
+    readonly toolId: FieldRef<"HarnessToolRun", 'String'>
+    readonly harnessId: FieldRef<"HarnessToolRun", 'String'>
+    readonly status: FieldRef<"HarnessToolRun", 'String'>
+    readonly label: FieldRef<"HarnessToolRun", 'String'>
+    readonly command: FieldRef<"HarnessToolRun", 'String'>
+    readonly cwd: FieldRef<"HarnessToolRun", 'String'>
+    readonly exitCode: FieldRef<"HarnessToolRun", 'Int'>
+    readonly durationMs: FieldRef<"HarnessToolRun", 'Int'>
+    readonly permissionId: FieldRef<"HarnessToolRun", 'String'>
+    readonly interventionId: FieldRef<"HarnessToolRun", 'String'>
+    readonly output: FieldRef<"HarnessToolRun", 'String'>
+    readonly createdAt: FieldRef<"HarnessToolRun", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * HarnessToolRun findUnique
+   */
+  export type HarnessToolRunFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolRun
+     */
+    select?: HarnessToolRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolRunInclude<ExtArgs> | null
+    /**
+     * Filter, which HarnessToolRun to fetch.
+     */
+    where: HarnessToolRunWhereUniqueInput
+  }
+
+  /**
+   * HarnessToolRun findUniqueOrThrow
+   */
+  export type HarnessToolRunFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolRun
+     */
+    select?: HarnessToolRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolRunInclude<ExtArgs> | null
+    /**
+     * Filter, which HarnessToolRun to fetch.
+     */
+    where: HarnessToolRunWhereUniqueInput
+  }
+
+  /**
+   * HarnessToolRun findFirst
+   */
+  export type HarnessToolRunFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolRun
+     */
+    select?: HarnessToolRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolRunInclude<ExtArgs> | null
+    /**
+     * Filter, which HarnessToolRun to fetch.
+     */
+    where?: HarnessToolRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of HarnessToolRuns to fetch.
+     */
+    orderBy?: HarnessToolRunOrderByWithRelationInput | HarnessToolRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for HarnessToolRuns.
+     */
+    cursor?: HarnessToolRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` HarnessToolRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` HarnessToolRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of HarnessToolRuns.
+     */
+    distinct?: HarnessToolRunScalarFieldEnum | HarnessToolRunScalarFieldEnum[]
+  }
+
+  /**
+   * HarnessToolRun findFirstOrThrow
+   */
+  export type HarnessToolRunFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolRun
+     */
+    select?: HarnessToolRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolRunInclude<ExtArgs> | null
+    /**
+     * Filter, which HarnessToolRun to fetch.
+     */
+    where?: HarnessToolRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of HarnessToolRuns to fetch.
+     */
+    orderBy?: HarnessToolRunOrderByWithRelationInput | HarnessToolRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for HarnessToolRuns.
+     */
+    cursor?: HarnessToolRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` HarnessToolRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` HarnessToolRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of HarnessToolRuns.
+     */
+    distinct?: HarnessToolRunScalarFieldEnum | HarnessToolRunScalarFieldEnum[]
+  }
+
+  /**
+   * HarnessToolRun findMany
+   */
+  export type HarnessToolRunFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolRun
+     */
+    select?: HarnessToolRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolRunInclude<ExtArgs> | null
+    /**
+     * Filter, which HarnessToolRuns to fetch.
+     */
+    where?: HarnessToolRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of HarnessToolRuns to fetch.
+     */
+    orderBy?: HarnessToolRunOrderByWithRelationInput | HarnessToolRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing HarnessToolRuns.
+     */
+    cursor?: HarnessToolRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` HarnessToolRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` HarnessToolRuns.
+     */
+    skip?: number
+    distinct?: HarnessToolRunScalarFieldEnum | HarnessToolRunScalarFieldEnum[]
+  }
+
+  /**
+   * HarnessToolRun create
+   */
+  export type HarnessToolRunCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolRun
+     */
+    select?: HarnessToolRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolRunInclude<ExtArgs> | null
+    /**
+     * The data needed to create a HarnessToolRun.
+     */
+    data: XOR<HarnessToolRunCreateInput, HarnessToolRunUncheckedCreateInput>
+  }
+
+  /**
+   * HarnessToolRun createMany
+   */
+  export type HarnessToolRunCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many HarnessToolRuns.
+     */
+    data: HarnessToolRunCreateManyInput | HarnessToolRunCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * HarnessToolRun createManyAndReturn
+   */
+  export type HarnessToolRunCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolRun
+     */
+    select?: HarnessToolRunSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many HarnessToolRuns.
+     */
+    data: HarnessToolRunCreateManyInput | HarnessToolRunCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolRunIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * HarnessToolRun update
+   */
+  export type HarnessToolRunUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolRun
+     */
+    select?: HarnessToolRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolRunInclude<ExtArgs> | null
+    /**
+     * The data needed to update a HarnessToolRun.
+     */
+    data: XOR<HarnessToolRunUpdateInput, HarnessToolRunUncheckedUpdateInput>
+    /**
+     * Choose, which HarnessToolRun to update.
+     */
+    where: HarnessToolRunWhereUniqueInput
+  }
+
+  /**
+   * HarnessToolRun updateMany
+   */
+  export type HarnessToolRunUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update HarnessToolRuns.
+     */
+    data: XOR<HarnessToolRunUpdateManyMutationInput, HarnessToolRunUncheckedUpdateManyInput>
+    /**
+     * Filter which HarnessToolRuns to update
+     */
+    where?: HarnessToolRunWhereInput
+  }
+
+  /**
+   * HarnessToolRun upsert
+   */
+  export type HarnessToolRunUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolRun
+     */
+    select?: HarnessToolRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolRunInclude<ExtArgs> | null
+    /**
+     * The filter to search for the HarnessToolRun to update in case it exists.
+     */
+    where: HarnessToolRunWhereUniqueInput
+    /**
+     * In case the HarnessToolRun found by the `where` argument doesn't exist, create a new HarnessToolRun with this data.
+     */
+    create: XOR<HarnessToolRunCreateInput, HarnessToolRunUncheckedCreateInput>
+    /**
+     * In case the HarnessToolRun was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<HarnessToolRunUpdateInput, HarnessToolRunUncheckedUpdateInput>
+  }
+
+  /**
+   * HarnessToolRun delete
+   */
+  export type HarnessToolRunDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolRun
+     */
+    select?: HarnessToolRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolRunInclude<ExtArgs> | null
+    /**
+     * Filter which HarnessToolRun to delete.
+     */
+    where: HarnessToolRunWhereUniqueInput
+  }
+
+  /**
+   * HarnessToolRun deleteMany
+   */
+  export type HarnessToolRunDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which HarnessToolRuns to delete
+     */
+    where?: HarnessToolRunWhereInput
+  }
+
+  /**
+   * HarnessToolRun without action
+   */
+  export type HarnessToolRunDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the HarnessToolRun
+     */
+    select?: HarnessToolRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: HarnessToolRunInclude<ExtArgs> | null
   }
 
 
@@ -25126,10 +26431,33 @@ export namespace Prisma {
     needsApproval: 'needsApproval',
     lastStatus: 'lastStatus',
     lastResultLabel: 'lastResultLabel',
-    lastRanAt: 'lastRanAt'
+    lastRanAt: 'lastRanAt',
+    command: 'command',
+    permissionId: 'permissionId',
+    timeoutMs: 'timeoutMs',
+    approvedInterventionId: 'approvedInterventionId'
   };
 
   export type HarnessToolScalarFieldEnum = (typeof HarnessToolScalarFieldEnum)[keyof typeof HarnessToolScalarFieldEnum]
+
+
+  export const HarnessToolRunScalarFieldEnum: {
+    id: 'id',
+    toolId: 'toolId',
+    harnessId: 'harnessId',
+    status: 'status',
+    label: 'label',
+    command: 'command',
+    cwd: 'cwd',
+    exitCode: 'exitCode',
+    durationMs: 'durationMs',
+    permissionId: 'permissionId',
+    interventionId: 'interventionId',
+    output: 'output',
+    createdAt: 'createdAt'
+  };
+
+  export type HarnessToolRunScalarFieldEnum = (typeof HarnessToolRunScalarFieldEnum)[keyof typeof HarnessToolRunScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -27065,7 +28393,12 @@ export namespace Prisma {
     lastStatus?: StringNullableFilter<"HarnessTool"> | string | null
     lastResultLabel?: StringNullableFilter<"HarnessTool"> | string | null
     lastRanAt?: DateTimeNullableFilter<"HarnessTool"> | Date | string | null
+    command?: StringNullableFilter<"HarnessTool"> | string | null
+    permissionId?: StringNullableFilter<"HarnessTool"> | string | null
+    timeoutMs?: IntNullableFilter<"HarnessTool"> | number | null
+    approvedInterventionId?: StringNullableFilter<"HarnessTool"> | string | null
     harness?: XOR<HarnessRelationFilter, HarnessWhereInput>
+    runs?: HarnessToolRunListRelationFilter
   }
 
   export type HarnessToolOrderByWithRelationInput = {
@@ -27077,7 +28410,12 @@ export namespace Prisma {
     lastStatus?: SortOrderInput | SortOrder
     lastResultLabel?: SortOrderInput | SortOrder
     lastRanAt?: SortOrderInput | SortOrder
+    command?: SortOrderInput | SortOrder
+    permissionId?: SortOrderInput | SortOrder
+    timeoutMs?: SortOrderInput | SortOrder
+    approvedInterventionId?: SortOrderInput | SortOrder
     harness?: HarnessOrderByWithRelationInput
+    runs?: HarnessToolRunOrderByRelationAggregateInput
   }
 
   export type HarnessToolWhereUniqueInput = Prisma.AtLeast<{
@@ -27092,7 +28430,12 @@ export namespace Prisma {
     lastStatus?: StringNullableFilter<"HarnessTool"> | string | null
     lastResultLabel?: StringNullableFilter<"HarnessTool"> | string | null
     lastRanAt?: DateTimeNullableFilter<"HarnessTool"> | Date | string | null
+    command?: StringNullableFilter<"HarnessTool"> | string | null
+    permissionId?: StringNullableFilter<"HarnessTool"> | string | null
+    timeoutMs?: IntNullableFilter<"HarnessTool"> | number | null
+    approvedInterventionId?: StringNullableFilter<"HarnessTool"> | string | null
     harness?: XOR<HarnessRelationFilter, HarnessWhereInput>
+    runs?: HarnessToolRunListRelationFilter
   }, "id">
 
   export type HarnessToolOrderByWithAggregationInput = {
@@ -27104,9 +28447,15 @@ export namespace Prisma {
     lastStatus?: SortOrderInput | SortOrder
     lastResultLabel?: SortOrderInput | SortOrder
     lastRanAt?: SortOrderInput | SortOrder
+    command?: SortOrderInput | SortOrder
+    permissionId?: SortOrderInput | SortOrder
+    timeoutMs?: SortOrderInput | SortOrder
+    approvedInterventionId?: SortOrderInput | SortOrder
     _count?: HarnessToolCountOrderByAggregateInput
+    _avg?: HarnessToolAvgOrderByAggregateInput
     _max?: HarnessToolMaxOrderByAggregateInput
     _min?: HarnessToolMinOrderByAggregateInput
+    _sum?: HarnessToolSumOrderByAggregateInput
   }
 
   export type HarnessToolScalarWhereWithAggregatesInput = {
@@ -27121,6 +28470,107 @@ export namespace Prisma {
     lastStatus?: StringNullableWithAggregatesFilter<"HarnessTool"> | string | null
     lastResultLabel?: StringNullableWithAggregatesFilter<"HarnessTool"> | string | null
     lastRanAt?: DateTimeNullableWithAggregatesFilter<"HarnessTool"> | Date | string | null
+    command?: StringNullableWithAggregatesFilter<"HarnessTool"> | string | null
+    permissionId?: StringNullableWithAggregatesFilter<"HarnessTool"> | string | null
+    timeoutMs?: IntNullableWithAggregatesFilter<"HarnessTool"> | number | null
+    approvedInterventionId?: StringNullableWithAggregatesFilter<"HarnessTool"> | string | null
+  }
+
+  export type HarnessToolRunWhereInput = {
+    AND?: HarnessToolRunWhereInput | HarnessToolRunWhereInput[]
+    OR?: HarnessToolRunWhereInput[]
+    NOT?: HarnessToolRunWhereInput | HarnessToolRunWhereInput[]
+    id?: StringFilter<"HarnessToolRun"> | string
+    toolId?: StringFilter<"HarnessToolRun"> | string
+    harnessId?: StringFilter<"HarnessToolRun"> | string
+    status?: StringFilter<"HarnessToolRun"> | string
+    label?: StringFilter<"HarnessToolRun"> | string
+    command?: StringNullableFilter<"HarnessToolRun"> | string | null
+    cwd?: StringNullableFilter<"HarnessToolRun"> | string | null
+    exitCode?: IntNullableFilter<"HarnessToolRun"> | number | null
+    durationMs?: IntNullableFilter<"HarnessToolRun"> | number | null
+    permissionId?: StringNullableFilter<"HarnessToolRun"> | string | null
+    interventionId?: StringNullableFilter<"HarnessToolRun"> | string | null
+    output?: StringNullableFilter<"HarnessToolRun"> | string | null
+    createdAt?: DateTimeFilter<"HarnessToolRun"> | Date | string
+    tool?: XOR<HarnessToolRelationFilter, HarnessToolWhereInput>
+  }
+
+  export type HarnessToolRunOrderByWithRelationInput = {
+    id?: SortOrder
+    toolId?: SortOrder
+    harnessId?: SortOrder
+    status?: SortOrder
+    label?: SortOrder
+    command?: SortOrderInput | SortOrder
+    cwd?: SortOrderInput | SortOrder
+    exitCode?: SortOrderInput | SortOrder
+    durationMs?: SortOrderInput | SortOrder
+    permissionId?: SortOrderInput | SortOrder
+    interventionId?: SortOrderInput | SortOrder
+    output?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    tool?: HarnessToolOrderByWithRelationInput
+  }
+
+  export type HarnessToolRunWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: HarnessToolRunWhereInput | HarnessToolRunWhereInput[]
+    OR?: HarnessToolRunWhereInput[]
+    NOT?: HarnessToolRunWhereInput | HarnessToolRunWhereInput[]
+    toolId?: StringFilter<"HarnessToolRun"> | string
+    harnessId?: StringFilter<"HarnessToolRun"> | string
+    status?: StringFilter<"HarnessToolRun"> | string
+    label?: StringFilter<"HarnessToolRun"> | string
+    command?: StringNullableFilter<"HarnessToolRun"> | string | null
+    cwd?: StringNullableFilter<"HarnessToolRun"> | string | null
+    exitCode?: IntNullableFilter<"HarnessToolRun"> | number | null
+    durationMs?: IntNullableFilter<"HarnessToolRun"> | number | null
+    permissionId?: StringNullableFilter<"HarnessToolRun"> | string | null
+    interventionId?: StringNullableFilter<"HarnessToolRun"> | string | null
+    output?: StringNullableFilter<"HarnessToolRun"> | string | null
+    createdAt?: DateTimeFilter<"HarnessToolRun"> | Date | string
+    tool?: XOR<HarnessToolRelationFilter, HarnessToolWhereInput>
+  }, "id">
+
+  export type HarnessToolRunOrderByWithAggregationInput = {
+    id?: SortOrder
+    toolId?: SortOrder
+    harnessId?: SortOrder
+    status?: SortOrder
+    label?: SortOrder
+    command?: SortOrderInput | SortOrder
+    cwd?: SortOrderInput | SortOrder
+    exitCode?: SortOrderInput | SortOrder
+    durationMs?: SortOrderInput | SortOrder
+    permissionId?: SortOrderInput | SortOrder
+    interventionId?: SortOrderInput | SortOrder
+    output?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    _count?: HarnessToolRunCountOrderByAggregateInput
+    _avg?: HarnessToolRunAvgOrderByAggregateInput
+    _max?: HarnessToolRunMaxOrderByAggregateInput
+    _min?: HarnessToolRunMinOrderByAggregateInput
+    _sum?: HarnessToolRunSumOrderByAggregateInput
+  }
+
+  export type HarnessToolRunScalarWhereWithAggregatesInput = {
+    AND?: HarnessToolRunScalarWhereWithAggregatesInput | HarnessToolRunScalarWhereWithAggregatesInput[]
+    OR?: HarnessToolRunScalarWhereWithAggregatesInput[]
+    NOT?: HarnessToolRunScalarWhereWithAggregatesInput | HarnessToolRunScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"HarnessToolRun"> | string
+    toolId?: StringWithAggregatesFilter<"HarnessToolRun"> | string
+    harnessId?: StringWithAggregatesFilter<"HarnessToolRun"> | string
+    status?: StringWithAggregatesFilter<"HarnessToolRun"> | string
+    label?: StringWithAggregatesFilter<"HarnessToolRun"> | string
+    command?: StringNullableWithAggregatesFilter<"HarnessToolRun"> | string | null
+    cwd?: StringNullableWithAggregatesFilter<"HarnessToolRun"> | string | null
+    exitCode?: IntNullableWithAggregatesFilter<"HarnessToolRun"> | number | null
+    durationMs?: IntNullableWithAggregatesFilter<"HarnessToolRun"> | number | null
+    permissionId?: StringNullableWithAggregatesFilter<"HarnessToolRun"> | string | null
+    interventionId?: StringNullableWithAggregatesFilter<"HarnessToolRun"> | string | null
+    output?: StringNullableWithAggregatesFilter<"HarnessToolRun"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"HarnessToolRun"> | Date | string
   }
 
   export type ProjectCreateInput = {
@@ -29231,7 +30681,12 @@ export namespace Prisma {
     lastStatus?: string | null
     lastResultLabel?: string | null
     lastRanAt?: Date | string | null
+    command?: string | null
+    permissionId?: string | null
+    timeoutMs?: number | null
+    approvedInterventionId?: string | null
     harness: HarnessCreateNestedOneWithoutToolsInput
+    runs?: HarnessToolRunCreateNestedManyWithoutToolInput
   }
 
   export type HarnessToolUncheckedCreateInput = {
@@ -29243,6 +30698,11 @@ export namespace Prisma {
     lastStatus?: string | null
     lastResultLabel?: string | null
     lastRanAt?: Date | string | null
+    command?: string | null
+    permissionId?: string | null
+    timeoutMs?: number | null
+    approvedInterventionId?: string | null
+    runs?: HarnessToolRunUncheckedCreateNestedManyWithoutToolInput
   }
 
   export type HarnessToolUpdateInput = {
@@ -29253,7 +30713,12 @@ export namespace Prisma {
     lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
     lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
     lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    timeoutMs?: NullableIntFieldUpdateOperationsInput | number | null
+    approvedInterventionId?: NullableStringFieldUpdateOperationsInput | string | null
     harness?: HarnessUpdateOneRequiredWithoutToolsNestedInput
+    runs?: HarnessToolRunUpdateManyWithoutToolNestedInput
   }
 
   export type HarnessToolUncheckedUpdateInput = {
@@ -29265,6 +30730,11 @@ export namespace Prisma {
     lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
     lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
     lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    timeoutMs?: NullableIntFieldUpdateOperationsInput | number | null
+    approvedInterventionId?: NullableStringFieldUpdateOperationsInput | string | null
+    runs?: HarnessToolRunUncheckedUpdateManyWithoutToolNestedInput
   }
 
   export type HarnessToolCreateManyInput = {
@@ -29276,6 +30746,10 @@ export namespace Prisma {
     lastStatus?: string | null
     lastResultLabel?: string | null
     lastRanAt?: Date | string | null
+    command?: string | null
+    permissionId?: string | null
+    timeoutMs?: number | null
+    approvedInterventionId?: string | null
   }
 
   export type HarnessToolUpdateManyMutationInput = {
@@ -29286,6 +30760,10 @@ export namespace Prisma {
     lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
     lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
     lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    timeoutMs?: NullableIntFieldUpdateOperationsInput | number | null
+    approvedInterventionId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type HarnessToolUncheckedUpdateManyInput = {
@@ -29297,6 +30775,121 @@ export namespace Prisma {
     lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
     lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
     lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    timeoutMs?: NullableIntFieldUpdateOperationsInput | number | null
+    approvedInterventionId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type HarnessToolRunCreateInput = {
+    id?: string
+    harnessId: string
+    status: string
+    label: string
+    command?: string | null
+    cwd?: string | null
+    exitCode?: number | null
+    durationMs?: number | null
+    permissionId?: string | null
+    interventionId?: string | null
+    output?: string | null
+    createdAt?: Date | string
+    tool: HarnessToolCreateNestedOneWithoutRunsInput
+  }
+
+  export type HarnessToolRunUncheckedCreateInput = {
+    id?: string
+    toolId: string
+    harnessId: string
+    status: string
+    label: string
+    command?: string | null
+    cwd?: string | null
+    exitCode?: number | null
+    durationMs?: number | null
+    permissionId?: string | null
+    interventionId?: string | null
+    output?: string | null
+    createdAt?: Date | string
+  }
+
+  export type HarnessToolRunUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    cwd?: NullableStringFieldUpdateOperationsInput | string | null
+    exitCode?: NullableIntFieldUpdateOperationsInput | number | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    interventionId?: NullableStringFieldUpdateOperationsInput | string | null
+    output?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    tool?: HarnessToolUpdateOneRequiredWithoutRunsNestedInput
+  }
+
+  export type HarnessToolRunUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    toolId?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    cwd?: NullableStringFieldUpdateOperationsInput | string | null
+    exitCode?: NullableIntFieldUpdateOperationsInput | number | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    interventionId?: NullableStringFieldUpdateOperationsInput | string | null
+    output?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type HarnessToolRunCreateManyInput = {
+    id?: string
+    toolId: string
+    harnessId: string
+    status: string
+    label: string
+    command?: string | null
+    cwd?: string | null
+    exitCode?: number | null
+    durationMs?: number | null
+    permissionId?: string | null
+    interventionId?: string | null
+    output?: string | null
+    createdAt?: Date | string
+  }
+
+  export type HarnessToolRunUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    cwd?: NullableStringFieldUpdateOperationsInput | string | null
+    exitCode?: NullableIntFieldUpdateOperationsInput | number | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    interventionId?: NullableStringFieldUpdateOperationsInput | string | null
+    output?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type HarnessToolRunUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    toolId?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    cwd?: NullableStringFieldUpdateOperationsInput | string | null
+    exitCode?: NullableIntFieldUpdateOperationsInput | number | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    interventionId?: NullableStringFieldUpdateOperationsInput | string | null
+    output?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type StringFilter<$PrismaModel = never> = {
@@ -30762,6 +32355,16 @@ export namespace Prisma {
     version?: SortOrder
   }
 
+  export type HarnessToolRunListRelationFilter = {
+    every?: HarnessToolRunWhereInput
+    some?: HarnessToolRunWhereInput
+    none?: HarnessToolRunWhereInput
+  }
+
+  export type HarnessToolRunOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
   export type HarnessToolCountOrderByAggregateInput = {
     id?: SortOrder
     harnessId?: SortOrder
@@ -30771,6 +32374,14 @@ export namespace Prisma {
     lastStatus?: SortOrder
     lastResultLabel?: SortOrder
     lastRanAt?: SortOrder
+    command?: SortOrder
+    permissionId?: SortOrder
+    timeoutMs?: SortOrder
+    approvedInterventionId?: SortOrder
+  }
+
+  export type HarnessToolAvgOrderByAggregateInput = {
+    timeoutMs?: SortOrder
   }
 
   export type HarnessToolMaxOrderByAggregateInput = {
@@ -30782,6 +32393,10 @@ export namespace Prisma {
     lastStatus?: SortOrder
     lastResultLabel?: SortOrder
     lastRanAt?: SortOrder
+    command?: SortOrder
+    permissionId?: SortOrder
+    timeoutMs?: SortOrder
+    approvedInterventionId?: SortOrder
   }
 
   export type HarnessToolMinOrderByAggregateInput = {
@@ -30793,6 +32408,77 @@ export namespace Prisma {
     lastStatus?: SortOrder
     lastResultLabel?: SortOrder
     lastRanAt?: SortOrder
+    command?: SortOrder
+    permissionId?: SortOrder
+    timeoutMs?: SortOrder
+    approvedInterventionId?: SortOrder
+  }
+
+  export type HarnessToolSumOrderByAggregateInput = {
+    timeoutMs?: SortOrder
+  }
+
+  export type HarnessToolRelationFilter = {
+    is?: HarnessToolWhereInput
+    isNot?: HarnessToolWhereInput
+  }
+
+  export type HarnessToolRunCountOrderByAggregateInput = {
+    id?: SortOrder
+    toolId?: SortOrder
+    harnessId?: SortOrder
+    status?: SortOrder
+    label?: SortOrder
+    command?: SortOrder
+    cwd?: SortOrder
+    exitCode?: SortOrder
+    durationMs?: SortOrder
+    permissionId?: SortOrder
+    interventionId?: SortOrder
+    output?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type HarnessToolRunAvgOrderByAggregateInput = {
+    exitCode?: SortOrder
+    durationMs?: SortOrder
+  }
+
+  export type HarnessToolRunMaxOrderByAggregateInput = {
+    id?: SortOrder
+    toolId?: SortOrder
+    harnessId?: SortOrder
+    status?: SortOrder
+    label?: SortOrder
+    command?: SortOrder
+    cwd?: SortOrder
+    exitCode?: SortOrder
+    durationMs?: SortOrder
+    permissionId?: SortOrder
+    interventionId?: SortOrder
+    output?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type HarnessToolRunMinOrderByAggregateInput = {
+    id?: SortOrder
+    toolId?: SortOrder
+    harnessId?: SortOrder
+    status?: SortOrder
+    label?: SortOrder
+    command?: SortOrder
+    cwd?: SortOrder
+    exitCode?: SortOrder
+    durationMs?: SortOrder
+    permissionId?: SortOrder
+    interventionId?: SortOrder
+    output?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type HarnessToolRunSumOrderByAggregateInput = {
+    exitCode?: SortOrder
+    durationMs?: SortOrder
   }
 
   export type TaskCreateNestedManyWithoutProjectInput = {
@@ -31743,12 +33429,68 @@ export namespace Prisma {
     connect?: HarnessWhereUniqueInput
   }
 
+  export type HarnessToolRunCreateNestedManyWithoutToolInput = {
+    create?: XOR<HarnessToolRunCreateWithoutToolInput, HarnessToolRunUncheckedCreateWithoutToolInput> | HarnessToolRunCreateWithoutToolInput[] | HarnessToolRunUncheckedCreateWithoutToolInput[]
+    connectOrCreate?: HarnessToolRunCreateOrConnectWithoutToolInput | HarnessToolRunCreateOrConnectWithoutToolInput[]
+    createMany?: HarnessToolRunCreateManyToolInputEnvelope
+    connect?: HarnessToolRunWhereUniqueInput | HarnessToolRunWhereUniqueInput[]
+  }
+
+  export type HarnessToolRunUncheckedCreateNestedManyWithoutToolInput = {
+    create?: XOR<HarnessToolRunCreateWithoutToolInput, HarnessToolRunUncheckedCreateWithoutToolInput> | HarnessToolRunCreateWithoutToolInput[] | HarnessToolRunUncheckedCreateWithoutToolInput[]
+    connectOrCreate?: HarnessToolRunCreateOrConnectWithoutToolInput | HarnessToolRunCreateOrConnectWithoutToolInput[]
+    createMany?: HarnessToolRunCreateManyToolInputEnvelope
+    connect?: HarnessToolRunWhereUniqueInput | HarnessToolRunWhereUniqueInput[]
+  }
+
   export type HarnessUpdateOneRequiredWithoutToolsNestedInput = {
     create?: XOR<HarnessCreateWithoutToolsInput, HarnessUncheckedCreateWithoutToolsInput>
     connectOrCreate?: HarnessCreateOrConnectWithoutToolsInput
     upsert?: HarnessUpsertWithoutToolsInput
     connect?: HarnessWhereUniqueInput
     update?: XOR<XOR<HarnessUpdateToOneWithWhereWithoutToolsInput, HarnessUpdateWithoutToolsInput>, HarnessUncheckedUpdateWithoutToolsInput>
+  }
+
+  export type HarnessToolRunUpdateManyWithoutToolNestedInput = {
+    create?: XOR<HarnessToolRunCreateWithoutToolInput, HarnessToolRunUncheckedCreateWithoutToolInput> | HarnessToolRunCreateWithoutToolInput[] | HarnessToolRunUncheckedCreateWithoutToolInput[]
+    connectOrCreate?: HarnessToolRunCreateOrConnectWithoutToolInput | HarnessToolRunCreateOrConnectWithoutToolInput[]
+    upsert?: HarnessToolRunUpsertWithWhereUniqueWithoutToolInput | HarnessToolRunUpsertWithWhereUniqueWithoutToolInput[]
+    createMany?: HarnessToolRunCreateManyToolInputEnvelope
+    set?: HarnessToolRunWhereUniqueInput | HarnessToolRunWhereUniqueInput[]
+    disconnect?: HarnessToolRunWhereUniqueInput | HarnessToolRunWhereUniqueInput[]
+    delete?: HarnessToolRunWhereUniqueInput | HarnessToolRunWhereUniqueInput[]
+    connect?: HarnessToolRunWhereUniqueInput | HarnessToolRunWhereUniqueInput[]
+    update?: HarnessToolRunUpdateWithWhereUniqueWithoutToolInput | HarnessToolRunUpdateWithWhereUniqueWithoutToolInput[]
+    updateMany?: HarnessToolRunUpdateManyWithWhereWithoutToolInput | HarnessToolRunUpdateManyWithWhereWithoutToolInput[]
+    deleteMany?: HarnessToolRunScalarWhereInput | HarnessToolRunScalarWhereInput[]
+  }
+
+  export type HarnessToolRunUncheckedUpdateManyWithoutToolNestedInput = {
+    create?: XOR<HarnessToolRunCreateWithoutToolInput, HarnessToolRunUncheckedCreateWithoutToolInput> | HarnessToolRunCreateWithoutToolInput[] | HarnessToolRunUncheckedCreateWithoutToolInput[]
+    connectOrCreate?: HarnessToolRunCreateOrConnectWithoutToolInput | HarnessToolRunCreateOrConnectWithoutToolInput[]
+    upsert?: HarnessToolRunUpsertWithWhereUniqueWithoutToolInput | HarnessToolRunUpsertWithWhereUniqueWithoutToolInput[]
+    createMany?: HarnessToolRunCreateManyToolInputEnvelope
+    set?: HarnessToolRunWhereUniqueInput | HarnessToolRunWhereUniqueInput[]
+    disconnect?: HarnessToolRunWhereUniqueInput | HarnessToolRunWhereUniqueInput[]
+    delete?: HarnessToolRunWhereUniqueInput | HarnessToolRunWhereUniqueInput[]
+    connect?: HarnessToolRunWhereUniqueInput | HarnessToolRunWhereUniqueInput[]
+    update?: HarnessToolRunUpdateWithWhereUniqueWithoutToolInput | HarnessToolRunUpdateWithWhereUniqueWithoutToolInput[]
+    updateMany?: HarnessToolRunUpdateManyWithWhereWithoutToolInput | HarnessToolRunUpdateManyWithWhereWithoutToolInput[]
+    deleteMany?: HarnessToolRunScalarWhereInput | HarnessToolRunScalarWhereInput[]
+  }
+
+  export type HarnessToolCreateNestedOneWithoutRunsInput = {
+    create?: XOR<HarnessToolCreateWithoutRunsInput, HarnessToolUncheckedCreateWithoutRunsInput>
+    connectOrCreate?: HarnessToolCreateOrConnectWithoutRunsInput
+    connect?: HarnessToolWhereUniqueInput
+  }
+
+  export type HarnessToolUpdateOneRequiredWithoutRunsNestedInput = {
+    create?: XOR<HarnessToolCreateWithoutRunsInput, HarnessToolUncheckedCreateWithoutRunsInput>
+    connectOrCreate?: HarnessToolCreateOrConnectWithoutRunsInput
+    upsert?: HarnessToolUpsertWithoutRunsInput
+    connect?: HarnessToolWhereUniqueInput
+    update?: XOR<XOR<HarnessToolUpdateToOneWithWhereWithoutRunsInput, HarnessToolUpdateWithoutRunsInput>, HarnessToolUncheckedUpdateWithoutRunsInput>
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -34123,6 +35865,11 @@ export namespace Prisma {
     lastStatus?: string | null
     lastResultLabel?: string | null
     lastRanAt?: Date | string | null
+    command?: string | null
+    permissionId?: string | null
+    timeoutMs?: number | null
+    approvedInterventionId?: string | null
+    runs?: HarnessToolRunCreateNestedManyWithoutToolInput
   }
 
   export type HarnessToolUncheckedCreateWithoutHarnessInput = {
@@ -34133,6 +35880,11 @@ export namespace Prisma {
     lastStatus?: string | null
     lastResultLabel?: string | null
     lastRanAt?: Date | string | null
+    command?: string | null
+    permissionId?: string | null
+    timeoutMs?: number | null
+    approvedInterventionId?: string | null
+    runs?: HarnessToolRunUncheckedCreateNestedManyWithoutToolInput
   }
 
   export type HarnessToolCreateOrConnectWithoutHarnessInput = {
@@ -34374,6 +36126,10 @@ export namespace Prisma {
     lastStatus?: StringNullableFilter<"HarnessTool"> | string | null
     lastResultLabel?: StringNullableFilter<"HarnessTool"> | string | null
     lastRanAt?: DateTimeNullableFilter<"HarnessTool"> | Date | string | null
+    command?: StringNullableFilter<"HarnessTool"> | string | null
+    permissionId?: StringNullableFilter<"HarnessTool"> | string | null
+    timeoutMs?: IntNullableFilter<"HarnessTool"> | number | null
+    approvedInterventionId?: StringNullableFilter<"HarnessTool"> | string | null
   }
 
   export type HarnessCreateWithoutPulsesInput = {
@@ -34675,6 +36431,46 @@ export namespace Prisma {
     create: XOR<HarnessCreateWithoutToolsInput, HarnessUncheckedCreateWithoutToolsInput>
   }
 
+  export type HarnessToolRunCreateWithoutToolInput = {
+    id?: string
+    harnessId: string
+    status: string
+    label: string
+    command?: string | null
+    cwd?: string | null
+    exitCode?: number | null
+    durationMs?: number | null
+    permissionId?: string | null
+    interventionId?: string | null
+    output?: string | null
+    createdAt?: Date | string
+  }
+
+  export type HarnessToolRunUncheckedCreateWithoutToolInput = {
+    id?: string
+    harnessId: string
+    status: string
+    label: string
+    command?: string | null
+    cwd?: string | null
+    exitCode?: number | null
+    durationMs?: number | null
+    permissionId?: string | null
+    interventionId?: string | null
+    output?: string | null
+    createdAt?: Date | string
+  }
+
+  export type HarnessToolRunCreateOrConnectWithoutToolInput = {
+    where: HarnessToolRunWhereUniqueInput
+    create: XOR<HarnessToolRunCreateWithoutToolInput, HarnessToolRunUncheckedCreateWithoutToolInput>
+  }
+
+  export type HarnessToolRunCreateManyToolInputEnvelope = {
+    data: HarnessToolRunCreateManyToolInput | HarnessToolRunCreateManyToolInput[]
+    skipDuplicates?: boolean
+  }
+
   export type HarnessUpsertWithoutToolsInput = {
     update: XOR<HarnessUpdateWithoutToolsInput, HarnessUncheckedUpdateWithoutToolsInput>
     create: XOR<HarnessCreateWithoutToolsInput, HarnessUncheckedCreateWithoutToolsInput>
@@ -34750,6 +36546,117 @@ export namespace Prisma {
     retiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     children?: HarnessUncheckedUpdateManyWithoutParentNestedInput
     pulses?: PulseUncheckedUpdateManyWithoutHarnessNestedInput
+  }
+
+  export type HarnessToolRunUpsertWithWhereUniqueWithoutToolInput = {
+    where: HarnessToolRunWhereUniqueInput
+    update: XOR<HarnessToolRunUpdateWithoutToolInput, HarnessToolRunUncheckedUpdateWithoutToolInput>
+    create: XOR<HarnessToolRunCreateWithoutToolInput, HarnessToolRunUncheckedCreateWithoutToolInput>
+  }
+
+  export type HarnessToolRunUpdateWithWhereUniqueWithoutToolInput = {
+    where: HarnessToolRunWhereUniqueInput
+    data: XOR<HarnessToolRunUpdateWithoutToolInput, HarnessToolRunUncheckedUpdateWithoutToolInput>
+  }
+
+  export type HarnessToolRunUpdateManyWithWhereWithoutToolInput = {
+    where: HarnessToolRunScalarWhereInput
+    data: XOR<HarnessToolRunUpdateManyMutationInput, HarnessToolRunUncheckedUpdateManyWithoutToolInput>
+  }
+
+  export type HarnessToolRunScalarWhereInput = {
+    AND?: HarnessToolRunScalarWhereInput | HarnessToolRunScalarWhereInput[]
+    OR?: HarnessToolRunScalarWhereInput[]
+    NOT?: HarnessToolRunScalarWhereInput | HarnessToolRunScalarWhereInput[]
+    id?: StringFilter<"HarnessToolRun"> | string
+    toolId?: StringFilter<"HarnessToolRun"> | string
+    harnessId?: StringFilter<"HarnessToolRun"> | string
+    status?: StringFilter<"HarnessToolRun"> | string
+    label?: StringFilter<"HarnessToolRun"> | string
+    command?: StringNullableFilter<"HarnessToolRun"> | string | null
+    cwd?: StringNullableFilter<"HarnessToolRun"> | string | null
+    exitCode?: IntNullableFilter<"HarnessToolRun"> | number | null
+    durationMs?: IntNullableFilter<"HarnessToolRun"> | number | null
+    permissionId?: StringNullableFilter<"HarnessToolRun"> | string | null
+    interventionId?: StringNullableFilter<"HarnessToolRun"> | string | null
+    output?: StringNullableFilter<"HarnessToolRun"> | string | null
+    createdAt?: DateTimeFilter<"HarnessToolRun"> | Date | string
+  }
+
+  export type HarnessToolCreateWithoutRunsInput = {
+    id?: string
+    name: string
+    groupName: string
+    needsApproval?: boolean
+    lastStatus?: string | null
+    lastResultLabel?: string | null
+    lastRanAt?: Date | string | null
+    command?: string | null
+    permissionId?: string | null
+    timeoutMs?: number | null
+    approvedInterventionId?: string | null
+    harness: HarnessCreateNestedOneWithoutToolsInput
+  }
+
+  export type HarnessToolUncheckedCreateWithoutRunsInput = {
+    id?: string
+    harnessId: string
+    name: string
+    groupName: string
+    needsApproval?: boolean
+    lastStatus?: string | null
+    lastResultLabel?: string | null
+    lastRanAt?: Date | string | null
+    command?: string | null
+    permissionId?: string | null
+    timeoutMs?: number | null
+    approvedInterventionId?: string | null
+  }
+
+  export type HarnessToolCreateOrConnectWithoutRunsInput = {
+    where: HarnessToolWhereUniqueInput
+    create: XOR<HarnessToolCreateWithoutRunsInput, HarnessToolUncheckedCreateWithoutRunsInput>
+  }
+
+  export type HarnessToolUpsertWithoutRunsInput = {
+    update: XOR<HarnessToolUpdateWithoutRunsInput, HarnessToolUncheckedUpdateWithoutRunsInput>
+    create: XOR<HarnessToolCreateWithoutRunsInput, HarnessToolUncheckedCreateWithoutRunsInput>
+    where?: HarnessToolWhereInput
+  }
+
+  export type HarnessToolUpdateToOneWithWhereWithoutRunsInput = {
+    where?: HarnessToolWhereInput
+    data: XOR<HarnessToolUpdateWithoutRunsInput, HarnessToolUncheckedUpdateWithoutRunsInput>
+  }
+
+  export type HarnessToolUpdateWithoutRunsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    groupName?: StringFieldUpdateOperationsInput | string
+    needsApproval?: BoolFieldUpdateOperationsInput | boolean
+    lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    timeoutMs?: NullableIntFieldUpdateOperationsInput | number | null
+    approvedInterventionId?: NullableStringFieldUpdateOperationsInput | string | null
+    harness?: HarnessUpdateOneRequiredWithoutToolsNestedInput
+  }
+
+  export type HarnessToolUncheckedUpdateWithoutRunsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    groupName?: StringFieldUpdateOperationsInput | string
+    needsApproval?: BoolFieldUpdateOperationsInput | boolean
+    lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
+    lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    timeoutMs?: NullableIntFieldUpdateOperationsInput | number | null
+    approvedInterventionId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type TaskCreateManyProjectInput = {
@@ -35678,6 +37585,10 @@ export namespace Prisma {
     lastStatus?: string | null
     lastResultLabel?: string | null
     lastRanAt?: Date | string | null
+    command?: string | null
+    permissionId?: string | null
+    timeoutMs?: number | null
+    approvedInterventionId?: string | null
   }
 
   export type HarnessUpdateWithoutParentInput = {
@@ -35820,6 +37731,11 @@ export namespace Prisma {
     lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
     lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
     lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    timeoutMs?: NullableIntFieldUpdateOperationsInput | number | null
+    approvedInterventionId?: NullableStringFieldUpdateOperationsInput | string | null
+    runs?: HarnessToolRunUpdateManyWithoutToolNestedInput
   }
 
   export type HarnessToolUncheckedUpdateWithoutHarnessInput = {
@@ -35830,6 +37746,11 @@ export namespace Prisma {
     lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
     lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
     lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    timeoutMs?: NullableIntFieldUpdateOperationsInput | number | null
+    approvedInterventionId?: NullableStringFieldUpdateOperationsInput | string | null
+    runs?: HarnessToolRunUncheckedUpdateManyWithoutToolNestedInput
   }
 
   export type HarnessToolUncheckedUpdateManyWithoutHarnessInput = {
@@ -35840,6 +37761,70 @@ export namespace Prisma {
     lastStatus?: NullableStringFieldUpdateOperationsInput | string | null
     lastResultLabel?: NullableStringFieldUpdateOperationsInput | string | null
     lastRanAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    timeoutMs?: NullableIntFieldUpdateOperationsInput | number | null
+    approvedInterventionId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type HarnessToolRunCreateManyToolInput = {
+    id?: string
+    harnessId: string
+    status: string
+    label: string
+    command?: string | null
+    cwd?: string | null
+    exitCode?: number | null
+    durationMs?: number | null
+    permissionId?: string | null
+    interventionId?: string | null
+    output?: string | null
+    createdAt?: Date | string
+  }
+
+  export type HarnessToolRunUpdateWithoutToolInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    cwd?: NullableStringFieldUpdateOperationsInput | string | null
+    exitCode?: NullableIntFieldUpdateOperationsInput | number | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    interventionId?: NullableStringFieldUpdateOperationsInput | string | null
+    output?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type HarnessToolRunUncheckedUpdateWithoutToolInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    cwd?: NullableStringFieldUpdateOperationsInput | string | null
+    exitCode?: NullableIntFieldUpdateOperationsInput | number | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    interventionId?: NullableStringFieldUpdateOperationsInput | string | null
+    output?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type HarnessToolRunUncheckedUpdateManyWithoutToolInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    harnessId?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    label?: StringFieldUpdateOperationsInput | string
+    command?: NullableStringFieldUpdateOperationsInput | string | null
+    cwd?: NullableStringFieldUpdateOperationsInput | string | null
+    exitCode?: NullableIntFieldUpdateOperationsInput | number | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    permissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    interventionId?: NullableStringFieldUpdateOperationsInput | string | null
+    output?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
 
@@ -35871,6 +37856,10 @@ export namespace Prisma {
      * @deprecated Use HarnessCountOutputTypeDefaultArgs instead
      */
     export type HarnessCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = HarnessCountOutputTypeDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use HarnessToolCountOutputTypeDefaultArgs instead
+     */
+    export type HarnessToolCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = HarnessToolCountOutputTypeDefaultArgs<ExtArgs>
     /**
      * @deprecated Use ProjectDefaultArgs instead
      */
@@ -35955,6 +37944,10 @@ export namespace Prisma {
      * @deprecated Use HarnessToolDefaultArgs instead
      */
     export type HarnessToolArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = HarnessToolDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use HarnessToolRunDefaultArgs instead
+     */
+    export type HarnessToolRunArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = HarnessToolRunDefaultArgs<ExtArgs>
 
   /**
    * Batch Payload for updateMany & deleteMany & createMany

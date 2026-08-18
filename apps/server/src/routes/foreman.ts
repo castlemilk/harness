@@ -4,6 +4,7 @@ import {
   Prisma,
   type Harness,
   type HarnessTool,
+  type HarnessToolRun,
   type Intervention,
   type Playbook,
   type PrismaClient,
@@ -12,14 +13,11 @@ import {
 import { z } from 'zod';
 import { asyncHandler } from '../lib/async-handler.js';
 import { safeJsonParse } from '../lib/utils.js';
+import { parsePermissions, type HarnessPermission } from '../lib/harness-permissions.js';
+import { serializeTool } from '../lib/tool-dto.js';
 import { registerForemanMutationRoutes } from './foreman-mutations.js';
 
-export interface HarnessPermission {
-  id: string;
-  label: string;
-  granted: boolean;
-  needsApproval: boolean;
-}
+export type { HarnessPermission };
 
 export interface PlaybookStep {
   index: number;
@@ -129,19 +127,7 @@ function jsonArray<T>(value: string | null | undefined): T[] {
   return Array.isArray(parsed) ? parsed as T[] : [];
 }
 
-function permissionArray(value: string | null | undefined): HarnessPermission[] {
-  return jsonArray<unknown>(value).flatMap((entry) => {
-    if (!entry || typeof entry !== 'object') return [];
-    const row = entry as Record<string, unknown>;
-    if (typeof row.id !== 'string' || typeof row.label !== 'string') return [];
-    return [{
-      id: row.id,
-      label: row.label,
-      granted: row.granted === true,
-      needsApproval: row.needsApproval === true,
-    }];
-  });
-}
+const permissionArray = parsePermissions;
 
 function playbookSteps(value: string | null | undefined): PlaybookStep[] {
   const seenIndexes = new Set<number>();
@@ -338,20 +324,14 @@ function serializeIntervention(intervention: Intervention, harnessName: string |
   };
 }
 
-function serializeTool(tool: HarnessTool): Record<string, unknown> {
-  const tone = tool.lastStatus === 'fail'
-    ? 'fail'
-    : tool.lastStatus === 'warn'
-      ? 'warn'
-      : tool.lastStatus === 'ok' ? 'ok' : 'idle';
-  return {
-    ...tool,
-    group: tool.groupName,
-    lastResult: tool.lastStatus || tool.lastResultLabel
-      ? { label: tool.lastResultLabel ?? tool.lastStatus ?? 'No result', tone }
-      : null,
-  };
+/** A tool as read from the database, with its most recent run attached. */
+function serializeToolWithRun(tool: HarnessTool & { runs: HarnessToolRun[] }): Record<string, unknown> {
+  const { runs, ...rest } = tool;
+  return serializeTool(rest, runs[0] ?? null);
 }
+
+/** The most recent run of each tool — the audit row the Toolkit renders. */
+const lastRunInclude = { runs: { orderBy: { createdAt: 'desc' }, take: 1 } } as const;
 
 function serializePlaybook(playbook: Playbook, usedByCount: number): Record<string, unknown> {
   return {
@@ -1130,8 +1110,9 @@ export function foremanRoutes(prisma: PrismaClient): Router {
     const tools = await prisma.harnessTool.findMany({
       where: { harnessId: req.params.id },
       orderBy: [{ groupName: 'asc' }, { name: 'asc' }],
+      include: lastRunInclude,
     });
-    res.json(tools.map(serializeTool));
+    res.json(tools.map(serializeToolWithRun));
   }));
 
   r.get('/harnesses/:id', asyncHandler(async (req, res) => {
@@ -1144,7 +1125,7 @@ export function foremanRoutes(prisma: PrismaClient): Router {
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         },
         pulses: { orderBy: [{ seq: 'desc' }, { startedAt: 'desc' }], take: recentPulseLimit },
-        tools: { orderBy: [{ groupName: 'asc' }, { name: 'asc' }] },
+        tools: { orderBy: [{ groupName: 'asc' }, { name: 'asc' }], include: lastRunInclude },
       },
     });
     if (!harness) {
@@ -1173,7 +1154,7 @@ export function foremanRoutes(prisma: PrismaClient): Router {
       recentPulses: harness.pulses.map(serializePulse),
       childCount: harness.children.length,
       routine: playbook ? routineSteps(playbook) : [],
-      tools: harness.tools.map(serializeTool),
+      tools: harness.tools.map(serializeToolWithRun),
       playbook: playbook ? serializePlaybook(playbook, usedByCount) : null,
     });
   }));

@@ -379,15 +379,55 @@ model Playbook {
 }
 
 model HarnessTool {
-  id              String    @id @default(uuid())
-  harnessId       String
-  harness         Harness   @relation(fields: [harnessId], references: [id], onDelete: Cascade)
-  name            String
-  groupName       String
-  needsApproval   Boolean   @default(false)
-  lastStatus      String?
-  lastResultLabel String?
-  lastRanAt       DateTime?
+  id                     String    @id @default(uuid())
+  harnessId              String
+  harness                Harness   @relation(fields: [harnessId], references: [id], onDelete: Cascade)
+  name                   String
+  groupName              String
+  needsApproval          Boolean   @default(false)
+  lastStatus             String?
+  lastResultLabel        String?
+  lastRanAt              DateTime?
+  // The shell command this tool runs, in the objective's project checkout.
+  // NULL means the tool has no execution configured: running it records the
+  // request and executes nothing, which is what every tool did before.
+  command                String?
+  // Which `Harness.permissions` entry authorises this tool. Defaults to
+  // `tool:<id>` when unset.
+  permissionId           String?
+  // Per-tool wall-clock bound; NULL falls back to the 60s default.
+  timeoutMs              Int?
+  // Set when a human approved ONE run via an intervention. Consumed by the
+  // next run of this tool and cleared, so approval never becomes standing.
+  approvedInterventionId String?
+
+  runs HarnessToolRun[]
 
   @@index([harnessId])
+}
+
+/// One attempted invocation of a HarnessTool — recorded, blocked, or executed.
+/// This is the audit trail: it exists even when nothing ran.
+model HarnessToolRun {
+  id             String      @id @default(uuid())
+  toolId         String
+  tool           HarnessTool @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  harnessId      String
+  /// recorded | blocked-pending-approval | ok | fail | timeout | error
+  status         String
+  label          String
+  command        String?
+  cwd            String?
+  exitCode       Int?
+  durationMs     Int?
+  /// The permission id that authorised the run, if a standing permission did.
+  permissionId   String?
+  /// The intervention that authorised (one-shot approval) or blocked this run.
+  interventionId String?
+  /// Bounded excerpt of the combined stdout/stderr.
+  output         String?
+  createdAt      DateTime    @default(now())
+
+  @@index([toolId, createdAt(sort: Desc)])
+  @@index([harnessId, createdAt(sort: Desc)])
 }

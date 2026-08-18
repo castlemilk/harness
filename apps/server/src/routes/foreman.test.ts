@@ -1,6 +1,9 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, mkdtemp } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { EventEmitter } from 'node:events';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { applyMigrations, prisma, seedForemanDemo, type PrismaClient } from '@omega/db';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { app } from '../app.js';
@@ -2148,4 +2151,360 @@ describe('Foreman routes with PGlite', () => {
     request.emit('close');
     expect(ended).toBe(true);
   }, 45_000);
+});
+
+describe('Foreman tool execution', () => {
+  const router = foremanRoutes(prisma);
+  let projectId = '';
+  let projectPath = '';
+  let objectiveId = '';
+  let harnessId = '';
+
+  const makeTool = async (options: {
+    name: string;
+    command?: string | null;
+    permissionId?: string | null;
+    timeoutMs?: number | null;
+    needsApproval?: boolean;
+  }) =>
+    prisma.harnessTool.create({
+      data: {
+        harnessId,
+        name: options.name,
+        groupName: 'Execution',
+        needsApproval: options.needsApproval ?? false,
+        command: options.command ?? null,
+        permissionId: options.permissionId ?? null,
+        timeoutMs: options.timeoutMs ?? null,
+      },
+    });
+
+  const run = (toolId: string) =>
+    invokeRoute(router, 'post', '/harnesses/:id/tools/:toolId/run', {
+      params: { id: harnessId, toolId },
+    });
+
+  const grant = (permissionId: string, needsApproval = false) =>
+    prisma.harness.update({
+      where: { id: harnessId },
+      data: {
+        permissions: JSON.stringify([
+          { id: permissionId, label: 'Run the tool', granted: true, needsApproval },
+        ]),
+      },
+    });
+
+  beforeAll(async () => {
+    await applyMigrations();
+    projectPath = await mkdtemp(join(tmpdir(), 'omega-tool-exec-'));
+    const project = await prisma.project.create({
+      data: { name: 'Tool execution project', path: projectPath },
+    });
+    projectId = project.id;
+    const objective = await prisma.objective.create({
+      data: { projectId, name: 'Tool execution objective' },
+    });
+    objectiveId = objective.id;
+    const harness = await createHarnessFixture(objectiveId, { name: 'Tool executor' });
+    harnessId = harness.id;
+  }, 60_000);
+
+  afterEach(async () => {
+    delete process.env.FOREMAN_TOOLS;
+    delete process.env.OMEGA_TOOL_SECRET;
+    await prisma.harness.update({ where: { id: harnessId }, data: { permissions: '[]' } });
+    await prisma.intervention.deleteMany({ where: { harnessId } });
+  });
+
+  it('records without executing when the flag is off, even with a command configured', async () => {
+    const marker = join(projectPath, 'flag-off-marker');
+    const tool = await makeTool({ name: 'Flag off', command: `touch ${marker}` });
+    await grant(`tool:${tool.id}`);
+
+    const result = await run(tool.id);
+
+    expect(result.status).toBe(200);
+    expect(result.body).toMatchObject({
+      id: tool.id,
+      lastStatus: 'recorded',
+      lastResultLabel: 'Not executed: execution is not configured; request recorded only',
+      lastRanAt: null,
+      lastResult: {
+        label: 'Not executed: execution is not configured; request recorded only',
+        tone: 'idle',
+      },
+    });
+    expect(existsSync(marker)).toBe(false);
+    const runs = await prisma.harnessToolRun.findMany({ where: { toolId: tool.id } });
+    expect(runs).toHaveLength(1);
+    expect(runs[0].status).toBe('recorded');
+    expect(runs[0].exitCode).toBe(null);
+  });
+
+  it('keeps a tool with no command on the record-only path when the flag is on', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'No command' });
+
+    const result = await run(tool.id);
+
+    expect((result.body as { lastStatus: string }).lastStatus).toBe('recorded');
+    expect((result.body as { lastResultLabel: string }).lastResultLabel).toBe(
+      'Not executed: execution is not configured; request recorded only',
+    );
+  });
+
+  it('blocks an unpermitted tool and raises one approval intervention', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const marker = join(projectPath, 'blocked-marker');
+    const tool = await makeTool({ name: 'Unpermitted', command: `touch ${marker}` });
+
+    const first = await run(tool.id);
+    const second = await run(tool.id);
+
+    expect((first.body as { lastStatus: string }).lastStatus).toBe('blocked');
+    expect((first.body as { lastResult: { tone: string } }).lastResult.tone).toBe('warn');
+    expect(existsSync(marker)).toBe(false);
+    expect((second.body as { lastStatus: string }).lastStatus).toBe('blocked');
+
+    const interventions = await prisma.intervention.findMany({ where: { harnessId } });
+    expect(interventions).toHaveLength(1);
+    expect(interventions[0].kind).toBe('approval');
+    expect(interventions[0].status).toBe('pending');
+    expect(interventions[0].title).toBe('Tool executor wants to run "Unpermitted"');
+    expect(JSON.parse(interventions[0].payload ?? '{}')).toMatchObject({
+      toolId: tool.id,
+      permissionId: `tool:${tool.id}`,
+    });
+
+    // The ask is materialised on the harness un-granted, so "always allow" has
+    // an id to flip — and so it grants nothing on its own.
+    const harness = await prisma.harness.findUniqueOrThrow({ where: { id: harnessId } });
+    expect(JSON.parse(harness.permissions)).toEqual([
+      { id: `tool:${tool.id}`, label: 'Run tool "Unpermitted"', granted: false, needsApproval: false },
+    ]);
+
+    const runs = await prisma.harnessToolRun.findMany({ where: { toolId: tool.id } });
+    expect(runs).toHaveLength(2);
+    expect(runs.every((entry) => entry.status === 'blocked-pending-approval')).toBe(true);
+    expect(runs[0].interventionId).toBe(interventions[0].id);
+    expect(runs[0].permissionId).toBe(`tool:${tool.id}`);
+  });
+
+  it('executes once after "approve", and blocks again on the next run', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'Approve once', command: 'echo approved-once' });
+    await run(tool.id);
+    const intervention = await prisma.intervention.findFirstOrThrow({ where: { harnessId } });
+
+    const resolved = await invokeRoute(router, 'post', '/interventions/:id/resolve', {
+      params: { id: intervention.id },
+      body: { action: 'approve' },
+    });
+    expect(resolved.status).toBe(200);
+    expect(
+      (await prisma.harnessTool.findUniqueOrThrow({ where: { id: tool.id } })).approvedInterventionId,
+    ).toBe(intervention.id);
+
+    const executed = await run(tool.id);
+    expect((executed.body as { lastStatus: string }).lastStatus).toBe('ok');
+    expect((executed.body as { lastRun: { output: string; interventionId: string; permissionId: null } }).lastRun)
+      .toMatchObject({
+        output: 'approved-once',
+        exitCode: 0,
+        interventionId: intervention.id,
+        permissionId: null,
+        cwd: projectPath,
+      });
+
+    // The one-shot grant is consumed, so the tool is locked again.
+    expect(
+      (await prisma.harnessTool.findUniqueOrThrow({ where: { id: tool.id } })).approvedInterventionId,
+    ).toBe(null);
+    const blockedAgain = await run(tool.id);
+    expect((blockedAgain.body as { lastStatus: string }).lastStatus).toBe('blocked');
+  });
+
+  it('executes every run after "approve-always" grants the permission', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'Approve always', command: 'echo standing' });
+    await run(tool.id);
+    const intervention = await prisma.intervention.findFirstOrThrow({ where: { harnessId } });
+
+    const resolved = await invokeRoute(router, 'post', '/interventions/:id/resolve', {
+      params: { id: intervention.id },
+      body: { action: 'approve-always' },
+    });
+    expect(resolved.status).toBe(200);
+
+    for (const attempt of [1, 2]) {
+      const executed = await run(tool.id);
+      expect.soft((executed.body as { lastStatus: string }).lastStatus, `attempt ${String(attempt)}`).toBe('ok');
+      expect((executed.body as { lastRun: { permissionId: string } }).lastRun.permissionId)
+        .toBe(`tool:${tool.id}`);
+    }
+  });
+
+  it('executes a permitted command in the project checkout and records the exit code', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'Permitted', command: 'node -e "process.stdout.write(process.cwd())"' });
+    await grant(`tool:${tool.id}`);
+
+    const result = await run(tool.id);
+
+    const body = result.body as {
+      lastStatus: string;
+      lastRanAt: string | null;
+      lastRun: { output: string; exitCode: number; cwd: string; permissionId: string; status: string };
+    };
+    expect(body.lastStatus).toBe('ok');
+    expect(body.lastRanAt).not.toBe(null);
+    expect(body.lastRun.status).toBe('ok');
+    expect(body.lastRun.exitCode).toBe(0);
+    expect(body.lastRun.permissionId).toBe(`tool:${tool.id}`);
+    expect(body.lastRun.cwd).toBe(projectPath);
+    // realpath: macOS resolves /var → /private/var, so compare the tail.
+    expect(body.lastRun.output.endsWith(projectPath.replace(/^\/private/, ''))).toBe(true);
+  });
+
+  it('records a non-zero exit as a failure with its output', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({
+      name: 'Nonzero',
+      command: 'node -e "process.stderr.write(\'boom\'); process.exit(3)"',
+      permissionId: 'repo',
+    });
+    await grant('repo');
+
+    const result = await run(tool.id);
+
+    const body = result.body as {
+      lastStatus: string;
+      lastResultLabel: string;
+      lastResult: { tone: string };
+      lastRun: { exitCode: number; output: string; status: string };
+    };
+    expect(body.lastStatus).toBe('fail');
+    expect(body.lastResult.tone).toBe('fail');
+    expect(body.lastResultLabel).toContain('exit 3');
+    expect(body.lastRun.status).toBe('fail');
+    expect(body.lastRun.exitCode).toBe(3);
+    expect(body.lastRun.output).toBe('boom');
+  });
+
+  it('kills a command that overruns its timeout', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const marker = join(projectPath, 'timeout-marker');
+    const tool = await makeTool({
+      name: 'Slow',
+      command: `sleep 5 && touch ${marker}`,
+      timeoutMs: 300,
+    });
+    await grant(`tool:${tool.id}`);
+
+    const result = await run(tool.id);
+
+    const body = result.body as {
+      lastStatus: string;
+      lastResultLabel: string;
+      lastRun: { status: string; durationMs: number };
+    };
+    expect(body.lastStatus).toBe('fail');
+    expect(body.lastRun.status).toBe('timeout');
+    expect(body.lastResultLabel).toContain('timed out');
+    expect(body.lastRun.durationMs).toBeLessThan(5_000);
+    // The whole process group died: the second half of the command never ran.
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    expect(existsSync(marker)).toBe(false);
+  }, 20_000);
+
+  it('refuses to execute when the objective has no project checkout on disk', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const goneProject = await prisma.project.create({
+      data: { name: 'Deleted checkout', path: join(tmpdir(), 'omega-tool-exec-does-not-exist') },
+    });
+    const goneObjective = await prisma.objective.create({
+      data: { projectId: goneProject.id, name: 'Deleted checkout objective' },
+    });
+    const orphan = await createHarnessFixture(goneObjective.id, { name: 'Checkout-less' });
+    const tool = await prisma.harnessTool.create({
+      data: {
+        harnessId: orphan.id,
+        name: 'No checkout',
+        groupName: 'Execution',
+        command: 'echo never',
+      },
+    });
+    await prisma.harness.update({
+      where: { id: orphan.id },
+      data: {
+        permissions: JSON.stringify([
+          { id: `tool:${tool.id}`, label: 'Run the tool', granted: true, needsApproval: false },
+        ]),
+      },
+    });
+
+    const result = await invokeRoute(router, 'post', '/harnesses/:id/tools/:toolId/run', {
+      params: { id: orphan.id, toolId: tool.id },
+    });
+
+    expect(result.body).toMatchObject({
+      lastStatus: 'recorded',
+      lastResultLabel: 'Not executed: the objective has no project checkout on disk; request recorded only',
+      lastRanAt: null,
+    });
+    expect(await prisma.intervention.count({ where: { harnessId: orphan.id } })).toBe(0);
+  });
+
+  it('runs the command with a scrubbed environment', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    process.env.OMEGA_TOOL_SECRET = 'do-not-leak';
+    const tool = await makeTool({
+      name: 'Env probe',
+      command: 'node -e "process.stdout.write(String(process.env.OMEGA_TOOL_SECRET) + \'|\' + String(process.env.DATABASE_URL))"',
+    });
+    await grant(`tool:${tool.id}`);
+
+    const result = await run(tool.id);
+
+    expect((result.body as { lastRun: { output: string } }).lastRun.output).toBe('undefined|undefined');
+  });
+
+  it('always asks again for a tool flagged needsApproval, even with the permission granted', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'Force push', command: 'echo dangerous', needsApproval: true });
+    await grant(`tool:${tool.id}`);
+
+    const result = await run(tool.id);
+
+    expect((result.body as { lastStatus: string }).lastStatus).toBe('blocked');
+    expect(await prisma.intervention.count({ where: { harnessId, kind: 'approval' } })).toBe(1);
+  });
+
+  it('rejects an approval whose tool belongs to another harness', async () => {
+    process.env.FOREMAN_TOOLS = '1';
+    const other = await createHarnessFixture(objectiveId, { name: 'Other harness' });
+    const foreignTool = await prisma.harnessTool.create({
+      data: { harnessId: other.id, name: 'Foreign', groupName: 'Execution', command: 'echo nope' },
+    });
+    const intervention = await prisma.intervention.create({
+      data: {
+        objectiveId,
+        harnessId,
+        kind: 'approval',
+        title: 'Forged approval',
+        payload: JSON.stringify({ toolId: foreignTool.id, permissionId: `tool:${foreignTool.id}` }),
+        status: 'pending',
+      },
+    });
+
+    const result = await invokeRoute(router, 'post', '/interventions/:id/resolve', {
+      params: { id: intervention.id },
+      body: { action: 'approve' },
+    });
+
+    expect(result.status).toBe(400);
+    expect(
+      (await prisma.harnessTool.findUniqueOrThrow({ where: { id: foreignTool.id } })).approvedInterventionId,
+    ).toBe(null);
+  });
 });

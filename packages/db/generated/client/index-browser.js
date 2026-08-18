@@ -423,7 +423,27 @@ exports.Prisma.HarnessToolScalarFieldEnum = {
   needsApproval: 'needsApproval',
   lastStatus: 'lastStatus',
   lastResultLabel: 'lastResultLabel',
-  lastRanAt: 'lastRanAt'
+  lastRanAt: 'lastRanAt',
+  command: 'command',
+  permissionId: 'permissionId',
+  timeoutMs: 'timeoutMs',
+  approvedInterventionId: 'approvedInterventionId'
+};
+
+exports.Prisma.HarnessToolRunScalarFieldEnum = {
+  id: 'id',
+  toolId: 'toolId',
+  harnessId: 'harnessId',
+  status: 'status',
+  label: 'label',
+  command: 'command',
+  cwd: 'cwd',
+  exitCode: 'exitCode',
+  durationMs: 'durationMs',
+  permissionId: 'permissionId',
+  interventionId: 'interventionId',
+  output: 'output',
+  createdAt: 'createdAt'
 };
 
 exports.Prisma.SortOrder = {
@@ -463,7 +483,8 @@ exports.Prisma.ModelName = {
   Pulse: 'Pulse',
   Intervention: 'Intervention',
   Playbook: 'Playbook',
-  HarnessTool: 'HarnessTool'
+  HarnessTool: 'HarnessTool',
+  HarnessToolRun: 'HarnessToolRun'
 };
 
 /**

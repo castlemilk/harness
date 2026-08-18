@@ -11,13 +11,9 @@ import {
 import { z } from 'zod';
 import { asyncHandler } from '../lib/async-handler.js';
 import { safeJsonParse } from '../lib/utils.js';
-
-interface Permission {
-  id: string;
-  label: string;
-  granted: boolean;
-  needsApproval: boolean;
-}
+import { parsePermissions } from '../lib/harness-permissions.js';
+import { serializeTool } from '../lib/tool-dto.js';
+import { runHarnessTool } from '../lib/tool-runner.js';
 
 const permissionSchema = z.object({
   id: z.string().min(1).max(100),
@@ -127,21 +123,7 @@ const versionPlaybookSchema = z.object({
   retireWhen: z.string().max(10_000).nullable(),
 });
 
-function permissions(value: string): Permission[] {
-  const parsed = safeJsonParse<unknown>(value, []);
-  if (!Array.isArray(parsed)) return [];
-  return parsed.flatMap((entry) => {
-    if (!entry || typeof entry !== 'object') return [];
-    const row = entry as Record<string, unknown>;
-    if (typeof row.id !== 'string' || typeof row.label !== 'string') return [];
-    return [{
-      id: row.id,
-      label: row.label,
-      granted: row.granted === true,
-      needsApproval: row.needsApproval === true,
-    }];
-  });
-}
+const permissions = parsePermissions;
 
 type HarnessStatus = z.infer<typeof harnessStatusSchema>;
 type PlaybookStep = z.infer<typeof playbookStepSchema> & { condition: string | null };
@@ -533,6 +515,14 @@ function matchingPermissionId(payload: string | null): string | null {
     if (typeof row[key] === 'string') return row[key];
   }
   return null;
+}
+
+/** The tool an approval intervention is about, if it is about one at all. */
+function interventionToolId(payload: string | null): string | null {
+  const parsed = safeJsonParse<unknown>(payload, null);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const toolId = (parsed as Record<string, unknown>).toolId;
+  return typeof toolId === 'string' ? toolId : null;
 }
 
 class ForemanMutationError extends Error {
@@ -993,22 +983,8 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
       res.status(404).json({ error: 'Harness tool not found' });
       return;
     }
-    const updated = await prisma.harnessTool.update({
-      where: { id: tool.id },
-      data: {
-        lastStatus: 'recorded',
-        lastRanAt: null,
-        lastResultLabel: 'Not executed: execution is not configured; request recorded only',
-      },
-    });
-    res.json({
-      ...updated,
-      group: updated.groupName,
-      lastResult: {
-        label: updated.lastResultLabel ?? 'Not executed: execution is not configured; request recorded only',
-        tone: 'idle',
-      },
-    });
+    const { tool: updated, run } = await runHarnessTool(prisma, tool);
+    res.json(serializeTool(updated, run));
   }));
 
   r.post('/interventions/:id/resolve', asyncHandler(async (req, res) => {
@@ -1099,6 +1075,20 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
             where: { id: harness.id },
             data: { permissions: JSON.stringify([...deduped.values()]) },
           });
+        } else if (body.action === 'approve') {
+          // "Approve once" on a tool request authorises exactly ONE later run.
+          // The grant lives on the tool and the next run consumes it, so an
+          // approval can never quietly become standing permission.
+          const toolId = interventionToolId(currentIntervention.payload);
+          if (toolId) {
+            const claimedTool = await tx.harnessTool.updateMany({
+              where: { id: toolId, harnessId: harness.id },
+              data: { approvedInterventionId: currentIntervention.id },
+            });
+            if (claimedTool.count !== 1) {
+              throw new ForemanMutationError(400, 'Intervention names a tool this harness does not own');
+            }
+          }
         } else if (body.action === 'retire') {
           const now = new Date();
           for (const target of retirementTargets) {

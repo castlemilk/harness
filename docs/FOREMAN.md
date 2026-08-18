@@ -46,6 +46,7 @@ apps/web/src/foreman/usecases/registry.ts     the seam: shells, tabs, resolution
 apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the six, and their wiring
 apps/web/src/foreman/usecases/index.ts        the roster: who is registered, when
 apps/web/src/foreman/usecases/demo.tsx        the proof shell (dev/test only)
+apps/web/src/foreman/usecases/victoria/       the Victoria trading shell (UC-3)
 apps/web/src/foreman/usecases/data-source.ts  how a shell reaches its own backend
 apps/web/src/foreman/usecases/health.tsx      probing + the chrome's health dots
 apps/web/src/foreman/data/adapt.ts            Foreman's own seam: boundary check
@@ -70,9 +71,10 @@ core chrome only, which is what every pre-existing objective is.
 
 The skin seam is one CSS variable, `--uc-accent`, set on the Foreman root from
 the active shell's `accent` (stock `#e8963c` without one). Exactly one piece of
-core chrome reads it today: the active underline on a use-case tab. UC-3 exploits
-that seam further with a real domain shell, so resist tinting more of the app by
-hand.
+core chrome reads it today: the active underline on a use-case tab. Victoria
+(UC-3) uses it *inside its own views* — the equity curve's stroke, the loading
+pulse — which is the intended way to exploit the seam; resist tinting more of the
+core chrome by hand.
 
 ### Data sources
 
@@ -83,8 +85,8 @@ and **builds its own typed client**:
 ```ts
 const OMEGA = { id: 'omega-api', label: 'Omega API',
                 baseUrl: 'http://localhost:8080',
-                envVar: 'VITE_UC_OMEGA_API_URL',
-                probePath: '/api/v1/dashboard/status' }
+                envVar: 'VITE_UC_VICTORIA_URL',
+                probePath: '/api/v1/training/versions' }
 
 const omega = createDataSource(OMEGA)                       // in the shell's module
 const portfolio = await omega.postConnect('omega.v1.VictoriaService', 'GetPortfolio')
@@ -108,6 +110,82 @@ types or auth. The registry only learns that a source exists.
 **Env override convention: `VITE_UC_<ID>_URL`.** When set and non-empty it
 replaces `baseUrl`; that is the only supported way to repoint a shell at another
 backend. `registerUseCase` rejects duplicate source ids within a shell.
+
+`sse` delivers unnamed frames to `onMessage` by default. A stream that uses
+**named** events lists them in `opts.events` and reads `ev.type` to tell them
+apart — the omega API's training stream writes `event: connected` then
+`event: progress`, neither of which an `onmessage` handler ever sees. The names
+stay the caller's to supply; the seam never guesses a shell's event vocabulary.
+
+### Victoria — the trading shell (UC-3)
+
+`usecases/victoria/` is the first real domain plugin. An objective carrying
+`useCase: 'victoria'` gets six tabs after the core six, all reading the **omega
+Go API on :8080** through the shell's own typed client.
+
+```
+victoria/index.ts          the manifest — data only, fetches nothing
+victoria/client.ts         typed client: 8 Connect RPCs + 6 REST endpoints + the SSE stream
+victoria/hooks.ts          one hook per view, each returning the same Async<T> triple
+victoria/geometry.ts       chart maths — pure, React-free, asserted to exact coordinates
+victoria/charts.tsx        bespoke SVG: Sparkline, LineChart, HeatGrid
+victoria/format.ts         trading formatters (signed money, unclamped pct, regime colour)
+victoria/views/            Overview, Runs, Live, Trades, Equity, Signals + shared chrome
+```
+
+| Tab | Shows | Reads |
+| --- | --- | --- |
+| Overview | Portfolio value, cash, exposure, PnL, open positions, equity sparkline, risk grid | `GetPortfolio`, `GetPnL`, `GetPositions`, `GetEquityCurve` |
+| Runs | The training-version ledger (586 runs locally), filterable, with a per-run delta against its predecessor | `/api/v1/training/versions`, `/compare` |
+| Live | Cycle counter, PnL/win-rate sparklines, regime badge, activity log, event stream | `/api/v1/training/metrics`, `/progress`, SSE `/events/stream` |
+| Trades | Blotter with conviction, regime, filters applied — or fills where only the table has rows | `/api/v1/training/trade-details`, `GetTrades` |
+| Equity | Full SVG line chart, benchmark overlay, drawdown panel, IS/OOS `train_end` marker | `GetEquityCurve` |
+| Signals | Latest sub-signal snapshot + correlation heat grid | `GetSignals`, `/api/v1/signals/correlation` |
+
+**Dependency.** The shell needs `omega-api` running from the omega repo
+(`go run ./cmd/omega-api`, port 8080, reads Postgres plus the repo's `data/`
+directory). It is not vendored and the harness has no build-time dependency on
+it — every type in `client.ts` is hand-derived from
+`proto/omega/v1/victoria_service.proto` and `internal/handler/training_handler.go`,
+with a provenance comment naming its source. Override the address with
+**`VITE_UC_VICTORIA_URL`**. CORS needs nothing: the Go API's default allowlist
+(`OMEGA_CORS_ORIGINS`, unset) already contains `http://localhost:5173`, which is
+Foreman's dev origin, so no Vite proxy is required.
+
+**Two properties of the wire drive most of the code.** Connect-JSON serialises
+fields as lowerCamelCase *and* omits zero-valued ones — `GetPositions` against an
+empty database answers `{}`, not `{"positions":[]}`. So every RPC type is fully
+optional, "absent" renders as an em dash rather than `0.00`, and every view has a
+real empty state. The REST half is Go structs with snake_case tags and means what
+it says.
+
+**Known backend defect.** `/api/v1/training/progress` decodes
+`data/training_progress.json` into a *struct*, but omega's `run_training.py`
+writes a JSON *array* of per-cycle records to that path — so it answers
+**HTTP 500** whenever a real run has happened. The Live view treats it as
+enrichment over `/metrics` (which is DB-backed and always answers) and renders
+the 500 in its own panel with an explanation, rather than catching it and
+reporting an idle run that is really a broken endpoint.
+
+**Phase 2, pending backend endpoints** — named so the roadmap stays visible:
+
+- **Gate board** — the six hard gates per run (PnL floor, regime parity,
+  drawdown ceiling, trade-count floor, signal integrity, auto-apply audit). The
+  data is written to `data/{version}_gate_result.json`; nothing serves it.
+- **Conviction funnel** — the four-stage filter pipeline (time filter →
+  agreement ratio → weighted conviction → regime/vol gate) with drop counts per
+  stage. `/decision-traces` carries the raw per-cycle traces; the funnel
+  aggregate does not exist.
+- **Forensics diff** — the per-symbol / per-conviction-bucket run comparison
+  `omega.tools.forensics.run_diff` produces. `/compare` only returns four scalar
+  deltas and a PnL-only verdict.
+- **Training-log narrative** — the run's own log as a readable timeline.
+- **Richer run rows** — profit factor and max drawdown are in each
+  `_results.json` but not in the `/versions` projection, and no endpoint exposes
+  the raw file. `sharpe_ratio` is 0 for every row for the same reason (the
+  handler reads a key the files do not carry), so the ledger shows an em dash.
+- **MAE/MFE per trade** — recorded nowhere today. `sit_out_reason` exists only
+  per *cycle* on the progress record, not per trade.
 
 ### Backend health
 

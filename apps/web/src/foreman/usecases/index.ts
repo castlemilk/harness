@@ -8,6 +8,7 @@
  */
 import { registerUseCase } from './registry.js';
 import { demoUseCase } from './demo.js';
+import { victoriaUseCase } from './victoria/index.js';
 
 // Dev and test only: the demo shell proves the path without shipping an empty
 // tab to an operator. `import.meta.env.DEV` is false in `vite build`, so the
@@ -15,6 +16,12 @@ import { demoUseCase } from './demo.js';
 if (import.meta.env.DEV) {
   registerUseCase(demoUseCase);
 }
+
+// Victoria ships in every build: it is a real domain shell with a real backend,
+// and an operator whose objective carries `useCase: 'victoria'` must find its
+// tabs in production. Registering it costs one map insert — the shell issues no
+// requests until one of its views mounts.
+registerUseCase(victoriaUseCase);
 
 export * from './registry.js';
 export * from './data-source.js';

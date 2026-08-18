@@ -50,9 +50,9 @@ afterEach(() => {
 
 describe('registerUseCase', () => {
   it('makes a shell resolvable by the id an objective carries', () => {
-    register(shell('victoria', ['positions'], { accent: '#3ad1a0' }));
-    expect(getUseCase('victoria')?.name).toBe('victoria shell');
-    expect(getUseCase('victoria')?.accent).toBe('#3ad1a0');
+    register(shell('trading-desk', ['positions'], { accent: '#3ad1a0' }));
+    expect(getUseCase('trading-desk')?.name).toBe('trading-desk shell');
+    expect(getUseCase('trading-desk')?.accent).toBe('#3ad1a0');
     expect(getUseCase('nope')).toBeNull();
     expect(getUseCase(null)).toBeNull();
     expect(getUseCase(undefined)).toBeNull();
@@ -61,11 +61,11 @@ describe('registerUseCase', () => {
   it('rejects a duplicate shell id instead of shadowing the first', () => {
     // Silently overwriting means one registration never renders, and there is
     // nothing at runtime to point at.
-    register(shell('victoria', ['positions']));
-    expect(() => { registerUseCase(shell('victoria', ['other'])); }).toThrow(
-      'Use case "victoria" is already registered',
+    register(shell('trading-desk', ['positions']));
+    expect(() => { registerUseCase(shell('trading-desk', ['other'])); }).toThrow(
+      'Use case "trading-desk" is already registered',
     );
-    expect(getUseCases().filter((s) => s.id === 'victoria')).toHaveLength(1);
+    expect(getUseCases().filter((s) => s.id === 'trading-desk')).toHaveLength(1);
   });
 
   it('rejects a view id repeated inside one shell', () => {
@@ -95,8 +95,8 @@ describe('registerUseCase', () => {
       envVar: 'VITE_UC_VICTORIA_URL',
       probePath: '/api/v1/dashboard/status',
     };
-    register(shell('victoria', ['positions'], { dataSources: [source] }));
-    expect(getUseCase('victoria')?.dataSources).toEqual([source]);
+    register(shell('trading-desk', ['positions'], { dataSources: [source] }));
+    expect(getUseCase('trading-desk')?.dataSources).toEqual([source]);
     // A shell that declares none is the normal case and must stay undefined,
     // so the chrome renders nothing rather than an empty indicator.
     register(shell('plain', ['a']));
@@ -163,16 +163,18 @@ describe('viewTabs', () => {
   });
 
   it('orders use-case views by order, and refuses to shadow a core tab', () => {
+    // A throwaway id, deliberately not 'victoria': the roster imported above
+    // registers the real Victoria shell, and reusing its id would collide.
     register({
-      id: 'victoria',
-      name: 'Victoria',
+      id: 'shadow-probe',
+      name: 'Shadow probe',
       views: [
         { id: 'positions', label: 'Positions', order: 20, component: noopView },
         { id: 'console', label: 'Hijacked', order: 5, component: noopView },
         { id: 'signals', label: 'Signals', order: 10, component: noopView },
       ],
     });
-    const tabs = viewTabs(CORE_VIEWS, 'victoria');
+    const tabs = viewTabs(CORE_VIEWS, 'shadow-probe');
     expect(tabs.map((t) => t.id)).toEqual([
       'console',
       'board',

@@ -41,6 +41,7 @@ const PROJECT = id('1');
 const OBJ_MAIN = id('10');
 const OBJ_QUEUE = id('11');
 const OBJ_DEMO = id('12');
+const OBJ_VICTORIA = id('13');
 const PB_LEAD = id('20');
 const PB_LEAD_V2 = id('21');
 const PB_WORKER = id('22');
@@ -467,6 +468,28 @@ async function main(): Promise<void> {
       status: 'active',
       useCase: 'demo',
       spendCapUsd: 25,
+    },
+  });
+
+  // A fourth objective carrying the real Victoria shell, so UC-3's six domain
+  // tabs are reachable in the fixture. Unlike the demo shell, Victoria's
+  // backend is the omega Go API on :8080 — which the e2e fixture does NOT
+  // stand up. That is deliberate and is itself worth having in the fixture:
+  // selecting this objective exercises the unreachable-source path (red health
+  // dot, in-panel DataSourceError) that an operator hits whenever omega is
+  // down, and which no amount of seeded Foreman data can reproduce.
+  await prisma.objective.upsert({
+    where: { id: OBJ_VICTORIA },
+    update: { useCase: 'victoria' },
+    create: {
+      id: OBJ_VICTORIA,
+      projectId: project.id,
+      name: 'Run the Victoria trading desk',
+      description:
+        'Carries useCase "victoria", which contributes six domain tabs backed by the omega API.',
+      status: 'active',
+      useCase: 'victoria',
+      spendCapUsd: 200,
     },
   });
 

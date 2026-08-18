@@ -45,6 +45,10 @@ describe('the generated roster', () => {
       'victoria-trades',
       'victoria-equity',
       'victoria-signals',
+      'victoria-gates',
+      'victoria-conviction',
+      'victoria-forensics',
+      'victoria-journal',
     ]);
   });
 });
@@ -82,7 +86,7 @@ describe('the shells, as the host sees them', () => {
     expect(polymarket?.vocabulary).toBeUndefined();
   });
 
-  it('adds Victoria’s six domain tabs after the core six, in declared order', () => {
+  it('adds Victoria’s ten domain tabs after the core six, in declared order', () => {
     const tabs = viewTabs(CORE_VIEWS, 'victoria');
     expect(tabs.map((t) => t.id)).toEqual([
       'console',
@@ -97,6 +101,10 @@ describe('the shells, as the host sees them', () => {
       'victoria-trades',
       'victoria-equity',
       'victoria-signals',
+      'victoria-gates',
+      'victoria-conviction',
+      'victoria-forensics',
+      'victoria-journal',
     ]);
     expect(tabs.map((t) => t.label).slice(6)).toEqual([
       'Overview',
@@ -105,6 +113,10 @@ describe('the shells, as the host sees them', () => {
       'Trades',
       'Equity',
       'Signals',
+      'Gates',
+      'Conviction',
+      'Forensics',
+      'Journal',
     ]);
     expect(tabs.slice(0, 6).every((t) => t.source === 'core')).toBe(true);
     expect(tabs.slice(6).every((t) => t.source === 'usecase')).toBe(true);

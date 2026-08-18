@@ -148,8 +148,13 @@ function Row({
         </div>
       )}
 
-      {item.kind !== 'approval' && item.detail && (
-        <div className="mt-1.5 text-[12px] leading-relaxed text-ink3">{item.detail}</div>
+      {/* An approval normally speaks through its diff — but a tool approval has
+          no diff, and its detail (the command, and where it would run) is the
+          whole basis for the decision. Never ask someone to approve a blank. */}
+      {(item.kind !== 'approval' || !item.diff || item.diff.lines.length === 0) && item.detail && (
+        <div className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-ink3">
+          {item.detail}
+        </div>
       )}
 
       {item.kind === 'approval' && (

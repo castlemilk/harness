@@ -113,6 +113,22 @@ export interface Tool {
   group: string;
   lastResult: { label: string; tone: 'ok' | 'fail' | 'warn' | 'idle' } | null;
   needsApproval: boolean;
+  /** The shell command this tool runs, if any. Null means it records only. */
+  command?: string | null;
+  /** False when no command is configured: running it executes nothing. */
+  executable?: boolean;
+  /** The last attempt — recorded, blocked, or executed. */
+  lastRun?: {
+    id: string;
+    status: string;
+    exitCode: number | null;
+    durationMs: number | null;
+    cwd: string | null;
+    permissionId: string | null;
+    interventionId: string | null;
+    output: string | null;
+    createdAt: string;
+  } | null;
 }
 
 export interface Playbook {

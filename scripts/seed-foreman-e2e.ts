@@ -28,6 +28,9 @@
  */
 // Relative rather than '@omega/db': this script lives outside the workspace
 // packages, so the package name does not resolve from the repo root.
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { prisma } from '../packages/db/src/index.js';
 
 const MINUTE = 60_000;
@@ -357,6 +360,17 @@ async function main(): Promise<void> {
       description: 'State-complete fixture for Foreman UI validation.',
     },
   });
+
+  // The fixture's checkout has to exist on disk: tool execution refuses to run
+  // anything when the objective's project path is missing, and the demo tool
+  // below is `git status --short`.
+  if (!existsSync(project.path)) {
+    mkdirSync(project.path, { recursive: true });
+  }
+  if (!existsSync(join(project.path, '.git'))) {
+    execFileSync('git', ['init', '--quiet'], { cwd: project.path });
+    writeFileSync(join(project.path, 'README.md'), '# Foreman E2E fixture checkout\n');
+  }
 
   // --- playbooks ----------------------------------------------------------
   const leadSteps = [
@@ -697,6 +711,26 @@ async function main(): Promise<void> {
       });
     }
   }
+
+  // One tool that can actually execute, so the permission gate and the
+  // approval round-trip are drivable end to end. It is read-only on purpose,
+  // and it still does nothing at all unless the server runs with
+  // FOREMAN_TOOLS=1. The first harness has no matching permission, so the
+  // first run BLOCKS and raises an approval — that is the demo.
+  const executableToolId = id('59000');
+  await prisma.harnessTool.upsert({
+    where: { id: executableToolId },
+    update: { command: 'git status --short' },
+    create: {
+      id: executableToolId,
+      harnessId: id('100'),
+      name: 'Repo status',
+      groupName: 'Git',
+      needsApproval: false,
+      command: 'git status --short',
+      timeoutMs: 15_000,
+    },
+  });
 
   // --- interventions ------------------------------------------------------
   await prisma.intervention.deleteMany({ where: { objectiveId: { in: [OBJ_MAIN, OBJ_QUEUE] } } });

@@ -201,12 +201,61 @@ vendors' official billing APIs if you need account-level spend.
 postinstall; `node scripts/fix-node-pty.mjs` fixes it by hand, and `task doctor`
 reports it.
 
+## Tool execution
+
+A `HarnessTool` is a button in the Toolkit that runs a **shell command in the
+objective's project checkout**. That is a browser button running a command on
+the host, so it is fenced on four sides:
+
+```bash
+FOREMAN_TOOLS=1 task dev      # without this, tools execute NOTHING
+```
+
+1. **Off by default.** With `FOREMAN_TOOLS` unset, running a tool records the
+   request and returns the same "Not executed: execution is not configured;
+   request recorded only" it always did. A tool with no `command` behaves that
+   way regardless of the flag.
+2. **Permission gate.** Execution needs a *granted* entry in
+   `Harness.permissions` whose id is the tool's `permissionId` (default
+   `tool:<id>`). No grant → nothing runs: the run is recorded as
+   `blocked-pending-approval` and one `approval` intervention is raised for the
+   Needs-you rail (deduplicated per tool). A tool flagged `needsApproval` asks
+   every single time, granted or not.
+3. **Approval round trip.** Resolving that intervention with **approve** stores
+   the intervention id on the tool as a one-shot grant, which the *next* run
+   consumes and clears — an approval can never become standing permission.
+   **approve-always** flips the permission to granted through the existing
+   resolve path, so every later run executes. **deny** changes nothing.
+4. **Bounds.** 60s default timeout (`HarnessTool.timeoutMs`, capped at 10m),
+   killed as a process group (SIGTERM, then SIGKILL); 64 KB of output captured
+   and a 2 000-character excerpt persisted; cwd is the project path, and a
+   missing checkout is record-only, not a guess.
+
+Every attempt — recorded, blocked, executed, failed, timed out — writes a
+`HarnessToolRun`: command, cwd, exit code, duration, output excerpt, and the
+permission id *or* intervention id that authorised it. The Toolkit renders that
+row: real status, the command, and the output.
+
+The environment is an **allowlist** (`PATH`, `HOME`, `SHELL`, `USER`, `LOGNAME`,
+`LANG`, `LC_ALL`, `TZ`, `TMPDIR` plus `GIT_TERMINAL_PROMPT=0`, `TERM=dumb`,
+`CI=1`). Provider keys and `DATABASE_URL` are not visible to a tool command.
+
+Known deviation: tool runs do **not** emit their own SSE event. The stream
+diffs harnesses, pulses and interventions, so a *blocked* run surfaces live via
+its intervention, while a successful run surfaces in the run response and the
+next `GET /harnesses/:id/tools`. Adding a `tool` event means teaching the
+stream a fourth table — worth doing when a background caller can fire tools.
+
+The command text always comes from the stored tool definition; the request body
+is ignored. The gate decides *whether*, never *what*.
+
 ## Layout
 
 ```
 packages/db/prisma/schema.prisma    Objective/Workstream/Harness/Pulse/…
 apps/server/src/routes/foreman*.ts  API, mutations, SSE
 apps/server/src/lib/pulse-engine.ts runner + scheduler
+apps/server/src/lib/tool-runner.ts  tool execution: flag, permissions, bounds
 apps/web/src/foreman/               shells/ surfaces/ ui/ data/
 scripts/seed-foreman-e2e.ts         the fixture
 ```
@@ -220,10 +269,12 @@ bounded query. The SSE stream opens with that same snapshot, then patches.
   token prompt against a 400k window genuinely is ~0%. The fixture's higher
   numbers are fabricated. The gauge only becomes meaningful if harnesses carry
   conversation across pulses — a design decision, not a bug.
-- **Chat-model harnesses do no real work.** They reason about state and report;
-  they have no tools, and will narrate plausible work that did not happen.
-  `HarnessTool.run` records an invocation without executing anything. Harnesses
-  on `external:<cli>` DO real work — that is the path that changes files.
+- **Chat-model harnesses do no real work of their own.** They reason about
+  state and report; they will narrate plausible work that did not happen.
+  Harnesses on `external:<cli>` DO real work — that is the path that changes
+  files. A human can also fire a `HarnessTool` at any harness, which really
+  executes (see "Tool execution"), but nothing the *model* decides can reach a
+  tool: execution is human-initiated only, and only under `FOREMAN_TOOLS=1`.
 - **External CLI cost is usually unreported**, so an `external:` harness with a
   spend cap runs unmeasured. The unpriced-model guard covers chat models only.
 - **`mergedToday` uses `Task.updatedAt`**, which any write bumps. There is no
@@ -239,7 +290,7 @@ bounded query. The SSE stream opens with that same snapshot, then patches.
 ## Tests
 
 ```bash
-task test:foreman   # 50 server + 153 web
+task test:foreman   # 62 server + 84 web
 task check          # lint, typecheck, build, test
 ```
 

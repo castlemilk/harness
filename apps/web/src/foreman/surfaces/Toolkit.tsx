@@ -32,6 +32,9 @@ export function Toolkit({
 }) {
   const [running, setRunning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The tool this session last fired, so its result can be shown in full
+  // rather than squeezed into a one-line label.
+  const [lastRanId, setLastRanId] = useState<string | null>(null);
 
   const groups = useMemo(() => {
     const map = new Map<string, Tool[]>();
@@ -46,12 +49,16 @@ export function Toolkit({
   const run = (tool: Tool) => {
     setRunning(tool.id);
     setError(null);
+    setLastRanId(tool.id);
     void onRun(tool)
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : String(err));
       })
       .finally(() => { setRunning(null); });
   };
+
+  const lastRan = lastRanId === null ? null : tools.find((t) => t.id === lastRanId) ?? null;
+  const detail = lastRan?.lastRun ?? null;
 
   return (
     <Modal open={open} onClose={onClose} width={380} label={`Toolkit for ${harnessName}`}>
@@ -91,24 +98,69 @@ export function Toolkit({
                     <div className="text-[11px] font-medium">▷ {tool.name}</div>
                     <div
                       className={`mt-1 font-mono text-[8.5px] ${
-                        tool.needsApproval
-                          ? 'text-warn'
-                          : RESULT_TONE[tool.lastResult?.tone ?? 'idle']
+                        RESULT_TONE[
+                          tool.lastResult?.tone ?? (tool.needsApproval ? 'warn' : 'idle')
+                        ]
                       }`}
+                      title={tool.command ?? undefined}
                     >
                       {running === tool.id
                         ? 'running…'
-                        : tool.needsApproval
-                          ? 'needs approval'
-                          : tool.lastResult
-                            ? tool.lastResult.label
-                            : 'idle'}
+                        : tool.lastResult
+                          ? tool.lastResult.label
+                          : tool.needsApproval
+                            ? 'needs approval'
+                            : tool.executable === false
+                              ? 'records only'
+                              : 'idle'}
                     </div>
                   </button>
                 ))}
               </div>
             </div>
           ))
+        )}
+
+        {lastRan && detail && (
+          <div className="mt-3 rounded-md border border-line bg-card px-3 py-2.5">
+            <div className="flex items-center gap-2 font-mono text-[9.5px] text-muted">
+              <span className={RESULT_TONE[lastRan.lastResult?.tone ?? 'idle']}>
+                {lastRan.name} · {detail.status}
+              </span>
+              <div className="flex-1" />
+              {detail.exitCode !== null && <span>exit {detail.exitCode}</span>}
+              {detail.durationMs !== null && <span>{detail.durationMs}ms</span>}
+            </div>
+            {lastRan.command && (
+              <div className="mt-1.5 truncate font-mono text-[9.5px] text-faint" title={lastRan.command}>
+                $ {lastRan.command}
+              </div>
+            )}
+            {detail.cwd && (
+              <div className="truncate font-mono text-[9px] text-faint" title={detail.cwd}>
+                in {detail.cwd}
+              </div>
+            )}
+            {detail.status === 'blocked-pending-approval' && (
+              <div className="mt-1.5 text-[11px] text-warn">
+                Blocked — an approval is waiting for you in Needs you.
+              </div>
+            )}
+            {detail.output && (
+              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-panel px-2 py-1.5 font-mono text-[9.5px] leading-[1.6] text-ink3">
+                {detail.output}
+              </pre>
+            )}
+            <div className="mt-1.5 font-mono text-[9px] text-faint">
+              {detail.status === 'blocked-pending-approval'
+                ? `needs permission ${detail.permissionId ?? '—'}`
+                : detail.permissionId
+                  ? `authorised by permission ${detail.permissionId}`
+                  : detail.interventionId
+                    ? `authorised by approval ${detail.interventionId.slice(0, 8)}`
+                    : 'nothing ran — nothing was authorised'}
+            </div>
+          </div>
         )}
 
         {error && (

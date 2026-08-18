@@ -487,7 +487,7 @@ async function main(): Promise<void> {
       projectId: project.id,
       name: 'Run the Victoria trading desk',
       description:
-        'Carries useCase "victoria", which contributes six domain tabs backed by the omega API.',
+        'Carries useCase "victoria", which contributes ten domain tabs backed by the omega API.',
       status: 'active',
       useCase: 'victoria',
       spendCapUsd: 200,

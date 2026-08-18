@@ -20,3 +20,6 @@ jobs/
 # file there. Only the repo-root dir and the server's built UI are artifacts.
 /web/
 apps/server/web/
+
+# graphify knowledge graph (local exploration; regenerate with: graphify update . --code-only)
+graphify-out/

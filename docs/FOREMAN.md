@@ -286,11 +286,31 @@ intervention id that authorised it.
 
 ### Disclosure and blast radius — read this before exposing anything
 
-- **Run output is readable by any caller of the tools route.** The ≤2 000-char
-  excerpt is returned on the run response and on `GET /harnesses/:id/tools`,
-  neither of which is behind the secret (only *running* is). A tool that prints
-  a token, a connection string or a customer record has published it to anyone
-  who can read the API.
+- **Run output and command text are readable by any caller — unless the secret
+  is set.** Five reads serialise one or the other. The ≤2 000-char excerpt and
+  the command reach `GET /harnesses/:id/tools` and `GET /harnesses/:id` (whose
+  payload carries the whole toolkit); the command alone reaches every read that
+  carries a pending tool *approval*, which publishes it twice, in
+  `payload.command` and in the first line of `detail` — that is
+  `GET /objectives/:id/state`, `GET /interventions` and the SSE init/patch
+  frames on `GET /stream`. With `FOREMAN_TOOLS_SECRET` set all five demand the
+  same `x-foreman-tools-secret` header — but a missing or wrong one **redacts
+  rather than refuses**: every name, group, status, tone, exit code, duration,
+  cwd, permission id, intervention title and impact stays intact, and only
+  `command`, `lastRun.output` and the approval's copies of the command become
+  the literal `«secret required»`. The Toolkit renders that marker as "output
+  hidden — tools secret required"; an approval's detail carries it inline as
+  `Command: «secret required»`, so the ask stays answerable.
+  Redaction, not `401`, because these serialisers are reached through composite
+  reads a read-only dashboard makes without any secret; failing the whole
+  request would break a page over a field it never renders. `GET /stream` also
+  accepts the secret as `?toolsSecret=` — `EventSource` has no header channel,
+  and a stream that always redacted would overwrite the readable commands the
+  fetched state just put on screen. That is a real widening (query strings reach
+  proxy logs and `Referer`; headers do not), accepted on the same footing as
+  shipping the secret to the SPA at all. With the secret unset every read is
+  open exactly as before, and a tool that prints a token, a connection string or
+  a customer record has still published it to anyone who can read the API.
 - **The scrubbed environment protects the SERVER's secrets, not the host.** The
   allowlist (`PATH`, `HOME`, `SHELL`, `USER`, `LOGNAME`, `LANG`, `LC_ALL`, `TZ`,
   `TMPDIR` plus `GIT_TERMINAL_PROMPT=0`, `TERM=dumb`, `CI=1`) keeps provider API
@@ -309,11 +329,12 @@ intervention id that authorised it.
   `onDelete: Cascade`, so deleting a project silently destroys every record of
   what was ever executed against it. There is no archive.
 - **The web UI's `VITE_FOREMAN_TOOLS_SECRET` is not authentication.** The
-  Toolkit and intervention surfaces send the header when the build was given
-  that variable, which is dev convenience. A secret compiled into a served SPA
-  is readable by anyone who loads the page; all it really buys is that a
-  cross-origin page cannot forge the request — CSRF-grade. Real deployments
-  should keep the loopback bind.
+  Toolkit and intervention surfaces send the header — on all five reads as well
+  as the two write routes, and as the stream's query parameter — when the build
+  was given that variable, which is dev convenience. A secret compiled into a
+  served SPA is readable by anyone who loads the page; all it really buys is
+  that a cross-origin page cannot forge the request — CSRF-grade. Real
+  deployments should keep the loopback bind.
 
 Known deviation: tool runs do **not** emit their own SSE event. The stream
 diffs harnesses, pulses and interventions, so a *blocked* run surfaces live via

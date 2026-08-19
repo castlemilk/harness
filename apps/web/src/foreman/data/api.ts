@@ -17,7 +17,11 @@ const API = String(import.meta.env.VITE_API_URL ?? 'http://localhost:4000');
 
 /**
  * The server's `FOREMAN_TOOLS_SECRET`, if this build was given it, sent on the
- * two routes that can cause a shell command to run.
+ * routes that can cause a shell command to run — and on every READ that carries
+ * a command or a captured output: the tool list, the harness detail, the
+ * objective state, the interventions queue and the stream. Without it those
+ * reads still answer, with the command and output replaced by
+ * `«secret required»`.
  *
  * This is DEV CONVENIENCE, not a security boundary: a secret compiled into a
  * served SPA is readable by anyone who can load the page, so all it really buys
@@ -95,10 +99,16 @@ export const foremanApi = {
     spendCapUsd?: number;
   }) => request<Objective>('/foreman/objectives', { method: 'POST', body: JSON.stringify(body) }),
 
+  // Carries every pending intervention, and a tool approval's whole basis for
+  // the decision is the command it wants to run.
   getState: (objectiveId: string) =>
-    request<ObjectiveState>(`/foreman/objectives/${objectiveId}/state`),
+    request<ObjectiveState>(`/foreman/objectives/${objectiveId}/state`, {
+      headers: toolsHeaders(),
+    }),
 
-  getHarness: (id: string) => request<Harness>(`/foreman/harnesses/${id}`),
+  // Carries the whole toolkit, so it wants the header for the same reason
+  // `getTools` does.
+  getHarness: (id: string) => request<Harness>(`/foreman/harnesses/${id}`, { headers: toolsHeaders() }),
 
   getPulses: (id: string, limit = 12) =>
     request<Pulse[]>(`/foreman/harnesses/${id}/pulses?limit=${String(limit)}`),
@@ -106,7 +116,8 @@ export const foremanApi = {
   getTranscript: (id: string) =>
     request<TranscriptEntry[]>(`/foreman/harnesses/${id}/transcript`),
 
-  getTools: (id: string) => request<Tool[]>(`/foreman/harnesses/${id}/tools`),
+  getTools: (id: string) =>
+    request<Tool[]>(`/foreman/harnesses/${id}/tools`, { headers: toolsHeaders() }),
 
   runTool: (harnessId: string, toolId: string) =>
     request<Tool>(`/foreman/harnesses/${harnessId}/tools/${toolId}/run`, {
@@ -144,6 +155,7 @@ export const foremanApi = {
   listInterventions: (objectiveId: string) =>
     request<Intervention[]>(
       `/foreman/interventions?objectiveId=${objectiveId}&status=pending`,
+      { headers: toolsHeaders() },
     ),
 
   resolveIntervention: (
@@ -209,5 +221,16 @@ export const foremanApi = {
     return [...models];
   },
 
-  streamUrl: (objectiveId: string) => sseUrl(`/foreman/stream?objectiveId=${objectiveId}`),
+  /**
+   * The one place the secret rides the query string: `EventSource` cannot set a
+   * header, and the stream's snapshot carries the same tool approvals the
+   * fetched state does. Without it the stream still opens, with the commands
+   * redacted — which would otherwise overwrite the readable ones the fetch just
+   * put on screen.
+   */
+  streamUrl: (objectiveId: string) =>
+    sseUrl(
+      `/foreman/stream?objectiveId=${objectiveId}`
+      + (TOOLS_SECRET.length > 0 ? `&toolsSecret=${encodeURIComponent(TOOLS_SECRET)}` : ''),
+    ),
 };

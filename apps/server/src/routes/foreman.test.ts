@@ -2009,10 +2009,12 @@ describe('Foreman routes with PGlite', () => {
       query: Record<string, string>;
       params: Record<string, string>;
       body: Record<string, never>;
+      headers: Record<string, string>;
     };
     request.query = { objectiveId };
     request.params = {};
     request.body = {};
+    request.headers = {};
 
     const chunks: string[] = [];
     let headers: Record<string, string> = {};
@@ -2611,6 +2613,280 @@ describe('Foreman tool execution', () => {
     expect(
       (await prisma.intervention.findUniqueOrThrow({ where: { id: question.id } })).status,
     ).toBe('answered');
+  });
+
+  // -------------------------------------------------- the secret on READS --
+
+  /**
+   * Run a tool for real, then read it back both ways. The fixture is one
+   * executed tool whose command and output are both known strings, so a
+   * redaction is unmistakable rather than "some field changed".
+   */
+  const executedTool = async (name: string) => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name, command: 'echo readable-output' });
+    await grant(`tool:${tool.id}`);
+    const secret = process.env.FOREMAN_TOOLS_SECRET;
+    const ran = await run(tool.id, secret ? { 'x-foreman-tools-secret': secret } : undefined);
+    expect(ran.status).toBe(200);
+    return tool;
+  };
+
+  const readTools = async (headers?: Record<string, string>) => {
+    const result = await invokeRoute(router, 'get', '/harnesses/:id/tools', {
+      params: { id: harnessId },
+      headers,
+    });
+    expect(result.status).toBe(200);
+    return result.body as Record<string, unknown>[];
+  };
+
+  const findTool = (tools: Record<string, unknown>[], id: string) => {
+    const found = tools.find((tool) => tool.id === id);
+    if (!found) throw new Error(`Tool ${id} missing from the read`);
+    return found as {
+      id: string;
+      name: string;
+      command: string | null;
+      executable: boolean;
+      lastStatus: string | null;
+      lastResult: { label: string; tone: string } | null;
+      lastRun: { status: string; exitCode: number | null; output: string | null } | null;
+    };
+  };
+
+  it('serves the command and the run output in full when the read carries the secret', async () => {
+    process.env.FOREMAN_TOOLS_SECRET = 'read-me-if-you-can';
+    const tool = await executedTool('Readable with secret');
+
+    const read = findTool(await readTools({ 'x-foreman-tools-secret': 'read-me-if-you-can' }), tool.id);
+
+    expect(read.command).toBe('echo readable-output');
+    expect(read.lastRun?.output).toBe('readable-output');
+    expect(read.lastRun?.status).toBe('ok');
+    expect(read.lastStatus).toBe('ok');
+  });
+
+  it('redacts the command and the run output when the read has no secret, keeping the list', async () => {
+    process.env.FOREMAN_TOOLS_SECRET = 'read-me-if-you-can';
+    const tool = await executedTool('Redacted without secret');
+
+    const tools = await readTools();
+    const read = findTool(tools, tool.id);
+
+    // The payload is gone…
+    expect(read.command).toBe('«secret required»');
+    expect(read.lastRun?.output).toBe('«secret required»');
+    // …and everything that is workflow rather than payload survives, so the
+    // Toolkit degrades visibly instead of emptying out.
+    expect(tools.length).toBeGreaterThan(0);
+    expect(read.name).toBe('Redacted without secret');
+    expect(read.executable).toBe(true);
+    expect(read.lastStatus).toBe('ok');
+    expect(read.lastResult?.tone).toBe('ok');
+    expect(read.lastRun?.status).toBe('ok');
+    expect(read.lastRun?.exitCode).toBe(0);
+  });
+
+  it('redacts on a wrong secret exactly as on a missing one', async () => {
+    process.env.FOREMAN_TOOLS_SECRET = 'read-me-if-you-can';
+    const tool = await executedTool('Redacted on wrong secret');
+
+    const read = findTool(
+      await readTools({ 'x-foreman-tools-secret': 'read-me-if-you-cam' }),
+      tool.id,
+    );
+
+    expect(read.command).toBe('«secret required»');
+    expect(read.lastRun?.output).toBe('«secret required»');
+  });
+
+  it('redacts the toolkit carried by the harness detail read as well', async () => {
+    process.env.FOREMAN_TOOLS_SECRET = 'read-me-if-you-can';
+    const tool = await executedTool('Redacted on harness detail');
+
+    const detail = async (headers?: Record<string, string>) => {
+      const result = await invokeRoute(router, 'get', '/harnesses/:id', {
+        params: { id: harnessId },
+        headers,
+      });
+      expect(result.status).toBe(200);
+      return findTool((result.body as { tools: Record<string, unknown>[] }).tools, tool.id);
+    };
+
+    const hidden = await detail();
+    expect(hidden.command).toBe('«secret required»');
+    expect(hidden.lastRun?.output).toBe('«secret required»');
+    expect(hidden.name).toBe('Redacted on harness detail');
+
+    const shown = await detail({ 'x-foreman-tools-secret': 'read-me-if-you-can' });
+    expect(shown.command).toBe('echo readable-output');
+    expect(shown.lastRun?.output).toBe('readable-output');
+  });
+
+  it('leaves the tools read wide open when no secret is configured', async () => {
+    const tool = await executedTool('Open without a secret');
+
+    const read = findTool(await readTools(), tool.id);
+
+    expect(process.env.FOREMAN_TOOLS_SECRET).toBeUndefined();
+    expect(read.command).toBe('echo readable-output');
+    expect(read.lastRun?.output).toBe('readable-output');
+  });
+
+  // --------------------------------------- the command on APPROVAL reads --
+
+  /**
+   * A blocked run raises the approval intervention, which publishes the command
+   * twice — in `payload.command` and in the first line of `detail`. Three
+   * unauthenticated reads carry that intervention, so redacting `command` on the
+   * tools list alone would leave the same string a route away.
+   */
+  const blockedApproval = async (command: string) => {
+    process.env.FOREMAN_TOOLS = '1';
+    const tool = await makeTool({ name: 'Wants approval', command });
+    const secret = process.env.FOREMAN_TOOLS_SECRET;
+    const blocked = await run(tool.id, secret ? { 'x-foreman-tools-secret': secret } : undefined);
+    expect((blocked.body as { lastStatus: string }).lastStatus).toBe('blocked');
+    return prisma.intervention.findFirstOrThrow({ where: { harnessId, kind: 'approval' } });
+  };
+
+  interface ReadIntervention {
+    id: string;
+    title: string;
+    detail: string | null;
+    impact: string | null;
+    status: string;
+    payload: { command?: unknown; toolId?: unknown } | null;
+  }
+
+  const SECRET_COMMAND = 'echo hunter2-in-the-command';
+
+  it('redacts the command an approval intervention carries on the queue read', async () => {
+    process.env.FOREMAN_TOOLS_SECRET = 'read-me-if-you-can';
+    const intervention = await blockedApproval(SECRET_COMMAND);
+
+    const list = async (headers?: Record<string, string>) => {
+      const result = await invokeRoute(router, 'get', '/interventions', {
+        query: { objectiveId, status: 'pending' },
+        headers,
+      });
+      expect(result.status).toBe(200);
+      const rows = result.body as ReadIntervention[];
+      const found = rows.find((row) => row.id === intervention.id);
+      if (!found) throw new Error('Approval missing from the queue read');
+      return found;
+    };
+
+    const hidden = await list();
+    expect(hidden.payload?.command).toBe('«secret required»');
+    expect(hidden.detail).toContain('Command: «secret required»');
+    expect(hidden.detail).not.toContain('hunter2');
+    // The ask is still answerable: who wants what, and the buttons' copy.
+    expect(hidden.title).toContain('wants to run "Wants approval"');
+    expect(hidden.status).toBe('pending');
+    expect(hidden.impact).toBe('Execution');
+    expect(hidden.detail).toContain('Working directory');
+    expect(typeof hidden.payload?.toolId).toBe('string');
+
+    const shown = await list({ 'x-foreman-tools-secret': 'read-me-if-you-can' });
+    expect(shown.payload?.command).toBe(SECRET_COMMAND);
+    expect(shown.detail).toContain(`Command: ${SECRET_COMMAND}`);
+  });
+
+  it('redacts that command on the objective state read too', async () => {
+    process.env.FOREMAN_TOOLS_SECRET = 'read-me-if-you-can';
+    const intervention = await blockedApproval(SECRET_COMMAND);
+
+    const state = async (headers?: Record<string, string>) => {
+      const result = await invokeRoute(router, 'get', '/objectives/:id/state', {
+        params: { id: objectiveId },
+        headers,
+      });
+      expect(result.status).toBe(200);
+      const rows = (result.body as { interventions: ReadIntervention[] }).interventions;
+      const found = rows.find((row) => row.id === intervention.id);
+      if (!found) throw new Error('Approval missing from the objective state');
+      return found;
+    };
+
+    const hidden = await state();
+    expect(hidden.payload?.command).toBe('«secret required»');
+    expect(hidden.detail).not.toContain('hunter2');
+
+    const shown = await state({ 'x-foreman-tools-secret': 'read-me-if-you-can' });
+    expect(shown.payload?.command).toBe(SECRET_COMMAND);
+  });
+
+  it('redacts that command in the stream snapshot, which the query string can unlock', async () => {
+    process.env.FOREMAN_TOOLS_SECRET = 'read-me-if-you-can';
+    const intervention = await blockedApproval(SECRET_COMMAND);
+
+    // EventSource cannot set a header, so the stream takes the secret in the
+    // query string or not at all. Drive the handler directly and read the init
+    // frame — the same snapshot `/objectives/:id/state` serves.
+    const initSnapshot = async (query: Record<string, string>) => {
+      const handler = findRouteHandler(router, 'get', '/stream');
+      const request = new EventEmitter() as EventEmitter & {
+        query: Record<string, string>;
+        params: Record<string, string>;
+        body: Record<string, never>;
+        headers: Record<string, string>;
+      };
+      request.query = query;
+      request.params = {};
+      request.body = {};
+      request.headers = {};
+
+      const chunks: string[] = [];
+      const response = {
+        writeHead: () => response,
+        flushHeaders: () => undefined,
+        write(chunk: string) {
+          chunks.push(chunk);
+          return true;
+        },
+        end: () => response,
+      };
+      handler(request as unknown as Request, response as unknown as Response, ((error?: unknown) => {
+        if (error) throw error;
+      }) as NextFunction);
+      await vi.waitFor(() => {
+        expect(chunks.join('')).toContain('event: init\n');
+      }, { timeout: 10_000 });
+      request.emit('close');
+      const frame = chunks.join('').split('\n\n').find((entry) => entry.startsWith('event: init\n'));
+      const parsed = JSON.parse(frame?.split('\ndata: ')[1] ?? '{}') as {
+        interventions?: ReadIntervention[];
+      };
+      const found = parsed.interventions?.find((row) => row.id === intervention.id);
+      if (!found) throw new Error('Approval missing from the stream snapshot');
+      return found;
+    };
+
+    const hidden = await initSnapshot({ objectiveId });
+    expect(hidden.payload?.command).toBe('«secret required»');
+    expect(hidden.detail).not.toContain('hunter2');
+    expect(hidden.title).toContain('wants to run "Wants approval"');
+
+    const shown = await initSnapshot({ objectiveId, toolsSecret: 'read-me-if-you-can' });
+    expect(shown.payload?.command).toBe(SECRET_COMMAND);
+
+    const wrong = await initSnapshot({ objectiveId, toolsSecret: 'read-me-if-you-cam' });
+    expect(wrong.payload?.command).toBe('«secret required»');
+  }, 30_000);
+
+  it('leaves the approval command open when no secret is configured', async () => {
+    const intervention = await blockedApproval(SECRET_COMMAND);
+
+    const result = await invokeRoute(router, 'get', '/interventions', {
+      query: { objectiveId, status: 'pending' },
+    });
+    const found = (result.body as ReadIntervention[]).find((row) => row.id === intervention.id);
+
+    expect(process.env.FOREMAN_TOOLS_SECRET).toBeUndefined();
+    expect(found?.payload?.command).toBe(SECRET_COMMAND);
+    expect(found?.detail).toContain(`Command: ${SECRET_COMMAND}`);
   });
 
   // ------------------------------------------------- permission.needsApproval --

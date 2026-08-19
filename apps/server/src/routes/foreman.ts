@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { contextWindowFor } from '@omega/core';
 import {
   Prisma,
@@ -14,7 +14,8 @@ import { z } from 'zod';
 import { asyncHandler } from '../lib/async-handler.js';
 import { safeJsonParse } from '../lib/utils.js';
 import { parsePermissions, type HarnessPermission } from '../lib/harness-permissions.js';
-import { serializeTool } from '../lib/tool-dto.js';
+import { serializeTool, TOOL_REDACTION_MARKER } from '../lib/tool-dto.js';
+import { TOOLS_SECRET_HEADER, toolsSecretAccepted } from '../lib/tool-runner.js';
 import { registerForemanMutationRoutes } from './foreman-mutations.js';
 
 export type { HarnessPermission };
@@ -275,11 +276,30 @@ function serializePulse(pulse: Pulse): Record<string, unknown> {
   };
 }
 
-function serializeIntervention(intervention: Intervention, harnessName: string | null = null): Record<string, unknown> {
-  const payload = safeJsonParse<unknown>(intervention.payload, null);
-  const payloadRecord = payload && typeof payload === 'object' && !Array.isArray(payload)
-    ? payload as Record<string, unknown>
+function serializeIntervention(
+  intervention: Intervention,
+  harnessName: string | null = null,
+  redactToolPayload = false,
+): Record<string, unknown> {
+  const rawPayload = safeJsonParse<unknown>(intervention.payload, null);
+  const rawRecord = rawPayload && typeof rawPayload === 'object' && !Array.isArray(rawPayload)
+    ? rawPayload as Record<string, unknown>
     : null;
+  // A tool approval publishes the command twice — in `payload.command` and in
+  // the first line of `detail` — and this serialiser is reached from three
+  // unauthenticated reads. Redacting `command` on the tools list while leaving
+  // it here would be a fence with a gate beside it.
+  const hidesCommand = redactToolPayload
+    && intervention.kind === 'approval'
+    && typeof rawRecord?.toolId === 'string'
+    && typeof rawRecord.command === 'string';
+  const payloadRecord = hidesCommand
+    ? { ...rawRecord, command: TOOL_REDACTION_MARKER }
+    : rawRecord;
+  const payload = hidesCommand ? payloadRecord : rawPayload;
+  const detail = hidesCommand && intervention.detail
+    ? intervention.detail.replace(/^Command: .*$/m, `Command: ${TOOL_REDACTION_MARKER}`)
+    : intervention.detail;
   const rawDiff = intervention.kind === 'approval' ? payloadRecord?.diff : null;
   const diff = rawDiff && typeof rawDiff === 'object' && !Array.isArray(rawDiff)
     ? objectDiff(rawDiff as Record<string, unknown>, intervention.title)
@@ -311,7 +331,7 @@ function serializeIntervention(intervention: Intervention, harnessName: string |
     harnessId: intervention.harnessId,
     kind: intervention.kind,
     title: intervention.title,
-    detail: intervention.detail,
+    detail,
     impact: intervention.impact,
     payload,
     status: intervention.status,
@@ -325,9 +345,47 @@ function serializeIntervention(intervention: Intervention, harnessName: string |
 }
 
 /** A tool as read from the database, with its most recent run attached. */
-function serializeToolWithRun(tool: HarnessTool & { runs: HarnessToolRun[] }): Record<string, unknown> {
+function serializeToolWithRun(
+  tool: HarnessTool & { runs: HarnessToolRun[] },
+  redactPayload = false,
+): Record<string, unknown> {
   const { runs, ...rest } = tool;
-  return serializeTool(rest, runs[0] ?? null);
+  return serializeTool(rest, runs[0] ?? null, { redactPayload });
+}
+
+/**
+ * Whether the tool payload (command text and captured output) must be withheld
+ * from THIS request.
+ *
+ * With `FOREMAN_TOOLS_SECRET` unset this is always false — the local-trusted
+ * posture is unchanged. With it set, a request without a matching header still
+ * gets the tool LIST, redacted: names, groups, statuses and timings are
+ * workflow, and the Toolkit stays usable, but the ≤2 000-char run excerpt and
+ * the command it came from are replaced by a marker.
+ *
+ * Deliberately NOT a 401. These serialisers are reached through composite reads
+ * (`GET /harnesses/:id` carries the whole toolkit, `GET /objectives/:id/state`
+ * and the SSE stream carry every pending tool approval), so refusing the request
+ * would break read-only dashboards that hold no secret over a field they never
+ * render. Degrading visibly beats breaking the page.
+ */
+function redactToolsFor(headers: NodeJS.Dict<string | string[]>): boolean {
+  return !toolsSecretAccepted(headers[TOOLS_SECRET_HEADER]);
+}
+
+/**
+ * The same question for the SSE stream, which cannot answer it with a header:
+ * `EventSource` has no way to set one, so the secret may also ride the query
+ * string on this ONE route. That is a real widening — a query string reaches
+ * proxy logs and `Referer` where a header does not — and it is accepted for the
+ * same reason the web build ships the secret at all: it is dev convenience over
+ * a loopback bind, not the boundary. A caller with neither still gets the
+ * stream, with tool commands redacted like every other read.
+ */
+function redactToolsForStream(req: Request): boolean {
+  const query = req.query.toolsSecret;
+  return !toolsSecretAccepted(req.headers[TOOLS_SECRET_HEADER])
+    && !toolsSecretAccepted(typeof query === 'string' ? query : undefined);
 }
 
 /** The most recent run of each tool — the audit row the Toolkit renders. */
@@ -714,7 +772,12 @@ async function recentPulsesForHarnesses(
   `);
 }
 
-export async function loadObjectiveState(prisma: PrismaClient, objectiveId: string): Promise<ObjectiveState | null> {
+export async function loadObjectiveState(
+  prisma: PrismaClient,
+  objectiveId: string,
+  options: { redactToolPayload?: boolean } = {},
+): Promise<ObjectiveState | null> {
+  const redactToolPayload = options.redactToolPayload === true;
   const objective = await prisma.objective.findUnique({
     where: { id: objectiveId },
     include: { phases: { orderBy: { orderIdx: 'asc' } } },
@@ -840,7 +903,11 @@ export async function loadObjectiveState(prisma: PrismaClient, objectiveId: stri
       };
     }),
     interventions: interventions.map((intervention) =>
-      serializeIntervention(intervention, harnessById.get(intervention.harnessId)?.name ?? null)
+      serializeIntervention(
+        intervention,
+        harnessById.get(intervention.harnessId)?.name ?? null,
+        redactToolPayload,
+      )
     ),
     tickets: projectedTickets,
     activity: activity.slice(0, 50),
@@ -1063,7 +1130,9 @@ export function foremanRoutes(prisma: PrismaClient): Router {
   }));
 
   r.get('/objectives/:id/state', asyncHandler(async (req, res) => {
-    const state = await loadObjectiveState(prisma, req.params.id);
+    const state = await loadObjectiveState(prisma, req.params.id, {
+      redactToolPayload: redactToolsFor(req.headers),
+    });
     if (!state) {
       res.status(404).json({ error: 'Objective not found' });
       return;
@@ -1112,7 +1181,8 @@ export function foremanRoutes(prisma: PrismaClient): Router {
       orderBy: [{ groupName: 'asc' }, { name: 'asc' }],
       include: lastRunInclude,
     });
-    res.json(tools.map(serializeToolWithRun));
+    const redact = redactToolsFor(req.headers);
+    res.json(tools.map((tool) => serializeToolWithRun(tool, redact)));
   }));
 
   r.get('/harnesses/:id', asyncHandler(async (req, res) => {
@@ -1142,6 +1212,7 @@ export function foremanRoutes(prisma: PrismaClient): Router {
       prisma.harness.findMany({ where: { objectiveId: harness.objectiveId } }),
     ]);
     const subtreeSpend = subtreeSpendByHarness(objectiveHarnesses);
+    const redactTools = redactToolsFor(req.headers);
     res.json({
       ...serializeHarness(harness, subtreeSpend.get(harness.id) ?? harness.spendUsd),
       parent: harness.parent
@@ -1154,7 +1225,7 @@ export function foremanRoutes(prisma: PrismaClient): Router {
       recentPulses: harness.pulses.map(serializePulse),
       childCount: harness.children.length,
       routine: playbook ? routineSteps(playbook) : [],
-      tools: harness.tools.map(serializeToolWithRun),
+      tools: harness.tools.map((tool) => serializeToolWithRun(tool, redactTools)),
       playbook: playbook ? serializePlaybook(playbook, usedByCount) : null,
     });
   }));
@@ -1177,8 +1248,9 @@ export function foremanRoutes(prisma: PrismaClient): Router {
       ? await prisma.harness.findMany({ where: { id: { in: harnessIds } }, select: { id: true, name: true } })
       : [];
     const names = new Map(harnesses.map((harness) => [harness.id, harness.name]));
+    const redactToolPayload = redactToolsFor(req.headers);
     res.json(interventions.map((intervention) =>
-      serializeIntervention(intervention, names.get(intervention.harnessId) ?? null)
+      serializeIntervention(intervention, names.get(intervention.harnessId) ?? null, redactToolPayload)
     ));
   }));
 
@@ -1243,7 +1315,8 @@ export function foremanRoutes(prisma: PrismaClient): Router {
       streamPulsesForObjective(prisma, query.objectiveId),
       prisma.intervention.findMany({ where: { objectiveId: query.objectiveId } }),
     ]);
-    const state = await loadObjectiveState(prisma, query.objectiveId);
+    const redactToolPayload = redactToolsForStream(req);
+    const state = await loadObjectiveState(prisma, query.objectiveId, { redactToolPayload });
     if (!state) {
       res.status(404).json({ error: 'Objective not found' });
       return;
@@ -1331,6 +1404,7 @@ export function foremanRoutes(prisma: PrismaClient): Router {
             serializeIntervention(
               intervention,
               harnesses.find((harness) => harness.id === intervention.harnessId)?.name ?? null,
+              redactToolPayload,
             ),
           );
         }

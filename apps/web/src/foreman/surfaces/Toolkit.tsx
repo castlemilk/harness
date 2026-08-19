@@ -10,6 +10,14 @@ import { SectionLabel } from '../ui/primitives.js';
  * ran, so the panel doubles as a health readout rather than a menu.
  */
 
+/**
+ * What the server sends in place of a command or a run's output when
+ * `FOREMAN_TOOLS_SECRET` is set and this build was not given it. The read still
+ * answers, so the panel renders everything else and says plainly why the
+ * payload is missing rather than showing a tool that appears to print nothing.
+ */
+const REDACTED = '«secret required»';
+
 const RESULT_TONE: Record<string, string> = {
   ok: 'text-ok-tint',
   fail: 'text-danger',
@@ -131,11 +139,15 @@ export function Toolkit({
               {detail.exitCode !== null && <span>exit {detail.exitCode}</span>}
               {detail.durationMs !== null && <span>{detail.durationMs}ms</span>}
             </div>
-            {lastRan.command && (
+            {lastRan.command === REDACTED ? (
+              <div className="mt-1.5 font-mono text-[9.5px] text-faint">
+                command hidden — tools secret required
+              </div>
+            ) : lastRan.command ? (
               <div className="mt-1.5 truncate font-mono text-[9.5px] text-faint" title={lastRan.command}>
                 $ {lastRan.command}
               </div>
-            )}
+            ) : null}
             {detail.cwd && (
               <div className="truncate font-mono text-[9px] text-faint" title={detail.cwd}>
                 in {detail.cwd}
@@ -146,7 +158,12 @@ export function Toolkit({
                 Blocked — an approval is waiting for you in Needs you.
               </div>
             )}
-            {detail.output && (
+            {detail.output === REDACTED && (
+              <div className="mt-2 rounded bg-panel px-2 py-1.5 font-mono text-[9.5px] text-faint">
+                output hidden — tools secret required
+              </div>
+            )}
+            {detail.output && detail.output !== REDACTED && (
               <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-panel px-2 py-1.5 font-mono text-[9.5px] leading-[1.6] text-ink3">
                 {detail.output}
               </pre>

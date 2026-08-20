@@ -121,6 +121,15 @@ const HEALTH_COLOR: Record<SourceHealth['status'], string> = {
 };
 
 /**
+ * The colour for a health state. Exported so the Plugins surface's per-source
+ * rows draw the same dot as the chrome does — two palettes for one meaning is
+ * how a red dot stops meaning anything.
+ */
+export function healthColor(status: SourceHealth['status']): string {
+  return HEALTH_COLOR[status];
+}
+
+/**
  * The health dots, for the chrome's right-hand slot. Renders nothing when the
  * active objective's shell declares no sources — which is every objective today
  * except a use case that opted in.

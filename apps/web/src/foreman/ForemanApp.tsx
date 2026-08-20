@@ -294,6 +294,18 @@ export function ForemanApp({
       setPlaybooks((prev) => prev.map((p) => (p.id === id ? next : p)));
       await refresh();
     },
+    objectives,
+    onSelectObjective: setObjectiveId,
+    canCreateObjective: Boolean(projectId),
+    onCreateObjective: (input) =>
+      // Through `mutate` so a rejected create surfaces in the error rail rather
+      // than as a form that silently does nothing.
+      mutate(async () => {
+        if (!projectId) throw new Error('Connect a project first.');
+        const created = await foremanApi.createObjective({ projectId, ...input });
+        await reloadObjectives();
+        setObjectiveId(created.id);
+      }),
   };
 
   return (

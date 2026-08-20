@@ -55,7 +55,8 @@ foreman-plugins.json                          WHICH PLUGINS THIS BUILD SHIPS (pa
 apps/web/plugin-discovery.mjs                 resolves that config for Vite and Tailwind, and fails loudly
 
 apps/web/src/foreman/usecases/registry.ts     the host: the shell map, tabs, resolution
-apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the six, and their wiring
+apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the seven, and their wiring
+apps/web/src/foreman/usecases/plugins.tsx     the Plugins surface — every registered shell, on one page
 apps/web/src/foreman/usecases/index.ts        the roster: who is registered, when
 apps/web/src/foreman/usecases/plugin-module.ts  one entry module → one shell, enforced
 apps/web/src/foreman/usecases/health.tsx      probing + the chrome's health dots
@@ -92,7 +93,7 @@ what is deliberately not.
 
 ## When to build a shell
 
-Most work does **not** need one. An objective, its harnesses and the six core
+Most work does **not** need one. An objective, its harnesses and the core
 views already cover "a fleet of agents is doing a thing and I want to watch it".
 
 Build a shell when **all three** hold:
@@ -123,6 +124,8 @@ from '@omega-harness/usecase-kit'` — in this repository and in any other.
 export interface UseCaseShell {
   id: string;                              // matches Objective.useCase; lowercase slug
   name: string;                            // "Victoria — market trading"
+  version?: string;                        // what your package.json says, hardcoded
+  description?: string;                    // one line, for the Plugins surface
   accent?: string;                         // CSS colour → --uc-accent while active
   vocabulary?: Partial<Record<'harness' | 'pulse' | 'objective', string>>;
   views: UseCaseView[];                    // tabs ADDED to the core tabs
@@ -139,6 +142,48 @@ export interface UseCaseShell {
   id** (`victoria-equity`, `polymarket-pipeline`). `viewTabs` silently drops a
   view whose id collides with a core view rather than letting a shell make
   Console unreachable — namespacing means you never hit that.
+- **`version`** and **`description`** are self-description, for the Plugins
+  surface. Both optional; see below.
+
+### Self-description: what the Plugins surface renders
+
+The core `plugins` tab (`usecases/plugins.tsx`) lists every **registered** shell
+— not every configured one, and not only the active one — with its accent, id,
+version, description, the configured path it resolved from (marked in-repo or
+out-of-tree), its view labels in tab order, its data sources with a **live**
+health dot, and the objectives whose `useCase` is this shell. It is chrome, so
+it is present for an objective with no use case at all.
+
+Everything on that card comes from the manifest verbatim. The registry
+normalises nothing and the surface invents nothing, which is what makes two
+fields worth adding:
+
+```ts
+version?: string;      // "0.1.0" — the literal string your package.json carries
+description?: string;  // one line: the domain and what the tabs show
+```
+
+- **Hardcode `version`.** Do not read `package.json` at runtime. A manifest is a
+  pure export that a browser bundle imports and that must cost zero I/O to
+  register (`manifest-cost.test.ts` in the omega repo asserts exactly that). Both
+  shells there pin the string and have a test that reads the package file and
+  compares — a test may touch the filesystem, a manifest may not.
+- **Write `description` for the person deciding whether to start an objective on
+  this shell**, not for a reviewer of its code. Say what the tabs show. If the
+  shell is a stub, the description says "a stub" — Polymarket's does, and that
+  is the honesty rule (see [Honesty rules](#honesty-rules)) applied to the one
+  surface where someone chooses a use case.
+- **Both are optional.** A shell that omits them still typechecks and still
+  registers; the surface simply shows no version and no line under the name. That
+  is what makes the fields non-breaking for a plugin in a repository this one
+  cannot see.
+
+Two things the surface does that a shell does not have to know about: a shell
+that no objective uses gets an inline *"start an objective with this use-case"*
+action (so a newly installed plugin is reachable by clicking, without anyone
+having to learn that `useCase` is a column), and a shell the registry holds but
+`foreman-plugins.json` never named is labelled **dev only** rather than hidden —
+hiding it would make the surface disagree with the tab bar.
 
 ### `UseCaseViewProps` — six fields, and they never grow
 

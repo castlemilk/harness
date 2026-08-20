@@ -95,6 +95,8 @@ export const foremanApi = {
     projectId: string;
     name: string;
     description?: string;
+    /** A registered shell id. The server validates the slug shape, not the id. */
+    useCase?: string;
     targetDate?: string;
     spendCapUsd?: number;
   }) => request<Objective>('/foreman/objectives', { method: 'POST', body: JSON.stringify(body) }),

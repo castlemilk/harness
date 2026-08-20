@@ -54,6 +54,10 @@ const ExampleView: ComponentType<UseCaseViewProps> = (props) => {
 export const exampleUseCase: UseCaseShell = {
   id: 'example',
   name: 'Example — the smallest conforming shell',
+  // Self-description. Optional, and pure data: the harness's Plugins surface
+  // renders both, and nothing else in the contract reads either.
+  version: '0.1.0',
+  description: 'The smallest conforming shell, for the kit’s own type test.',
   accent: '#7c8cf8',
   vocabulary: { harness: 'worker' },
   views: [{ id: 'example-view', label: 'Example', order: 10, component: ExampleView }],
@@ -64,6 +68,16 @@ describe('an out-of-tree plugin', () => {
   it('is a plain exported object — importing it registers nothing', () => {
     expect(exampleUseCase.id).toBe('example');
     expect(exampleUseCase.views.map((v) => v.id)).toEqual(['example-view']);
+  });
+
+  it('may describe itself, and may equally decline to', () => {
+    expect(exampleUseCase.version).toBe('0.1.0');
+    expect(exampleUseCase.description).toContain('smallest conforming shell');
+    // Both optional: a shell that omits them still typechecks, which is what
+    // makes the addition non-breaking for a plugin in another repository.
+    const terse: UseCaseShell = { id: 'terse', name: 'Terse', views: [] };
+    expect(terse.version).toBeUndefined();
+    expect(terse.description).toBeUndefined();
   });
 
   it('declares its own data source and builds its own client from it', () => {

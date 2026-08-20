@@ -58,6 +58,25 @@ describe('registerUseCase', () => {
     expect(getUseCase(undefined)).toBeNull();
   });
 
+  it('passes a shell’s self-description through untouched', () => {
+    // The registry validates ids, view ids and source ids and normalises
+    // nothing. `version` and `description` exist for the Plugins surface, so
+    // what a manifest declares has to be exactly what the surface renders — a
+    // registry that "helpfully" defaulted a missing version would invent one.
+    register(
+      shell('described', ['tab'], {
+        version: '2.4.0',
+        description: 'One line about the domain.',
+      }),
+    );
+    expect(getUseCase('described')?.version).toBe('2.4.0');
+    expect(getUseCase('described')?.description).toBe('One line about the domain.');
+
+    register(shell('terse', ['tab']));
+    expect(getUseCase('terse')?.version).toBeUndefined();
+    expect(getUseCase('terse')?.description).toBeUndefined();
+  });
+
   it('rejects a duplicate shell id instead of shadowing the first', () => {
     // Silently overwriting means one registration never renders, and there is
     // nothing at runtime to point at.
@@ -221,7 +240,7 @@ describe('registerRoster', () => {
 });
 
 describe('viewTabs', () => {
-  it('gives an objective with no use case exactly the six core tabs', () => {
+  it('gives an objective with no use case exactly the core chrome tabs', () => {
     expect(viewTabs(CORE_VIEWS, null).map((t) => t.id)).toEqual([
       'console',
       'board',
@@ -229,6 +248,7 @@ describe('viewTabs', () => {
       'work',
       'usage',
       'playbooks',
+      'plugins',
     ]);
     expect(viewTabs(CORE_VIEWS, null).map((t) => t.label)).toEqual([
       'Console',
@@ -237,12 +257,13 @@ describe('viewTabs', () => {
       'Work',
       'Usage',
       'Playbooks',
+      'Plugins',
     ]);
     expect(viewTabs(CORE_VIEWS, null).every((t) => t.source === 'core')).toBe(true);
     expect(DEFAULT_VIEW).toBe('console');
   });
 
-  it('appends the demo shell tab after the core six for a demo objective', () => {
+  it('appends the demo shell tab after the core chrome for a demo objective', () => {
     // The roster registers 'demo' outside production; this is the end-to-end
     // proof that a server-side `useCase` becomes a tab.
     const tabs = viewTabs(CORE_VIEWS, 'demo');
@@ -253,10 +274,11 @@ describe('viewTabs', () => {
       'work',
       'usage',
       'playbooks',
+      'plugins',
       'demo-overview',
     ]);
-    expect(tabs[6]).toEqual({ id: 'demo-overview', label: 'Demo', source: 'usecase' });
-    expect(tabs.filter((t) => t.source === 'core')).toHaveLength(6);
+    expect(tabs[CORE_VIEWS.length]).toEqual({ id: 'demo-overview', label: 'Demo', source: 'usecase' });
+    expect(tabs.filter((t) => t.source === 'core')).toHaveLength(CORE_VIEWS.length);
   });
 
   it('leaves the tab bar untouched for a useCase nothing registered', () => {
@@ -284,6 +306,7 @@ describe('viewTabs', () => {
       'work',
       'usage',
       'playbooks',
+      'plugins',
       'signals',
       'positions',
     ]);

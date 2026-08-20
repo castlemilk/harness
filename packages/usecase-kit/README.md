@@ -152,10 +152,22 @@ function ExampleView({ state }: UseCaseViewProps) {
 export const exampleUseCase: UseCaseShell = {
   id: 'example',                    // matches Objective.useCase on the server
   name: 'Example — a domain shell',
+  version: '0.1.0',                 // optional; what your package.json says
+  description: 'One line an operator can read.',
   accent: '#7c8cf8',
   views: [{ id: 'example-view', label: 'Example', order: 10, component: ExampleView }],
 };
 ```
+
+### Self-description: `version` and `description`
+
+Both are optional and neither is machinery — nothing resolves, compares or
+gates on either. They exist because the harness has a **Plugins** surface that
+lists every registered shell, and a plugin that cannot say what it is or which
+build it came from leaves an operator reading source paths. `version` should be
+the literal string its `package.json` carries (hardcoded — a manifest is a pure
+export and must not touch the filesystem); `description` is one line about the
+domain, and an honest one if the shell is a stub.
 
 `src/example-plugin.test.ts` is that shell as a compile-checked test: it imports
 only the kit, and any change here that would break a conforming plugin fails

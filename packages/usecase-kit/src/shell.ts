@@ -72,6 +72,28 @@ export interface UseCaseShell {
   id: string;
   /** Human name, e.g. "Victoria — market trading". */
   name: string;
+  /**
+   * The shell's own version, as its package declares it — `"0.1.0"`.
+   *
+   * Self-description, not machinery: nothing resolves, compares or gates on it.
+   * The harness's Plugins surface renders it so an operator looking at a tab
+   * can say *which* build of a plugin produced it, which matters most for the
+   * out-of-tree shells whose source lives in another repository and moves on
+   * its own schedule. Omit it and the surface simply shows no version.
+   *
+   * Hardcode the string that its `package.json` carries rather than reading the
+   * file: a shell is a pure export with no runtime fs, and its manifest has to
+   * stay importable from a browser bundle.
+   */
+  version?: string;
+  /**
+   * One line saying what this use case is for, in an operator's words.
+   *
+   * Rendered on the Plugins surface under the name. It answers "should an
+   * objective of mine carry this?" — so describe the domain and what the tabs
+   * show, not the implementation. A stub should say it is a stub.
+   */
+  description?: string;
   /** CSS color driving `--uc-accent` while this shell is active. */
   accent?: string;
   vocabulary?: Vocabulary;

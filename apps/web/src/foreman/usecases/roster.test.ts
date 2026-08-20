@@ -86,7 +86,7 @@ describe('the shells, as the host sees them', () => {
     expect(polymarket?.vocabulary).toBeUndefined();
   });
 
-  it('adds Victoria’s ten domain tabs after the core six, in declared order', () => {
+  it('adds Victoria’s ten domain tabs after the core chrome, in declared order', () => {
     const tabs = viewTabs(CORE_VIEWS, 'victoria');
     expect(tabs.map((t) => t.id)).toEqual([
       'console',
@@ -95,6 +95,7 @@ describe('the shells, as the host sees them', () => {
       'work',
       'usage',
       'playbooks',
+      'plugins',
       'victoria-overview',
       'victoria-runs',
       'victoria-live',
@@ -106,7 +107,7 @@ describe('the shells, as the host sees them', () => {
       'victoria-forensics',
       'victoria-journal',
     ]);
-    expect(tabs.map((t) => t.label).slice(6)).toEqual([
+    expect(tabs.map((t) => t.label).slice(CORE_VIEWS.length)).toEqual([
       'Overview',
       'Runs',
       'Live',
@@ -118,8 +119,8 @@ describe('the shells, as the host sees them', () => {
       'Forensics',
       'Journal',
     ]);
-    expect(tabs.slice(0, 6).every((t) => t.source === 'core')).toBe(true);
-    expect(tabs.slice(6).every((t) => t.source === 'usecase')).toBe(true);
+    expect(tabs.slice(0, CORE_VIEWS.length).every((t) => t.source === 'core')).toBe(true);
+    expect(tabs.slice(CORE_VIEWS.length).every((t) => t.source === 'usecase')).toBe(true);
   });
 
   it('adds Polymarket’s single tab, and leaks it into no other objective', () => {
@@ -131,11 +132,12 @@ describe('the shells, as the host sees them', () => {
       'work',
       'usage',
       'playbooks',
+      'plugins',
       'polymarket-pipeline',
     ]);
-    expect(tabs[6]).toEqual({ id: 'polymarket-pipeline', label: 'Pipeline', source: 'usecase' });
+    expect(tabs[CORE_VIEWS.length]).toEqual({ id: 'polymarket-pipeline', label: 'Pipeline', source: 'usecase' });
     expect(viewTabs(CORE_VIEWS, 'victoria').map((t) => t.id)).not.toContain('polymarket-pipeline');
-    expect(viewTabs(CORE_VIEWS, null)).toHaveLength(6);
+    expect(viewTabs(CORE_VIEWS, null)).toHaveLength(CORE_VIEWS.length);
   });
 
   it('shadows no core tab — every out-of-tree view id is namespaced', () => {

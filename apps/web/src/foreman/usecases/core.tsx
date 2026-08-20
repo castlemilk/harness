@@ -3,6 +3,7 @@ import { foremanApi, type ObjectiveState, type ResolveAction } from '../data/api
 import type {
   Harness,
   Intervention,
+  Objective,
   Playbook,
   Tool,
   UsageSummary,
@@ -14,6 +15,9 @@ import { WorkBoard } from '../surfaces/WorkBoard.js';
 import { Usage } from '../surfaces/Usage.js';
 import { PlaybookEditor } from '../surfaces/PlaybookEditor.js';
 import type { ViewDescriptor } from './registry.js';
+import { getUseCases } from './registry.js';
+import { PluginsView, sourceMap } from './plugins.js';
+import { pluginSources, shells as configuredShells } from 'virtual:foreman-plugins';
 
 /**
  * The core views.
@@ -69,6 +73,26 @@ export interface CoreViewContext {
       retireWhen: string;
     },
   ) => Promise<void>;
+  /**
+   * Every objective in scope, not just the one being rendered.
+   *
+   * The chrome already holds this for the objective switcher; the Plugins view
+   * is the first *view* that needs it, because "which objectives use this
+   * shell" is a question about the fleet rather than about one objective. Core
+   * views may use it freely — this is the privileged context, not the plugin
+   * contract, and nothing here reaches a shell.
+   */
+  objectives: Objective[];
+  /** Move the whole app to another objective. */
+  onSelectObjective: (objectiveId: string) => void;
+  /**
+   * Create an objective, optionally carrying a use case, and select it. Goes
+   * through the same mutate funnel as everything else, so a rejection lands in
+   * the error rail rather than being swallowed.
+   */
+  onCreateObjective: (input: { name: string; useCase?: string }) => Promise<void>;
+  /** Whether a project is connected — `POST /objectives` requires one. */
+  canCreateObjective: boolean;
 }
 
 export interface CoreView extends ViewDescriptor {
@@ -204,6 +228,29 @@ function PlaybooksView(ctx: CoreViewContext) {
   );
 }
 
+/**
+ * The registry and the generated roster, read at render.
+ *
+ * At render rather than at module load because the roster registers on import
+ * and HMR re-runs it; a snapshot taken here would go stale the moment a shell
+ * file was edited. Both reads are a map walk over three entries.
+ */
+function PluginsCoreView(ctx: CoreViewContext) {
+  return (
+    <PluginsView
+      shells={getUseCases()}
+      sourceById={sourceMap(configuredShells, pluginSources)}
+      objectives={ctx.objectives}
+      canCreate={ctx.canCreateObjective}
+      onOpenObjective={(objectiveId, viewId) => {
+        ctx.onSelectObjective(objectiveId);
+        if (viewId !== null) ctx.onOpenView(viewId);
+      }}
+      onStartObjective={(input) => ctx.onCreateObjective(input)}
+    />
+  );
+}
+
 export const CORE_VIEWS: CoreView[] = [
   { id: 'console', label: 'Console', order: 10, component: ConsoleView },
   { id: 'board', label: 'Board', order: 20, component: BoardView },
@@ -211,6 +258,9 @@ export const CORE_VIEWS: CoreView[] = [
   { id: 'work', label: 'Work', order: 40, component: WorkView },
   { id: 'usage', label: 'Usage', order: 50, component: UsageView },
   { id: 'playbooks', label: 'Playbooks', order: 60, component: PlaybooksView },
+  // Chrome, not a domain tab: it is about what the *build* installed, so it is
+  // there for every objective including one with no use case at all.
+  { id: 'plugins', label: 'Plugins', order: 70, component: PluginsCoreView },
 ];
 
 /** The view Foreman opens on, and the fallback for an unknown view id. */

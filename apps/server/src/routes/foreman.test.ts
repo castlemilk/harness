@@ -4,7 +4,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { EventEmitter } from 'node:events';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { applyMigrations, prisma, seedForemanDemo, type PrismaClient } from '@omega/db';
+import {
+  applyMigrations,
+  foremanDemoTimeline,
+  prisma,
+  seedForemanDemo,
+  type PrismaClient,
+} from '@omega/db';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { app } from '../app.js';
 import { parsePermissions } from '../lib/harness-permissions.js';
@@ -451,6 +457,78 @@ describe('Foreman projections', () => {
   });
 });
 
+describe('Foreman demo fixture timeline', () => {
+  // The rolling window `usagePayload` applies, restated from foreman.ts: a
+  // pulse counts when `startedAt >= utcDayStart(now) - (days - 1)` and
+  // `< utcDayStart(now) + 1d`.
+  const usageWindow = (now: Date, days = 7) => {
+    const dayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    return {
+      start: dayStart - (days - 1) * 24 * 60 * 60 * 1_000,
+      end: dayStart + 24 * 60 * 60 * 1_000,
+    };
+  };
+  const pulseStarts = (timeline: ReturnType<typeof foremanDemoTimeline>) =>
+    Array.from({ length: 156 }, (_, index) => timeline.pulseStartedAt(index).getTime());
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // The clocks that matter: the day the hardcoded fixture died, a week later,
+  // the instant of the UTC day rollover (10:00 AEST — when the window slides),
+  // a month and a half out, and a year out.
+  const clocks = [
+    '2026-08-20T09:42:00.000Z',
+    '2026-08-25T13:00:00.000Z',
+    '2026-09-29T00:00:00.001Z',
+    '2026-09-29T23:59:59.999Z',
+    '2027-08-20T06:00:00.000Z',
+  ];
+
+  it.each(clocks)('keeps every seeded pulse inside the usage window at %s', (iso) => {
+    vi.setSystemTime(new Date(iso));
+    const timeline = foremanDemoTimeline();
+    const { start, end } = usageWindow(new Date(iso));
+    const starts = pulseStarts(timeline);
+
+    expect(starts).toHaveLength(156);
+    expect(Math.min(...starts)).toBeGreaterThanOrEqual(start);
+    expect(Math.max(...starts)).toBeLessThan(end);
+    // Every one of the 13 harnesses keeps all 12 of its pulses in the window,
+    // so window spend is the whole fixture's spend and the top spender's share
+    // is a real 1 rather than 0/0.
+    expect(starts.filter((at) => at >= start && at < end)).toHaveLength(156);
+    // And they stay in the past, spread across four UTC days, so the daily
+    // breakdown has more than one bar.
+    expect(Math.max(...starts)).toBeLessThan(Date.parse(iso));
+    expect(new Set(starts.map((at) => new Date(at).toISOString().slice(0, 10))).size).toBe(4);
+  });
+
+  it('also holds for the current wall clock, whenever this suite is run', () => {
+    const now = new Date();
+    const { start, end } = usageWindow(now);
+    const starts = pulseStarts(foremanDemoTimeline(now));
+    expect(starts.filter((at) => at >= start && at < end)).toHaveLength(156);
+  });
+
+  it('anchors the fixture to the current UTC day, not to a calendar literal', () => {
+    vi.setSystemTime(new Date('2026-09-29T00:00:00.001Z'));
+    const timeline = foremanDemoTimeline();
+    expect(timeline.anchorDay.toISOString()).toBe('2026-09-29T00:00:00.000Z');
+    expect(timeline.demoCreatedAt.toISOString()).toBe('2026-09-25T00:00:00.000Z');
+    // The offsets the original fixture used, preserved: creation day + 1h,
+    // pulses every 30 minutes from creation, operator events on the anchor day.
+    expect(timeline.taskCreatedAt(0).toISOString()).toBe('2026-09-25T01:00:00.000Z');
+    expect(timeline.pulseStartedAt(0).toISOString()).toBe('2026-09-25T00:00:00.000Z');
+    expect(timeline.pulseStartedAt(155).toISOString()).toBe('2026-09-28T05:30:00.000Z');
+    expect(timeline.interventionCreatedAt(1).toISOString()).toBe('2026-09-29T09:15:00.000Z');
+    expect(timeline.toolLastRanAt(2, 2).toISOString()).toBe('2026-09-29T09:35:00.000Z');
+    expect(timeline.nextPulseAt.toISOString()).toBe('2026-09-29T12:30:00.000Z');
+    expect(timeline.targetDate.getTime()).toBeGreaterThan(timeline.anchorDay.getTime());
+  });
+});
+
 describe('Foreman routes with PGlite', () => {
   const router = foremanRoutes(prisma);
   let objectiveId = '';
@@ -731,6 +809,14 @@ describe('Foreman routes with PGlite', () => {
       select: { costUsd: true },
     });
     const failedPulseSpend = failedPulses.reduce((sum, pulse) => sum + pulse.costUsd, 0);
+    // The whole seeded fixture has to sit inside the rolling window, or the
+    // analytics below are measuring an empty set. Asserted explicitly so a
+    // fixture that drifts out of the window says so instead of failing as a
+    // mystified `share` of 0.
+    const pulsesInWindow = await prisma.pulse.count({
+      where: { harness: { objectiveId }, startedAt: { gte: usageStart, lt: usageEnd } },
+    });
+    expect(pulsesInWindow).toBe(156);
     expect(usage.days).toHaveLength(7);
     expect(usage.days.every((day) => typeof day.projected === 'boolean')).toBe(true);
     expect(usage.costPerMergedTicket === null || typeof usage.costPerMergedTicket === 'number').toBe(true);

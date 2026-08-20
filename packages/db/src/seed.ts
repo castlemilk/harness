@@ -179,6 +179,73 @@ function foremanDemoUuid(value: number): string {
   return `f0e00000-0000-4000-8000-${value.toString(16).padStart(12, '0')}`;
 }
 
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+
+/** 00:00Z of the UTC day `at` falls in — the API's `utcDayStart`, as a number. */
+function utcDayStartMs(at: Date): number {
+  return Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate());
+}
+
+/**
+ * Every date the Foreman demo fixture writes, expressed relative to the UTC day
+ * `now` falls in.
+ *
+ * This exists because the Foreman usage window is *rolling* — the API reads
+ * `utcDayStart(now) - 6d` … `utcDayStart(now) + 1d` — so hardcoded calendar
+ * literals in a fixture are a time bomb. The original fixture pinned its pulses
+ * to 2026-08-10 and they left the seven-day window on 2026-08-20, at which
+ * point every window-scoped aggregate (spend, tokens, top-spender share)
+ * collapsed to zero and the analytics assertions started failing on a fixture
+ * nobody had touched.
+ *
+ * The shape is the original fixture's, unchanged: it was authored against an
+ * anchor day of 2026-08-14, and each literal `X` there is `anchorDay + (X -
+ * 2026-08-14T00:00Z)` here. So the demo is created four days before the anchor
+ * day, its 156 pulses walk the ~3.2 days that follow at 30-minute spacing and
+ * finish late on the day before the anchor, and the operator-facing events sit
+ * during the anchor day itself. Pulses therefore span `anchorDay - 4d` …
+ * `anchorDay - 18.5h`, which is inside the seven-day window (`anchorDay - 6d`
+ * … `anchorDay + 1d`) with two days of headroom at the old end — on any run
+ * date, forever.
+ *
+ * Pure and clock-injectable so the window arithmetic can be tested under a
+ * mocked clock without a database.
+ */
+export interface ForemanDemoTimeline {
+  /** 00:00Z of the run's UTC day; every offset below is measured from here. */
+  anchorDay: Date;
+  demoCreatedAt: Date;
+  nextPulseAt: Date;
+  targetDate: Date;
+  liaisonIdleSince: Date;
+  /** `taskIndex` is 0-based, one hour apart on the creation day. */
+  taskCreatedAt: (taskIndex: number) => Date;
+  /** `pulseIndex` is the 0-based global pulse index (harnessIndex * 12 + seq - 1). */
+  pulseStartedAt: (pulseIndex: number) => Date;
+  interventionCreatedAt: (interventionIndex: number) => Date;
+  toolLastRanAt: (leadIndex: number, toolIndex: number) => Date;
+}
+
+export function foremanDemoTimeline(now: Date = new Date()): ForemanDemoTimeline {
+  const anchorDay = utcDayStartMs(now);
+  const createdAt = anchorDay - 4 * DAY_MS;
+  return {
+    anchorDay: new Date(anchorDay),
+    demoCreatedAt: new Date(createdAt),
+    nextPulseAt: new Date(anchorDay + 12 * HOUR_MS + 30 * MINUTE_MS),
+    targetDate: new Date(anchorDay + 47 * DAY_MS),
+    liaisonIdleSince: new Date(anchorDay + 10 * HOUR_MS + 45 * MINUTE_MS),
+    taskCreatedAt: (taskIndex) => new Date(createdAt + (taskIndex + 1) * HOUR_MS),
+    pulseStartedAt: (pulseIndex) => new Date(createdAt + pulseIndex * 30 * MINUTE_MS),
+    interventionCreatedAt: (interventionIndex) =>
+      new Date(anchorDay + 9 * HOUR_MS + interventionIndex * 15 * MINUTE_MS),
+    toolLastRanAt: (leadIndex, toolIndex) =>
+      new Date(anchorDay + (7 + leadIndex) * HOUR_MS + (15 + toolIndex * 10) * MINUTE_MS),
+  };
+}
+
 interface ForemanHarnessSeed {
   id: string;
   objectiveId: string;
@@ -232,8 +299,11 @@ export async function seedForemanDemo(): Promise<void> {
   const playbookIds = [30, 31].map(foremanDemoUuid);
   const taskIds = [40, 41, 42].map(foremanDemoUuid);
   const leadIds = [100, 101, 102].map(foremanDemoUuid);
-  const demoCreatedAt = new Date('2026-08-10T00:00:00.000Z');
-  const nextPulseAt = new Date('2026-08-14T12:30:00.000Z');
+  // Dates are anchored to the current UTC day, never to calendar literals —
+  // see `foremanDemoTimeline` for why (the usage window is rolling, and a
+  // hardcoded epoch silently falls out of it).
+  const timeline = foremanDemoTimeline();
+  const { demoCreatedAt, nextPulseAt, targetDate } = timeline;
 
   const phases = [
     {
@@ -479,7 +549,7 @@ export async function seedForemanDemo(): Promise<void> {
         status: 'watching',
         activity: null,
         currentJob: null,
-        idleSince: new Date('2026-08-14T10:45:00.000Z'),
+        idleSince: timeline.liaisonIdleSince,
       },
     ),
     createHarness(
@@ -523,11 +593,10 @@ export async function seedForemanDemo(): Promise<void> {
     'warn',
     'ok',
   ];
-  const pulseEpoch = demoCreatedAt.getTime();
   const pulses = harnesses.flatMap((harness, harnessIndex) =>
     Array.from({ length: 12 }, (_, index) => {
       const seq = index + 1;
-      const startedAt = new Date(pulseEpoch + (harnessIndex * 12 + index) * 30 * 60 * 1000);
+      const startedAt = timeline.pulseStartedAt(harnessIndex * 12 + index);
       const costUsd = Number((0.006 + ((harnessIndex + seq) % 7) * 0.003).toFixed(3));
       return {
         id: foremanDemoUuid(10_000 + harnessIndex * 100 + seq),
@@ -604,7 +673,7 @@ export async function seedForemanDemo(): Promise<void> {
       retryCount: 0,
       lastRetryAt: null,
       retryHistory: JSON.stringify([]),
-      createdAt: new Date('2026-08-10T01:00:00.000Z'),
+      createdAt: timeline.taskCreatedAt(0),
     },
     {
       id: taskIds[1],
@@ -629,7 +698,7 @@ export async function seedForemanDemo(): Promise<void> {
       retryCount: 0,
       lastRetryAt: null,
       retryHistory: JSON.stringify([]),
-      createdAt: new Date('2026-08-10T02:00:00.000Z'),
+      createdAt: timeline.taskCreatedAt(1),
     },
     {
       id: taskIds[2],
@@ -653,7 +722,7 @@ export async function seedForemanDemo(): Promise<void> {
       retryCount: 0,
       lastRetryAt: null,
       retryHistory: JSON.stringify([]),
-      createdAt: new Date('2026-08-10T03:00:00.000Z'),
+      createdAt: timeline.taskCreatedAt(2),
     },
   ];
 
@@ -704,7 +773,7 @@ export async function seedForemanDemo(): Promise<void> {
       }),
       status: 'pending',
       response: null,
-      createdAt: new Date('2026-08-14T09:00:00.000Z'),
+      createdAt: timeline.interventionCreatedAt(0),
       resolvedAt: null,
     },
     {
@@ -718,7 +787,7 @@ export async function seedForemanDemo(): Promise<void> {
       payload: JSON.stringify({ choices: ['urgency', 'oldest-first', 'objective-phase'] }),
       status: 'pending',
       response: null,
-      createdAt: new Date('2026-08-14T09:15:00.000Z'),
+      createdAt: timeline.interventionCreatedAt(1),
       resolvedAt: null,
     },
     {
@@ -732,7 +801,7 @@ export async function seedForemanDemo(): Promise<void> {
       payload: JSON.stringify({ spent: 21.75, cap: 28, suggestedCap: 34 }),
       status: 'pending',
       response: null,
-      createdAt: new Date('2026-08-14T09:30:00.000Z'),
+      createdAt: timeline.interventionCreatedAt(2),
       resolvedAt: null,
     },
   ];
@@ -765,7 +834,7 @@ export async function seedForemanDemo(): Promise<void> {
       id: foremanDemoUuid(20_000 + leadIndex * 10 + toolIndex),
       harnessId,
       ...tool,
-      lastRanAt: new Date(Date.UTC(2026, 7, 14, 7 + leadIndex, 15 + toolIndex * 10)),
+      lastRanAt: timeline.toolLastRanAt(leadIndex, toolIndex),
     })),
   );
 
@@ -799,7 +868,7 @@ export async function seedForemanDemo(): Promise<void> {
           name: 'Ship the Foreman control plane',
           description: 'Coordinate a nested harness fleet toward an observable, budget-aware operator surface.',
           status: 'active',
-          targetDate: new Date('2026-09-30T00:00:00.000Z'),
+          targetDate,
           spendCapUsd: 120,
           createdAt: demoCreatedAt,
         },
@@ -809,7 +878,7 @@ export async function seedForemanDemo(): Promise<void> {
           name: 'Ship the Foreman control plane',
           description: 'Coordinate a nested harness fleet toward an observable, budget-aware operator surface.',
           status: 'active',
-          targetDate: new Date('2026-09-30T00:00:00.000Z'),
+          targetDate,
           spendCapUsd: 120,
           createdAt: demoCreatedAt,
         },

@@ -11,7 +11,7 @@ Three commands, in this order, from the harness repo root:
 
 ```bash
 task setup          # once per checkout: install, generate the client, migrate
-task db:seed:e2e    # load the fixture (21 harnesses, 234 pulses, 5 objectives)
+task db:seed:e2e    # load the fixture (25 harnesses, 246 pulses, 5 objectives)
 task dev            # API :4000 + web :5173, one database, Ctrl-C stops both
 ```
 
@@ -42,10 +42,28 @@ export DATABASE_URL=postgres://omega:omega@localhost:5432/omega?sslmode=disable
 make db-up && go run ./cmd/omega-api                        # Connect-RPC on :8080
 ```
 
+No Docker? `make db-up` is only `docker compose up -d postgres`, so any
+reachable Postgres works instead — point `DATABASE_URL` at a scratch database
+you create yourself (`createdb omega`), because the omega API creates the tables
+it needs on startup and an empty one just makes the Victoria tabs honestly
+empty rather than broken.
+
 Deliberately not scripted from here: two repositories with independent
 lifecycles, and a harness that started and stopped another repo's server would
-own a process it cannot reason about. To point Victoria at an API somewhere
-else, set `VITE_UC_VICTORIA_URL` before `task dev`.
+own a process it cannot reason about.
+
+**Two ports, and they have to agree.** `OMEGA_API_PORT` is the *server* side —
+read by the omega repo's `cmd/omega-api/main.go`, which binds `:8080` unless
+that variable says otherwise. `VITE_UC_VICTORIA_URL` is the *client* side, read
+at build time by the Victoria shell's data source. Moving the API off :8080
+without setting the second one leaves the shell pointed at a port nobody is
+listening on, which renders as the same red health dot as an API that is simply
+down:
+
+```bash
+OMEGA_API_PORT=8085 go run ./cmd/omega-api      # in the omega repo
+VITE_UC_VICTORIA_URL=http://localhost:8085 task dev   # here
+```
 
 ### Worth clicking
 
@@ -66,6 +84,14 @@ domain tabs against the omega API (which the fixture deliberately does not stand
 up, so it also exercises the unreachable-backend path), and "Trade prediction
 markets" adds one tab for a shell with no backend at all. Switching between the
 last two is where `--uc-accent` visibly changes.
+
+Victoria also carries a fleet of its own — a *Trading desk* workstream with
+three desk agents (regime watcher, signal auditor, execution reviewer) across
+three statuses, twelve pulses, four tickets and one pending decision — so its
+Console, Board, Graph, Work and Usage tabs say something true rather than
+sitting empty beside ten populated domain tabs. Polymarket carries exactly one
+harness, on purpose: its job in the fixture is to be the shell with no backend,
+not a second fleet.
 
 ## Use-case shells
 

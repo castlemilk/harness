@@ -118,6 +118,19 @@ const streamQuerySchema = z.object({
   objectiveId: z.string().uuid(),
 });
 
+const playbookScopeSchema = z.object({
+  objectiveId: z.string().uuid().optional(),
+});
+
+/** The objective a playbook read is scoped to, or `undefined` for "everywhere". */
+function playbookScopeQuery(req: Request): string | undefined {
+  return playbookScopeSchema.parse({
+    objectiveId: typeof req.query.objectiveId === 'string' && req.query.objectiveId.length > 0
+      ? req.query.objectiveId
+      : undefined,
+  }).objectiveId;
+}
+
 const recentPulseLimit = 12;
 const streamPulseLimit = 1_000;
 const streamPulseLookbackMs = 24 * 60 * 60 * 1_000;
@@ -1207,7 +1220,12 @@ export function foremanRoutes(prisma: PrismaClient): Router {
         ? prisma.playbook.findUnique({ where: { id: harness.playbookId } })
         : Promise.resolve(null),
       harness.playbookId
-        ? prisma.harness.count({ where: { playbookId: harness.playbookId } })
+        ? prisma.harness.count({
+            // Same objective only — this harness's detail panel is an objective-
+            // scoped surface, so a count that reached across objectives would
+            // describe a fleet the operator cannot see from here.
+            where: { playbookId: harness.playbookId, objectiveId: harness.objectiveId },
+          })
         : Promise.resolve(0),
       prisma.harness.findMany({ where: { objectiveId: harness.objectiveId } }),
     ]);
@@ -1254,10 +1272,21 @@ export function foremanRoutes(prisma: PrismaClient): Router {
     ));
   }));
 
-  r.get('/playbooks', asyncHandler(async (_req, res) => {
+  r.get('/playbooks', asyncHandler(async (req, res) => {
+    // `usedByCount` is rendered as "used by N live harnesses" inside a view that
+    // is scoped to one objective, and the save banner promises the next version
+    // "applies to N live harnesses at their next pulse". Counting every harness
+    // in the database made both of those overstate the blast radius by however
+    // many other objectives happen to share a playbook. Scoped when the caller
+    // names an objective; the unscoped count remains available to callers that
+    // genuinely mean "everywhere".
+    const objectiveId = playbookScopeQuery(req);
     const [playbooks, references] = await Promise.all([
       prisma.playbook.findMany({ orderBy: [{ name: 'asc' }, { version: 'desc' }] }),
-      prisma.harness.findMany({ where: { playbookId: { not: null } }, select: { playbookId: true } }),
+      prisma.harness.findMany({
+        where: { playbookId: { not: null }, ...(objectiveId ? { objectiveId } : {}) },
+        select: { playbookId: true },
+      }),
     ]);
     const counts = new Map<string, number>();
     for (const reference of references) {
@@ -1267,9 +1296,12 @@ export function foremanRoutes(prisma: PrismaClient): Router {
   }));
 
   r.get('/playbooks/:id', asyncHandler(async (req, res) => {
+    const objectiveId = playbookScopeQuery(req);
     const [playbook, usedByCount] = await Promise.all([
       prisma.playbook.findUnique({ where: { id: req.params.id } }),
-      prisma.harness.count({ where: { playbookId: req.params.id } }),
+      prisma.harness.count({
+        where: { playbookId: req.params.id, ...(objectiveId ? { objectiveId } : {}) },
+      }),
     ]);
     if (!playbook) {
       res.status(404).json({ error: 'Playbook not found' });

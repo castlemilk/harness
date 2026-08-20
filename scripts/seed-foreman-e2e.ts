@@ -55,6 +55,8 @@ type PulseShape = 'healthy' | 'flatline' | 'failing' | 'mixed' | 'none';
 interface HarnessSpec {
   key: string;
   name: string;
+  /** Defaults to OBJ_MAIN; the use-case objectives name themselves. */
+  objective?: string;
   status: string;
   parent?: string;
   workstream?: string | null;
@@ -81,6 +83,7 @@ interface HarnessSpec {
 const WS_CONTROL = id('30');
 const WS_RUNTIME = id('31');
 const WS_SUPPORT = id('32');
+const WS_DESK = id('33');
 
 const HARNESSES: HarnessSpec[] = [
   // --- Control plane: a healthy lead with a deep chain beneath it ----------
@@ -316,6 +319,92 @@ const HARNESSES: HarnessSpec[] = [
     playbook: PB_WORKER,
     pulses: 'healthy',
     retired: true,
+  },
+
+  // --- Victoria: a desk fleet on the use-case objective --------------------
+  // The Victoria objective used to carry ten rich domain tabs and an empty
+  // Console, Board, Graph, Work and Usage — which reads as a broken shell
+  // rather than as an objective nobody has staffed. Three desk agents on one
+  // workstream, with mixed statuses, give every generic tab something true to
+  // render while leaving the domain tabs exactly as they were.
+  {
+    key: '800',
+    objective: OBJ_VICTORIA,
+    name: 'regime-watcher',
+    status: 'watching',
+    workstream: WS_DESK,
+    mission:
+      'Watch the regime classifier. Escalate when the live label disagrees with the walk-forward manifest for more than one cycle.',
+    activity: 'Comparing the live regime label against the v271 manifest.',
+    currentJob: 'Keep the desk honest about which regime it thinks it is in.',
+    model: 'gpt-5',
+    spendUsd: 3.6,
+    spendCapUsd: 40,
+    contextTokens: 72_000,
+    contextWindow: 400_000,
+    maxChildren: 4,
+    playbook: PB_LEAD,
+    pulses: 'healthy',
+    pulseCount: 5,
+    idleMinutes: 7,
+  },
+  {
+    key: '801',
+    objective: OBJ_VICTORIA,
+    name: 'signal-auditor',
+    status: 'working',
+    parent: '800',
+    workstream: WS_DESK,
+    mission:
+      'Audit each conviction filter against the trade log. A signal that never fires and a signal that always fires are both bugs.',
+    activity: 'Recomputing the agreement ratio over the last 200 cycles.',
+    model: 'claude-sonnet-4',
+    spendUsd: 1.8,
+    spendCapUsd: 10,
+    contextTokens: 51_000,
+    playbook: PB_WORKER,
+    pulses: 'mixed',
+    pulseCount: 4,
+    branch: 'feat/conviction-audit',
+  },
+  {
+    key: '802',
+    objective: OBJ_VICTORIA,
+    name: 'execution-reviewer',
+    status: 'waiting', // blocked on the human decision seeded below
+    parent: '800',
+    workstream: WS_DESK,
+    mission:
+      'Review fills against intended entries and report slippage the sizing model has not accounted for.',
+    activity: 'Asked: widen the slippage budget, or shrink size on thin books?',
+    model: 'gpt-5-mini',
+    spendUsd: 0.72,
+    spendCapUsd: 10,
+    contextTokens: 24_000,
+    playbook: PB_WORKER,
+    pulses: 'flatline',
+    pulseCount: 3,
+    idleMinutes: 5 * 60,
+  },
+
+  // --- Polymarket: one harness, deliberately minimal -----------------------
+  // Enough that the generic tabs are not empty, and no more: this shell's job
+  // in the fixture is to be the one with no backend at all, not to be a second
+  // rich fleet.
+  {
+    key: '900',
+    objective: OBJ_POLYMARKET,
+    name: 'market-scout',
+    status: 'ready', // staffed, never pulsed
+    workstream: null,
+    mission: 'Scan open prediction markets and shortlist the ones worth a real position.',
+    activity: 'Ready — waiting for its first heartbeat.',
+    model: 'gpt-5-mini',
+    spendUsd: 0,
+    spendCapUsd: 20,
+    contextTokens: 0,
+    playbook: null,
+    pulses: 'none',
   },
 ];
 
@@ -555,28 +644,35 @@ async function main(): Promise<void> {
 
   // --- workstreams --------------------------------------------------------
   const streams = [
-    { id: WS_CONTROL, name: 'Control plane', lead: id('100'), paused: false, note: null },
-    { id: WS_RUNTIME, name: 'Harness runtime', lead: id('200'), paused: false, note: null },
+    { id: WS_CONTROL, objective: OBJ_MAIN, name: 'Control plane', lead: id('100'), paused: false, note: null },
+    { id: WS_RUNTIME, objective: OBJ_MAIN, name: 'Harness runtime', lead: id('200'), paused: false, note: null },
     {
       id: WS_SUPPORT,
+      objective: OBJ_MAIN,
       name: 'Support triage',
       lead: id('300'),
       paused: true,
       note: '2 harnesses paused by you at 08:12 — collapsed',
     },
+    // The Victoria objective's one lane, so its Board is a board rather than a
+    // blank page next to ten populated domain tabs.
+    { id: WS_DESK, objective: OBJ_VICTORIA, name: 'Trading desk', lead: id('800'), paused: false, note: null },
   ];
-  for (const [i, ws] of streams.entries()) {
+  for (const ws of streams) {
+    // Ordered within its own objective: a lane on the Victoria objective is its
+    // first lane, not the fourth.
+    const orderIdx = streams.filter((other) => other.objective === ws.objective).indexOf(ws);
     await prisma.workstream.upsert({
       where: { id: ws.id },
       update: { paused: ws.paused, pausedNote: ws.note, leadHarnessId: ws.lead },
       create: {
         id: ws.id,
-        objectiveId: OBJ_MAIN,
+        objectiveId: ws.objective,
         name: ws.name,
         paused: ws.paused,
         pausedAt: ws.paused ? new Date(now - 6 * HOUR) : null,
         pausedNote: ws.note,
-        orderIdx: i,
+        orderIdx,
         leadHarnessId: ws.lead,
       },
     });
@@ -588,7 +684,7 @@ async function main(): Promise<void> {
 
   for (const spec of ordered) {
     const data = {
-      objectiveId: OBJ_MAIN,
+      objectiveId: spec.objective ?? OBJ_MAIN,
       workstreamId: spec.workstream === null ? null : (spec.workstream ?? WS_CONTROL),
       parentId: spec.parent ? id(spec.parent) : null,
       name: spec.name,
@@ -733,7 +829,8 @@ async function main(): Promise<void> {
   });
 
   // --- interventions ------------------------------------------------------
-  await prisma.intervention.deleteMany({ where: { objectiveId: { in: [OBJ_MAIN, OBJ_QUEUE] } } });
+  const SEEDED_OBJECTIVES = [OBJ_MAIN, OBJ_QUEUE, OBJ_DEMO, OBJ_VICTORIA, OBJ_POLYMARKET];
+  await prisma.intervention.deleteMany({ where: { objectiveId: { in: SEEDED_OBJECTIVES } } });
 
   await prisma.intervention.create({
     data: {
@@ -792,9 +889,34 @@ async function main(): Promise<void> {
     },
   });
 
+  // The Victoria objective's own pending decision, so its "Needs you" rail is
+  // populated from its own fleet rather than borrowing the main objective's.
+  await prisma.intervention.create({
+    data: {
+      id: id('603'),
+      objectiveId: OBJ_VICTORIA,
+      harnessId: id('802'),
+      kind: 'question',
+      title: 'Widen the slippage budget, or shrink size on thin books?',
+      detail:
+        'Fills on the thinnest two symbols are averaging 14bps against a 6bps assumption. Either the budget is wrong or the sizing is; both change what the desk reports as edge.',
+      impact: 'idle since',
+      status: 'pending',
+      createdAt: new Date(now - 5 * HOUR),
+    },
+  });
+
   // --- tickets ------------------------------------------------------------
   // Tagged to the objective, covering every board column.
-  const tickets = [
+  const tickets: {
+    n: string;
+    /** Defaults to OBJ_MAIN. */
+    objective?: string;
+    title: string;
+    status: string;
+    owner: string | null;
+    tags: string[];
+  }[] = [
     { n: '700', title: 'Record a private demo of the orchestration flow', status: 'todo', owner: null, tags: ['growth', 'medium'] },
     { n: '701', title: 'Audit the harness interface for v4 breakage', status: 'todo', owner: null, tags: [] },
     { n: '702', title: 'Make objective state resolve in one query', status: 'in_progress', owner: '101', tags: ['integrations', 'high'] },
@@ -802,6 +924,11 @@ async function main(): Promise<void> {
     { n: '704', title: 'Add a per-account preference for existing integrations', status: 'done', owner: '102', tags: [] },
     { n: '705', title: 'Pulse engine records real cost per model', status: 'done', owner: '200', tags: ['integrations'] },
     { n: '706', title: 'Rendezvous coordinator exceeded its budget', status: 'failed', owner: '105', tags: ['high'] },
+    // Victoria's own board, owned by its own harnesses.
+    { n: '720', objective: OBJ_VICTORIA, title: 'Reconcile the live regime label with the walk-forward manifest', status: 'in_progress', owner: '800', tags: ['high'] },
+    { n: '721', objective: OBJ_VICTORIA, title: 'Audit every conviction filter against the trade log', status: 'in_progress', owner: '801', tags: [] },
+    { n: '722', objective: OBJ_VICTORIA, title: 'Slippage budget disagrees with observed fills', status: 'todo', owner: '802', tags: ['high'] },
+    { n: '723', objective: OBJ_VICTORIA, title: 'Publish the desk cost per closed trade', status: 'done', owner: null, tags: [] },
   ];
 
   for (const t of tickets) {
@@ -811,7 +938,7 @@ async function main(): Promise<void> {
       title: t.title,
       status: t.status,
       complexity: 'medium',
-      tags: JSON.stringify([...t.tags, `objective:${OBJ_MAIN}`]),
+      tags: JSON.stringify([...t.tags, `objective:${t.objective ?? OBJ_MAIN}`]),
       provider: 'openai',
       model: 'gpt-5',
     };
@@ -890,20 +1017,27 @@ async function main(): Promise<void> {
   }
   await prisma.harness.update({ where: { id: traceHarness }, data: { taskId: traceTask } });
 
+  // Counted, not hardcoded. The objectives literal once said 3 while the
+  // fixture had 4 (UC-3's Victoria objective landed without it), and the
+  // interventions and tickets literals went the same way when Victoria got a
+  // fleet — this line is the only thing anyone reads to confirm the seed did
+  // what they expected, so every number in it is asked of the database or
+  // derived from what this run actually built.
+  const harnessIds = HARNESSES.map((h) => id(h.key));
   const counts = {
-    // Counted, not hardcoded: this literal said 3 while the fixture had 4
-    // (UC-3's Victoria objective landed without it), and the summary line is
-    // the only thing anyone reads to confirm the seed did what they expected.
     objectives: await prisma.objective.count({ where: { projectId: project.id } }),
     workstreams: streams.length,
     harnesses: HARNESSES.length,
+    victoriaHarnesses: HARNESSES.filter((h) => h.objective === OBJ_VICTORIA).length,
     retired: HARNESSES.filter((h) => h.retired).length,
     unassigned: HARNESSES.filter((h) => h.workstream === null).length,
-    pulses: await prisma.pulse.count({
-      where: { harnessId: { in: HARNESSES.map((h) => id(h.key)) } },
+    pulses: await prisma.pulse.count({ where: { harnessId: { in: harnessIds } } }),
+    interventions: await prisma.intervention.count({
+      where: { objectiveId: { in: SEEDED_OBJECTIVES } },
     }),
-    interventions: 3,
-    tickets: tickets.length + 1,
+    tickets: await prisma.task.count({
+      where: { id: { in: [...tickets.map((t) => id(t.n)), id('710')] } },
+    }),
     traces: traceRows.length,
   };
   console.log('Seeded Foreman e2e fixture:', JSON.stringify(counts));

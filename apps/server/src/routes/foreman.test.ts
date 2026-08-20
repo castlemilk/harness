@@ -697,8 +697,9 @@ describe('Foreman routes with PGlite', () => {
       playbook: { id: string; usedByCount: number } | null;
     };
     expect.soft(detail.subtreeSpend).toBeGreaterThan(detail.spend);
+    // Scoped to this objective, because that is what the panel claims.
     const exactPlaybookUseCount = detail.playbook
-      ? await prisma.harness.count({ where: { playbookId: detail.playbook.id } })
+      ? await prisma.harness.count({ where: { playbookId: detail.playbook.id, objectiveId } })
       : 0;
     expect.soft(detail.playbook?.usedByCount).toBe(exactPlaybookUseCount);
     expect.soft(detail.playbook?.usedByCount).toBeGreaterThan(0);
@@ -841,6 +842,69 @@ describe('Foreman routes with PGlite', () => {
       childCount: expect.any(Number),
       labels: expect.any(Array),
     });
+  });
+
+  it('scopes playbook usedByCount to the requested objective', async () => {
+    // The Playbooks view is objective-scoped, but `usedByCount` was a global
+    // `harness.count({ playbookId })` — so "used by N live harnesses" and the
+    // save banner's "applies to N live harnesses" both counted harnesses on
+    // objectives the operator could not see from that screen. Two objectives
+    // sharing one playbook is the smallest fixture that tells the two apart.
+    const other = await prisma.objective.create({
+      data: { projectId, name: 'Playbook scope objective' },
+    });
+    const seededUse = await prisma.harness.count({ where: { playbookId, objectiveId } });
+    expect(seededUse).toBeGreaterThan(0);
+
+    for (const name of ['Scope A', 'Scope B', 'Scope C']) {
+      await createHarnessFixture(other.id, { name, playbookId });
+    }
+    const globalUse = await prisma.harness.count({ where: { playbookId } });
+    expect(globalUse).toBe(seededUse + 3);
+
+    const scopedList = await invokeRoute(router, 'get', '/playbooks', {
+      query: { objectiveId: other.id },
+    });
+    expect(scopedList.status).toBe(200);
+    const scoped = (scopedList.body as { id: string; usedByCount: number }[])
+      .find((playbook) => playbook.id === playbookId);
+    expect(scoped?.usedByCount).toBe(3);
+
+    const homeList = await invokeRoute(router, 'get', '/playbooks', { query: { objectiveId } });
+    expect(homeList.status).toBe(200);
+    const home = (homeList.body as { id: string; usedByCount: number }[])
+      .find((playbook) => playbook.id === playbookId);
+    expect(home?.usedByCount).toBe(seededUse);
+
+    // Omitting the scope still means "everywhere", and that total must be
+    // strictly larger than either side — otherwise the scoping proved nothing.
+    const unscopedList = await invokeRoute(router, 'get', '/playbooks');
+    const unscoped = (unscopedList.body as { id: string; usedByCount: number }[])
+      .find((playbook) => playbook.id === playbookId);
+    expect(unscoped?.usedByCount).toBe(globalUse);
+    expect(globalUse).toBeGreaterThan(3);
+
+    const scopedDetail = await invokeRoute(router, 'get', '/playbooks/:id', {
+      params: { id: playbookId },
+      query: { objectiveId: other.id },
+    });
+    expect(scopedDetail.status).toBe(200);
+    expect((scopedDetail.body as { usedByCount: number }).usedByCount).toBe(3);
+
+    // A harness's own detail panel scopes itself, with no query to forget.
+    const detailHarness = await prisma.harness.findFirstOrThrow({
+      where: { objectiveId: other.id, playbookId },
+    });
+    const harnessDetail = await invokeRoute(router, 'get', '/harnesses/:id', {
+      params: { id: detailHarness.id },
+    });
+    expect(harnessDetail.status).toBe(200);
+    expect(
+      (harnessDetail.body as { playbook: { usedByCount: number } | null }).playbook?.usedByCount,
+    ).toBe(3);
+
+    await prisma.harness.deleteMany({ where: { objectiveId: other.id } });
+    await prisma.objective.delete({ where: { id: other.id } });
   });
 
   it('counts each harness once when a subtree contains a parent cycle', async () => {

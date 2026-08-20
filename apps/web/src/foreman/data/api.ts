@@ -172,9 +172,20 @@ export const foremanApi = {
       headers: toolsHeaders(),
     }),
 
-  listPlaybooks: () => request<Playbook[]>('/foreman/playbooks'),
+  // The objective scopes `usedByCount`, which the editor renders as "used by N
+  // live harnesses" and repeats in the save banner. Without it the number
+  // counted harnesses on objectives this view cannot even show.
+  listPlaybooks: (objectiveId?: string) =>
+    request<Playbook[]>(
+      objectiveId ? `/foreman/playbooks?objectiveId=${objectiveId}` : '/foreman/playbooks',
+    ),
 
-  getPlaybook: (id: string) => request<Playbook>(`/foreman/playbooks/${id}`),
+  getPlaybook: (id: string, objectiveId?: string) =>
+    request<Playbook>(
+      objectiveId
+        ? `/foreman/playbooks/${id}?objectiveId=${objectiveId}`
+        : `/foreman/playbooks/${id}`,
+    ),
 
   savePlaybookVersion: (
     id: string,

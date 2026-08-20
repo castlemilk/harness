@@ -12,6 +12,18 @@ body {
   @apply bg-canvas text-ink antialiased;
 }
 
+/* A scrolling strip inside 44px of chrome (the app-chrome tab bar) has no room
+   for a scrollbar gutter — it would eat the tab underline. The affordance is
+   the fade at the clipped edge instead; the strip still scrolls by wheel,
+   trackpad, drag and keyboard. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* The legacy panels are still light, so they opt back out. */
 .legacy-surface {
   color-scheme: light;

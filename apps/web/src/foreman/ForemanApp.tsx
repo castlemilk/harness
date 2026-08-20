@@ -110,14 +110,15 @@ export function ForemanApp({
   }, [paletteOpen]);
 
   useEffect(() => {
+    if (!objectiveId) return;
     void foremanApi
-      .listPlaybooks()
+      .listPlaybooks(objectiveId)
       .then((list) => {
         setPlaybooks(list);
         setPlaybookId((current) => current ?? list.at(0)?.id ?? null);
       })
       .catch(() => { setPlaybooks([]); });
-  }, []);
+  }, [objectiveId]);
 
   useEffect(() => {
     void foremanApi

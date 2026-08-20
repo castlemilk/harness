@@ -70,6 +70,29 @@ app.use('/providers/compare', providerCompareRoutes(prisma));
 app.use('/foreman', foremanRoutes(prisma));
 app.use('/foreman', foremanEngineRoutes(prisma));
 
+/**
+ * An unknown API path is a 404, not the SPA.
+ *
+ * `index.ts` mounts `express.static` and an `app.get('*')` that returns
+ * `index.html` after this module's routes, so anything unmatched used to come
+ * back as 200 + HTML. A typo'd endpoint then surfaced in the client as a JSON
+ * parse error on markup, or worse, as `response.ok` and a silently empty
+ * screen. This runs after every real route and before that catch-all, so the
+ * two prefixes that are API surface answer in the same `{ error }` envelope
+ * every route in here already uses. Everything else still falls through to the
+ * SPA — deep links have to keep working.
+ */
+const API_PREFIXES = ['/api', '/foreman'];
+
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const isApiPath = API_PREFIXES.some((p) => req.path === p || req.path.startsWith(p + '/'));
+  if (!isApiPath) {
+    next();
+    return;
+  }
+  res.status(404).json({ error: `No such endpoint: ${req.method} ${req.path}` });
+});
+
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
   if (err instanceof Error && err.name === 'ZodError' && 'issues' in err) {

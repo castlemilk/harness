@@ -99,6 +99,21 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   server: {
+    // Measured 2026-08-20: with no `host` set, Vite listens on its default
+    // `'localhost'`, Node resolves that through `dns.lookup` in verbatim order,
+    // and macOS answers `::1` first — so the dev server bound `[::1]:5173`
+    // only and `http://127.0.0.1:5173` was ECONNREFUSED. Nothing in this file
+    // asked for that; it is Node's resolution of the word "localhost".
+    //
+    // The API already binds the IPv4 loopback literal (`HOST ?? '127.0.0.1'`
+    // in apps/server/src/index.ts) and its CORS allowlist names
+    // `http://127.0.0.1:5173`, so the web server was the one that disagreed.
+    // Naming the literal here makes both halves of the stack reachable at the
+    // same address. `[::1]` URLs no longer resolve, but `localhost` still
+    // does — browsers and curl fall back to the IPv4 answer. Binding both
+    // families would mean `'::'`, which is every interface, and this server
+    // has no auth.
+    host: '127.0.0.1',
     port: 5173,
     fs: {
       allow: [REPO_ROOT, ...outOfTreeDirs],

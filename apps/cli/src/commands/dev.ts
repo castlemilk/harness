@@ -3,6 +3,11 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import readline from 'node:readline';
 import open from 'open';
 import {
+  fetchObjectiveCount,
+  objectivesBannerLine,
+  shouldPrintReadyBanner,
+} from '../lib/dev-banner.js';
+import {
   defaultDatabaseDir,
   defaultDatabaseUrl,
   firstFreePort,
@@ -115,6 +120,9 @@ export const devCmd = new Command('dev')
 
       const children: ChildProcess[] = [];
       let shuttingDown = false;
+      // A dead child means the stack is not up, whatever the web port answered
+      // a moment ago. The banner must not print over the top of that.
+      let childExited = false;
 
       const shutdown = (code: number): void => {
         if (shuttingDown) return;
@@ -178,6 +186,7 @@ export const devCmd = new Command('dev')
       );
       children.push(server);
       server.on('exit', (code) => {
+        childExited = true;
         if (!shuttingDown) {
           console.error(`\nServer exited (${String(code)}). Shutting down.`);
           shutdown(code ?? 1);
@@ -203,6 +212,7 @@ export const devCmd = new Command('dev')
       );
       children.push(web);
       web.on('exit', (code) => {
+        childExited = true;
         if (!shuttingDown) {
           console.error(`\nWeb dev server exited (${String(code)}). Shutting down.`);
           shutdown(code ?? 1);
@@ -210,19 +220,17 @@ export const devCmd = new Command('dev')
       });
 
       const webUrl = `http://localhost:${String(webPort)}`;
-      if (await waitForHttp(webUrl, 30_000)) {
+      const webReachable = await waitForHttp(webUrl, 30_000);
+      // Asked of the API, not inferred from `--seed`: the flag says what this
+      // invocation requested, the database says what is actually there.
+      const objectiveCount = webReachable ? await fetchObjectiveCount(apiUrl) : null;
+      if (shouldPrintReadyBanner({ childExited, shuttingDown, webReachable })) {
         // Four lines, and each one answers a question a first run actually
         // asks. The Plugins line is here rather than in the docs because the
         // tab is the answer to "what did this build ship, and is its backend
         // up" — and nobody reads a doc while the app is already open.
         console.log(`\n${BOLD}Ready${RESET} → ${webUrl}   ${DIM}(Ctrl-C to stop both)${RESET}`);
-        console.log(
-          `${DIM}  Objectives   ${
-            options.seed
-              ? 'seeded — pick one from the switcher in the top bar'
-              : 'none seeded — run `task db:seed:e2e`, or `task dev:seed`'
-          }${RESET}`,
-        );
+        console.log(`${DIM}  ${objectivesBannerLine(objectiveCount)}${RESET}`);
         console.log(`${DIM}  Plugins tab  shows the installed use-case shells and their health${RESET}`);
         console.log(`${DIM}  Trouble?     task doctor${RESET}\n`);
         if (options.open) await open(webUrl);

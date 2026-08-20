@@ -7,14 +7,45 @@ playbook **routine** once, records a **pulse**, and escalates to a human as an
 
 ## Try it
 
+Three commands, in this order, from the harness repo root:
+
 ```bash
-task setup          # first run on a fresh checkout
+task setup          # once per checkout: install, generate the client, migrate
 task db:seed:e2e    # load the fixture (21 harnesses, 234 pulses, 5 objectives)
 task dev            # API :4000 + web :5173, one database, Ctrl-C stops both
 ```
 
-`task doctor` if anything looks wrong — it checks databases, migrations, port
-occupancy and provider keys.
+`task dev` opens the browser itself and prints where it went. **Do not skip the
+seed** — without it Foreman opens on the empty state, which looks like a broken
+install rather than an empty database. `task dev:seed` does both in one go.
+
+`task doctor` if anything looks wrong. It checks databases, migrations, port
+occupancy, provider keys, stale package builds — and the use-case plugins:
+whether `foreman-plugins.json` resolves (a harness cloned without the omega repo
+beside it fails the *build*, and doctor says so first), and whether each
+plugin's declared backend is answering.
+
+### Victoria live data
+
+The Victoria shell reads the **omega Go API on :8080**, which lives in the
+parent repository and which this harness neither starts nor depends on. Without
+it the Victoria tabs render honest data-source errors and the Plugins tab shows
+a red health dot — that is the designed behaviour, not a fault, and every other
+part of the app works regardless.
+
+To have live data, start the omega API from the parent repo in its own shell
+(see that repo's `CLAUDE.md`):
+
+```bash
+cd ..                                                       # the omega repo
+export DATABASE_URL=postgres://omega:omega@localhost:5432/omega?sslmode=disable
+make db-up && go run ./cmd/omega-api                        # Connect-RPC on :8080
+```
+
+Deliberately not scripted from here: two repositories with independent
+lifecycles, and a harness that started and stopped another repo's server would
+own a process it cannot reason about. To point Victoria at an API somewhere
+else, set `VITE_UC_VICTORIA_URL` before `task dev`.
 
 ### Worth clicking
 
@@ -24,12 +55,13 @@ occupancy and provider keys.
 | **Board** | Workstream lanes, 12-pulse sparklines, `+N more` overflow, the *Needs you* rail with all three intervention kinds. |
 | **Graph** | Auto-fits the whole fleet. Rings are context used. Drag to pan, `⤢` refits, scrubber replays. |
 | **Work / Usage / Playbooks** | Tickets scoped to the objective; spend by model against cap; routine editor with a live resolved preview. |
+| **Plugins** | Every installed use-case shell: accent, id, version, the source path it came from (in-repo or out-of-tree), its views, its backends with a live health dot, and which objectives use it — each one a jump straight into that shell. A shell nobody uses offers to start an objective on it. |
 | **⌘K** | `pause runtime` → acts on the match. `⌘↵` widens to the subtree. |
 
 The second objective ("Keep the support queue at zero") is deliberately empty —
 it exists to prove objective-scoping and the empty states. The other three carry
 a `useCase` and are how the shell seam is reached by clicking: "Demo the
-use-case shell" adds one proof tab, "Run the Victoria trading desk" adds six
+use-case shell" adds one proof tab, "Run the Victoria trading desk" adds ten
 domain tabs against the omega API (which the fixture deliberately does not stand
 up, so it also exercises the unreachable-backend path), and "Trade prediction
 markets" adds one tab for a shell with no backend at all. Switching between the
@@ -41,7 +73,9 @@ Foreman has **two axes**, and conflating them is what produced the triplicated
 view list this replaced.
 
 - The **presentation axis** is the core chrome: Console, Board, Graph, Work,
-  Usage, Playbooks. Six views, every objective, always. They are the app.
+  Usage, Playbooks, Plugins. Seven views, every objective, always. They are the
+  app. (Plugins is chrome for the same reason: it is about what the *build*
+  installed, so it must be there for an objective with no use case at all.)
 - The **domain axis** is the *use case*: what an objective is actually for. A
   use case brings extra tabs, an accent and optionally vocabulary — it **adds**
   to the core chrome and can never remove or shadow it.
@@ -57,12 +91,13 @@ packages/usecase-kit/                         THE CONTRACT: @omega-harness/useca
 foreman-plugins.json                          WHICH PLUGINS THIS BUILD SHIPS — paths, in- or out-of-tree
 apps/web/plugin-discovery.mjs                 resolves that config for Vite + Tailwind; missing plugin = build error
 apps/web/src/foreman/usecases/registry.ts     the host: the shell map, tabs, resolution
-apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the six, and their wiring
+apps/web/src/foreman/usecases/core.tsx        CORE_VIEWS — the seven, and their wiring
+apps/web/src/foreman/usecases/plugins.tsx     the Plugins surface — the roster made legible
 apps/web/src/foreman/usecases/index.ts        the roster: who is registered, when
 apps/web/src/foreman/usecases/health.tsx      probing + the chrome's health dots
 apps/web/src/foreman/usecases/demo.tsx        the proof shell (dev/test only)
 
-../foreman-plugins/victoria/                  OUT OF TREE (omega repo) — the trading shell (UC-3), six tabs, omega API
+../foreman-plugins/victoria/                  OUT OF TREE (omega repo) — the trading shell (UC-3), ten tabs, omega API
 ../foreman-plugins/polymarket/                OUT OF TREE (omega repo) — the prediction-markets stub (UC-4), no backend
 ```
 

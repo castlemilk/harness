@@ -211,7 +211,20 @@ export const devCmd = new Command('dev')
 
       const webUrl = `http://localhost:${String(webPort)}`;
       if (await waitForHttp(webUrl, 30_000)) {
-        console.log(`\n${BOLD}Ready${RESET} → ${webUrl}   ${DIM}(Ctrl-C to stop both)${RESET}\n`);
+        // Four lines, and each one answers a question a first run actually
+        // asks. The Plugins line is here rather than in the docs because the
+        // tab is the answer to "what did this build ship, and is its backend
+        // up" — and nobody reads a doc while the app is already open.
+        console.log(`\n${BOLD}Ready${RESET} → ${webUrl}   ${DIM}(Ctrl-C to stop both)${RESET}`);
+        console.log(
+          `${DIM}  Objectives   ${
+            options.seed
+              ? 'seeded — pick one from the switcher in the top bar'
+              : 'none seeded — run `task db:seed:e2e`, or `task dev:seed`'
+          }${RESET}`,
+        );
+        console.log(`${DIM}  Plugins tab  shows the installed use-case shells and their health${RESET}`);
+        console.log(`${DIM}  Trouble?     task doctor${RESET}\n`);
         if (options.open) await open(webUrl);
       }
     },

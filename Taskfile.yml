@@ -38,7 +38,10 @@ tasks:
       - pnpm install
       - task: db:generate
       - task: db:migrate
-      - cmd: echo "Ready. Next → task dev"
+      # The happy path is three commands, and the second one is the difference
+      # between an app full of fixture state and an app with an empty-state
+      # screen — which reads as "it didn't work".
+      - cmd: echo "Ready. Next → task db:seed:e2e   (load the fixture), then task dev"
 
   doctor:
     desc: Diagnose the local environment (databases, ports, provider keys)

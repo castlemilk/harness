@@ -9,6 +9,14 @@ import {
   portInUse,
   repoRoot,
 } from '../lib/repo.js';
+import {
+  isOutOfTree,
+  pluginPackage,
+  pluginSourcesOnDisk,
+  probeUrl,
+  reachable,
+  resolvePlugins,
+} from '../lib/plugins.js';
 
 /**
  * `harness doctor` — check the local environment before blaming the code.
@@ -186,6 +194,14 @@ export const doctorCmd = new Command('doctor')
           : undefined,
     });
 
+    // --- use-case plugins -------------------------------------------------
+    // Two failures this catches before they look like the app being broken: a
+    // configured plugin that is not on disk (the harness cloned without the
+    // omega repo beside it), and a plugin backend that isn't running (Victoria
+    // reads the omega Go API on :8080, which this repo neither starts nor
+    // depends on).
+    findings.push(...(await pluginFindings(root)));
+
     // --- engine ---------------------------------------------------------
     findings.push({
       level: 'ok',
@@ -207,6 +223,78 @@ export const doctorCmd = new Command('doctor')
       console.log(`${OK} Environment looks usable.`);
     }
   });
+
+/**
+ * The plugin section: does the configuration resolve, what did it resolve to,
+ * and is each declared backend answering.
+ *
+ * A missing plugin is `bad` — it is a hard build failure, and saying so here is
+ * the whole point of checking. An unreachable backend is `warn` and never
+ * fails doctor: running the omega API is a separate, optional thing to do, and
+ * the shell's own views say so honestly when it is absent.
+ */
+async function pluginFindings(root: string): Promise<Finding[]> {
+  const { plugins, error } = await resolvePlugins(root);
+
+  if (error !== null) {
+    return [
+      {
+        level: 'bad',
+        title: 'Use-case plugins do not resolve — the web build will fail at config load',
+        detail: `${error}\nEdit foreman-plugins.json, or check out the repository that provides the plugin.`,
+      },
+    ];
+  }
+
+  if (plugins.length === 0) {
+    return [
+      {
+        level: 'warn',
+        title: 'No use-case plugins configured — every objective gets the core chrome only',
+        detail:
+          'foreman-plugins.json lists which shells this build ships.\n' +
+          'Authoring guide: docs/USE-CASE-SHELLS.md',
+      },
+    ];
+  }
+
+  const lines = plugins.map((p) => {
+    const pkg = pluginPackage(p.dir);
+    const where = isOutOfTree(p.dir, root) ? 'out-of-tree' : 'in-repo';
+    return `${p.id.padEnd(12)} ${p.spec}  (${where}${pkg ? `, ${pkg.name}@${pkg.version}` : ''})`;
+  });
+
+  const findings: Finding[] = [
+    {
+      level: 'ok',
+      title: `${String(plugins.length)} use-case plugin(s) configured and on disk`,
+      detail: `${lines.join('\n')}\nThe Plugins tab in the web app shows the same list, with live health.`,
+    },
+  ];
+
+  for (const plugin of plugins) {
+    const sources = pluginSourcesOnDisk(plugin.dir);
+    if (sources.length === 0) continue;
+    for (const source of sources) {
+      const url = probeUrl(source);
+      const up = await reachable(url);
+      findings.push({
+        level: up ? 'ok' : 'warn',
+        title: up
+          ? `${plugin.id}: ${source.label} is reachable (${url})`
+          : `${plugin.id}: ${source.label} is not running (${url})`,
+        detail: up
+          ? undefined
+          : `The ${plugin.id} tabs show live-data errors until it is. This is not a harness\n` +
+            `problem and does not need fixing to use the rest of the app — see\n` +
+            `docs/FOREMAN.md § Victoria live data for the one command that starts it.` +
+            (source.envVar ? `\nPoint it elsewhere with ${source.envVar}=<url>.` : ''),
+      });
+    }
+  }
+
+  return findings;
+}
 
 /** Every node-pty spawn-helper in the workspace. */
 function ptySpawnHelpers(root: string): string[] {

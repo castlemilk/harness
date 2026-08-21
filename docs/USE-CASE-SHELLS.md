@@ -291,6 +291,11 @@ renames nothing, which is a fine answer.
 
 ## The `/ui` entry: shared presentation
 
+For the full rendering handover — the geometry→charts→views stack, the
+data-contract traps, and the honesty rules — read the worked example's own
+doc: `foreman-plugins/victoria/RENDERING.md` in the omega repo. This section
+covers only the shared-primitive mechanics.
+
 A domain tab has to look like Foreman, and looking like Foreman is a set of
 class names. While every shell lived in this repository they imported the
 chrome's own `ui/primitives.tsx` by relative path; out of tree that is not a

@@ -3,6 +3,7 @@ import type { PrismaClient } from '@omega/db';
 import { z } from 'zod';
 import { asyncHandler } from '../lib/async-handler.js';
 import { runPulse, startPulseScheduler, type PulseScheduler } from '../lib/pulse-engine.js';
+import { prunePulses } from '../lib/pulse-retention.js';
 
 /**
  * Engine control surface.
@@ -58,6 +59,18 @@ export function foremanEngineRoutes(prisma: PrismaClient): Router {
   r.get('/engine', (_req, res) => {
     res.json({ running: scheduler !== null, enabledByEnv: process.env.FOREMAN_ENGINE === '1' });
   });
+
+  /**
+   * Run the retention pass now (text decay + aged ok-pulse deletion — see
+   * lib/pulse-retention.ts). The scheduler runs it daily when the engine is
+   * on; with the engine off nothing else ever prunes.
+   */
+  r.post(
+    '/engine/prune',
+    asyncHandler(async (_req, res) => {
+      res.json(await prunePulses(prisma));
+    }),
+  );
 
   return r;
 }

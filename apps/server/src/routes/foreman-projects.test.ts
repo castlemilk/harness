@@ -549,3 +549,75 @@ describe('GET /foreman/providers/health', () => {
     expect(row?.health).toBeNull();
   });
 });
+
+describe('pulse retention', () => {
+  it('strips aged prompt/response text but keeps the pulse row, and deletes only aged ok-pulses', async () => {
+    const { prunePulses, TEXT_DECAY_DAYS, ROW_DECAY_DAYS } = await import('../lib/pulse-retention.js');
+    const harness = await prisma.harness.create({
+      data: { objectiveId, name: 'aging', mission: 'Age gracefully.', model: 'test-model' },
+    });
+    const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1_000);
+    await prisma.pulse.create({
+      data: {
+        harnessId: harness.id, seq: 1, startedAt: daysAgo(TEXT_DECAY_DAYS + 1), endedAt: daysAgo(TEXT_DECAY_DAYS + 1),
+        outcome: 'ok', summary: 'old but summarised', promptText: 'old prompt', responseText: 'old response', model: 'm',
+      },
+    });
+    await prisma.pulse.create({
+      data: {
+        harnessId: harness.id, seq: 2, startedAt: daysAgo(1), endedAt: daysAgo(1),
+        outcome: 'ok', summary: 'fresh', promptText: 'fresh prompt', responseText: 'fresh response',
+      },
+    });
+    await prisma.pulse.create({
+      data: {
+        harnessId: harness.id, seq: 3, startedAt: daysAgo(ROW_DECAY_DAYS + 1), endedAt: daysAgo(ROW_DECAY_DAYS + 1),
+        outcome: 'ok', summary: 'ancient ok — deletable',
+      },
+    });
+    await prisma.pulse.create({
+      data: {
+        harnessId: harness.id, seq: 4, startedAt: daysAgo(ROW_DECAY_DAYS + 1), endedAt: daysAgo(ROW_DECAY_DAYS + 1),
+        outcome: 'fail', summary: 'ancient failure — a finding, kept forever',
+      },
+    });
+
+    const result = await prunePulses(prisma);
+    expect(result.textStripped).toBeGreaterThanOrEqual(1);
+    expect(result.rowsDeleted).toBeGreaterThanOrEqual(1);
+
+    const remaining = await prisma.pulse.findMany({
+      where: { harnessId: harness.id },
+      orderBy: { seq: 'asc' },
+    });
+    expect(remaining.map((p) => p.seq)).toEqual([1, 2, 4]);
+    // Old row: text gone, narrative intact.
+    expect(remaining[0].promptText).toBeNull();
+    expect(remaining[0].summary).toBe('old but summarised');
+    // Fresh row untouched.
+    expect(remaining[1].promptText).toBe('fresh prompt');
+    // The ancient failure survived row decay.
+    expect(remaining[2].outcome).toBe('fail');
+  });
+});
+
+describe('auto model harnesses', () => {
+  it('a pulse never clobbers `auto` with the routed model', async () => {
+    const { runPulse } = await import('../lib/pulse-engine.js');
+    const harness = await prisma.harness.create({
+      data: {
+        objectiveId,
+        name: 'auto-pilot',
+        mission: 'Route thyself.',
+        model: 'auto',
+        status: 'ready',
+      },
+    });
+    // Simulate skips the provider call but still runs the persistence path —
+    // exactly where a naive `model: ranModel` write would pin the harness.
+    const result = await runPulse(prisma, harness.id, { simulate: true });
+    expect(result.ran).toBe(true);
+    const after = await prisma.harness.findUnique({ where: { id: harness.id } });
+    expect(after?.model).toBe('auto');
+  });
+});

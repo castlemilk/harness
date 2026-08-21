@@ -29,6 +29,13 @@ const DEFAULT_PERMISSIONS: Permission[] = [
 
 /** Fallback only — the real list comes from the server's providers. */
 const FALLBACK_MODELS = ['opus-4.6', 'sonnet-4.6', 'haiku-4'];
+
+/**
+ * Router-delegated model choice: the IntelligentRouter picks a provider/model
+ * every pulse from capability + benchmark + health evidence. Bare `auto` lets
+ * the strategy learner choose the strategy too.
+ */
+export const AUTO_MODELS = ['auto', 'auto:cost-optimized', 'auto:performance-optimized'];
 const HEARTBEATS = [15, 30, 60, 120];
 const BUDGETS = [5, 15, 40, 100];
 const MAX_CHILDREN = [0, 3, 6, 16];
@@ -66,7 +73,7 @@ export function SpawnHarness({
   const [granted, setGranted] = useState<string[]>([]);
   const [dryRun, setDryRun] = useState(false);
   const [busy, setBusy] = useState(false);
-  const available = models.length > 0 ? models : FALLBACK_MODELS;
+  const available = [...AUTO_MODELS, ...(models.length > 0 ? models : FALLBACK_MODELS)];
   const [error, setError] = useState<string | null>(null);
 
   // Reopening the dialog for a different parent starts from a clean form.

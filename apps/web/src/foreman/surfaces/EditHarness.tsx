@@ -4,6 +4,7 @@ import type { SkillListing } from '../data/api.js';
 import { Field, Modal, Select, TextArea, TextInput } from '../ui/Modal.js';
 import { Button } from '../ui/primitives.js';
 import { SkillPicker } from './SkillPicker.js';
+import { AUTO_MODELS } from './SpawnHarness.js';
 
 /**
  * Surface 1h — Edit a harness.
@@ -86,7 +87,7 @@ export function EditHarness({
     && Number.isInteger(maxChildrenNum) && maxChildrenNum >= 0
     && (budgetNum === null || (Number.isFinite(budgetNum) && budgetNum >= 0));
 
-  const available = [...new Set([harness.model, ...models])];
+  const available = [...new Set([harness.model, ...AUTO_MODELS, ...models])];
 
   const submit = async () => {
     if (!valid || busy) return;

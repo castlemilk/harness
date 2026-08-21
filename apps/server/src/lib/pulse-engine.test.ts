@@ -131,3 +131,16 @@ describe('unpriced models', () => {
     }
   });
 });
+
+describe('autoStrategyFor', () => {
+  it('maps auto and auto:<strategy>, leaves concrete models alone', async () => {
+    const { autoStrategyFor } = await import('./pulse-engine.js');
+    expect(autoStrategyFor('auto')).toBeUndefined(); // learner recommends
+    expect(autoStrategyFor('auto:cost-optimized')).toBe('cost-optimized');
+    expect(autoStrategyFor('auto:performance-optimized')).toBe('performance-optimized');
+    expect(autoStrategyFor('gpt-5')).toBeNull();
+    expect(autoStrategyFor('external:codex')).toBeNull();
+    // Unknown suffix routes as plain auto rather than inventing a strategy.
+    expect(autoStrategyFor('auto:vibes')).toBeUndefined();
+  });
+});

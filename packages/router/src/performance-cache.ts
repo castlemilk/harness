@@ -43,6 +43,27 @@ export class PerformanceCache {
     }
   }
 
+  /**
+   * Fold an AGGREGATED result set (e.g. one benchmark run: N tasks, k passed)
+   * into the cache. `loadFromRows` is one-row-per-task; benchmark history is
+   * one-row-per-run, and expanding it back to synthetic task rows would just
+   * be this method with extra allocation. `at` keeps the recency decay honest
+   * — a six-week-old benchmark must not arrive looking fresh.
+   */
+  loadAggregate(
+    key: string,
+    agg: { passes: number; total: number; costUsd: number; durationMs: number; at: Date },
+  ): void {
+    if (agg.total <= 0) return;
+    const entry = this.cache.get(key) ?? { passes: 0, total: 0, totalCost: 0, totalDuration: 0, lastUpdated: 0 };
+    entry.total += agg.total;
+    entry.passes += Math.min(agg.passes, agg.total);
+    entry.totalCost += agg.costUsd;
+    entry.totalDuration += agg.durationMs;
+    entry.lastUpdated = Math.max(entry.lastUpdated, agg.at.getTime());
+    this.cache.set(key, entry);
+  }
+
   getScore(key: string): PerfScore | undefined {
     const entry = this.cache.get(key);
     if (!entry || entry.total === 0) return undefined;

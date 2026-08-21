@@ -130,3 +130,49 @@ describe('selectProvider', () => {
     expect(result).toBeUndefined();
   });
 });
+
+describe('PerformanceCache.loadAggregate', () => {
+  it('folds an aggregated benchmark run into the same key space the scorer reads', async () => {
+    const { PerformanceCache } = await import('./performance-cache.js');
+    const cache = new PerformanceCache();
+    cache.loadAggregate('kimi/moonshot-v1-8k', {
+      passes: 8,
+      total: 10,
+      costUsd: 0.4,
+      durationMs: 60_000,
+      at: new Date(),
+    });
+    cache.loadAggregate('kimi/moonshot-v1-8k', {
+      passes: 6,
+      total: 10,
+      costUsd: 0.2,
+      durationMs: 55_000,
+      at: new Date(),
+    });
+    const score = cache.getScore('kimi/moonshot-v1-8k');
+    expect(score).toBeDefined();
+    expect(score?.totalRuns).toBe(20);
+    expect(score?.passRate).toBeCloseTo(0.7, 10);
+    expect(score?.avgCostUsd).toBeCloseTo(0.03, 10);
+  });
+
+  it('clamps passes to total and ignores empty runs', async () => {
+    const { PerformanceCache } = await import('./performance-cache.js');
+    const cache = new PerformanceCache();
+    cache.loadAggregate('x/y', { passes: 99, total: 5, costUsd: 0, durationMs: 0, at: new Date() });
+    cache.loadAggregate('x/y', { passes: 1, total: 0, costUsd: 0, durationMs: 0, at: new Date() });
+    const score = cache.getScore('x/y');
+    expect(score?.totalRuns).toBe(5);
+    expect(score?.passRate).toBe(1);
+  });
+
+  it('keeps recency honest — an old benchmark arrives decayed, not fresh', async () => {
+    const { PerformanceCache } = await import('./performance-cache.js');
+    const cache = new PerformanceCache();
+    const sixWeeksAgo = new Date(Date.now() - 42 * 24 * 60 * 60 * 1_000);
+    cache.loadAggregate('old/model', { passes: 5, total: 5, costUsd: 0.1, durationMs: 1000, at: sixWeeksAgo });
+    const score = cache.getScore('old/model');
+    // 7-day half-life over 6 weeks: recency well under 5%.
+    expect(score?.recencyFactor ?? 1).toBeLessThan(0.05);
+  });
+});

@@ -12,7 +12,9 @@ import { runExternalAgentTask, type ExternalCli } from '@omega/agent';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { safeJsonParse } from './utils.js';
-import { getRouter, recordTaskOutcome } from './intelligent-router.js';
+import { getRouter } from './intelligent-router.js';
+import { prunePulses } from './pulse-retention.js';
+import type { IntelligentRouter, RoutingStrategy } from '@omega/router';
 
 /**
  * The pulse engine.
@@ -350,6 +352,98 @@ export function parsePulseReport(raw: string): PulseReport {
 
 /* ----------------------------------------------------------------- provider */
 
+interface ProviderConfigRow {
+  id: string;
+  name: string;
+  kind: string;
+  baseUrl: string | null;
+  apiKey: string | null;
+  defaultModel: string;
+  capabilities: string;
+  enabled: boolean;
+}
+
+function toConfig(row: ProviderConfigRow): ProviderConfig {
+  return {
+    id: row.id,
+    name: row.name,
+    kind: row.kind as ProviderConfig['kind'],
+    baseUrl: row.baseUrl ?? undefined,
+    apiKey: row.apiKey ?? undefined,
+    defaultModel: row.defaultModel,
+    capabilities: safeJsonParse<Capability[]>(row.capabilities, []),
+    enabled: row.enabled,
+  };
+}
+
+/* --------------------------------------------------------------- auto model */
+
+const AUTO_STRATEGIES: readonly RoutingStrategy[] = [
+  'balanced',
+  'cost-optimized',
+  'performance-optimized',
+  'consensus',
+  'exploratory',
+];
+
+/**
+ * A harness whose model is `auto` (or `auto:<strategy>`) delegates model
+ * choice to the IntelligentRouter every pulse. Returns the strategy to route
+ * with — `null` for "not an auto harness", `undefined` for bare `auto`
+ * (the strategy learner recommends). An unknown suffix routes as bare auto
+ * and warns rather than silently pinning a strategy that doesn't exist.
+ */
+export function autoStrategyFor(model: string): RoutingStrategy | undefined | null {
+  if (model === 'auto') return undefined;
+  if (!model.startsWith('auto:')) return null;
+  const suffix = model.slice('auto:'.length) as RoutingStrategy;
+  if (AUTO_STRATEGIES.includes(suffix)) return suffix;
+  console.warn(`[pulse] unknown auto strategy "${suffix}"; routing as plain auto.`);
+  return undefined;
+}
+
+/**
+ * Route an auto harness through the IntelligentRouter: classification comes
+ * from the harness's own name + mission (the closest thing a standing agent
+ * has to a task description), scoring from capability/performance/cost/
+ * health — including whatever BenchmarkHistory folded into the performance
+ * cache at boot. Circuit-broken candidates are skipped when an alternative
+ * exists, same policy as everywhere else.
+ */
+async function resolveAutoRoute(
+  prisma: PrismaClient,
+  router: IntelligentRouter,
+  harness: Harness,
+  strategy: RoutingStrategy | undefined,
+): Promise<{ config: ProviderConfig; model: string; reasoning: string } | null> {
+  const rows = await prisma.providerConfig.findMany({ where: { enabled: true } });
+  const configs = rows.map(toConfig);
+  const decision = router.route(
+    configs,
+    {
+      id: harness.id,
+      projectId: '',
+      title: harness.name,
+      description: harness.mission,
+      status: 'in_progress',
+      complexity: 'simple',
+      tags: [],
+      createdAt: harness.createdAt,
+      updatedAt: harness.updatedAt,
+    },
+    { strategy, maxCandidates: 3 },
+  );
+  if (!decision) return null;
+  const candidates = [decision.primary, ...decision.fallbacks];
+  const chosen =
+    candidates.find((c) => !router.health.isCircuitBroken(c.provider.name)) ?? decision.primary;
+  return {
+    config: chosen.provider,
+    model: chosen.model,
+    reasoning: `${decision.strategy}: ${decision.reasoning}`,
+  };
+}
+
 async function resolveProvider(
   prisma: PrismaClient,
   model: string,
@@ -365,17 +459,6 @@ async function resolveProvider(
   if (healthy.length === 0 && allRows.length > 0) {
     console.warn('[pulse] every enabled provider has an open circuit; proceeding anyway.');
   }
-
-  const toConfig = (row: (typeof rows)[number]): ProviderConfig => ({
-    id: row.id,
-    name: row.name,
-    kind: row.kind as ProviderConfig['kind'],
-    baseUrl: row.baseUrl ?? undefined,
-    apiKey: row.apiKey ?? undefined,
-    defaultModel: row.defaultModel,
-    capabilities: safeJsonParse<Capability[]>(row.capabilities, []),
-    enabled: row.enabled,
-  });
 
   // Prefer a provider that actually advertises this model.
   for (const row of rows) {
@@ -556,6 +639,22 @@ export async function runPulse(
       };
       costUsd = run?.costUsd ?? null;
 
+      // The CLI's own output is the session record; without this the
+      // transcript of an external harness held only dividers and interjects.
+      if (result.output.trim()) {
+        try {
+          await prisma.taskTrace.create({
+            data: {
+              taskId: harness.taskId,
+              role: 'assistant',
+              content: result.output.trim().slice(0, PULSE_TEXT_CAP),
+            },
+          });
+        } catch (err) {
+          console.warn(`[pulse] could not record external output trace: ${String(err)}`);
+        }
+      }
+
       const changed = result.diff.trim().length > 0;
       report = {
         summary:
@@ -586,11 +685,26 @@ export async function runPulse(
     } catch (err) {
       console.warn(`[pulse] router unavailable, resolving without circuits: ${String(err)}`);
     }
-    const resolved = await resolveProvider(
-      prisma,
-      harness.model,
-      router ? (name) => router.health.isCircuitBroken(name) : undefined,
-    );
+    const autoStrategy = autoStrategyFor(harness.model);
+    let resolved: { config: ProviderConfig; model: string; substituted: boolean } | null;
+    if (autoStrategy !== null && router) {
+      const routed = await resolveAutoRoute(prisma, router, harness, autoStrategy);
+      if (routed) {
+        console.info(`[pulse] ${harness.name}: auto-routed to ${routed.config.name}/${routed.model} (${routed.reasoning})`);
+      }
+      resolved = routed ? { config: routed.config, model: routed.model, substituted: false } : null;
+    } else {
+      if (autoStrategy !== null) {
+        // Auto without a router degrades to the ordinary fallback — logged,
+        // because "auto" silently meaning "alphabetical" would be a lie.
+        console.warn(`[pulse] ${harness.name}: model is auto but the router is unavailable; using fallback resolution.`);
+      }
+      resolved = await resolveProvider(
+        prisma,
+        harness.model,
+        router ? (name) => router.health.isCircuitBroken(name) : undefined,
+      );
+    }
     if (!resolved) return { harnessId, ran: false, skipped: 'no-provider' };
 
     // A budget you cannot measure is not a budget. If we have no price for the
@@ -660,15 +774,22 @@ export async function runPulse(
     if (router) {
       try {
         const durationMs = Date.now() - callStartedAt;
-        recordTaskOutcome(
-          router,
-          resolved.config.name,
-          !callFailed && report.outcome !== 'fail',
+        const passed = !callFailed && report.outcome !== 'fail';
+        // Two key spaces on purpose: circuits are consulted by provider NAME
+        // (resolveProvider/resolveAutoRoute above), so health must be recorded
+        // under it; the router's scorer reads performance under
+        // `provider/model`, which is also where BenchmarkHistory folds in.
+        router.health.record(resolved.config.name, {
+          latencyMs: durationMs,
+          success: !callFailed,
+          rateLimited: false,
+          costUsd: costUsd ?? 0,
+        });
+        router.performance.update(
+          `${resolved.config.name}/${ranModel}`,
+          passed,
           costUsd ?? 0,
           durationMs,
-          durationMs,
-          !callFailed,
-          false,
         );
       } catch (err) {
         console.warn(`[pulse] could not record router outcome: ${String(err)}`);
@@ -726,7 +847,9 @@ export async function runPulse(
         // divides by something meaningful.
         contextWindow,
         activity: report.activity ?? report.summary.slice(0, 200),
-        model: ranModel,
+        // An auto harness KEEPS `auto` — writing the routed model back would
+        // pin next pulse to this pulse's choice. The pulse row records what ran.
+        model: autoStrategyFor(harness.model) !== null ? undefined : ranModel,
         // A returned memory string replaces the whole field ('' clears it);
         // an absent field keeps what the harness already remembered.
         memory: report.memory !== undefined ? (report.memory === '' ? null : report.memory) : undefined,
@@ -844,12 +967,29 @@ export function startPulseScheduler(
   const concurrency = Math.max(1, options.concurrency ?? 2);
   let running = false;
   let stopped = false;
+  // Retention runs at most once a day, piggybacked on the tick so it only
+  // happens while the engine is deliberately on.
+  let lastPruneAt = 0;
+  const PRUNE_EVERY_MS = 24 * 60 * 60 * 1_000;
 
   const tick = async (): Promise<PulseResult[]> => {
     // Never overlap ticks: a slow provider must not stack pulses.
     if (running || stopped) return [];
     running = true;
     try {
+      if (Date.now() - lastPruneAt > PRUNE_EVERY_MS) {
+        lastPruneAt = Date.now();
+        try {
+          const pruned = await prunePulses(prisma);
+          if (pruned.textStripped > 0 || pruned.rowsDeleted > 0) {
+            console.info(
+              `[pulse] retention: stripped text from ${String(pruned.textStripped)} pulses, deleted ${String(pruned.rowsDeleted)} aged ok-pulses.`,
+            );
+          }
+        } catch (err) {
+          console.warn(`[pulse] retention pass failed: ${String(err)}`);
+        }
+      }
       const due = await prisma.harness.findMany({
         where: {
           retiredAt: null,

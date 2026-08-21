@@ -272,6 +272,49 @@ Objectives and harnesses are no longer birth-only:
 - An interject the next pulse has not consumed yet is labelled
   "queued for next pulse" in the transcript.
 
+### Auto model routing & the benchmark feedback loop (2026-08-21)
+
+- **`model: auto`** (and `auto:cost-optimized` / `auto:performance-optimized`)
+  delegates model choice to the IntelligentRouter EVERY pulse: candidates are
+  scored on capability (classified from the harness's name + mission),
+  historical performance (Wilson lower bound), cost, live health and budget;
+  circuit-broken providers are skipped when an alternative exists. Bare
+  `auto` also lets the strategy learner pick the strategy. The harness row
+  KEEPS `auto` — the pulse row records the model that actually ran. With the
+  router unavailable, auto degrades to the ordinary fallback and says so.
+- **Benchmarks now feed routing**: at router boot the last 200
+  `BenchmarkHistory` runs fold into the performance cache under the same
+  `provider/model` keys the scorer reads (age-decayed — a six-week-old
+  benchmark arrives at <5% recency weight, not fresh). Combined with `auto`,
+  this closes the loop: run a bench sweep, and the fleet's model choice
+  shifts toward what measured well. Pulse outcomes also record into the
+  cache, so live behaviour keeps updating what benchmarks seeded.
+- **Retention**: captured prompt/response text decays after 14 days (the
+  pulse row — seq, outcome, summary, model, cost — survives); ok-outcome
+  pulses older than 120 days are deleted; warn/fail pulses are findings and
+  are kept forever. Runs daily while the engine is on, or on demand via
+  `POST /foreman/engine/prune`.
+- **External CLI sessions land in the transcript**: the CLI's own output is
+  written as an assistant trace after each external pulse, so an
+  `external:codex` harness's transcript carries the session record, not just
+  dividers.
+
+#### Recipe: a benchmark sweep as an objective
+
+The pattern for "improve benchmarks" as ordinary fleet work, watched on the
+Board rather than a terminal:
+
+1. Create an objective **"Bench sweep — <suite>"** with standing instructions
+   naming the suite's rules (e.g. deep-swe's f2p/p2p contract — or grant the
+   matching skill from `.agents/skills`).
+2. One workstream lane per model under test; in each lane one harness on
+   `external:<cli>` (or a concrete model) with the relevant skill granted and
+   a real spend cap — external CLIs without cost reporting refuse a cap by
+   design, so use claude-code or uncapped+watched.
+3. Launch the runs with `omega bench run --suite <suite> …` per model; results
+   land in `BenchmarkHistory`, appear on the **Benchmarks** tab, and fold
+   into the router at next boot — closing the sweep back into `auto` routing.
+
 ### Transcript noise (2026-08-21)
 
 Pulse dividers now carry the pulse's own summary/outcome (the engine's

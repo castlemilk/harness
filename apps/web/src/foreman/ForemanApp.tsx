@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { foremanApi, type ResolveAction, type SpawnHarnessInput } from './data/api.js';
+import { foremanApi, type ResolveAction, type SkillListing, type SpawnHarnessInput } from './data/api.js';
 import { useForeman } from './data/useForeman.js';
 import type {
   Harness,
@@ -11,6 +11,8 @@ import type {
 } from './types.js';
 import { AppChrome } from './ui/AppChrome.js';
 import { SpawnHarness } from './surfaces/SpawnHarness.js';
+import { EditHarness } from './surfaces/EditHarness.js';
+import { ObjectiveSettings } from './surfaces/ObjectiveSettings.js';
 import { Interventions } from './surfaces/Interventions.js';
 import { Transcript } from './surfaces/Transcript.js';
 import { Toolkit } from './surfaces/Toolkit.js';
@@ -67,12 +69,15 @@ export function ForemanApp({
   const [transcriptOpen, setTranscriptOpen] = useState(false);
   const [toolkitOpen, setToolkitOpen] = useState(false);
   const [spawnParent, setSpawnParent] = useState<{ parent: Harness | null } | null>(null);
+  const [editTarget, setEditTarget] = useState<Harness | null>(null);
+  const [objectiveSettingsOpen, setObjectiveSettingsOpen] = useState(false);
 
   const [tools, setTools] = useState<Tool[]>([]);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
   const [models, setModels] = useState<string[]>([]);
+  const [skills, setSkills] = useState<SkillListing[]>([]);
   const [playbookId, setPlaybookId] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [usageDays, setUsageDays] = useState(7);
@@ -125,6 +130,10 @@ export function ForemanApp({
       .listModels()
       .then(setModels)
       .catch(() => { setModels([]); });
+    void foremanApi
+      .listSkills()
+      .then(setSkills)
+      .catch(() => { setSkills([]); });
   }, []);
 
   // Tools belong to the focused harness, so they reload as focus moves.
@@ -298,6 +307,14 @@ export function ForemanApp({
     objectives,
     onSelectObjective: setObjectiveId,
     canCreateObjective: Boolean(projectId),
+    onEditHarness: (harness) => { setEditTarget(harness); },
+    onCreateWorkstream: (name) =>
+      void mutate(() => foremanApi.createWorkstream({ objectiveId: objective.id, name })),
+    onCreatePlaybook: async (name) => {
+      const created = await foremanApi.createPlaybook({ projectId: projectId ?? null, name });
+      setPlaybooks((prev) => [...prev, created]);
+      setPlaybookId(created.id);
+    },
     onCreateObjective: (input) =>
       // Through `mutate` so a rejected create surfaces in the error rail rather
       // than as a form that silently does nothing.
@@ -329,6 +346,7 @@ export function ForemanApp({
           objective={objective}
           objectives={objectives}
           onObjectiveChange={setObjectiveId}
+          onOpenObjectiveSettings={() => { setObjectiveSettingsOpen(true); }}
           pendingInterventions={state.interventions.length}
           onOpenPalette={() => { setPaletteOpen(true); }}
           onOpenInterventions={() => { setInterventionsOpen(true); }}
@@ -430,7 +448,32 @@ export function ForemanApp({
           parent={spawnParent?.parent ?? null}
           playbooks={playbooks}
           models={models}
+          skills={skills}
           onSpawn={handleSpawn}
+        />
+
+        <EditHarness
+          open={editTarget !== null}
+          onClose={() => { setEditTarget(null); }}
+          harness={editTarget}
+          playbooks={playbooks}
+          models={models}
+          skills={skills}
+          onSave={async (id, input) => {
+            await foremanApi.updateHarness(id, input);
+            await refresh();
+          }}
+        />
+
+        <ObjectiveSettings
+          open={objectiveSettingsOpen}
+          onClose={() => { setObjectiveSettingsOpen(false); }}
+          objective={objective}
+          onSave={async (id, input) => {
+            await foremanApi.updateObjective(id, input);
+            await reloadObjectives();
+            await refresh();
+          }}
         />
       </div>
     </VocabularyProvider>

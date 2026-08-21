@@ -37,11 +37,20 @@ export type PulseOutcome = 'ok' | 'warn' | 'fail' | 'idle';
 export interface Objective {
   id: string;
   name: string;
+  /** The objective blurb. Absent on older payloads. */
+  description?: string | null;
+  /** `active` | `complete` | `archived`. Absent on older payloads. */
+  status?: string;
   /**
    * The use-case shell this objective renders in — a registry id, not a label.
    * Absent or unregistered means the core Foreman chrome only.
    */
   useCase?: string | null;
+  /**
+   * Standing instructions injected into the system prompt of every pulse of
+   * every harness under this objective. Absent means none are set.
+   */
+  instructions?: string | null;
   /** 0..1 across all tickets in the objective. */
   progress: number;
   ticketsTotal: number;
@@ -122,6 +131,8 @@ export interface Harness {
   playbookId: string | null;
   branch: string | null;
   ticketId: string | null;
+  /** SkillArtifact names granted to this harness. Absent on older payloads. */
+  skills?: string[];
 }
 
 export interface RoutineStep {

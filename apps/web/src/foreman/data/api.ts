@@ -75,8 +75,16 @@ export interface SpawnHarnessInput {
   spendCapUsd?: number | null;
   maxChildren: number;
   permissions: { id: string; label: string; granted: boolean; needsApproval: boolean }[];
+  /** SkillArtifact names granted to this harness; injected into its pulses. */
+  skills?: string[];
   dryRun?: boolean;
   taskId?: string | null;
+}
+
+export interface SkillListing {
+  name: string;
+  description: string;
+  sourcePath: string;
 }
 
 export type ResolveAction =
@@ -100,6 +108,27 @@ export const foremanApi = {
     targetDate?: string;
     spendCapUsd?: number;
   }) => request<Objective>('/foreman/objectives', { method: 'POST', body: JSON.stringify(body) }),
+
+  updateObjective: (
+    id: string,
+    body: {
+      name?: string;
+      description?: string | null;
+      instructions?: string | null;
+      useCase?: string | null;
+      targetDate?: string | null;
+      spendCapUsd?: number | null;
+      status?: 'active' | 'complete' | 'archived';
+    },
+  ) => request<Objective>(`/foreman/objectives/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  createWorkstream: (body: { objectiveId: string; name: string; orderIdx?: number }) =>
+    request<Workstream>('/foreman/workstreams', { method: 'POST', body: JSON.stringify(body) }),
+
+  updateWorkstream: (id: string, body: { name?: string; orderIdx?: number; leadHarnessId?: string | null }) =>
+    request<Workstream>(`/foreman/workstreams/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  listSkills: () => request<SkillListing[]>('/foreman/skills'),
 
   // Carries every pending intervention, and a tool approval's whole basis for
   // the decision is the command it wants to run.
@@ -186,6 +215,15 @@ export const foremanApi = {
         ? `/foreman/playbooks/${id}?objectiveId=${objectiveId}`
         : `/foreman/playbooks/${id}`,
     ),
+
+  createPlaybook: (body: {
+    projectId?: string | null;
+    name: string;
+    steps?: { index: number; text: string; condition: string | null }[];
+    variables?: string[];
+    cadence?: string;
+    retireWhen?: string | null;
+  }) => request<Playbook>('/foreman/playbooks', { method: 'POST', body: JSON.stringify(body) }),
 
   savePlaybookVersion: (
     id: string,

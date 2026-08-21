@@ -58,7 +58,20 @@ import type {
 } from '@omega-harness/usecase-kit';
 
 export type TranscriptEntry =
-  | { kind: 'pulse-divider'; id: string; seq: number; at: string; duration: string; cost: number }
+  | {
+      kind: 'pulse-divider';
+      id: string;
+      seq: number;
+      at: string;
+      duration: string;
+      cost: number;
+      /** The pulse's own work-log narration. Absent on payloads from older servers. */
+      summary?: string | null;
+      outcome?: string;
+      /** True when no trace entries landed in this pulse's window — the
+       *  transcript collapses runs of these instead of rendering each one. */
+      empty?: boolean;
+    }
   | { kind: 'plan'; id: string; text: string }
   | { kind: 'finding'; id: string; text: string }
   | {

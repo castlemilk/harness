@@ -14,12 +14,15 @@ export function PlaybookEditor({
   selectedId,
   onSelect,
   harnesses,
+  onCreate,
   onSave,
 }: {
   playbooks: Playbook[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   harnesses: Harness[];
+  /** Author a brand-new v1 playbook and select it. Absent hides the button. */
+  onCreate?: (name: string) => Promise<void>;
   onSave: (
     id: string,
     body: {
@@ -63,8 +66,18 @@ export function PlaybookEditor({
 
   if (!playbook) {
     return (
-      <div className="flex flex-1 items-center justify-center text-[12px] text-muted">
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 text-[12px] text-muted">
         No playbooks yet.
+        {onCreate && (
+          <Button
+            onClick={() => {
+              const name = window.prompt('New playbook name');
+              if (name?.trim()) void onCreate(name.trim());
+            }}
+          >
+            + New playbook
+          </Button>
+        )}
       </div>
     );
   }
@@ -132,6 +145,16 @@ export function PlaybookEditor({
           </select>
         )}
         <div className="flex-1" />
+        {onCreate && (
+          <Button
+            onClick={() => {
+              const name = window.prompt('New playbook name');
+              if (name?.trim()) void onCreate(name.trim());
+            }}
+          >
+            + New playbook
+          </Button>
+        )}
         <Button tone="accent" onClick={save} disabled={saving}>
           {saving ? 'Saving…' : `Save v${String(playbook.version + 1)}`}
         </Button>

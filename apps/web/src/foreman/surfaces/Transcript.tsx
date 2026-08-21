@@ -20,6 +20,91 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'mine', label: 'mine' },
 ];
 
+/**
+ * What a filtered transcript keeps. A pulse divider survives only when at
+ * least one MATCHING entry follows it before the next divider — the old rule
+ * ("dividers always pass") meant filtering a noisy harness stripped the
+ * substance and left the wall of dividers, the exact opposite of the point.
+ */
+export function visibleEntries(entries: TranscriptEntry[], filter: Filter): TranscriptEntry[] {
+  if (filter === 'all') return entries;
+  const matches = (e: TranscriptEntry): boolean => {
+    if (filter === 'tools') return e.kind === 'tool';
+    if (filter === 'errors') return e.kind === 'tool' && e.status === 'fail';
+    return e.kind === 'human';
+  };
+  const out: TranscriptEntry[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (entry.kind === 'pulse-divider') {
+      let keep = false;
+      for (let j = i + 1; j < entries.length && entries[j].kind !== 'pulse-divider'; j++) {
+        if (matches(entries[j])) { keep = true; break; }
+      }
+      if (keep) out.push(entry);
+    } else if (matches(entry)) {
+      out.push(entry);
+    }
+  }
+  return out;
+}
+
+export interface IdleGroup {
+  kind: 'idle-group';
+  id: string;
+  count: number;
+  from: string;
+  to: string;
+  cost: number;
+  /** The collapsed dividers, renderable when the group is expanded. */
+  members: Extract<TranscriptEntry, { kind: 'pulse-divider' }>[];
+}
+
+export type TranscriptRow = TranscriptEntry | IdleGroup;
+
+/** An ok-outcome pulse whose window carried no trace entries: a heartbeat that
+ *  found nothing to do. warn/fail pulses are never idle — they are findings. */
+function isIdleDivider(entry: TranscriptEntry): entry is Extract<TranscriptEntry, { kind: 'pulse-divider' }> {
+  return entry.kind === 'pulse-divider' && entry.empty === true && (entry.outcome ?? 'ok') === 'ok';
+}
+
+/**
+ * Collapse runs of 2+ consecutive idle heartbeat pulses into one aggregate
+ * row. A single idle pulse renders normally; a run reads as what it is —
+ * "the agent woke N times and had nothing to report" — in one line instead of
+ * N. Payloads from servers that predate the `empty` flag collapse nothing.
+ */
+export function groupIdlePulses(entries: TranscriptEntry[]): TranscriptRow[] {
+  const rows: TranscriptRow[] = [];
+  let run: Extract<TranscriptEntry, { kind: 'pulse-divider' }>[] = [];
+  const flush = () => {
+    if (run.length >= 2) {
+      rows.push({
+        kind: 'idle-group',
+        id: `idle-${run[0].id}`,
+        count: run.length,
+        from: run[0].at,
+        to: run[run.length - 1].at,
+        cost: run.reduce((sum, p) => sum + p.cost, 0),
+        members: run,
+      });
+    } else {
+      rows.push(...run);
+    }
+    run = [];
+  };
+  for (const entry of entries) {
+    if (isIdleDivider(entry)) {
+      run.push(entry);
+    } else {
+      flush();
+      rows.push(entry);
+    }
+  }
+  flush();
+  return rows;
+}
+
 export function Transcript({
   open,
   onClose,
@@ -52,15 +137,10 @@ export function Transcript({
     }
   }, [open, harness?.id]);
 
-  const shown = useMemo(() => {
-    if (filter === 'all') return entries;
-    return entries.filter((e) => {
-      if (e.kind === 'pulse-divider') return true;
-      if (filter === 'tools') return e.kind === 'tool';
-      if (filter === 'errors') return e.kind === 'tool' && e.status === 'fail';
-      return e.kind === 'human';
-    });
-  }, [entries, filter]);
+  const shown = useMemo(
+    () => groupIdlePulses(visibleEntries(entries, filter)),
+    [entries, filter],
+  );
 
   if (!harness) return null;
 
@@ -174,22 +254,34 @@ function Entry({
   expanded,
   onToggle,
 }: {
-  entry: TranscriptEntry;
+  entry: TranscriptRow;
   expanded: boolean;
   onToggle: () => void;
 }) {
   switch (entry.kind) {
-    case 'pulse-divider':
+    case 'idle-group':
       return (
-        <div className="flex items-center gap-2.5">
-          <div className="h-px flex-1 bg-white/[.07]" />
-          <span className="font-mono text-[9.5px] font-medium text-faint">
-            PULSE #{entry.seq} · {displayTime(entry.at)} · {entry.duration} ·{' '}
-            {money(entry.cost)}
-          </span>
-          <div className="h-px flex-1 bg-white/[.07]" />
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onToggle}
+            className="flex w-full items-center gap-2.5 text-left"
+          >
+            <div className="h-px flex-1 bg-white/[.05]" />
+            <span className="font-mono text-[9.5px] font-medium text-faint">
+              {expanded ? '▾' : '▸'} {entry.count} idle pulses · {displayTime(entry.from)} →{' '}
+              {displayTime(entry.to)} · {money(entry.cost)}
+            </span>
+            <div className="h-px flex-1 bg-white/[.05]" />
+          </button>
+          {expanded && entry.members.map((member) => (
+            <PulseDivider key={member.id} entry={member} />
+          ))}
         </div>
       );
+
+    case 'pulse-divider':
+      return <PulseDivider entry={entry} />;
 
     case 'plan':
       return (
@@ -271,6 +363,32 @@ function Entry({
 /** Accepts either a wall-clock string ("14:02") or an ISO instant. */
 function displayTime(value: string): string {
   return /^\d{1,2}:\d{2}/.test(value) ? value : clock(value);
+}
+
+function PulseDivider({ entry }: { entry: Extract<TranscriptEntry, { kind: 'pulse-divider' }> }) {
+  const outcome = entry.outcome ?? 'ok';
+  const outcomeClass = outcome === 'fail' ? 'text-danger' : outcome === 'warn' ? 'text-warn' : 'text-faint';
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2.5">
+        <div className="h-px flex-1 bg-white/[.07]" />
+        <span className={`font-mono text-[9.5px] font-medium ${outcomeClass}`}>
+          PULSE #{entry.seq} · {displayTime(entry.at)} · {entry.duration} ·{' '}
+          {money(entry.cost)}
+          {outcome !== 'ok' ? ` · ${outcome}` : ''}
+        </span>
+        <div className="h-px flex-1 bg-white/[.07]" />
+      </div>
+      {/* The pulse's own work-log line — the engine's narration used to be
+          invisible in the transcript, which made a chat-model harness's
+          transcript nothing but dividers. */}
+      {entry.summary != null && entry.summary !== '' && (
+        <div className="px-6 text-center font-mono text-[10px] leading-relaxed text-muted">
+          {entry.summary}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Block({

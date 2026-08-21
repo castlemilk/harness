@@ -246,6 +246,10 @@ model Objective {
   /// Use-case shell id (a lowercase slug, e.g. "victoria"). Null means the
   /// objective renders with the core Foreman chrome only.
   useCase       String?
+  /// Standing instructions injected into the system prompt of EVERY pulse of
+  /// every harness under this objective. Project-level context the fleet
+  /// shares — conventions, constraints, what "done" means here. Free text.
+  instructions  String?
   targetDate    DateTime?
   spendCapUsd   Float?
   createdAt     DateTime        @default(now())
@@ -313,6 +317,11 @@ model Harness {
   contextTokens    Int           @default(0)
   contextWindow    Int           @default(200000)
   permissions      String        @default("[]")
+  /// JSON array of SkillArtifact names granted to this harness. Each named
+  /// skill's SKILL.md body is injected into the pulse system prompt (bounded).
+  /// Names that match no artifact are surfaced in the prompt as unresolved,
+  /// never silently dropped.
+  skills           String        @default("[]")
   dryRun           Boolean       @default(false)
   lastPulseSeq     Int           @default(0)
   idleSince        DateTime?

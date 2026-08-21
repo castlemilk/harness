@@ -93,6 +93,12 @@ export interface CoreViewContext {
   onCreateObjective: (input: { name: string; useCase?: string }) => Promise<void>;
   /** Whether a project is connected — `POST /objectives` requires one. */
   canCreateObjective: boolean;
+  /** Open the edit dialog for a harness. */
+  onEditHarness: (harness: Harness) => void;
+  /** Create a workstream lane on the current objective. */
+  onCreateWorkstream: (name: string) => void;
+  /** Author a brand-new (empty, v1) playbook and select it. */
+  onCreatePlaybook: (name: string) => Promise<void>;
 }
 
 export interface CoreView extends ViewDescriptor {
@@ -122,6 +128,9 @@ function ConsoleView(ctx: CoreViewContext) {
             ctx.onFocus(harness.id);
             ctx.onOpenView('graph');
             break;
+          case 'edit':
+            ctx.onEditHarness(harness);
+            break;
           case 'run-tool':
             ctx.onOpenToolkit();
             break;
@@ -130,6 +139,7 @@ function ConsoleView(ctx: CoreViewContext) {
       onSpawn={(parentId) => {
         ctx.onSpawnUnder(ctx.harnesses.find((h) => h.id === parentId) ?? null);
       }}
+      onCreateWorkstream={ctx.onCreateWorkstream}
     />
   );
 }
@@ -224,6 +234,7 @@ function PlaybooksView(ctx: CoreViewContext) {
       onSelect={ctx.onSelectPlaybook}
       harnesses={ctx.harnesses}
       onSave={ctx.onSavePlaybook}
+      onCreate={ctx.onCreatePlaybook}
     />
   );
 }

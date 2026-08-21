@@ -10,6 +10,7 @@ import {
 import { createProvider } from '@omega/providers';
 import { runExternalAgentTask, type ExternalCli } from '@omega/agent';
 import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { safeJsonParse } from './utils.js';
 
 /**
@@ -96,13 +97,79 @@ export function externalCliFor(model: string): ExternalCli | null {
 
 /* ------------------------------------------------------------------ prompts */
 
-function buildSystemPrompt(harness: Harness, objectiveName: string): string {
-  return [
+/** A granted skill, resolved to its SKILL.md body — or honestly not. */
+export interface ResolvedSkill {
+  name: string;
+  /** The markdown body (frontmatter stripped, bounded), or null when the name
+   *  matched no artifact / the file was unreadable. Never silently dropped. */
+  body: string | null;
+}
+
+/** Cap per skill body so a stack of grants cannot blow the prompt out. */
+const SKILL_BODY_CAP = 8_000;
+
+/** Strip YAML frontmatter (`---` fenced) so only the instructional body ships. */
+export function skillBody(source: string): string {
+  const match = /^---\n[\s\S]*?\n---\n?/.exec(source);
+  return (match ? source.slice(match[0].length) : source).trim().slice(0, SKILL_BODY_CAP);
+}
+
+/**
+ * Resolve a harness's granted skill names against the SkillArtifact registry
+ * and the SKILL.md files on disk. A name that stops resolving (artifact
+ * deleted, file moved) yields `body: null` and is DISCLOSED in the prompt —
+ * the operator granted it, so its absence is a fact the agent should know.
+ */
+async function resolveSkills(prisma: PrismaClient, harness: Harness): Promise<ResolvedSkill[]> {
+  const names = safeJsonParse<string[]>(harness.skills, []).filter(
+    (name): name is string => typeof name === 'string' && name.length > 0,
+  );
+  if (names.length === 0) return [];
+  const artifacts = await prisma.skillArtifact.findMany({
+    where: { name: { in: names } },
+    select: { name: true, sourcePath: true },
+  });
+  const byName = new Map(artifacts.map((artifact) => [artifact.name, artifact]));
+  return Promise.all(names.map(async (name) => {
+    const artifact = byName.get(name);
+    if (!artifact) return { name, body: null };
+    try {
+      return { name, body: skillBody(await readFile(artifact.sourcePath, 'utf8')) };
+    } catch {
+      return { name, body: null };
+    }
+  }));
+}
+
+export function buildSystemPrompt(
+  harness: Harness,
+  objective: { name: string; instructions?: string | null },
+  skills: ResolvedSkill[] = [],
+): string {
+  const lines = [
     `You are "${harness.name}", a standing agent in an orchestration fleet.`,
-    `Objective: ${objectiveName}`,
+    `Objective: ${objective.name}`,
     '',
     'Your standing mission:',
     harness.mission,
+  ];
+  // Objective-level instructions bind every harness in the fleet — project
+  // conventions, constraints, what "done" means here.
+  if (objective.instructions?.trim()) {
+    lines.push('', 'Standing instructions for every agent on this objective:', objective.instructions.trim());
+  }
+  for (const skill of skills) {
+    if (skill.body) {
+      lines.push('', `── Skill: ${skill.name} ──`, skill.body);
+    } else {
+      lines.push(
+        '',
+        `── Skill: ${skill.name} ── (granted to you, but its SKILL.md could not be`,
+        'loaded — treat it as unavailable and say so if it was needed.)',
+      );
+    }
+  }
+  lines.push(
     '',
     'You run on a heartbeat. Each time you wake, you perform your routine once,',
     'then report what you did. You are not chatting with a user — you are',
@@ -112,7 +179,31 @@ function buildSystemPrompt(harness: Harness, objectiveName: string): string {
     'decision that is theirs to make (a policy call, an approval for something',
     'outside your permissions, or a budget increase). Do not escalate for',
     'anything you can reasonably decide yourself.',
-  ].join('\n');
+  );
+  return lines.join('\n');
+}
+
+/**
+ * Substitute `$variable` tokens in routine step text. The playbook editor has
+ * always advertised `$ticket`/`$branch`/`$name`-style variables and the web
+ * preview resolves them — but until now the ENGINE shipped the tokens
+ * literally, so the one consumer that mattered saw `$branch` as three words of
+ * noise. Unresolvable tokens stay literal, same as the preview.
+ */
+export function substituteRoutineVars(
+  steps: { index: number; text: string; condition?: string | null }[],
+  vars: Record<string, string | null | undefined>,
+): { index: number; text: string; condition?: string | null }[] {
+  const resolve = (text: string): string =>
+    text.replace(/\$([a-zA-Z][a-zA-Z0-9_]*)/g, (token, key: string) => {
+      const value = vars[key];
+      return value != null && value !== '' ? value : token;
+    });
+  return steps.map((step) => ({
+    ...step,
+    text: resolve(step.text),
+    condition: step.condition != null ? resolve(step.condition) : step.condition,
+  }));
 }
 
 function buildUserPrompt(input: {
@@ -296,7 +387,7 @@ export async function runPulse(
     return { harnessId, ran: false, skipped: 'budget-cap', raisedIntervention: raised };
   }
 
-  const [objective, playbook, children, recent, humanTraces] = await Promise.all([
+  const [objective, playbook, children, recent, humanTraces, skills, taskRow, workstreamRow] = await Promise.all([
     prisma.objective.findUnique({ where: { id: harness.objectiveId } }),
     harness.playbookId ? prisma.playbook.findUnique({ where: { id: harness.playbookId } }) : null,
     prisma.harness.findMany({
@@ -318,11 +409,28 @@ export async function runPulse(
           select: { content: true, createdAt: true },
         })
       : Promise.resolve([]),
+    resolveSkills(prisma, harness),
+    harness.taskId
+      ? prisma.task.findUnique({ where: { id: harness.taskId }, select: { title: true } })
+      : Promise.resolve(null),
+    harness.workstreamId
+      ? prisma.workstream.findUnique({ where: { id: harness.workstreamId }, select: { name: true } })
+      : Promise.resolve(null),
   ]);
 
-  const routine = safeJsonParse<{ index: number; text: string; condition?: string | null }[]>(
-    playbook?.steps ?? '[]',
-    [],
+  const routine = substituteRoutineVars(
+    safeJsonParse<{ index: number; text: string; condition?: string | null }[]>(
+      playbook?.steps ?? '[]',
+      [],
+    ),
+    {
+      name: harness.name,
+      model: harness.model,
+      branch: harness.branch,
+      objective: objective?.name,
+      workstream: workstreamRow?.name,
+      ticket: taskRow?.title,
+    },
   );
 
   // Only replies newer than the last pulse are "new" to this harness.
@@ -433,7 +541,11 @@ export async function runPulse(
         buildUserPrompt({ harness, routine, recentPulses: recent, children, humanReplies }),
         {
           model: resolved.model,
-          system: buildSystemPrompt(harness, objective?.name ?? 'unknown objective'),
+          system: buildSystemPrompt(
+            harness,
+            { name: objective?.name ?? 'unknown objective', instructions: objective?.instructions },
+            skills,
+          ),
           temperature: 0.3,
           onUsage: (u) => {
             captured.promptTokens = u.promptTokens;

@@ -57,6 +57,8 @@ interface TranscriptPulse {
   startedAt: Date;
   endedAt: Date | null;
   costUsd: number;
+  summary: string | null;
+  outcome: string;
 }
 
 interface TranscriptTrace {
@@ -74,7 +76,20 @@ interface ParsedToolCall {
 }
 
 export type TranscriptEntry =
-  | { kind: 'pulse-divider'; id: string; seq: number; at: Date; duration: string; cost: number }
+  | {
+    kind: 'pulse-divider';
+    id: string;
+    seq: number;
+    at: Date;
+    duration: string;
+    cost: number;
+    /** The pulse's own work-log line — the engine's narration, previously invisible here. */
+    summary: string | null;
+    outcome: string;
+    /** No trace-derived entries landed in this pulse's window. The client
+     *  collapses runs of these instead of rendering a wall of dividers. */
+    empty: boolean;
+  }
   | { kind: 'plan'; id: string; text: string }
   | { kind: 'finding'; id: string; text: string }
   | {
@@ -224,6 +239,7 @@ function serializeHarness(harness: Harness, subtreeSpend: number): Record<string
     contextTokens: harness.contextTokens,
     contextWindow,
     permissions: permissionArray(harness.permissions),
+    skills: safeJsonParse<string[]>(harness.skills, []),
     dryRun: harness.dryRun,
     lastPulseSeq: harness.lastPulseSeq,
     idleSince: harness.idleSince,
@@ -685,19 +701,26 @@ export function buildTranscriptEntries(
   pulses: TranscriptPulse[],
   traces: TranscriptTrace[],
 ): TranscriptEntry[] {
-  const timed: TimedTranscriptEntry[] = pulses.map((pulse, index) => ({
-    at: pulse.startedAt.getTime(),
+  const orderedPulses = [...pulses].sort(
+    (a, b) => a.startedAt.getTime() - b.startedAt.getTime() || a.seq - b.seq,
+  );
+  const dividers = orderedPulses.map((pulse) => ({
+    kind: 'pulse-divider' as const,
+    id: pulse.id,
+    seq: pulse.seq,
+    at: pulse.startedAt,
+    duration: pulse.endedAt
+      ? durationLabel(Math.max(pulse.endedAt.getTime() - pulse.startedAt.getTime(), 0))
+      : 'live',
+    cost: pulse.costUsd,
+    summary: pulse.summary,
+    outcome: pulse.outcome,
+    empty: true,
+  }));
+  const timed: TimedTranscriptEntry[] = dividers.map((entry, index) => ({
+    at: entry.at.getTime(),
     order: index,
-    entry: {
-      kind: 'pulse-divider',
-      id: pulse.id,
-      seq: pulse.seq,
-      at: pulse.startedAt,
-      duration: pulse.endedAt
-        ? durationLabel(Math.max(pulse.endedAt.getTime() - pulse.startedAt.getTime(), 0))
-        : 'live',
-      cost: pulse.costUsd,
-    },
+    entry,
   }));
 
   const orderedTraces = [...traces].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
@@ -749,6 +772,22 @@ export function buildTranscriptEntries(
         },
       });
     }
+  }
+
+  // A divider is "empty" when no trace-derived entry lands inside its window
+  // (this pulse's start up to the next pulse's start). Runs of empty dividers
+  // are what the transcript UI collapses — a heartbeat harness with no task
+  // used to render as nothing BUT dividers.
+  const contentTimes = timed
+    .filter((item) => item.entry.kind !== 'pulse-divider')
+    .map((item) => item.at)
+    .sort((a, b) => a - b);
+  for (const [index, divider] of dividers.entries()) {
+    const windowStart = divider.at.getTime();
+    const windowEnd = index + 1 < dividers.length
+      ? dividers[index + 1].at.getTime()
+      : Number.POSITIVE_INFINITY;
+    divider.empty = !contentTimes.some((t) => t >= windowStart && t < windowEnd);
   }
 
   timed.sort((a, b) => a.at - b.at || a.order - b.order);
@@ -878,6 +917,7 @@ export async function loadObjectiveState(
       projectId: objective.projectId,
       name: objective.name,
       description: objective.description,
+      instructions: objective.instructions,
       status: objective.status,
       useCase: objective.useCase,
       targetDate: objective.targetDate,
@@ -992,6 +1032,7 @@ async function objectiveListPayload(prisma: PrismaClient, projectId?: string): P
       projectId: objective.projectId,
       name: objective.name,
       description: objective.description,
+      instructions: objective.instructions,
       status: objective.status,
       useCase: objective.useCase,
       targetDate: objective.targetDate,
@@ -1174,8 +1215,16 @@ export function foremanRoutes(prisma: PrismaClient): Router {
       res.status(404).json({ error: 'Harness not found' });
       return;
     }
+    // Newest N pulses, not all of them: a long-lived heartbeat harness holds
+    // thousands, and the transcript is read bottom-up anyway. The builder
+    // re-sorts ascending.
+    const limit = z.coerce.number().int().min(1).max(2_000).default(200).parse(req.query.limit ?? 200);
     const [pulses, traces] = await Promise.all([
-      prisma.pulse.findMany({ where: { harnessId: harness.id }, orderBy: [{ startedAt: 'asc' }, { seq: 'asc' }] }),
+      prisma.pulse.findMany({
+        where: { harnessId: harness.id },
+        orderBy: [{ startedAt: 'desc' }, { seq: 'desc' }],
+        take: limit,
+      }),
       harness.taskId
         ? prisma.taskTrace.findMany({ where: { taskId: harness.taskId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] })
         : Promise.resolve([]),
@@ -1308,6 +1357,21 @@ export function foremanRoutes(prisma: PrismaClient): Router {
       return;
     }
     res.json(serializePlaybook(playbook, usedByCount));
+  }));
+
+  r.get('/skills', asyncHandler(async (_req, res) => {
+    // The skill registry — SkillArtifact rows seeded from .agents/skills
+    // SKILL.md files. Foreman-facing shape: name + the manifest's description,
+    // so a picker can render without loading the artifact bodies.
+    const artifacts = await prisma.skillArtifact.findMany({ orderBy: { name: 'asc' } });
+    res.json(artifacts.map((artifact) => {
+      const manifest = safeJsonParse<{ description?: string } | null>(artifact.manifest, null);
+      return {
+        name: artifact.name,
+        description: typeof manifest?.description === 'string' ? manifest.description : '',
+        sourcePath: artifact.sourcePath,
+      };
+    }));
   }));
 
   r.get('/objectives/:id/usage', asyncHandler(async (req, res) => {

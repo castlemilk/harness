@@ -68,6 +68,11 @@ export type TranscriptEntry =
       /** The pulse's own work-log narration. Absent on payloads from older servers. */
       summary?: string | null;
       outcome?: string;
+      /** The model that actually served the pulse. */
+      model?: string | null;
+      /** The exact exchange, when the server captured it. */
+      promptText?: string | null;
+      responseText?: string | null;
       /** True when no trace entries landed in this pulse's window — the
        *  transcript collapses runs of these instead of rendering each one. */
       empty?: boolean;

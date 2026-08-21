@@ -242,6 +242,36 @@ Objectives and harnesses are no longer birth-only:
   input it was blocked on, so it flips to `working` with an immediate pulse.
   Before this, a reply to a waiting harness was written and never read.
 
+### Multi-model orchestration & session provenance (2026-08-21)
+
+- **Pulses record what actually happened**: `Pulse.model` is the model that
+  served the call (substitution-aware — Usage's per-model spend now keys off
+  it instead of retroactively re-attributing history to the harness's current
+  model), and `Pulse.promptText`/`responseText` capture the exact exchange
+  (24k cap each). A transcript divider with a captured exchange expands to
+  show it — the audit trail for "what did this agent actually see and say".
+- **Working memory**: the pulse JSON contract gained an optional `memory`
+  field (2k cap). A returned string replaces `Harness.memory` wholesale and
+  is injected into the next pulse's prompt — the one piece of state that
+  survives the stateless heartbeat. The Console focus column renders it.
+- **The router is in the loop**: pulse provider resolution now skips
+  providers whose circuit breaker is open (falling back to the primary when
+  ALL are broken, same policy as the task path), and every pulse records its
+  outcome into the router's health/performance state under the provider name
+  — so pulse failures open the same circuits pulse resolution respects.
+- **External-CLI spend caps are honest**: only `claude-code`'s parser reports
+  a dollar cost; a capped harness on any other CLI used to record $0 forever.
+  It now refuses to run (`unpriced-model` + one intervention), exactly like
+  the internal branch's unpriced-model guard.
+- **Benchmarks tab** (core chrome, every objective): pass rate and $/pass per
+  provider/model from `BenchmarkHistory` (which previously had NO HTTP
+  surface), joined with the router's live provider health/circuits
+  (`GET /foreman/benchmarks`, `GET /foreman/providers/health`). Read-only —
+  runs are launched via `omega bench run` or the legacy panel. A model whose
+  runs never reported cost reads "unreported", never $0/pass.
+- An interject the next pulse has not consumed yet is labelled
+  "queued for next pulse" in the transcript.
+
 ### Transcript noise (2026-08-21)
 
 Pulse dividers now carry the pulse's own summary/outcome (the engine's

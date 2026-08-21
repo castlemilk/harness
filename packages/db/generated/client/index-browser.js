@@ -368,6 +368,7 @@ exports.Prisma.HarnessScalarFieldEnum = {
   contextWindow: 'contextWindow',
   permissions: 'permissions',
   skills: 'skills',
+  memory: 'memory',
   dryRun: 'dryRun',
   lastPulseSeq: 'lastPulseSeq',
   idleSince: 'idleSince',
@@ -384,6 +385,9 @@ exports.Prisma.PulseScalarFieldEnum = {
   endedAt: 'endedAt',
   outcome: 'outcome',
   summary: 'summary',
+  model: 'model',
+  promptText: 'promptText',
+  responseText: 'responseText',
   costUsd: 'costUsd',
   tokens: 'tokens',
   weight: 'weight'

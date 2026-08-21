@@ -83,6 +83,8 @@ export interface ObjectiveStats {
 
 export interface Pulse {
   id: string;
+  /** The model that actually served this pulse. Absent on older payloads. */
+  model?: string | null;
   /** Monotonic pulse number shown as "#204". */
   seq: number;
   startedAt: string;
@@ -133,6 +135,8 @@ export interface Harness {
   ticketId: string | null;
   /** SkillArtifact names granted to this harness. Absent on older payloads. */
   skills?: string[];
+  /** Rolling working memory the agent carries across pulses. */
+  memory?: string | null;
 }
 
 export interface RoutineStep {

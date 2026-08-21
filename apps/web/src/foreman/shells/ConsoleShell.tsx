@@ -440,9 +440,20 @@ function FocusColumn({
               {harness.mission}
             </p>
             <SectionLabel className="mb-2">Current job</SectionLabel>
-            <p className="m-0 text-[13px] leading-relaxed text-ink2 [text-wrap:pretty]">
+            <p className="m-0 mb-4 text-[13px] leading-relaxed text-ink2 [text-wrap:pretty]">
               {harness.currentJob || '—'}
             </p>
+            <SectionLabel className="mb-2">Working memory</SectionLabel>
+            {harness.memory != null && harness.memory !== '' ? (
+              <pre className="m-0 whitespace-pre-wrap rounded-[7px] bg-[#191920] px-3 py-2.5 font-mono text-[11px] leading-relaxed text-ink3">
+                {harness.memory}
+              </pre>
+            ) : (
+              <p className="m-0 text-[11px] text-muted">
+                Nothing carried over — the agent has not written a memory note on any
+                pulse yet. Memory is the one thing that survives between heartbeats.
+              </p>
+            )}
           </div>
         </Panel>
 

@@ -62,6 +62,29 @@ describe('parsePulseReport', () => {
   });
 });
 
+describe('working memory in the report', () => {
+  it('keeps a returned memory string, clamped to the cap', () => {
+    const report = parsePulseReport(
+      '{"summary":"Advanced the slice.","outcome":"ok","memory":"Open thread: v253 gate pending. Check the ruler verdict next pulse."}',
+    );
+    expect(report.memory).toBe(
+      'Open thread: v253 gate pending. Check the ruler verdict next pulse.',
+    );
+    const long = parsePulseReport(
+      `{"summary":"x","outcome":"ok","memory":"${'a'.repeat(5000)}"}`,
+    );
+    expect(long.memory?.length).toBe(2000);
+  });
+
+  it('distinguishes "clear my memory" from "keep it"', () => {
+    // Empty string is a deliberate clear and must survive the parse…
+    expect(parsePulseReport('{"summary":"x","outcome":"ok","memory":""}').memory).toBe('');
+    // …absent means keep, and a non-string is not a memory.
+    expect(parsePulseReport('{"summary":"x","outcome":"ok"}').memory).toBeUndefined();
+    expect(parsePulseReport('{"summary":"x","outcome":"ok","memory":null}').memory).toBeUndefined();
+  });
+});
+
 describe('cost estimation', () => {
   it('prices a known model from its input and output tokens', () => {
     // gpt-5-mini: $0.25/1M in, $2/1M out.

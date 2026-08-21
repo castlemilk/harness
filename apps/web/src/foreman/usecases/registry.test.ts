@@ -248,6 +248,7 @@ describe('viewTabs', () => {
       'work',
       'usage',
       'playbooks',
+      'benchmarks',
       'plugins',
     ]);
     expect(viewTabs(CORE_VIEWS, null).map((t) => t.label)).toEqual([
@@ -257,6 +258,7 @@ describe('viewTabs', () => {
       'Work',
       'Usage',
       'Playbooks',
+      'Benchmarks',
       'Plugins',
     ]);
     expect(viewTabs(CORE_VIEWS, null).every((t) => t.source === 'core')).toBe(true);
@@ -274,6 +276,7 @@ describe('viewTabs', () => {
       'work',
       'usage',
       'playbooks',
+      'benchmarks',
       'plugins',
       'demo-overview',
     ]);
@@ -306,6 +309,7 @@ describe('viewTabs', () => {
       'work',
       'usage',
       'playbooks',
+      'benchmarks',
       'plugins',
       'signals',
       'positions',

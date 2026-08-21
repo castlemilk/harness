@@ -59,6 +59,9 @@ interface TranscriptPulse {
   costUsd: number;
   summary: string | null;
   outcome: string;
+  model: string | null;
+  promptText: string | null;
+  responseText: string | null;
 }
 
 interface TranscriptTrace {
@@ -86,6 +89,11 @@ export type TranscriptEntry =
     /** The pulse's own work-log line — the engine's narration, previously invisible here. */
     summary: string | null;
     outcome: string;
+    /** The model that actually served this pulse (substitution-aware). */
+    model: string | null;
+    /** The exact exchange, when captured — the expandable audit trail. */
+    promptText: string | null;
+    responseText: string | null;
     /** No trace-derived entries landed in this pulse's window. The client
      *  collapses runs of these instead of rendering a wall of dividers. */
     empty: boolean;
@@ -240,6 +248,7 @@ function serializeHarness(harness: Harness, subtreeSpend: number): Record<string
     contextWindow,
     permissions: permissionArray(harness.permissions),
     skills: safeJsonParse<string[]>(harness.skills, []),
+    memory: harness.memory,
     dryRun: harness.dryRun,
     lastPulseSeq: harness.lastPulseSeq,
     idleSince: harness.idleSince,
@@ -297,6 +306,7 @@ function serializePulse(pulse: Pulse): Record<string, unknown> {
     endedAt: pulse.endedAt,
     outcome: pulse.outcome,
     summary: pulse.summary,
+    model: pulse.model,
     costUsd: pulse.costUsd,
     tokens: pulse.tokens,
     weight: pulse.weight,
@@ -715,6 +725,9 @@ export function buildTranscriptEntries(
     cost: pulse.costUsd,
     summary: pulse.summary,
     outcome: pulse.outcome,
+    model: pulse.model,
+    promptText: pulse.promptText,
+    responseText: pulse.responseText,
     empty: true,
   }));
   const timed: TimedTranscriptEntry[] = dividers.map((entry, index) => ({
@@ -1119,8 +1132,13 @@ async function usagePayload(
     if (!harness) continue;
     const label = dateLabel(pulse.startedAt);
     const day = dayByLabel.get(label);
-    if (day) day.byModel[harness.model] = (day.byModel[harness.model] ?? 0) + pulse.costUsd;
-    modelSet.add(harness.model);
+    // The model the pulse ACTUALLY ran on. Falling back to the harness's
+    // current model is only for rows predating Pulse.model — attributing by
+    // the current model retroactively rewrote history every time a
+    // substitution (or an edit) changed it.
+    const spendModel = pulse.model ?? harness.model;
+    if (day) day.byModel[spendModel] = (day.byModel[spendModel] ?? 0) + pulse.costUsd;
+    modelSet.add(spendModel);
     spendByHarness.set(harness.id, (spendByHarness.get(harness.id) ?? 0) + pulse.costUsd);
     const latest = latestPulseByHarness.get(harness.id);
     if (!latest || latest.startedAt < pulse.startedAt) latestPulseByHarness.set(harness.id, pulse);
@@ -1372,6 +1390,120 @@ export function foremanRoutes(prisma: PrismaClient): Router {
         sourcePath: artifact.sourcePath,
       };
     }));
+  }));
+
+  r.get('/providers/health', asyncHandler(async (_req, res) => {
+    // The orchestration ground truth: every enabled provider joined with the
+    // router's live health/circuit state. A provider the router has never
+    // seen reports null health rather than a fabricated perfect score.
+    const [rows, router] = await Promise.all([
+      prisma.providerConfig.findMany({
+        where: { enabled: true },
+        select: { name: true, kind: true, defaultModel: true, apiKey: true },
+        orderBy: { name: 'asc' },
+      }),
+      import('../lib/intelligent-router.js').then((m) => m.getRouter(prisma)).catch(() => null),
+    ]);
+    const entries = new Map(
+      (router?.health.getEntries() ?? []).map((entry) => [entry.provider, entry]),
+    );
+    res.json(rows.map((row) => {
+      const health = entries.get(row.name) ?? null;
+      return {
+        name: row.name,
+        kind: row.kind,
+        defaultModel: row.defaultModel,
+        credentialed: Boolean(row.apiKey),
+        health: health
+          ? {
+            score: health.score,
+            errorRate: health.errorRate,
+            latencyP50: health.latencyP50,
+            recentCalls: health.recentCalls,
+            circuitState: health.circuitState,
+          }
+          : null,
+      };
+    }));
+  }));
+
+  r.get('/benchmarks', asyncHandler(async (_req, res) => {
+    // BenchmarkHistory has never had an HTTP surface — pass rates lived only
+    // in the CLI. Two views of the same rows: per provider/model aggregates
+    // (the "which model actually earns its cost" table) and the recent runs.
+    const rows = await prisma.benchmarkHistory.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+    interface ModelAgg {
+      provider: string | null;
+      model: string | null;
+      runs: number;
+      latestPassRate: number;
+      latestAt: Date;
+      meanPassRate: number;
+      totalCostUsd: number;
+      /** Dollars per passed task across runs with BOTH cost and passes; null
+       *  when cost was never reported — unknown must not read as free. */
+      costPerPass: number | null;
+      suites: string[];
+    }
+    const byModel = new Map<string, ModelAgg & { passSum: number; costKnown: number; passesWithCost: number }>();
+    for (const row of rows) {
+      const key = `${row.provider ?? '—'}/${row.model ?? '—'}`;
+      const agg = byModel.get(key) ?? {
+        provider: row.provider,
+        model: row.model,
+        runs: 0,
+        latestPassRate: row.passRate,
+        latestAt: row.createdAt,
+        meanPassRate: 0,
+        totalCostUsd: 0,
+        costPerPass: null,
+        suites: [],
+        passSum: 0,
+        costKnown: 0,
+        passesWithCost: 0,
+      };
+      agg.runs += 1;
+      agg.passSum += row.passRate;
+      if (row.createdAt > agg.latestAt) {
+        agg.latestAt = row.createdAt;
+        agg.latestPassRate = row.passRate;
+      }
+      if (row.totalCostUsd != null) {
+        agg.costKnown += row.totalCostUsd;
+        agg.passesWithCost += row.passed;
+      }
+      agg.totalCostUsd += row.totalCostUsd ?? 0;
+      if (!agg.suites.includes(row.suite)) agg.suites.push(row.suite);
+      byModel.set(key, agg);
+    }
+    const models = [...byModel.values()]
+      .map(({ passSum, costKnown, passesWithCost, ...agg }) => ({
+        ...agg,
+        meanPassRate: agg.runs > 0 ? passSum / agg.runs : 0,
+        costPerPass: passesWithCost > 0 ? costKnown / passesWithCost : null,
+      }))
+      .sort((a, b) => b.latestPassRate - a.latestPassRate || a.runs - b.runs);
+    res.json({
+      models,
+      recent: rows.slice(0, 40).map((row) => ({
+        id: row.id,
+        suite: row.suite,
+        provider: row.provider,
+        model: row.model,
+        totalTasks: row.totalTasks,
+        passed: row.passed,
+        failed: row.failed,
+        timeouts: row.timeouts,
+        passRate: row.passRate,
+        totalCostUsd: row.totalCostUsd,
+        totalTokens: row.totalTokens,
+        createdAt: row.createdAt,
+      })),
+      totalRuns: rows.length,
+    });
   }));
 
   r.get('/objectives/:id/usage', asyncHandler(async (req, res) => {

@@ -14,6 +14,7 @@ import { GraphShell } from '../shells/GraphShell.js';
 import { WorkBoard } from '../surfaces/WorkBoard.js';
 import { Usage } from '../surfaces/Usage.js';
 import { PlaybookEditor } from '../surfaces/PlaybookEditor.js';
+import { Benchmarks } from '../surfaces/Benchmarks.js';
 import type { ViewDescriptor } from './registry.js';
 import { getUseCases } from './registry.js';
 import { PluginsView, sourceMap } from './plugins.js';
@@ -262,6 +263,10 @@ function PluginsCoreView(ctx: CoreViewContext) {
   );
 }
 
+function BenchmarksView(_ctx: CoreViewContext) {
+  return <Benchmarks />;
+}
+
 export const CORE_VIEWS: CoreView[] = [
   { id: 'console', label: 'Console', order: 10, component: ConsoleView },
   { id: 'board', label: 'Board', order: 20, component: BoardView },
@@ -269,6 +274,9 @@ export const CORE_VIEWS: CoreView[] = [
   { id: 'work', label: 'Work', order: 40, component: WorkView },
   { id: 'usage', label: 'Usage', order: 50, component: UsageView },
   { id: 'playbooks', label: 'Playbooks', order: 60, component: PlaybooksView },
+  // Fleet-wide like Plugins: which model earns its cost is a question about
+  // the whole rig, not one objective, so it renders for every objective.
+  { id: 'benchmarks', label: 'Benchmarks', order: 65, component: BenchmarksView },
   // Chrome, not a domain tab: it is about what the *build* installed, so it is
   // there for every objective including one with no use case at all.
   { id: 'plugins', label: 'Plugins', order: 70, component: PluginsCoreView },

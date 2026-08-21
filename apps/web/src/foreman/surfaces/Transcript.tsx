@@ -142,6 +142,17 @@ export function Transcript({
     [entries, filter],
   );
 
+  // Interjects that landed AFTER the last pulse have not been consumed yet —
+  // say so, or a reply to a slow harness looks ignored (and a reply to a
+  // waiting one used to actually BE ignored).
+  const queuedIds = useMemo(() => {
+    let lastDivider = -1;
+    entries.forEach((e, i) => { if (e.kind === 'pulse-divider') lastDivider = i; });
+    return new Set(
+      entries.filter((e, i) => e.kind === 'human' && i > lastDivider).map((e) => e.id),
+    );
+  }, [entries]);
+
   if (!harness) return null;
 
   const send = () => {
@@ -207,6 +218,7 @@ export function Transcript({
                 entry={entry}
                 expanded={expanded.has(entry.id)}
                 onToggle={() => { toggle(entry.id); }}
+                queued={entry.kind === 'human' && queuedIds.has(entry.id)}
               />
             ))
           )}
@@ -253,10 +265,13 @@ function Entry({
   entry,
   expanded,
   onToggle,
+  queued = false,
 }: {
   entry: TranscriptRow;
   expanded: boolean;
   onToggle: () => void;
+  /** A human interject the next pulse has not consumed yet. */
+  queued?: boolean;
 }) {
   switch (entry.kind) {
     case 'idle-group':
@@ -277,11 +292,12 @@ function Entry({
           {expanded && entry.members.map((member) => (
             <PulseDivider key={member.id} entry={member} />
           ))}
+
         </div>
       );
 
     case 'pulse-divider':
-      return <PulseDivider entry={entry} />;
+      return <PulseDivider entry={entry} expanded={expanded} onToggle={onToggle} />;
 
     case 'plan':
       return (
@@ -305,6 +321,9 @@ function Entry({
             <span className="text-[10.5px] font-semibold text-accent-tint">
               you · {displayTime(entry.at)}
             </span>
+            {queued && (
+              <span className="font-mono text-[9px] text-warn">queued for next pulse</span>
+            )}
           </div>
           <div className="text-[12.5px] leading-relaxed text-[#e8d8c4]">{entry.text}</div>
         </div>
@@ -365,26 +384,74 @@ function displayTime(value: string): string {
   return /^\d{1,2}:\d{2}/.test(value) ? value : clock(value);
 }
 
-function PulseDivider({ entry }: { entry: Extract<TranscriptEntry, { kind: 'pulse-divider' }> }) {
+function PulseDivider({
+  entry,
+  expanded = false,
+  onToggle,
+}: {
+  entry: Extract<TranscriptEntry, { kind: 'pulse-divider' }>;
+  expanded?: boolean;
+  onToggle?: () => void;
+}) {
   const outcome = entry.outcome ?? 'ok';
   const outcomeClass = outcome === 'fail' ? 'text-danger' : outcome === 'warn' ? 'text-warn' : 'text-faint';
+  // The stored exchange — the audit trail. Old rows have none; external CLI
+  // pulses keep theirs in the task traces below the divider instead.
+  const canExpand = Boolean(onToggle && (entry.promptText ?? entry.responseText));
+  const label = (
+    <span className={`font-mono text-[9.5px] font-medium ${outcomeClass}`}>
+      {canExpand ? (expanded ? '▾ ' : '▸ ') : ''}
+      PULSE #{entry.seq} · {displayTime(entry.at)} · {entry.duration} ·{' '}
+      {money(entry.cost)}
+      {entry.model != null && entry.model !== '' ? ` · ${entry.model}` : ''}
+      {outcome !== 'ok' ? ` · ${outcome}` : ''}
+    </span>
+  );
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2.5">
-        <div className="h-px flex-1 bg-white/[.07]" />
-        <span className={`font-mono text-[9.5px] font-medium ${outcomeClass}`}>
-          PULSE #{entry.seq} · {displayTime(entry.at)} · {entry.duration} ·{' '}
-          {money(entry.cost)}
-          {outcome !== 'ok' ? ` · ${outcome}` : ''}
-        </span>
-        <div className="h-px flex-1 bg-white/[.07]" />
-      </div>
+      {canExpand ? (
+        <button type="button" onClick={onToggle} className="flex w-full items-center gap-2.5">
+          <div className="h-px flex-1 bg-white/[.07]" />
+          {label}
+          <div className="h-px flex-1 bg-white/[.07]" />
+        </button>
+      ) : (
+        <div className="flex items-center gap-2.5">
+          <div className="h-px flex-1 bg-white/[.07]" />
+          {label}
+          <div className="h-px flex-1 bg-white/[.07]" />
+        </div>
+      )}
       {/* The pulse's own work-log line — the engine's narration used to be
           invisible in the transcript, which made a chat-model harness's
           transcript nothing but dividers. */}
       {entry.summary != null && entry.summary !== '' && (
         <div className="px-6 text-center font-mono text-[10px] leading-relaxed text-muted">
           {entry.summary}
+        </div>
+      )}
+      {canExpand && expanded && (
+        <div className="mx-3 flex flex-col gap-2">
+          {entry.promptText != null && entry.promptText !== '' && (
+            <div className="rounded-[5px] bg-[#0f0f12] px-3 py-2.5">
+              <div className="mb-1 font-mono text-[9px] font-semibold uppercase tracking-[.08em] text-info-tint">
+                prompt sent
+              </div>
+              <pre className="m-0 max-h-56 overflow-y-auto whitespace-pre-wrap font-mono text-[10px] leading-[1.6] text-ink3">
+                {entry.promptText}
+              </pre>
+            </div>
+          )}
+          {entry.responseText != null && entry.responseText !== '' && (
+            <div className="rounded-[5px] bg-[#0f0f12] px-3 py-2.5">
+              <div className="mb-1 font-mono text-[9px] font-semibold uppercase tracking-[.08em] text-ok-tint">
+                raw response
+              </div>
+              <pre className="m-0 max-h-56 overflow-y-auto whitespace-pre-wrap font-mono text-[10px] leading-[1.6] text-ink3">
+                {entry.responseText}
+              </pre>
+            </div>
+          )}
         </div>
       )}
     </div>

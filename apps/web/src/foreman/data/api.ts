@@ -87,6 +87,53 @@ export interface SkillListing {
   sourcePath: string;
 }
 
+export interface ProviderHealth {
+  name: string;
+  kind: string;
+  defaultModel: string;
+  credentialed: boolean;
+  /** Null when the router has never seen this provider — not a perfect score. */
+  health: {
+    score: number;
+    errorRate: number;
+    latencyP50: number;
+    recentCalls: number;
+    circuitState: string;
+  } | null;
+}
+
+export interface BenchmarkModelRow {
+  provider: string | null;
+  model: string | null;
+  runs: number;
+  latestPassRate: number;
+  latestAt: string;
+  meanPassRate: number;
+  totalCostUsd: number;
+  /** Null when no run reported cost — unknown, not free. */
+  costPerPass: number | null;
+  suites: string[];
+}
+
+export interface BenchmarkSummary {
+  models: BenchmarkModelRow[];
+  recent: {
+    id: string;
+    suite: string;
+    provider: string | null;
+    model: string | null;
+    totalTasks: number;
+    passed: number;
+    failed: number;
+    timeouts: number;
+    passRate: number;
+    totalCostUsd: number | null;
+    totalTokens: number | null;
+    createdAt: string;
+  }[];
+  totalRuns: number;
+}
+
 export type ResolveAction =
   | 'approve'
   | 'approve-always'
@@ -129,6 +176,10 @@ export const foremanApi = {
     request<Workstream>(`/foreman/workstreams/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
 
   listSkills: () => request<SkillListing[]>('/foreman/skills'),
+
+  getProvidersHealth: () => request<ProviderHealth[]>('/foreman/providers/health'),
+
+  getBenchmarks: () => request<BenchmarkSummary>('/foreman/benchmarks'),
 
   // Carries every pending intervention, and a tool approval's whole basis for
   // the decision is the command it wants to run.

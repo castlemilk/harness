@@ -322,6 +322,11 @@ model Harness {
   /// Names that match no artifact are surfaced in the prompt as unresolved,
   /// never silently dropped.
   skills            String        @default("[]")
+  /// Rolling working memory the agent carries across pulses: the model may
+  /// return a bounded `memory` string each pulse, which replaces this whole
+  /// field and is injected into the next pulse's prompt. The one piece of
+  /// state that survives the otherwise-stateless heartbeat.
+  memory            String?
   dryRun            Boolean       @default(false)
   lastPulseSeq      Int           @default(0)
   idleSince         DateTime?
@@ -337,17 +342,27 @@ model Harness {
 }
 
 model Pulse {
-  id        String    @id @default(uuid())
-  harnessId String
-  harness   Harness   @relation(fields: [harnessId], references: [id], onDelete: Cascade)
-  seq       Int
-  startedAt DateTime
-  endedAt   DateTime?
-  outcome   String
-  summary   String?
-  costUsd   Float     @default(0)
-  tokens    Int       @default(0)
-  weight    Float     @default(0.5)
+  id           String    @id @default(uuid())
+  harnessId    String
+  harness      Harness   @relation(fields: [harnessId], references: [id], onDelete: Cascade)
+  seq          Int
+  startedAt    DateTime
+  endedAt      DateTime?
+  outcome      String
+  summary      String?
+  /// The model that ACTUALLY served this pulse — which may not be the model
+  /// the harness declares (provider substitution). Null on rows predating the
+  /// column; spend attribution falls back to the harness's current model then.
+  model        String?
+  /// The exact prompt sent and raw response received, bounded. The audit
+  /// trail for "what did this agent actually see and say" — without them a
+  /// pulse is unreviewable the moment it ends. Null for dry runs, external
+  /// CLI pulses (their transcript lives in TaskTrace), and pre-column rows.
+  promptText   String?
+  responseText String?
+  costUsd      Float     @default(0)
+  tokens       Int       @default(0)
+  weight       Float     @default(0.5)
 
   @@unique([harnessId, seq])
   @@index([harnessId, seq(sort: Desc)])

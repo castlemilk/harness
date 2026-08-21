@@ -425,3 +425,127 @@ describe('pulse prompt assembly', () => {
     expect(steps[1].text).toBe('Hand off to $reviewer.');
   });
 });
+
+describe('pulse provenance', () => {
+  it('carries model, prompt, and response onto the transcript divider', async () => {
+    const harness = await prisma.harness.create({
+      data: {
+        objectiveId,
+        name: 'provenance',
+        mission: 'Be auditable.',
+        model: 'declared-model',
+      },
+    });
+    await prisma.pulse.create({
+      data: {
+        harnessId: harness.id,
+        seq: 1,
+        startedAt: new Date('2026-08-21T02:00:00Z'),
+        endedAt: new Date('2026-08-21T02:00:04Z'),
+        outcome: 'ok',
+        summary: 'Checked the desk.',
+        model: 'substituted-model',
+        promptText: 'SYSTEM…\n---\nYour every-pulse routine…',
+        responseText: '{"summary":"Checked the desk.","outcome":"ok"}',
+      },
+    });
+    const result = await invoke('get', '/harnesses/:id/transcript', {
+      params: { id: harness.id },
+    });
+    const divider = (result.body as { kind: string; model?: string; promptText?: string; responseText?: string }[])
+      .find((e) => e.kind === 'pulse-divider');
+    expect(divider).toMatchObject({
+      model: 'substituted-model',
+      promptText: 'SYSTEM…\n---\nYour every-pulse routine…',
+      responseText: '{"summary":"Checked the desk.","outcome":"ok"}',
+    });
+  });
+
+  it('attributes usage spend to the model the pulse RAN on, not the harness\'s current one', async () => {
+    const harness = await prisma.harness.create({
+      data: {
+        objectiveId,
+        name: 'spender',
+        mission: 'Spend measurably.',
+        model: 'current-model',
+      },
+    });
+    await prisma.pulse.create({
+      data: {
+        harnessId: harness.id,
+        seq: 1,
+        startedAt: new Date(),
+        endedAt: new Date(),
+        outcome: 'ok',
+        model: 'ran-model',
+        costUsd: 1.25,
+      },
+    });
+    const result = await invoke('get', '/objectives/:id/usage', {
+      params: { id: objectiveId },
+      query: { days: '7' },
+    });
+    const usage = result.body as { days: { byModel: Record<string, number> }[]; models: string[] };
+    const byModel: Record<string, number> = {};
+    for (const day of usage.days) {
+      for (const [model, spend] of Object.entries(day.byModel)) {
+        byModel[model] = (byModel[model] ?? 0) + spend;
+      }
+    }
+    expect(byModel['ran-model']).toBeCloseTo(1.25, 10);
+    expect(byModel['current-model']).toBeUndefined();
+  });
+});
+
+describe('GET /foreman/benchmarks', () => {
+  it('aggregates history per model and keeps unreported cost null, not free', async () => {
+    await prisma.benchmarkHistory.create({
+      data: { suite: 'fast', provider: 'kimi', model: 'moonshot-v1-8k', totalTasks: 10, passed: 8, failed: 2, timeouts: 0, passRate: 0.8, totalDurationMs: 60_000, totalCostUsd: 0.4 },
+    });
+    await prisma.benchmarkHistory.create({
+      data: { suite: 'fast', provider: 'kimi', model: 'moonshot-v1-8k', totalTasks: 10, passed: 6, failed: 4, timeouts: 0, passRate: 0.6, totalDurationMs: 55_000, totalCostUsd: 0.2 },
+    });
+    // Cost deliberately absent: an external CLI that reports none.
+    await prisma.benchmarkHistory.create({
+      data: { suite: 'deepswe', provider: 'external', model: 'codex', totalTasks: 5, passed: 3, failed: 2, timeouts: 0, passRate: 0.6, totalDurationMs: 90_000 },
+    });
+    const result = await invoke('get', '/benchmarks');
+    const body = result.body as {
+      models: { provider: string | null; model: string | null; runs: number; meanPassRate: number; costPerPass: number | null }[];
+      totalRuns: number;
+    };
+    const kimi = body.models.find((m) => m.model === 'moonshot-v1-8k');
+    expect(kimi).toBeDefined();
+    expect(kimi?.runs).toBe(2);
+    expect(kimi?.meanPassRate).toBeCloseTo(0.7, 10);
+    // $0.60 over 14 passes
+    expect(kimi?.costPerPass).toBeCloseTo(0.6 / 14, 10);
+    const codex = body.models.find((m) => m.model === 'codex');
+    // No run reported cost: unknown, never $0.00-per-pass.
+    expect(codex?.costPerPass).toBeNull();
+  });
+});
+
+describe('GET /foreman/providers/health', () => {
+  it('joins enabled providers with router health, null when never routed', async () => {
+    await prisma.providerConfig.upsert({
+      where: { name: 'test-provider-health' },
+      create: {
+        name: 'test-provider-health',
+        kind: 'generic',
+        defaultModel: 'test-model',
+        capabilities: '[]',
+        enabled: true,
+      },
+      update: { enabled: true },
+    });
+    const result = await invoke('get', '/providers/health');
+    expect(result.status).toBe(200);
+    const rows = result.body as { name: string; credentialed: boolean; health: unknown }[];
+    const row = rows.find((r) => r.name === 'test-provider-health');
+    expect(row).toBeDefined();
+    expect(row?.credentialed).toBe(false);
+    // The router has never routed to it: health must be null, not a score.
+    expect(row?.health).toBeNull();
+  });
+});

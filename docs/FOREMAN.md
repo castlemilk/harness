@@ -210,9 +210,45 @@ task engine:pulse     -- <harnessId>   # one real pulse
 task dev:engine                        # scheduler on (FOREMAN_ENGINE=1)
 ```
 
-A pulse builds its prompt from the harness's mission, routine, recent pulses,
-children and any operator reply; calls the provider; then records tokens, cost,
-status and any escalation.
+A pulse builds its prompt from the harness's mission, the objective's standing
+instructions, any granted skills, the routine (with `$variables` resolved),
+recent pulses, children and any operator reply; calls the provider; then
+records tokens, cost, status and any escalation.
+
+### Configuring a project (2026-08-21)
+
+Objectives and harnesses are no longer birth-only:
+
+- **⚙ next to the objective switcher** opens Objective settings: rename,
+  description, spend cap, status (`active`/`complete`/`archived`), and
+  **standing instructions** — free text injected into the system prompt of
+  EVERY pulse of every harness under the objective. Project conventions live
+  there once, not copy-pasted into each mission. (`PATCH /foreman/objectives/:id`)
+- **Edit on the Console focus column** opens the harness editor: mission,
+  model, heartbeat, budget cap, max children, playbook, and **skills** — the
+  read-only slider lookalikes are gone. (`PATCH /foreman/harnesses/:id`,
+  which existed all along with no UI caller.)
+- **Skills** are `SkillArtifact` rows seeded from `.agents/skills/*/SKILL.md`
+  at server start (`GET /foreman/skills` lists them). A granted skill's
+  markdown body (frontmatter stripped, 8k cap per skill) rides the pulse
+  system prompt; a grant whose file stops resolving is disclosed to the agent
+  as unavailable, never silently dropped. Unknown names are rejected at write
+  time.
+- **`+ New workstream`** in the Console rail creates a lane
+  (`POST /foreman/workstreams`; `PATCH /foreman/workstreams/:id` renames);
+  **`+ New playbook`** in the Playbooks editor authors a v1 routine
+  (`POST /foreman/playbooks` — the version route only ever forked).
+- **Interjecting a `waiting` harness releases it**: the reply is the human
+  input it was blocked on, so it flips to `working` with an immediate pulse.
+  Before this, a reply to a waiting harness was written and never read.
+
+### Transcript noise (2026-08-21)
+
+Pulse dividers now carry the pulse's own summary/outcome (the engine's
+narration used to be invisible in the transcript), runs of 2+ idle ok pulses
+collapse into one expandable "N idle pulses" row, the filter chips drop
+dividers with no matching content instead of keeping the wall, and the route
+serves the newest 200 pulses by default (`?limit=`).
 
 Safety properties worth knowing, because they are load-bearing:
 

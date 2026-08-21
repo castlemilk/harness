@@ -133,7 +133,10 @@ async function loadSuite(
     tasks = await loadDeepSWESuite({
       tasksDir: options.deepswe.tasksDir,
       nTasks: options.nTasks,
-      taskIds: options.taskIds,
+      // The schema accepts ids in BOTH places; honouring only the top-level
+      // one made `deepswe.taskIds` validate cleanly and then silently launch
+      // the whole 113-task suite. Nested wins — it is the more specific ask.
+      taskIds: options.deepswe.taskIds ?? options.taskIds,
       useDocker: options.deepswe.useDocker,
     });
   } else {

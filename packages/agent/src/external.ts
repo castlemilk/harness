@@ -6,7 +6,7 @@ import { Tracer } from './tracer.js';
 import { getCurrentCommit, getDiff, getCurrentBranch, hasChanges, stageAllChanges, commit } from './git.js';
 import { logger } from './logger.js';
 import { spawnWithPty } from './pty-spawn.js';
-import { extractOpencodeResult, parseOpencodeMetrics } from './opencode-output.js';
+import { extractOpencodeResult, opencodeRunLooksAborted, parseOpencodeMetrics } from './opencode-output.js';
 import { parseClaudeCodeStreamJson } from './claude-code-output.js';
 import { parseAgyMetrics } from './agy-output.js';
 import { runCodexTurn, getCodexAvailability, type CodexTurnResult } from './codex-driver.js';
@@ -154,6 +154,26 @@ function buildAgentRunMetricsUpdate(
       err: err instanceof Error ? err.message : String(err),
     });
     return {};
+  }
+}
+
+/**
+ * Best-effort trace write: the narrative is diagnostics, and diagnostics must
+ * never fail the run they describe (including under partial prisma mocks).
+ */
+async function tryTrace(
+  prisma: PrismaClient,
+  taskId: string,
+  role: 'assistant' | 'system',
+  content: string,
+): Promise<void> {
+  try {
+    await prisma.taskTrace.create({ data: { taskId, role, content } });
+  } catch (err) {
+    logger.warn('Could not record external agent trace', {
+      taskId,
+      err: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
@@ -438,39 +458,72 @@ export async function runExternalAgentTask(
           ...codexTiming,
         });
       } else {
-        let stdout: string;
-        let stderr: string;
+        // Bounded retry for a specific, observed failure mode: the free-tier
+        // gateway drops the stream mid-session, `opencode run` exits 0 with a
+        // half-finished transcript, and the run used to be recorded as "the
+        // model produced no patch". One retry with a fresh session; a session
+        // that ended cleanly (or actually changed files) is never retried.
+        const maxAttempts = options.cli === 'opencode' ? 2 : 1;
+        const spawnTimeoutMs = options.timeoutMs ?? timeoutForComplexity(options.complexity);
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          const attemptStartedAt = Date.now();
+          let stdout: string;
+          let stderr: string;
 
-        if (spec.pty) {
-          // PTY path — required for CLIs that gate stdout on isatty()
-          const timeoutMs = options.timeoutMs ?? timeoutForComplexity(options.complexity);
-          const result = await spawnWithPty(spec.command, spec.args(prompt, options.projectPath), {
-            cwd: options.projectPath,
-            env: spec.env,
-            timeoutMs,
-          });
-          stdout = result.stdout;
-          stderr = result.stderr;
-        } else {
-          const result = await spawnWithStdinClosed(
-            spec.command,
-            spec.args(prompt, options.projectPath),
-            {
+          if (spec.pty) {
+            // PTY path — required for CLIs that gate stdout on isatty()
+            const timeoutMs = options.timeoutMs ?? timeoutForComplexity(options.complexity);
+            const result = await spawnWithPty(spec.command, spec.args(prompt, options.projectPath), {
               cwd: options.projectPath,
               env: spec.env,
-              timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
-            },
-          );
-          stdout = result.stdout;
-          stderr = result.stderr;
+              timeoutMs,
+            });
+            stdout = result.stdout;
+            stderr = result.stderr;
+          } else {
+            const result = await spawnWithStdinClosed(
+              spec.command,
+              spec.args(prompt, options.projectPath),
+              {
+                cwd: options.projectPath,
+                env: spec.env,
+                timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
+              },
+            );
+            stdout = result.stdout;
+            stderr = result.stderr;
+          }
+
+          // Keep the raw stdout around for metrics parsing — the outputTransform
+          // strips it down to plain text and the metricsParser needs the JSONL.
+          rawOutput = `${stdout}\n${stderr}`.trim();
+
+          // Apply output transform if present (e.g. opencode JSONL → clean text)
+          output = spec.outputTransform ? spec.outputTransform(rawOutput) : rawOutput;
+
+          if (
+            options.cli === 'opencode'
+            && attempt < maxAttempts
+            && opencodeRunLooksAborted(rawOutput)
+            && !(await hasChanges(options.projectPath))
+            // A near-timeout attempt was killed, not dropped — retrying would
+            // double the wall-clock for a session that was probably working.
+            && Date.now() - attemptStartedAt < spawnTimeoutMs * 0.8
+          ) {
+            logger.warn('opencode session aborted mid-stream with no changes; retrying', {
+              taskId,
+              attempt,
+            });
+            await tryTrace(
+              prisma,
+              taskId,
+              'system',
+              `opencode session aborted mid-stream (attempt ${String(attempt)}); retrying with a fresh session.`,
+            );
+            continue;
+          }
+          break;
         }
-
-        // Keep the raw stdout around for metrics parsing — the outputTransform
-        // strips it down to plain text and the metricsParser needs the JSONL.
-        rawOutput = `${stdout}\n${stderr}`.trim();
-
-        // Apply output transform if present (e.g. opencode JSONL → clean text)
-        output = spec.outputTransform ? spec.outputTransform(rawOutput) : rawOutput;
 
         success = true;
       }
@@ -501,6 +554,15 @@ export async function runExternalAgentTask(
 
       runSpan.recordError(err);
       await runSpan.end('error');
+    }
+
+    // The session narrative is the ONLY reviewable record of what the CLI
+    // agent did — without this trace, a failed run's task row held a
+    // 300-char excerpt and every "no patch produced" was undiagnosable
+    // (the first full-suite review had to reverse-engineer failures from
+    // opencode's own log files). Bounded; best-effort.
+    if (output.trim()) {
+      await tryTrace(prisma, taskId, 'assistant', sanitizeForDb(output.trim().slice(0, 24_000)) ?? '');
     }
 
     // Commit any changes the external agent left uncommitted so the diff is stable.

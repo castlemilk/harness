@@ -255,8 +255,12 @@ async function cloneRepo(repoUrl: string, commit: string, targetPath: string): P
   // Ensure a clean clone so leftover state from previous runs cannot pollute
   // the worktree or branch list.
   await fs.rm(targetPath, { recursive: true, force: true });
-  await execFileAsync('git', ['clone', repoUrl, targetPath], { timeout: 120000 });
-  await execFileAsync('git', ['-C', targetPath, 'checkout', commit], { timeout: 60000 });
+  // Blobless partial clone: full history (any base_commit stays checkout-able)
+  // without the blob payload up front. The old 120s full-clone cap killed
+  // every task on a big repo — opa, prometheus and textual all died here in
+  // the first full-suite run, before any model was even asked.
+  await execFileAsync('git', ['clone', '--filter=blob:none', repoUrl, targetPath], { timeout: 600000 });
+  await execFileAsync('git', ['-C', targetPath, 'checkout', commit], { timeout: 300000 });
 }
 
 async function findNodePackageDir(projectPath: string): Promise<string | undefined> {

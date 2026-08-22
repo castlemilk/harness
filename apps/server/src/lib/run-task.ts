@@ -71,6 +71,8 @@ export async function runTask(
     maxSubtasks?: number;
     maxIterations?: number;
     concurrency?: number;
+    /** Hard cap for an external CLI run; else complexity decides (5–30m). */
+    timeoutMs?: number;
   } = {}
 ) {
   const task = await prisma.task.findUnique({ where: { id: taskId }, include: { project: true } });
@@ -120,6 +122,7 @@ export async function runTask(
         complexity: task.complexity,
         model,
         effort,
+        timeoutMs: options.timeoutMs,
       });
     if (options.detached) {
       const result = queue.enqueue(taskId, cli, async () => {

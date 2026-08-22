@@ -235,7 +235,7 @@ function parseCodexMetrics(raw: string): ExtractedMetrics {
   };
 }
 
-function cliSpec(cli: ExternalCli): CliSpec {
+function cliSpec(cli: ExternalCli, model?: string): CliSpec {
   switch (cli) {
     case 'codex':
       return {
@@ -284,7 +284,9 @@ function cliSpec(cli: ExternalCli): CliSpec {
       // runner's poll-based timeout will eventually catch and report this.
       return {
         command: 'opencode',
-        args: (prompt, cwd) => ['run', prompt, '--format', 'json', '--model', 'opencode/big-pickle', '--auto', '--port', String(4096 + Math.floor(Math.random() * 1000)), ...(cwd ? ['--dir', cwd] : [])],
+        // Model is caller-selectable (Task.model / options.model); big-pickle
+        // stays the default so existing runs keep their behaviour.
+        args: (prompt, cwd) => ['run', prompt, '--format', 'json', '--model', model ?? 'opencode/big-pickle', '--auto', '--port', String(4096 + Math.floor(Math.random() * 1000)), ...(cwd ? ['--dir', cwd] : [])],
         outputTransform: extractOpencodeResult,
         metricsParser: parseOpencodeMetrics,
       };
@@ -347,7 +349,7 @@ export async function runExternalAgentTask(
     },
   });
 
-  const spec = cliSpec(options.cli);
+  const spec = cliSpec(options.cli, options.model ?? undefined);
   const available = await commandExists(spec.command);
   if (!available) {
     const message = `External agent CLI '${spec.command}' not found in PATH`;
@@ -545,7 +547,7 @@ export async function runExternalAgentTask(
         result: sanitizeForDb(summary),
         error: passed ? null : sanitizeForDb(summary),
         provider: options.cli,
-        model: options.cli === 'codex' && options.model ? options.model : options.cli,
+        model: (options.cli === 'codex' || options.cli === 'opencode') && options.model ? options.model : options.cli,
       },
     });
     await prisma.agentRun.update({

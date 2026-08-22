@@ -190,7 +190,17 @@ async function createHarnessTask(
       title: task.title,
       description: task.description,
       complexity: task.complexity ?? 'simple',
-      tags: JSON.stringify(['benchmark', 'agent', ...tags, task.name, ...(task.tags ?? [])]),
+      // A model config of provider `external:<cli>` routes the task through
+      // that coding-agent CLI: the provider string IS run-task's external tag,
+      // and Task.model (set below) is the model the CLI is asked to run.
+      tags: JSON.stringify([
+        'benchmark',
+        'agent',
+        ...(model?.provider.startsWith('external:') ? [model.provider] : []),
+        ...tags,
+        task.name,
+        ...(task.tags ?? []),
+      ]),
     },
   });
   if (model) {
@@ -270,7 +280,7 @@ async function runSingleTask(
   const harnessTaskId = await createHarnessTask(prisma, projectId, task, model);
   const modelUsed = model ? `${model.provider}/${model.model}` : undefined;
 
-  await runTask(prisma, harnessTaskId, { tokenBudget });
+  await runTask(prisma, harnessTaskId, { tokenBudget, timeoutMs });
   await waitForTaskCompletion(prisma, harnessTaskId, timeoutMs, signal);
 
   const agentRun = await getAgentRunData(prisma, harnessTaskId);
@@ -509,9 +519,6 @@ export async function startBenchRun(
 
       void (async () => {
         const projectPath = path.join(baseDir, task.id);
-        await fs.mkdir(projectPath, { recursive: true });
-        if (task.setup) await task.setup(projectPath);
-        ensureGitRepo(projectPath);
 
         emitter.emit('run', {
           type: 'task-started',
@@ -523,6 +530,17 @@ export async function startBenchRun(
         let result: Awaited<ReturnType<typeof runSingleTask>> & { winnerModel?: string; variancePassRate?: number };
 
         try {
+          // Setup (clone + dependency install) INSIDE the try: a rejection
+          // here used to escape the async IIFE entirely — an unhandled
+          // rejection that never decremented `running`, so each broken
+          // environment leaked a pool slot until the whole run silently
+          // wedged (observed live: 4 install failures froze a 113-task run
+          // at 58 with zero workers left). A setup failure is a task
+          // failure, not a pool leak.
+          await fs.mkdir(projectPath, { recursive: true });
+          if (task.setup) await task.setup(projectPath);
+          ensureGitRepo(projectPath);
+
           if (strategy === 'consensus' && models.length > 1) {
             result = await runConsensusTask(prisma, task, projectPath, projectPrefix, models, timeoutMs, config.tokenBudget, abortController.signal);
           } else if (strategy === 'variance') {

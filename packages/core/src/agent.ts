@@ -44,6 +44,8 @@ export interface AgentRun {
   resultStatus: AgentRunStatus;
   validationSummary?: string;
   publishedVersion?: string;
+  sessionId?: string;
+  sessionKind?: string;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -4,6 +4,7 @@ import {
   opencodeRunLooksAborted,
   parseOpencodeMetrics,
 } from './opencode-output.js';
+import * as opencodeOutput from './opencode-output.js';
 
 /**
  * Fixtures follow the real `opencode run --format json` stream shape,
@@ -77,5 +78,22 @@ describe('parseOpencodeMetrics turns', () => {
 describe('extractOpencodeResult', () => {
   it('keeps the text narrative and drops the event plumbing', () => {
     expect(extractOpencodeResult(HEALTHY)).toBe('Done — feature implemented and tests pass.');
+  });
+});
+
+describe('OpenCode session capture', () => {
+  it('extracts the session identity even when only the first event carries it', () => {
+    const extractSession = (opencodeOutput as unknown as {
+      extractOpencodeSessionId?: (raw: string) => string | undefined;
+    }).extractOpencodeSessionId;
+    expect(extractSession).toBeTypeOf('function');
+    if (!extractSession) return;
+
+    expect(extractSession(HEALTHY)).toBe('s');
+    expect(extractSession([
+      'not json',
+      ev({ type: 'step_start', sessionID: '' }),
+      ev({ type: 'step_start', sessionID: 42 }),
+    ].join('\n'))).toBeUndefined();
   });
 });

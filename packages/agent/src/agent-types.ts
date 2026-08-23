@@ -42,6 +42,12 @@ export interface AgentContext {
   promptContext?: string;
   usage: UsageInfo;
   apiSurfaceVerified: boolean;
+  /** Number of provider responses requested by the internal loop. */
+  turnCount: number;
+  /** Number of tool steps consumed by the internal loop. */
+  stepCount: number;
+  /** Most recent failed tool result, retained for terminal disclosure. */
+  lastToolError?: { name: string; output: string };
   tokenBudget?: number;
   repoOverview?: string;
   stuckSolveAttempted?: boolean;

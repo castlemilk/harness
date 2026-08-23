@@ -19,7 +19,7 @@ import { loadCurrentPrompts, hashPrompts } from './prompt-versioning.js';
 import { logger } from './logger.js';
 import { Tracer } from './tracer.js';
 import { codeOverview } from './tools.js';
-import { failTask } from './agent-loop.js';
+import { failTask, formatAgentTerminalReason } from './agent-loop.js';
 import {
   getCurrentBranch,
   getCurrentCommit,
@@ -89,7 +89,7 @@ export async function runAgentTask(
     selection = selectProvider(coreConfigs, [], toCoreTask(task));
   }
   if (!selection) {
-    await failTask(prisma, taskId, 'No provider available for this task');
+    await failTask(prisma, taskId, 'Agent setup stopped before the loop after 0 model turns and 0 tool steps: no provider was available for this task.');
     throw new Error('No provider available for this task');
   }
   const provider = createProvider(selection.provider);
@@ -118,7 +118,7 @@ export async function runAgentTask(
   const baseBranch = await getCurrentBranch(options.projectPath);
   const baseCommit = await getCurrentCommit(options.projectPath);
   if (!baseBranch.success || !baseCommit.success) {
-    await failTask(prisma, taskId, 'Not a git repository');
+    await failTask(prisma, taskId, 'Agent setup stopped before the loop after 0 model turns and 0 tool steps: project is not a git repository.');
     throw new Error('Not a git repository');
   }
 
@@ -246,7 +246,7 @@ export async function runAgentTask(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await failTask(prisma, taskId, `Setup failed: ${message}`);
+    await failTask(prisma, taskId, `Agent setup stopped before the loop after 0 model turns and 0 tool steps: ${message.trim() || 'unknown setup error'}`);
     throw err;
   }
 
@@ -305,6 +305,8 @@ export async function runAgentTask(
     promptContext: combinedContext,
     usage: {},
     apiSurfaceVerified: false,
+    turnCount: 0,
+    stepCount: 0,
     repoOverview: repoOverviewText,
     deadlineMs: Date.now() + deadlineMsForComplexity(task.complexity),
     signal: options.signal,
@@ -323,8 +325,18 @@ export async function runAgentTask(
 
   try {
     agentResult = await executeAgentLoop(ctx, skills);
-    rootSpan.addEvent('task.finished', { status: agentResult.task.status });
-    await rootSpan.end(agentResult.task.status === 'done' ? 'ok' : 'error');
+    // Telemetry must never convert a finished run into a failed one: a
+    // hiccup writing the span would otherwise land in the catch below and
+    // overwrite a `done` task (and now its result) with a failure.
+    try {
+      rootSpan.addEvent('task.finished', { status: agentResult.task.status });
+      await rootSpan.end(agentResult.task.status === 'done' ? 'ok' : 'error');
+    } catch (spanErr) {
+      logger.warn('Could not close agent root span', {
+        taskId: ctx.task.id,
+        err: spanErr instanceof Error ? spanErr.message : String(spanErr),
+      });
+    }
     logger.info('Agent task finished', {
       taskId: ctx.task.id,
       agentRunId: ctx.agentRunId,
@@ -334,20 +346,33 @@ export async function runAgentTask(
     return agentResult;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const reason = formatAgentTerminalReason({
+      success: false,
+      stopCondition: 'exception',
+      summary: message.trim() || 'The agent loop threw an error with no message.',
+      stepCount: ctx.stepCount,
+      maxSteps: ctx.maxSteps,
+      turnCount: ctx.turnCount,
+      lastToolError: ctx.lastToolError,
+    });
     rootSpan.recordError(err);
     await rootSpan.end('error');
     logger.error('Agent task failed', {
       taskId,
       agentRunId: agentRun.id,
       traceId: tracer.traceId,
-      error: message,
+      error: reason,
     });
-    await failTask(prisma, taskId, message);
+    await failTask(prisma, taskId, reason);
     await prisma.agentRun.update({
       where: { id: agentRun.id },
-      data: { resultStatus: 'failed' },
+      data: {
+        resultStatus: 'failed',
+        turnCount: ctx.turnCount,
+        currentTurn: ctx.turnCount,
+      },
     });
-    throw err;
+    throw new Error(reason, { cause: err });
   } finally {
     for (const client of new Set(lspClients.values())) {
       try {

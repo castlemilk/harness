@@ -97,6 +97,12 @@ export interface CodexRunOptions {
   model?: string | null;
   effort?: string | null;
   threadName?: string;
+  /** Resume this exact persisted Codex thread instead of starting a new one. */
+  resumeThreadId?: string;
+  /** Keep the thread after the turn so a later retry can resume it. */
+  persistThread?: boolean;
+  /** Called as soon as the persistent thread identity is known. */
+  onSession?: (threadId: string) => void | Promise<void>;
   timeoutMs: number;
   onProgress?: CodexProgressReporter;
 }
@@ -122,6 +128,7 @@ interface AppServerNotification {
 interface AppServerRequestMap {
   initialize: { params: { clientInfo: CodexClientInfo; capabilities: CodexInitializeCapabilities }; result: { ok?: boolean } };
   'thread/start': { params: { cwd: string; model: string | null; approvalPolicy: string; sandbox: string; serviceName: string; ephemeral: boolean }; result: { thread: CodexThread } };
+  'thread/resume': { params: { threadId: string }; result: { thread: CodexThread } };
   'thread/name/set': { params: { threadId: string; name: string }; result: Record<string, never> };
   'turn/start': { params: { threadId: string; input: CodexUserInput[]; model: string | null; effort: string | null; outputSchema: unknown }; result: { turn?: CodexTurn } };
   'turn/interrupt': { params: { threadId: string; turnId: string }; result: Record<string, never> };
@@ -823,21 +830,32 @@ export async function runCodexTurn(cwd: string, prompt: string, options: CodexRu
   const client = new CodexAppServerClient(cwd);
   await client.initialize();
   try {
-    const threadResponse = await client.request('thread/start', {
-      cwd,
-      model: options.model ?? null,
-      approvalPolicy: 'never',
-      sandbox: 'workspace-write',
-      serviceName: SERVICE_NAME,
-      ephemeral: true,
-    });
+    const threadResponse = options.resumeThreadId
+      ? await client.request('thread/resume', { threadId: options.resumeThreadId })
+      : await client.request('thread/start', {
+          cwd,
+          model: options.model ?? null,
+          approvalPolicy: 'never',
+          sandbox: 'workspace-write',
+          serviceName: SERVICE_NAME,
+          // Persist the thread so a bounded retry or later Task retry can
+          // continue the same investigation after this app-server exits.
+          // Ephemeral by default: a persisted thread is only useful if a
+          // retry will actually resume it. Persisting unconditionally wrote
+          // one permanent rollout per task — 113 per benchmark sweep, never
+          // pruned — and polluted the operator's own `codex exec resume`.
+          ephemeral: options.persistThread !== true,
+        });
     const threadId = threadResponse.thread.id;
+    await options.onSession?.(threadId);
 
-    const threadName = options.threadName ?? buildTaskThreadName(trimmedPrompt);
-    try {
-      await client.request('thread/name/set', { threadId, name: threadName });
-    } catch {
-      /* ignored */
+    if (!options.resumeThreadId) {
+      const threadName = options.threadName ?? buildTaskThreadName(trimmedPrompt);
+      try {
+        await client.request('thread/name/set', { threadId, name: threadName });
+      } catch {
+        /* ignored */
+      }
     }
     const state = await captureTurn(
       client,

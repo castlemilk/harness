@@ -1,13 +1,29 @@
 import { createProvider } from '@omega/providers';
-import { runAgentTask, runOrchestratedTask, runExternalAgentTask, type ExternalCli } from '@omega/agent';
+import { runAgentTask, runOrchestratedTask, type ExternalCli } from '@omega/agent';
 import type { PrismaClient } from '@omega/db';
 import type { Task } from '@omega/core';
 import { queue } from './task-queue.js';
 import { notifyFailure } from './webhook-alerts.js';
-import { getNextStrategy, executeRetry, type RetryContext, type RetryRecord } from './retry-strategies.js';
+import {
+  appendRetryRecord,
+  classifyRetryFailure,
+  executeRetry,
+  getNextStrategy,
+  type RetryContext,
+  type RetryRecord,
+} from './retry-strategies.js';
 import { getRouter, recordTaskOutcome } from './intelligent-router.js';
 import { startTrace, traceEvent, completeTrace } from './trace-log.js';
 import { toCoreConfig, isRateLimitError, isTimeoutError, isCredentialError, safeJsonParse } from './utils.js';
+import { runRoutedExternalAgentTask } from './external-agent-runner.js';
+
+function firstNonEmpty(...values: (string | null | undefined)[]): string | undefined {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed !== undefined && trimmed.length > 0) return trimmed;
+  }
+  return undefined;
+}
 
 async function tryAutoRetry(
   prisma: PrismaClient,
@@ -16,6 +32,30 @@ async function tryAutoRetry(
   if ((process.env.OMEGA_AUTO_RETRY ?? 'true').toLowerCase() === 'false') return;
   const task = await prisma.task.findUnique({ where: { id: taskId }, include: { project: true } });
   if (task?.status !== 'failed') return;
+
+  const failure = firstNonEmpty(task.error, task.result) ?? '';
+  const classification = classifyRetryFailure(failure);
+  if (classification.classification === 'terminal') {
+    await appendRetryRecord(prisma, taskId, {
+      strategy: 'auto-retry-skipped',
+      provider: task.provider ?? undefined,
+      model: task.model ?? undefined,
+      error: failure,
+      triggerError: failure,
+      timestamp: new Date().toISOString(),
+      classification: classification.classification,
+      category: classification.category,
+      decision: 'skipped',
+      reason: classification.reason,
+    });
+    console.info('Automatic retry skipped', {
+      taskId,
+      classification: classification.classification,
+      category: classification.category,
+      reason: classification.reason,
+    });
+    return;
+  }
 
   const tags = safeJsonParse<string[]>(task.tags, []);
   const retryHistory = safeJsonParse<RetryRecord[]>(task.retryHistory, []);
@@ -35,11 +75,29 @@ async function tryAutoRetry(
     prisma,
     projectPath: task.project.path,
     projectName: task.project.name,
-    error: task.error ?? '',
+    error: failure,
   };
 
   const attempt = await getNextStrategy(ctx);
-  if (!attempt) return;
+  if (!attempt) {
+    await appendRetryRecord(prisma, taskId, {
+      strategy: 'auto-retry-unavailable',
+      provider: task.provider ?? undefined,
+      model: task.model ?? undefined,
+      error: failure,
+      triggerError: failure,
+      timestamp: new Date().toISOString(),
+      classification: classification.classification,
+      category: classification.category,
+      decision: 'skipped',
+      reason: 'The failure was transient, but the retry policy had no remaining strategy.',
+    });
+    return;
+  }
+
+  attempt.classification = classification.classification;
+  attempt.category = classification.category;
+  attempt.triggerError = failure;
 
   await prisma.task.update({
     where: { id: taskId },
@@ -51,6 +109,38 @@ async function tryAutoRetry(
     projectName: task.project.name,
     autoPublish: tags.includes('publish'),
   }).catch(console.error);
+}
+
+async function ensureFailedTaskReason(
+  prisma: PrismaClient,
+  taskId: string,
+  fallback: string,
+): Promise<string> {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { status: true, error: true, result: true },
+  });
+  const reason = firstNonEmpty(task?.error, task?.result, fallback)
+    ?? `Task ${taskId} failed without a reported reason.`;
+  if (
+    task
+    && task.status !== 'done'
+    && (
+      task.status !== 'failed'
+      || firstNonEmpty(task.error) === undefined
+      || firstNonEmpty(task.result) === undefined
+    )
+  ) {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        status: 'failed',
+        error: reason,
+        result: firstNonEmpty(task.result) ?? reason,
+      },
+    });
+  }
+  return reason;
 }
 
 function inferDomain(task: { title: string; tags?: string | null }): 'code' | 'data' | 'reasoning' | 'creative' | 'general' {
@@ -96,7 +186,14 @@ export async function runTask(
   if (externalTag) {
     const cli = externalTag.split(':')[1] as ExternalCli;
     if (!VALID_CLIS.includes(cli)) {
-      throw new Error(`Invalid external CLI: ${cli}. Allowed: ${VALID_CLIS.join(', ')}`);
+      const reason = `Invalid external CLI: ${cli}. Allowed: ${VALID_CLIS.join(', ')}`;
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { status: 'failed', error: reason, result: reason },
+      });
+      // No retry before rethrowing: the caller is about to receive a failure,
+      // and a blocking chain here could mark the task done while still throwing.
+      throw new Error(reason);
     }
     let model = task.model ?? process.env.CODEX_MODEL;
     let effort = process.env.CODEX_EFFORT;
@@ -114,7 +211,7 @@ export async function runTask(
       }
     }
     const run = () =>
-      runExternalAgentTask(prisma, taskId, {
+      runRoutedExternalAgentTask(prisma, taskId, {
         projectPath: task.project.path,
         projectName: task.project.name,
         autoPublish: tags.includes('publish'),
@@ -127,20 +224,51 @@ export async function runTask(
     if (options.detached) {
       const result = queue.enqueue(taskId, cli, async () => {
         try {
-          await run();
+          const externalResult = await run();
+          if (externalResult.status === 'failed') {
+            const reason = await ensureFailedTaskReason(
+              prisma,
+              taskId,
+              firstNonEmpty(externalResult.output) ?? `External CLI ${cli} returned failed.`,
+            );
+            console.error(`Detached external agent task ${taskId} failed:`, reason);
+            void notifyFailure(prisma, {
+              taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
+              timestamp: new Date().toISOString(),
+            }).catch(console.error);
+            // Detached: the caller already returned, so a blocking retry chain
+            // would hold this queue slot for up to four sequential runs.
+            void tryAutoRetry(prisma, taskId).catch(console.error);
+          }
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
+          const reason = await ensureFailedTaskReason(prisma, taskId, message);
           console.error(`Detached external agent task ${taskId} failed:`, message);
           void notifyFailure(prisma, {
-            taskId, title: task.title, provider: cli, error: message, tags,
+            taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
             timestamp: new Date().toISOString(),
           }).catch(console.error);
+          // Detached: the caller already returned, so a blocking retry chain
+          // would hold this queue slot for up to four sequential runs.
           void tryAutoRetry(prisma, taskId).catch(console.error);
         }
       });
       return { status: 'in_progress', taskId, ...result };
     }
-    return run();
+    const externalResult = await run();
+    if (externalResult.status === 'failed') {
+      const reason = await ensureFailedTaskReason(
+        prisma,
+        taskId,
+        firstNonEmpty(externalResult.output) ?? `External CLI ${cli} returned failed.`,
+      );
+      void notifyFailure(prisma, {
+        taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
+        timestamp: new Date().toISOString(),
+      }).catch(console.error);
+      await tryAutoRetry(prisma, taskId);
+    }
+    return externalResult;
   }
 
   if (tags.includes('agent') || tags.includes('self-improve') || tags.includes('orchestrate')) {
@@ -188,7 +316,20 @@ export async function runTask(
     // (high-tier planner/reviewer + smaller sub-agent models); the
     // orchestrator runs its sub-agents non-isolated in the project path.
     const orchestrate = tags.includes('orchestrate');
-    const router = await getRouter(prisma);
+    let router: Awaited<ReturnType<typeof getRouter>>;
+    try {
+      router = await getRouter(prisma);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const reason = await ensureFailedTaskReason(
+        prisma,
+        taskId,
+        `Internal agent setup failed before its first model turn: ${firstNonEmpty(message) ?? 'router unavailable'}`,
+      );
+      // No retry before rethrowing: the caller is about to receive a failure,
+      // and a blocking chain here could mark the task done while still throwing.
+      throw new Error(reason, { cause: err });
+    }
     const run = () =>
       orchestrate
         ? runOrchestratedTask(prisma, taskId, {
@@ -214,18 +355,42 @@ export async function runTask(
     if (options.detached) {
       const result = queue.enqueue(taskId, undefined, async () => {
         try {
-          await run();
+          const agentResult = await run();
+          const finalTask = 'task' in agentResult
+            ? agentResult.task
+            : await prisma.task.findUnique({ where: { id: taskId } });
           traceEvent(trace, 'route.selected', { provider: task.provider ?? undefined, model: task.model ?? undefined });
-          completeTrace(trace, 'success', task.provider ?? undefined, task.model ?? undefined);
+          if (finalTask?.status === 'failed') {
+            const reason = await ensureFailedTaskReason(
+              prisma,
+              taskId,
+              finalTask.error ?? finalTask.result ?? 'Internal agent returned failed without a reason.',
+            );
+            traceEvent(trace, 'llm.error', { error: reason });
+            completeTrace(trace, 'error', task.provider ?? undefined, task.model ?? undefined);
+            void notifyFailure(prisma, {
+              taskId, title: task.title, provider: task.provider ?? undefined,
+              model: task.model ?? undefined, error: reason, tags,
+              timestamp: new Date().toISOString(),
+            }).catch(console.error);
+            // Detached: the caller already returned, so a blocking retry chain
+            // would hold this queue slot for up to four sequential runs.
+            void tryAutoRetry(prisma, taskId).catch(console.error);
+          } else {
+            completeTrace(trace, 'success', task.provider ?? undefined, task.model ?? undefined);
+          }
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
-          traceEvent(trace, 'llm.error', { error: message });
+          const reason = await ensureFailedTaskReason(prisma, taskId, message);
+          traceEvent(trace, 'llm.error', { error: reason });
           completeTrace(trace, 'error');
-          console.error(`Detached agent task ${taskId} failed:`, message);
+          console.error(`Detached agent task ${taskId} failed:`, reason);
           void notifyFailure(prisma, {
-            taskId, title: task.title, error: message, tags,
+            taskId, title: task.title, error: reason, tags,
             timestamp: new Date().toISOString(),
           }).catch(console.error);
+          // Detached: the caller already returned, so a blocking retry chain
+          // would hold this queue slot for up to four sequential runs.
           void tryAutoRetry(prisma, taskId).catch(console.error);
         }
       });
@@ -234,7 +399,6 @@ export async function runTask(
     try {
       const agentResult = await run();
       traceEvent(trace, 'route.selected', { provider: task.provider ?? undefined, model: task.model ?? undefined });
-      completeTrace(trace, 'success', task.provider ?? undefined, task.model ?? undefined);
       // Record health/performance for the intelligent router after agent completion
       const finalTask = 'task' in agentResult ? agentResult.task : await prisma.task.findUnique({ where: { id: taskId } });
       if (finalTask) {
@@ -248,11 +412,31 @@ export async function runTask(
           recordTaskOutcome(router, `${provider}/${model}`, passed, costUsd ?? 0, durationMs, durationMs, true, false, inferDomain(task), task.complexity);
         }
       }
+      if (finalTask?.status === 'failed') {
+        const reason = await ensureFailedTaskReason(
+          prisma,
+          taskId,
+          finalTask.error ?? finalTask.result ?? 'Internal agent returned failed without a reason.',
+        );
+        traceEvent(trace, 'llm.error', { error: reason });
+        completeTrace(trace, 'error', task.provider ?? undefined, task.model ?? undefined);
+        void notifyFailure(prisma, {
+          taskId, title: task.title, provider: task.provider ?? undefined,
+          model: task.model ?? undefined, error: reason, tags,
+          timestamp: new Date().toISOString(),
+        }).catch(console.error);
+        await tryAutoRetry(prisma, taskId);
+      } else {
+        completeTrace(trace, 'success', task.provider ?? undefined, task.model ?? undefined);
+      }
       return finalTask;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      traceEvent(trace, 'llm.error', { error: message });
+      const reason = await ensureFailedTaskReason(prisma, taskId, message);
+      traceEvent(trace, 'llm.error', { error: reason });
       completeTrace(trace, 'error');
+      // No retry before rethrowing: the caller is about to receive a failure,
+      // and a blocking chain here could mark the task done while still throwing.
       throw err;
     }
   }
@@ -290,7 +474,11 @@ export async function runTask(
     completeTrace(trace, 'error');
     await prisma.task.update({
       where: { id: taskId },
-      data: { status: 'failed', error: 'No provider available for this task' },
+      data: {
+        status: 'failed',
+        error: 'No provider available for this task',
+        result: 'No provider available for this task',
+      },
     });
     return { status: 'failed', error: 'No provider available' };
   }
@@ -413,17 +601,20 @@ export async function runTask(
   });
   const outcome = authErrors.length === candidates.length ? 'auth_error' : 'error';
   completeTrace(trace, outcome, candidates[0]?.provider.name, candidates[0]?.model);
+  const disclosedError = firstNonEmpty(lastError)
+    ?? `All ${String(candidates.length)} routed provider candidate(s) failed without returning an error message.`;
 
   void notifyFailure(prisma, {
     taskId, title: task.title, provider: candidates[0].provider.name,
-    model: candidates[0].model, error: lastError, tags,
+    model: candidates[0].model, error: disclosedError, tags,
     timestamp: new Date().toISOString(),
   }).catch(console.error);
   const updated = await prisma.task.update({
     where: { id: taskId },
     data: {
       status: 'failed',
-      error: lastError,
+      error: disclosedError,
+      result: disclosedError,
       provider: candidates[0].provider.name,
       model: candidates[0].model,
     },

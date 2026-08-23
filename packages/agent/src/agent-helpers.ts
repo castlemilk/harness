@@ -56,9 +56,23 @@ export async function addTrace(
 }
 
 export async function failTask(prisma: PrismaClient, taskId: string, error: string): Promise<void> {
+  const reason = error.trim() || 'Task failed without an error message.';
+  // `error` is always overwritten (a failure must state why), but `result`
+  // is only filled when empty: a late failure after the loop already wrote a
+  // real summary must not destroy it, or the record of successful work is
+  // lost and a retry re-spends on work that already landed.
+  const existing = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { result: true },
+  });
+  const keepResult = (existing?.result ?? '').trim().length > 0;
   await prisma.task.update({
     where: { id: taskId },
-    data: { status: 'failed', error: sanitizeForDb(error) },
+    data: {
+      status: 'failed',
+      error: sanitizeForDb(reason),
+      ...(keepResult ? {} : { result: sanitizeForDb(reason) }),
+    },
   });
 }
 

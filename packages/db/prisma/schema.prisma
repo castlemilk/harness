@@ -36,7 +36,7 @@ model Task {
   error         String?
   retryCount    Int        @default(0)
   lastRetryAt   DateTime?
-  retryHistory  String? // JSON: [{ strategy, provider, model, error, timestamp }]
+  retryHistory  String? // JSON: [{ strategy, provider, model, cli, classification, category, decision, error, timestamp }]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   steps         TaskStep[]
@@ -113,6 +113,8 @@ model AgentRun {
   currentPhase          String?
   currentPhaseStartedAt DateTime?
   currentTurn           Int?
+  sessionId             String?
+  sessionKind           String?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 

@@ -8,13 +8,14 @@ import {
   type UsageInfo,
 } from '@omega/core';
 import { createProvider } from '@omega/providers';
-import { runExternalAgentTask, type ExternalCli } from '@omega/agent';
+import { type ExternalCli } from '@omega/agent';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { safeJsonParse } from './utils.js';
 import { getRouter } from './intelligent-router.js';
 import { prunePulses } from './pulse-retention.js';
 import type { IntelligentRouter, RoutingStrategy } from '@omega/router';
+import { runRoutedExternalAgentTask } from './external-agent-runner.js';
 
 /**
  * The pulse engine.
@@ -619,7 +620,7 @@ export async function runPulse(
 
     ranModel = harness.model;
     try {
-      const result = await runExternalAgentTask(prisma, harness.taskId, {
+      const result = await runRoutedExternalAgentTask(prisma, harness.taskId, {
         cli: externalCli,
         projectPath: project.path,
         projectName: project.name,

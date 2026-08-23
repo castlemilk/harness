@@ -6,7 +6,17 @@ export {
   type OrchestratorResult,
   type OrchestratedSubtask,
 } from './orchestrator.js';
-export { runExternalAgentTask, type ExternalAgentOptions, type ExternalCli } from './external.js';
+export {
+  runExternalAgentTask,
+  buildExternalCliArgs,
+  effectiveExternalModel,
+  externalSessionKind,
+  type ExternalAgentOptions,
+  type ExternalAgentResult,
+  type ExternalCli,
+  type ExternalSessionKind,
+  type ExternalSessionRef,
+} from './external.js';
 export {
   runCodexTurn,
   getCodexAvailability,

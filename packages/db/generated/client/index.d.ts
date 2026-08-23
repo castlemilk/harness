@@ -8158,6 +8158,8 @@ export namespace Prisma {
     currentPhase: string | null
     currentPhaseStartedAt: Date | null
     currentTurn: number | null
+    sessionId: string | null
+    sessionKind: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -8182,6 +8184,8 @@ export namespace Prisma {
     currentPhase: string | null
     currentPhaseStartedAt: Date | null
     currentTurn: number | null
+    sessionId: string | null
+    sessionKind: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -8206,6 +8210,8 @@ export namespace Prisma {
     currentPhase: number
     currentPhaseStartedAt: number
     currentTurn: number
+    sessionId: number
+    sessionKind: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -8252,6 +8258,8 @@ export namespace Prisma {
     currentPhase?: true
     currentPhaseStartedAt?: true
     currentTurn?: true
+    sessionId?: true
+    sessionKind?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -8276,6 +8284,8 @@ export namespace Prisma {
     currentPhase?: true
     currentPhaseStartedAt?: true
     currentTurn?: true
+    sessionId?: true
+    sessionKind?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -8300,6 +8310,8 @@ export namespace Prisma {
     currentPhase?: true
     currentPhaseStartedAt?: true
     currentTurn?: true
+    sessionId?: true
+    sessionKind?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -8411,6 +8423,8 @@ export namespace Prisma {
     currentPhase: string | null
     currentPhaseStartedAt: Date | null
     currentTurn: number | null
+    sessionId: string | null
+    sessionKind: string | null
     createdAt: Date
     updatedAt: Date
     _count: AgentRunCountAggregateOutputType | null
@@ -8454,6 +8468,8 @@ export namespace Prisma {
     currentPhase?: boolean
     currentPhaseStartedAt?: boolean
     currentTurn?: boolean
+    sessionId?: boolean
+    sessionKind?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -8480,6 +8496,8 @@ export namespace Prisma {
     currentPhase?: boolean
     currentPhaseStartedAt?: boolean
     currentTurn?: boolean
+    sessionId?: boolean
+    sessionKind?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -8506,6 +8524,8 @@ export namespace Prisma {
     currentPhase?: boolean
     currentPhaseStartedAt?: boolean
     currentTurn?: boolean
+    sessionId?: boolean
+    sessionKind?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -8545,6 +8565,8 @@ export namespace Prisma {
       currentPhase: string | null
       currentPhaseStartedAt: Date | null
       currentTurn: number | null
+      sessionId: string | null
+      sessionKind: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["agentRun"]>
@@ -8961,6 +8983,8 @@ export namespace Prisma {
     readonly currentPhase: FieldRef<"AgentRun", 'String'>
     readonly currentPhaseStartedAt: FieldRef<"AgentRun", 'DateTime'>
     readonly currentTurn: FieldRef<"AgentRun", 'Int'>
+    readonly sessionId: FieldRef<"AgentRun", 'String'>
+    readonly sessionKind: FieldRef<"AgentRun", 'String'>
     readonly createdAt: FieldRef<"AgentRun", 'DateTime'>
     readonly updatedAt: FieldRef<"AgentRun", 'DateTime'>
   }
@@ -26266,6 +26290,8 @@ export namespace Prisma {
     currentPhase: 'currentPhase',
     currentPhaseStartedAt: 'currentPhaseStartedAt',
     currentTurn: 'currentTurn',
+    sessionId: 'sessionId',
+    sessionKind: 'sessionKind',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -27086,6 +27112,8 @@ export namespace Prisma {
     currentPhase?: StringNullableFilter<"AgentRun"> | string | null
     currentPhaseStartedAt?: DateTimeNullableFilter<"AgentRun"> | Date | string | null
     currentTurn?: IntNullableFilter<"AgentRun"> | number | null
+    sessionId?: StringNullableFilter<"AgentRun"> | string | null
+    sessionKind?: StringNullableFilter<"AgentRun"> | string | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -27112,6 +27140,8 @@ export namespace Prisma {
     currentPhase?: SortOrderInput | SortOrder
     currentPhaseStartedAt?: SortOrderInput | SortOrder
     currentTurn?: SortOrderInput | SortOrder
+    sessionId?: SortOrderInput | SortOrder
+    sessionKind?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     task?: TaskOrderByWithRelationInput
@@ -27141,6 +27171,8 @@ export namespace Prisma {
     currentPhase?: StringNullableFilter<"AgentRun"> | string | null
     currentPhaseStartedAt?: DateTimeNullableFilter<"AgentRun"> | Date | string | null
     currentTurn?: IntNullableFilter<"AgentRun"> | number | null
+    sessionId?: StringNullableFilter<"AgentRun"> | string | null
+    sessionKind?: StringNullableFilter<"AgentRun"> | string | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -27167,6 +27199,8 @@ export namespace Prisma {
     currentPhase?: SortOrderInput | SortOrder
     currentPhaseStartedAt?: SortOrderInput | SortOrder
     currentTurn?: SortOrderInput | SortOrder
+    sessionId?: SortOrderInput | SortOrder
+    sessionKind?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: AgentRunCountOrderByAggregateInput
@@ -27199,6 +27233,8 @@ export namespace Prisma {
     currentPhase?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
     currentPhaseStartedAt?: DateTimeNullableWithAggregatesFilter<"AgentRun"> | Date | string | null
     currentTurn?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    sessionId?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
+    sessionKind?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
   }
@@ -29178,6 +29214,8 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -29204,6 +29242,8 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -29226,6 +29266,8 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -29252,6 +29294,8 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -29276,6 +29320,8 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -29298,6 +29344,8 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -29322,6 +29370,8 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -31544,6 +31594,8 @@ export namespace Prisma {
     currentPhase?: SortOrder
     currentPhaseStartedAt?: SortOrder
     currentTurn?: SortOrder
+    sessionId?: SortOrder
+    sessionKind?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -31578,6 +31630,8 @@ export namespace Prisma {
     currentPhase?: SortOrder
     currentPhaseStartedAt?: SortOrder
     currentTurn?: SortOrder
+    sessionId?: SortOrder
+    sessionKind?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -31602,6 +31656,8 @@ export namespace Prisma {
     currentPhase?: SortOrder
     currentPhaseStartedAt?: SortOrder
     currentTurn?: SortOrder
+    sessionId?: SortOrder
+    sessionKind?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -34226,6 +34282,8 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     promptVersion?: PromptVersionCreateNestedOneWithoutAgentRunsInput
@@ -34250,6 +34308,8 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -34461,6 +34521,8 @@ export namespace Prisma {
     currentPhase?: StringNullableFilter<"AgentRun"> | string | null
     currentPhaseStartedAt?: DateTimeNullableFilter<"AgentRun"> | Date | string | null
     currentTurn?: IntNullableFilter<"AgentRun"> | number | null
+    sessionId?: StringNullableFilter<"AgentRun"> | string | null
+    sessionKind?: StringNullableFilter<"AgentRun"> | string | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
   }
@@ -35128,6 +35190,8 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -35152,6 +35216,8 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -37111,6 +37177,8 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -37233,6 +37301,8 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     promptVersion?: PromptVersionUpdateOneWithoutAgentRunsNestedInput
@@ -37257,6 +37327,8 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -37280,6 +37352,8 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -37342,6 +37416,8 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -37364,6 +37440,8 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -37388,6 +37466,8 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -37411,6 +37491,8 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

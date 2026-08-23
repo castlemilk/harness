@@ -1,6 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import type { PrismaClient } from '@omega/db';
 
@@ -35,13 +34,31 @@ vi.mock('./project-utils.js', () => ({
 }));
 
 import { runExternalAgentTask } from './external.js';
+import * as externalModule from './external.js';
 
 const originalPath = process.env.PATH;
-const fakeBinDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-external-agent-test-'));
+const fakeBinDir = fs.mkdtempSync(path.join(import.meta.dirname, 'test-fixtures', 'external-bin-'));
 
 beforeAll(() => {
   const fakeCodex = path.join(fakeBinDir, 'codex');
   fs.writeFileSync(fakeCodex, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  const fakeOpencode = path.join(fakeBinDir, 'opencode');
+  fs.writeFileSync(
+    fakeOpencode,
+    [
+      '#!/bin/sh',
+      'if [ "${FAKE_OPENCODE_MODE:-}" = "fail" ]; then',
+      '  printf \'%s\\n\' \'{"type":"step_start","sessionID":"opencode-session-failed","part":{}}\'',
+      '  printf \'%s\\n\' \'stream aborted: ECONNRESET\' >&2',
+      '  exit 1',
+      'fi',
+      'printf \'%s\\n\' \'{"type":"text","sessionID":"opencode-session-42","part":{"text":"done"}}\'',
+      'printf \'%s\\n\' \'{"type":"step_finish","sessionID":"opencode-session-42","part":{"reason":"stop","tokens":{"input":5,"output":3,"total":8}}}\'',
+      'exit 0',
+      '',
+    ].join('\n'),
+    { mode: 0o755 },
+  );
 });
 
 afterAll(() => {
@@ -51,6 +68,7 @@ afterAll(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.PATH = `${fakeBinDir}${path.delimiter}${originalPath ?? ''}`;
+  delete process.env.FAKE_OPENCODE_MODE;
   mocks.getCodexAvailability.mockResolvedValue({ available: true });
   mocks.getCurrentBranch.mockResolvedValue({ success: true, output: 'main' });
   mocks.getCurrentCommit.mockResolvedValue({ success: true, output: 'base-sha' });
@@ -70,6 +88,7 @@ beforeEach(() => {
 
 afterEach(() => {
   process.env.PATH = originalPath;
+  delete process.env.FAKE_OPENCODE_MODE;
   vi.restoreAllMocks();
 });
 
@@ -256,7 +275,7 @@ describe('runExternalAgentTask', () => {
       where: { id: 'task-1' },
       data: expect.objectContaining({
         status: 'done',
-        provider: 'codex',
+        provider: 'external:codex',
         model: 'gpt-5.6-luna',
       }),
     });
@@ -264,6 +283,8 @@ describe('runExternalAgentTask', () => {
       where: { id: 'run-1' },
       data: expect.objectContaining({
         resultStatus: 'done',
+        sessionId: 'thread-1',
+        sessionKind: 'codex-thread',
         turnCount: 1,
         toolCalls: JSON.stringify({ command: 1, fileChange: 1 }),
       }),
@@ -304,6 +325,134 @@ describe('runExternalAgentTask', () => {
 
     expect(agentRunCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ currentTurn: 1 }),
+    });
+  });
+
+  it('constructs an explicit OpenCode resume invocation for the captured session', () => {
+    const buildArgs = (externalModule as unknown as {
+      buildExternalCliArgs?: (
+        cli: string,
+        prompt: string,
+        cwd: string,
+        model: string | undefined,
+        session: { sessionId: string; sessionKind: string },
+      ) => string[];
+    }).buildExternalCliArgs;
+    expect(buildArgs).toBeTypeOf('function');
+    if (!buildArgs) return;
+
+    const args = buildArgs(
+      'opencode',
+      'Continue useful investigation',
+      '/tmp/project',
+      'openrouter/test-model',
+      { sessionId: 'opencode-session-existing', sessionKind: 'opencode-session' },
+    );
+    const sessionFlag = args.indexOf('--session');
+    expect(sessionFlag).toBeGreaterThanOrEqual(0);
+    expect(args[sessionFlag + 1]).toBe('opencode-session-existing');
+  });
+
+  it('constructs the installed Codex CLI resume form with parent options first', () => {
+    const args = externalModule.buildExternalCliArgs(
+      'codex',
+      'Continue useful investigation',
+      '/tmp/project',
+      undefined,
+      { sessionId: 'codex-thread-existing', sessionKind: 'codex-thread' },
+    );
+
+    expect(args).toEqual([
+      'exec',
+      '--sandbox',
+      'workspace-write',
+      '--skip-git-repo-check',
+      '--json',
+      'resume',
+      'codex-thread-existing',
+      'Continue useful investigation',
+    ]);
+  });
+
+  it('captures an OpenCode stream session on the AgentRun row', async () => {
+    const agentRunUpdate = vi.fn().mockResolvedValue({});
+    const prisma = {
+      task: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          title: 'OpenCode task',
+          description: 'Capture the session',
+          tags: null,
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      agentRun: {
+        create: vi.fn().mockResolvedValue({ id: 'run-1' }),
+        update: agentRunUpdate,
+      },
+      taskDiff: { create: vi.fn().mockResolvedValue({}) },
+      taskTrace: { create: vi.fn().mockResolvedValue({}) },
+      traceSpan: { create: vi.fn().mockResolvedValue({}) },
+    } as unknown as PrismaClient;
+
+    const result = await runExternalAgentTask(prisma, 'task-1', {
+      cli: 'opencode',
+      projectPath: fakeBinDir,
+      projectName: 'project',
+      model: 'openrouter/test-model',
+      timeoutMs: 1_000,
+    });
+
+    expect(result.status).toBe('done');
+    expect(agentRunUpdate).toHaveBeenCalledWith({
+      where: { id: 'run-1' },
+      data: expect.objectContaining({
+        sessionId: 'opencode-session-42',
+        sessionKind: 'opencode-session',
+      }),
+    });
+  });
+
+  it('captures the OpenCode session before disclosing a transient nonzero exit', async () => {
+    process.env.FAKE_OPENCODE_MODE = 'fail';
+    const agentRunUpdate = vi.fn().mockResolvedValue({});
+    const prisma = {
+      task: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          title: 'Interrupted OpenCode task',
+          description: null,
+          tags: null,
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      agentRun: {
+        create: vi.fn().mockResolvedValue({ id: 'run-1' }),
+        update: agentRunUpdate,
+      },
+      taskDiff: { create: vi.fn().mockResolvedValue({}) },
+      taskTrace: { create: vi.fn().mockResolvedValue({}) },
+      traceSpan: { create: vi.fn().mockResolvedValue({}) },
+    } as unknown as PrismaClient;
+
+    const result = await runExternalAgentTask(prisma, 'task-1', {
+      cli: 'opencode',
+      projectPath: fakeBinDir,
+      projectName: 'project',
+      timeoutMs: 1_000,
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      status: 'failed',
+      output: expect.stringMatching(/ECONNRESET/),
+      executionSucceeded: false,
+    }));
+    expect(agentRunUpdate).toHaveBeenCalledWith({
+      where: { id: 'run-1' },
+      data: expect.objectContaining({
+        sessionId: 'opencode-session-failed',
+        sessionKind: 'opencode-session',
+      }),
     });
   });
 });

@@ -40,6 +40,62 @@ import {
 
 export { failTask };
 
+export type AgentStopCondition =
+  | 'skill-patch'
+  | 'finish'
+  | 'step-limit'
+  | 'deadline'
+  | 'external-abort'
+  | 'token-budget'
+  | 'no-tool-calls'
+  | 'validation-failed'
+  | 'forced-edit-refusal'
+  | 'exception'
+  | 'stopped-without-finish';
+
+export interface AgentTerminalReasonInput {
+  success: boolean;
+  stopCondition: AgentStopCondition;
+  summary: string;
+  stepCount: number;
+  maxSteps: number;
+  turnCount: number;
+  lastToolError?: { name: string; output: string };
+}
+
+const STOP_LABELS: Record<AgentStopCondition, string> = {
+  'skill-patch': 'skill patch completion',
+  finish: 'finish tool',
+  'step-limit': 'step limit',
+  deadline: 'wall-clock deadline',
+  'external-abort': 'external abort',
+  'token-budget': 'token budget',
+  'no-tool-calls': 'no-tool-call limit',
+  'validation-failed': 'validation failure',
+  'forced-edit-refusal': 'forced-edit refusal',
+  exception: 'exception',
+  'stopped-without-finish': 'stopped without calling finish',
+};
+
+/**
+ * Build the canonical terminal narrative written to Task.result/error. Keeping
+ * this in one place makes a blank failed reason structurally impossible.
+ */
+export function formatAgentTerminalReason(input: AgentTerminalReasonInput): string {
+  const detail = input.summary.trim() || (input.success
+    ? 'The agent completed without providing a summary.'
+    : input.stopCondition === 'step-limit'
+      ? 'The agent ran out of tool steps without calling finish.'
+      : input.stopCondition === 'finish'
+        ? 'The agent called finish with success=false but provided no summary.'
+        : 'The agent stopped without providing a reason.');
+  const heading = `Agent ${input.success ? 'completed' : 'stopped'} at ${STOP_LABELS[input.stopCondition]} after ${String(input.turnCount)} model turn(s) and ${String(input.stepCount)}/${String(input.maxSteps)} tool step(s).`;
+  const lastError = input.lastToolError
+    ? `\nLast tool error (${input.lastToolError.name}): ${input.lastToolError.output.trim() || '(empty tool error)'}`
+    : '';
+  return `${heading}\nReason: ${detail}${lastError}`;
+}
+
 export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Promise<AgentResult> {
   await addTrace(ctx, 'system', ctx.systemPrompt);
   await addTrace(ctx, 'user', buildTaskPrompt(ctx.task.title, ctx.task.description ?? undefined));
@@ -54,6 +110,16 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
   let stuckTurnCount = 0;
   let forcedEditMode = false;
   let forcedEditModeSteps = 0;
+  let stopCondition: AgentStopCondition = 'stopped-without-finish';
+  const toolCallCounts: Record<string, number> = {};
+  ctx.turnCount = 0;
+  ctx.stepCount = 0;
+  ctx.lastToolError = undefined;
+
+  const advanceStep = (): void => {
+    stepIndex++;
+    ctx.stepCount = stepIndex;
+  };
 
   const messages: {
     role: 'system' | 'user' | 'assistant' | 'tool';
@@ -100,6 +166,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       if (skillPatch) {
         success = true;
         finished = true;
+        stopCondition = 'skill-patch';
         summary = `Finished via skill reference patch: ${appliedSkills.join(', ')}`;
         await checkpointCommit(ctx);
         await ctx.prisma.taskDiff.create({
@@ -154,6 +221,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       });
       ctx.rootSpan.addEvent('deadline.exceeded', { stepIndex });
       summary = `Wall-clock deadline exceeded after ${String(stepIndex)} steps`;
+      stopCondition = 'deadline';
       finished = true;
       break;
     }
@@ -166,6 +234,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       });
       ctx.rootSpan.addEvent('abort.external', { stepIndex });
       summary = 'Task externally aborted (timeout or cancellation)';
+      stopCondition = 'external-abort';
       finished = true;
       break;
     }
@@ -185,6 +254,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         used: ctx.usage.totalTokens,
       });
       summary = `Token budget exceeded: used ${String(ctx.usage.totalTokens)} of ${String(ctx.tokenBudget)}`;
+      stopCondition = 'token-budget';
       finished = true;
       break;
     }
@@ -200,6 +270,20 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       });
     }
 
+    ctx.turnCount++;
+    try {
+      await ctx.prisma.agentRun.update({
+        where: { id: ctx.agentRunId },
+        data: { currentTurn: ctx.turnCount },
+      });
+    } catch (err) {
+      logger.warn('Failed to record current internal agent turn', {
+        taskId: ctx.task.id,
+        agentRunId: ctx.agentRunId,
+        turnCount: ctx.turnCount,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
     const response = await sendToProvider(ctx, messages);
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
@@ -223,6 +307,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           noActionCount,
         });
         summary = 'Provider repeatedly returned no tool calls; agent loop ended.';
+        stopCondition = 'no-tool-calls';
         finished = true;
         break;
       }
@@ -265,6 +350,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     }
 
     for (const call of toolCalls) {
+      toolCallCounts[call.name] = (toolCallCounts[call.name] ?? 0) + 1;
       const input =
         call.name === 'run_command'
           ? (call.arguments.command as string | undefined)
@@ -301,14 +387,14 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           await rejectFinish(
             `finish rejected: you are declaring failure too early (step ${String(stepIndex)} of ${String(ctx.maxSteps)}). Continue diagnosing and fixing the issue instead of giving up.`,
           );
-          stepIndex++;
+          advanceStep();
           break;
         }
         if (!ctx.hasRunTestCommand && taskLikelyHasTests(ctx.task, ctx.promptContext) && ctx.projectHasTests) {
           await rejectFinish(
             'finish rejected: this task has a test suite but you have not run any test command. Run the project\'s test command (e.g. npm test, pnpm test, pytest, go test ./..., cargo test) and fix any failures before finishing.',
           );
-          stepIndex++;
+          advanceStep();
           break;
         }
         const requiresApiCheck = taskMentionsPublicApi(ctx.task);
@@ -324,7 +410,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
             await rejectFinish(
               `finish rejected: the current changes do not form a clean patch. Run validate_patch to diagnose, then fix the diff before finishing. Details: ${patchCheck.output}`,
             );
-            stepIndex++;
+            advanceStep();
             break;
           }
         }
@@ -336,7 +422,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
             await rejectFinish(
               `finish rejected: TypeScript typecheck failed after editing ${String(modifiedTsFiles.length)} file(s). Fix the type errors before finishing.\n\n${typeCheck.output}`,
             );
-            stepIndex++;
+            advanceStep();
             break;
           }
         }
@@ -373,6 +459,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           }
         }
         finished = true;
+        stopCondition = 'finish';
         const successArg = call.arguments.success;
         success =
           typeof successArg === 'string'
@@ -431,6 +518,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         if (!validation.allPassed) {
           finished = true;
           success = false;
+          stopCondition = 'validation-failed';
           summary = 'Validation failed';
         }
         rejectRemainingToolCalls('publish completed');
@@ -518,7 +606,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
             data: { status: 'done', output: sanitizeForDb(result.output) },
           });
           await toolSpan.end('ok');
-          stepIndex++;
+          advanceStep();
           continue;
         }
         // The stuck-solver could not produce an applyable draft. Escalate to
@@ -651,7 +739,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       toolResults.push({ toolCallId: call.id, name: call.name, output: displayOutput, success: result.success });
       messages.push({ role: 'tool', tool_call_id: call.id, content: displayOutput });
       processedToolCallIds.add(call.id);
-      stepIndex++;
+      advanceStep();
 
       if (forcedEditMode) {
         forcedEditModeSteps++;
@@ -662,11 +750,20 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
             forcedEditModeSteps,
           });
           summary = 'Agent refused to make a concrete edit after repeated prompting.';
+          stopCondition = 'forced-edit-refusal';
           finished = true;
           success = false;
           break;
         }
       }
+    }
+
+    const lastFailedTool = [...toolResults].reverse().find((result) => !result.success);
+    if (lastFailedTool) {
+      ctx.lastToolError = {
+        name: lastFailedTool.name,
+        output: lastFailedTool.output.slice(0, 2_000),
+      };
     }
 
     const turnAllForced = turnToolCount > 0 && turnForcedCount === turnToolCount;
@@ -726,6 +823,20 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     }
   }
 
+  ctx.stepCount = stepIndex;
+  if (!finished && stepIndex >= ctx.maxSteps) {
+    stopCondition = 'step-limit';
+  }
+  summary = formatAgentTerminalReason({
+    success,
+    stopCondition,
+    summary,
+    stepCount: stepIndex,
+    maxSteps: ctx.maxSteps,
+    turnCount: ctx.turnCount,
+    lastToolError: ctx.lastToolError,
+  });
+
   if (ctx.modifiedFiles.size > 0 || (await hasChanges(ctx.projectPath))) {
     await stageAllChanges(ctx.projectPath);
     await commit(ctx.projectPath, `agent: ${ctx.task.title}`, true);
@@ -756,6 +867,9 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     where: { id: ctx.agentRunId },
     data: {
       resultStatus: success ? 'done' : 'failed',
+      turnCount: ctx.turnCount,
+      currentTurn: ctx.turnCount,
+      toolCalls: JSON.stringify(toolCallCounts),
       promptTokens: ctx.usage.promptTokens,
       completionTokens: ctx.usage.completionTokens,
       totalTokens: ctx.usage.totalTokens,

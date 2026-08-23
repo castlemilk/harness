@@ -5,6 +5,7 @@ export interface PtyResult {
   stdout: string;
   stderr: string;
   exitCode: number;
+  timedOut: boolean;
 }
 
 interface SpawnPtyOptions {
@@ -49,6 +50,7 @@ export async function spawnWithPty(
 
   const outputChunks: string[] = [];
   let settled = false;
+  let timedOut = false;
 
   const onData = ptyProcess.onData((data: string) => {
     if (!settled) outputChunks.push(data);
@@ -63,6 +65,7 @@ export async function spawnWithPty(
   // Timeout: SIGTERM → 5s grace → SIGKILL
   const timeoutId = setTimeout(() => {
     if (settled) return;
+    timedOut = true;
     const pid = ptyProcess.pid;
     try {
       process.kill(-pid, 'SIGTERM');
@@ -98,5 +101,5 @@ export async function spawnWithPty(
   // Strip ANSI escape sequences (cursor movement, colors, clear-screen)
   const stdout = stripAnsi(raw);
 
-  return { stdout, stderr: '', exitCode };
+  return { stdout, stderr: '', exitCode, timedOut };
 }

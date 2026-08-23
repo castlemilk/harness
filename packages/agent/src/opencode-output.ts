@@ -2,6 +2,7 @@ import { logger } from './logger.js';
 
 interface OpencodeEvent {
   type: string;
+  sessionID?: unknown;
   part?: {
     type?: string;
     text?: string;
@@ -12,6 +13,23 @@ interface OpencodeEvent {
   };
   input?: number;
   output?: number;
+}
+
+/** Extract the explicit OpenCode session identity from a JSONL stdout stream. */
+export function extractOpencodeSessionId(raw: string): string | undefined {
+  for (const line of raw.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const event = JSON.parse(trimmed) as OpencodeEvent;
+      if (typeof event.sessionID === 'string' && event.sessionID.trim()) {
+        return event.sessionID.trim();
+      }
+    } catch {
+      // OpenCode can interleave non-JSON diagnostics; only JSON events count.
+    }
+  }
+  return undefined;
 }
 
 export interface OpencodeMetrics {

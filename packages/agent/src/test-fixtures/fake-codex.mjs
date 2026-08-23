@@ -28,6 +28,8 @@ const notify = (method, params) => {
   process.stdout.write(`${JSON.stringify({ method, params })}\n`);
 };
 
+let activeThreadId = 'thread-test-1';
+
 rl.on('line', (line) => {
   if (!line.trim()) return;
   let msg;
@@ -43,7 +45,14 @@ rl.on('line', (line) => {
   }
 
   if (msg.method === 'thread/start') {
-    respond(msg.id, { thread: { id: 'thread-test-1' } });
+    activeThreadId = msg.params?.ephemeral === false ? 'thread-test-1' : 'thread-ephemeral';
+    respond(msg.id, { thread: { id: activeThreadId } });
+    return;
+  }
+
+  if (msg.method === 'thread/resume') {
+    activeThreadId = msg.params?.threadId ?? 'thread-resume-missing';
+    respond(msg.id, { thread: { id: activeThreadId } });
     return;
   }
 
@@ -69,14 +78,14 @@ rl.on('line', (line) => {
         receiverThreadIds: [nestedThreadId],
       };
 
-      notify('turn/started', { threadId: 'thread-test-1', turn: { id: 'turn-test-1', status: 'inProgress' } });
+      notify('turn/started', { threadId: activeThreadId, turn: { id: 'turn-test-1', status: 'inProgress' } });
       notify('item/started', {
-        threadId: 'thread-test-1',
+        threadId: activeThreadId,
         turnId: 'turn-test-1',
         item: collaborationItem,
       });
       notify('item/completed', {
-        threadId: 'thread-test-1',
+        threadId: activeThreadId,
         turnId: 'turn-test-1',
         item: collaborationItem,
       });
@@ -91,7 +100,7 @@ rl.on('line', (line) => {
         });
         notify('turn/completed', { threadId: nestedThreadId, turn: { id: nestedTurnId, status: 'completed' } });
         notify('item/completed', {
-          threadId: 'thread-test-1',
+          threadId: activeThreadId,
           turnId: 'turn-test-1',
           item: { ...collaborationItem, status: 'completed' },
         });
@@ -99,7 +108,7 @@ rl.on('line', (line) => {
 
       if (process.env.FAKE_CODEX_MODE === 'collaboration-final-answer-first') {
         notify('item/completed', {
-          threadId: 'thread-test-1',
+          threadId: activeThreadId,
           turnId: 'turn-test-1',
           item: { id: 'it4', type: 'agentMessage', phase: 'final_answer', text: 'Done implementing the task.' },
         });
@@ -107,7 +116,7 @@ rl.on('line', (line) => {
       } else {
         completeNestedTurn();
         notify('item/completed', {
-          threadId: 'thread-test-1',
+          threadId: activeThreadId,
           turnId: 'turn-test-1',
           item: { id: 'it4', type: 'agentMessage', phase: 'final_answer', text: 'Done implementing the task.' },
         });
@@ -115,28 +124,28 @@ rl.on('line', (line) => {
       return;
     }
 
-    notify('turn/started', { threadId: 'thread-test-1', turn: { id: 'turn-test-1', status: 'inProgress' } });
+    notify('turn/started', { threadId: activeThreadId, turn: { id: 'turn-test-1', status: 'inProgress' } });
     notify('item/completed', {
-      threadId: 'thread-test-1',
+      threadId: activeThreadId,
       turnId: 'turn-test-1',
       item: { id: 'it1', type: 'commandExecution', command: 'pnpm test', status: 'completed', exitCode: 0 },
     });
     notify('item/completed', {
-      threadId: 'thread-test-1',
+      threadId: activeThreadId,
       turnId: 'turn-test-1',
       item: { id: 'it2', type: 'fileChange', status: 'completed', changes: [{ path: 'src/foo.ts' }, { path: 'src/bar.ts' }] },
     });
     notify('item/completed', {
-      threadId: 'thread-test-1',
+      threadId: activeThreadId,
       turnId: 'turn-test-1',
       item: { id: 'it3', type: 'reasoning', summary: { text: 'Analyzed the code' } },
     });
     notify('item/completed', {
-      threadId: 'thread-test-1',
+      threadId: activeThreadId,
       turnId: 'turn-test-1',
       item: { id: 'it4', type: 'agentMessage', phase: 'final_answer', text: 'Done implementing the task.' },
     });
-    notify('turn/completed', { threadId: 'thread-test-1', turn: { id: 'turn-test-1', status: 'completed' } });
+    notify('turn/completed', { threadId: activeThreadId, turn: { id: 'turn-test-1', status: 'completed' } });
     return;
   }
 

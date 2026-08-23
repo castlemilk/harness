@@ -203,6 +203,8 @@ exports.Prisma.AgentRunScalarFieldEnum = {
   currentPhase: 'currentPhase',
   currentPhaseStartedAt: 'currentPhaseStartedAt',
   currentTurn: 'currentTurn',
+  sessionId: 'sessionId',
+  sessionKind: 'sessionKind',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

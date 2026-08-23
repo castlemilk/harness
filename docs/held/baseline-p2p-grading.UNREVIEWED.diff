@@ -1,0 +1,606 @@
+diff --git a/packages/bench/src/adapters/deepswe.ts b/packages/bench/src/adapters/deepswe.ts
+index 6b3690d..dd8cd6d 100644
+--- a/packages/bench/src/adapters/deepswe.ts
++++ b/packages/bench/src/adapters/deepswe.ts
+@@ -42,6 +42,110 @@ interface Reward {
+   p2p_passed?: number;
+   partial?: number;
+   apply_failed?: boolean;
++  baseline_excluded_p2p?: number;
++  baseline_excluded_p2p_ids?: string[];
++  p2p_disclosure?: string;
++  baseline_unavailable?: string;
++}
++
++export interface DeepSWETestResult {
++  id: string;
++  status: string;
++  message?: string;
++}
++
++export interface DeepSWEGrade extends Reward {
++  reward: number;
++  f2p: number;
++  f2p_total: number;
++  f2p_passed: number;
++  p2p: number;
++  p2p_total: number;
++  p2p_passed: number;
++  partial: number;
++  baseline_excluded_p2p: number;
++  baseline_excluded_p2p_ids: string[];
++  p2p_disclosure: string;
++}
++
++interface DeepSWETestBuckets {
++  f2p: DeepSWETestResult[];
++  p2p: DeepSWETestResult[];
++}
++
++interface DeepSWEP2PBaseline {
++  taskName: string;
++  baseCommit: string;
++  computedAt: string;
++  failingP2p: string[];
++}
++
++interface LocalVerifierResult {
++  reward: Reward;
++  logs: string;
++  logFile: string;
++  exitCode: number;
++  timedOut: boolean;
++  testResults?: DeepSWETestBuckets;
++}
++
++export function gradeDeepSWETestResults(
++  f2pResults: readonly DeepSWETestResult[],
++  p2pResults: readonly DeepSWETestResult[],
++  baselineFailingP2p?: ReadonlySet<string>
++): DeepSWEGrade {
++  const f2pPassed = f2pResults.filter((result) => result.status === 'passed').length;
++  const p2pPassed = p2pResults.filter((result) => result.status === 'passed').length;
++  const excludedP2p = baselineFailingP2p
++    ? p2pResults.filter(
++        (result) => result.status !== 'passed' && baselineFailingP2p.has(result.id)
++      )
++    : [];
++  const p2pTotal = p2pResults.length - excludedP2p.length;
++  const total = f2pResults.length + p2pTotal;
++  const baselineDisclosure = baselineFailingP2p
++    ? ` (${String(excludedP2p.length)} pre-existing ${excludedP2p.length === 1 ? 'failure' : 'failures'} excluded by baseline)`
++    : '';
++
++  return {
++    reward:
++      f2pResults.length > 0 &&
++      f2pPassed === f2pResults.length &&
++      p2pPassed === p2pTotal
++        ? 1
++        : 0,
++    f2p_total: f2pResults.length,
++    f2p_passed: f2pPassed,
++    p2p_total: p2pTotal,
++    p2p_passed: p2pPassed,
++    f2p: f2pResults.length > 0 ? f2pPassed / f2pResults.length : 0,
++    p2p: p2pTotal > 0 ? p2pPassed / p2pTotal : 1,
++    partial: total > 0 ? (f2pPassed + p2pPassed) / total : 0,
++    baseline_excluded_p2p: excludedP2p.length,
++    baseline_excluded_p2p_ids: excludedP2p.map((result) => result.id),
++    p2p_disclosure: `p2p ${String(p2pPassed)}/${String(p2pTotal)}${baselineDisclosure}`,
++  };
++}
++
++export function failingP2PBaselineIds(p2pResults: readonly DeepSWETestResult[]): string[] {
++  const missingReportPrefix = 'missing from report (test did not run or produced no result';
++  const missingResults = p2pResults.filter(
++    (result) => result.message?.startsWith(missingReportPrefix) === true
++  );
++  if (missingResults.length > 0) {
++    throw new Error(
++      missingResults.length === p2pResults.length
++        ? 'clean verifier produced no p2p test results'
++        : 'clean verifier has missing p2p test results'
++    );
++  }
++  return [
++    ...new Set(
++      p2pResults
++        .filter((result) => result.status !== 'passed')
++        .map((result) => result.id)
++    ),
++  ].sort();
+ }
+ 
+ // Per-task dependency/environment overrides. These cover test-only or
+@@ -810,12 +914,12 @@ async function rewriteConfig(
+ 
+   const replacer = (value: unknown): unknown => {
+     if (typeof value === 'string') {
+-      return value
+-        .replace(/\/logs\/verifier/g, verifierDir)
+-        .replace(/\/logs\/artifacts/g, artifactsDir)
+-        .replace(/\/tests/g, copiedTestsDir)
+-        .replace(/\/app\b/g, appDir)
+-        .replace(/\/app\//g, `${appDir}/`);
++      return rewriteContainerPaths(value, {
++        '/logs/verifier': verifierDir,
++        '/logs/artifacts': artifactsDir,
++        '/tests': copiedTestsDir,
++        '/app': appDir,
++      });
+     }
+     if (Array.isArray(value)) {
+       return value.map(replacer);
+@@ -835,6 +939,38 @@ async function rewriteConfig(
+   return rewritten;
+ }
+ 
++/**
++ * Rewrite the container-rooted paths (/app, /tests, /logs/…) a task config
++ * uses into their host equivalents.
++ *
++ * ORDER-SENSITIVE, and the naive chained-replace version had a bug that
++ * silently zeroed whole tasks: `/tests` was rewritten BEFORE `/app`, so a
++ * parametrized test id like `test_read[/app/tests/psd_files/0layers.psb]`
++ * became `<appDir>/<testsDir>/psd_files/…` — an id pytest can never emit.
++ * On psd-tools that made 428 of 979 p2p ids structurally unmatchable for
++ * every model on every run. `/app/...` paths are therefore protected as
++ * whole tokens first, and only container-rooted `/tests` occurrences (not a
++ * `/tests` segment INSIDE an /app path) are rewritten.
++ */
++export function rewriteContainerPaths(
++  value: string,
++  targets: { '/logs/verifier': string; '/logs/artifacts': string; '/tests': string; '/app': string },
++): string {
++  // Protect every /app-rooted path as an opaque token. A path token ends at
++  // whitespace, quotes, brackets, comma or colon (pytest's `::` separator);
++  // everything inside — including `/tests` segments — must survive intact.
++  const protectedPaths: string[] = [];
++  let out = value.replace(/\/app(?:\/[^\s"'\])},:]*)?/g, (match) => {
++    protectedPaths.push(match.replace(/^\/app/, targets['/app']));
++    return `\u0000${String(protectedPaths.length - 1)}\u0000`;
++  });
++  out = out
++    .replace(/\/logs\/verifier/g, targets['/logs/verifier'])
++    .replace(/\/logs\/artifacts/g, targets['/logs/artifacts'])
++    .replace(/\/tests\b/g, targets['/tests']);
++  return out.replace(/\u0000(\d+)\u0000/g, (_m, i: string) => protectedPaths[Number(i)]);
++}
++
+ const PATH_TO_ENV: Record<string, string> = {
+   '/logs/verifier': 'VERIFIER_DIR',
+   '/logs/artifacts': 'ARTIFACTS_DIR',
+@@ -843,12 +979,12 @@ const PATH_TO_ENV: Record<string, string> = {
+ };
+ 
+ function applyShellReplacements(line: string): string {
+-  let replaced = line
+-    .replace(/\/logs\/verifier/g, '${VERIFIER_DIR}')
+-    .replace(/\/logs\/artifacts/g, '${ARTIFACTS_DIR}')
+-    .replace(/\/tests/g, '${TESTS_DIR}')
+-    .replace(/\/app\b/g, '${APP_DIR}')
+-    .replace(/\/app\//g, '${APP_DIR}/');
++  let replaced = rewriteContainerPaths(line, {
++    '/logs/verifier': '${VERIFIER_DIR}',
++    '/logs/artifacts': '${ARTIFACTS_DIR}',
++    '/tests': '${TESTS_DIR}',
++    '/app': '${APP_DIR}',
++  });
+   // Single-quoted shell strings do not expand variables; convert any that now
+   // contain rewritten harness paths to double-quoted so the env vars resolve.
+   replaced = replaced.replace(
+@@ -1215,6 +1351,281 @@ module.exports = async function * (source) {
+   return reporterPath;
+ }
+ 
++async function readDeepSWETestResults(verifierDir: string): Promise<DeepSWETestBuckets> {
++  const raw = await fs.readFile(path.join(verifierDir, 'ctrf.json'), 'utf-8');
++  const parsed: unknown = JSON.parse(raw);
++  if (typeof parsed !== 'object' || parsed === null) {
++    throw new Error('ctrf.json is not an object');
++  }
++  const results = (parsed as Record<string, unknown>).results;
++  if (typeof results !== 'object' || results === null) {
++    throw new Error('ctrf.json has no results object');
++  }
++  const tests = (results as Record<string, unknown>).tests;
++  if (!Array.isArray(tests)) {
++    throw new Error('ctrf.json has no tests array');
++  }
++
++  const buckets: DeepSWETestBuckets = { f2p: [], p2p: [] };
++  for (const value of tests) {
++    if (typeof value !== 'object' || value === null) continue;
++    const test = value as Record<string, unknown>;
++    if (typeof test.name !== 'string' || typeof test.status !== 'string') continue;
++    const result: DeepSWETestResult = {
++      id: '',
++      status: test.status,
++      ...(typeof test.message === 'string' ? { message: test.message } : {}),
++    };
++    if (test.name.startsWith('[f2p] ')) {
++      result.id = test.name.slice('[f2p] '.length);
++      buckets.f2p.push(result);
++    } else if (test.name.startsWith('[p2p] ')) {
++      result.id = test.name.slice('[p2p] '.length);
++      buckets.p2p.push(result);
++    }
++  }
++  return buckets;
++}
++
++function assertDeepSWETestResultCounts(reward: Reward, testResults: DeepSWETestBuckets): void {
++  if (
++    typeof reward.f2p_total !== 'number' ||
++    typeof reward.p2p_total !== 'number' ||
++    testResults.f2p.length !== reward.f2p_total ||
++    testResults.p2p.length !== reward.p2p_total
++  ) {
++    throw new Error('ctrf.json test counts do not match reward.json');
++  }
++}
++
++function p2pBaselinePath(taskName: string, baseCommit: string): string {
++  return path.join(
++    omegaWorkDir(),
++    'deepswe',
++    'baselines',
++    `${taskName}-${baseCommit}.json`
++  );
++}
++
++async function readP2PBaseline(
++  taskName: string,
++  baseCommit: string
++): Promise<DeepSWEP2PBaseline | undefined> {
++  try {
++    const raw = await fs.readFile(p2pBaselinePath(taskName, baseCommit), 'utf-8');
++    const parsed: unknown = JSON.parse(raw);
++    if (typeof parsed !== 'object' || parsed === null) return undefined;
++    const baseline = parsed as Record<string, unknown>;
++    if (
++      baseline.taskName !== taskName ||
++      baseline.baseCommit !== baseCommit ||
++      typeof baseline.computedAt !== 'string' ||
++      !Array.isArray(baseline.failingP2p) ||
++      !baseline.failingP2p.every((id) => typeof id === 'string')
++    ) {
++      return undefined;
++    }
++    return {
++      taskName,
++      baseCommit,
++      computedAt: baseline.computedAt,
++      failingP2p: [...new Set(baseline.failingP2p)],
++    };
++  } catch {
++    return undefined;
++  }
++}
++
++async function writeP2PBaseline(baseline: DeepSWEP2PBaseline): Promise<void> {
++  const baselinePath = p2pBaselinePath(baseline.taskName, baseline.baseCommit);
++  const temporaryPath = `${baselinePath}.${String(process.pid)}-${String(Date.now())}.tmp`;
++  try {
++    await writeFile(temporaryPath, JSON.stringify(baseline, null, 2));
++    await fs.rename(temporaryPath, baselinePath);
++  } finally {
++    await fs.unlink(temporaryPath).catch(() => {
++      // rename removes the temporary path; ignore that expected ENOENT
++    });
++  }
++}
++
++async function gitStdout(projectPath: string, args: string[]): Promise<string> {
++  const { stdout } = await execFileAsync('git', ['-C', projectPath, ...args], {
++    timeout: 60000,
++    maxBuffer: 32 * 1024 * 1024,
++  });
++  return stdout.trim();
++}
++
++async function gitStatus(projectPath: string): Promise<string> {
++  const { stdout } = await execFileAsync(
++    'git',
++    [
++      '-C',
++      projectPath,
++      'status',
++      '--porcelain=v1',
++      '--untracked-files=all',
++      '--ignore-submodules=none',
++    ],
++    { timeout: 60000, maxBuffer: 32 * 1024 * 1024 }
++  );
++  return stdout;
++}
++
++async function stashDirtyCheckout(projectPath: string, label: string): Promise<string | undefined> {
++  const status = await gitStatus(projectPath);
++  if (status.length === 0) return undefined;
++  await execFileAsync(
++    'git',
++    ['-C', projectPath, 'stash', 'push', '--include-untracked', '--message', label],
++    { timeout: 60000, maxBuffer: 32 * 1024 * 1024 }
++  );
++  return gitStdout(projectPath, ['rev-parse', 'refs/stash']);
++}
++
++async function dropTemporaryStash(projectPath: string, commit: string): Promise<void> {
++  const stashCommits = (await gitStdout(projectPath, ['stash', 'list', '--format=%H']))
++    .split('\n')
++    .filter(Boolean);
++  const index = stashCommits.indexOf(commit);
++  if (index === -1) return;
++  await execFileAsync('git', ['-C', projectPath, 'stash', 'drop', `stash@{${String(index)}}`], {
++    timeout: 60000,
++  });
++}
++
++class CheckoutRestoreError extends Error {}
++
++async function assertCheckoutRestored(
++  projectPath: string,
++  originalCommit: string,
++  originalBranch: string | undefined,
++  originalStatus: string
++): Promise<void> {
++  const restoredCommit = await gitStdout(projectPath, ['rev-parse', 'HEAD']);
++  const restoredBranch = await gitStdout(
++    projectPath,
++    ['symbolic-ref', '--quiet', '--short', 'HEAD']
++  ).catch(() => undefined);
++  const restoredStatus = await gitStatus(projectPath);
++  if (
++    restoredCommit !== originalCommit ||
++    restoredBranch !== originalBranch ||
++    restoredStatus !== originalStatus
++  ) {
++    throw new Error('checkout state differs from its pre-baseline state');
++  }
++}
++
++async function withCleanCheckoutRestored<T>(
++  projectPath: string,
++  baseCommit: string,
++  action: () => Promise<T>
++): Promise<T> {
++  const originalCommit = await gitStdout(projectPath, ['rev-parse', 'HEAD']);
++  const originalBranch = await gitStdout(projectPath, ['symbolic-ref', '--quiet', '--short', 'HEAD'])
++    .catch(() => undefined);
++  const originalStatus = await gitStatus(projectPath);
++  const marker = `omega-deepswe-baseline-${String(process.pid)}-${String(Date.now())}`;
++  const originalStash = await stashDirtyCheckout(projectPath, `${marker}-original`);
++
++  let outcome: { ok: true; value: T } | { ok: false; error: unknown };
++  try {
++    await forceCheckout(projectPath, baseCommit);
++    outcome = { ok: true, value: await action() };
++  } catch (error) {
++    outcome = { ok: false, error };
++  }
++
++  let cleanupStash: string | undefined;
++  let retryStash: string | undefined;
++  const restore = async (): Promise<void> => {
++    await forceCheckout(projectPath, originalBranch ?? originalCommit);
++    if (originalStash) {
++      await execFileAsync('git', ['-C', projectPath, 'stash', 'apply', '--index', originalStash], {
++        timeout: 60000,
++        maxBuffer: 32 * 1024 * 1024,
++      });
++    }
++    await assertCheckoutRestored(projectPath, originalCommit, originalBranch, originalStatus);
++  };
++  try {
++    cleanupStash = await stashDirtyCheckout(projectPath, `${marker}-cleanup`);
++    await restore();
++  } catch (firstError) {
++    try {
++      retryStash = await stashDirtyCheckout(projectPath, `${marker}-retry`);
++      await restore();
++    } catch (retryError) {
++      await stashDirtyCheckout(projectPath, `${marker}-failed-restore`).catch(() => undefined);
++      await forceCheckout(projectPath, originalBranch ?? originalCommit).catch(() => undefined);
++      throw new CheckoutRestoreError(
++        `Failed to restore checkout after p2p baseline run: ${errorSummary(retryError)} (initial failure: ${errorSummary(firstError)})`
++      );
++    }
++  }
++
++  for (const temporaryStash of [cleanupStash, retryStash, originalStash]) {
++    if (temporaryStash) {
++      await dropTemporaryStash(projectPath, temporaryStash).catch((error: unknown) => {
++        console.warn(`[deepswe] Failed to drop temporary baseline stash: ${String(error)}`);
++      });
++    }
++  }
++
++  if (!outcome.ok) throw outcome.error;
++  return outcome.value;
++}
++
++function hasP2PFailures(reward: Reward): boolean {
++  return (
++    typeof reward.p2p_total === 'number' &&
++    typeof reward.p2p_passed === 'number' &&
++    reward.p2p_passed < reward.p2p_total
++  );
++}
++
++function p2pDisclosure(reward: Reward): string {
++  return reward.p2p_disclosure ??
++    `p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)}`;
++}
++
++function errorSummary(error: unknown): string {
++  const message = error instanceof Error ? error.message : String(error);
++  return message.replace(/\s+/g, ' ').trim().slice(0, 300) || 'unknown error';
++}
++
++async function computeP2PBaseline(
++  projectPath: string,
++  taskDir: string,
++  baseCommit: string,
++  taskName: string
++): Promise<DeepSWEP2PBaseline> {
++  return withCleanCheckoutRestored(projectPath, baseCommit, async () => {
++    const baselineRun = await runDeepSWEVerifierLocal(
++      projectPath,
++      taskDir,
++      baseCommit,
++      taskName,
++      '',
++      false
++    );
++    if (baselineRun.timedOut) throw new Error('clean verifier timed out');
++    if (!baselineRun.testResults) {
++      throw new Error('clean verifier did not produce ctrf.json');
++    }
++    assertDeepSWETestResultCounts(baselineRun.reward, baselineRun.testResults);
++    const failingP2p = failingP2PBaselineIds(baselineRun.testResults.p2p);
++    return {
++      taskName,
++      baseCommit,
++      computedAt: new Date().toISOString(),
++      failingP2p,
++    };
++  });
++}
++
+ async function dockerAvailable(): Promise<boolean> {
+   try {
+     const { exitCode } = await runCommand('docker', ['info'], { timeout: 10000 });
+@@ -1347,6 +1758,7 @@ async function runDeepSWEVerifier(
+       const fallback = await runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, taskName, modelPatchArg);
+       return { ...fallback, logs: fallbackLogs + fallback.logs };
+     } catch (err) {
++      if (err instanceof CheckoutRestoreError) throw err;
+       const message = err instanceof Error ? err.message : String(err);
+       // Docker build or runtime failure: try local verifier as fallback.
+       const fallback = await runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, taskName, modelPatchArg);
+@@ -1365,8 +1777,9 @@ async function runDeepSWEVerifierLocal(
+   taskDir: string,
+   baseCommit: string,
+   taskName: string,
+-  modelPatchArg?: string
+-): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }> {
++  modelPatchArg?: string,
++  baselineAware = true
++): Promise<LocalVerifierResult> {
+   const testsDir = path.join(taskDir, 'tests');
+   const workDir = path.join(omegaWorkDir(), 'deepswe', `${path.basename(taskDir)}-${String(Date.now())}`);
+   const verifierDir = path.join(workDir, 'logs', 'verifier');
+@@ -1504,12 +1917,83 @@ async function runDeepSWEVerifierLocal(
+     // reward.json may be missing if verifier crashed.
+   }
+ 
++  let testResults: DeepSWETestBuckets | undefined;
++  let testResultsError: unknown;
++  try {
++    testResults = await readDeepSWETestResults(verifierDir);
++  } catch (error) {
++    testResultsError = error;
++  }
++
++  if (
++    baselineAware &&
++    !reward.apply_failed &&
++    !testRun.timedOut &&
++    hasP2PFailures(reward)
++  ) {
++    try {
++      if (!testResults) {
++        if (testResultsError instanceof Error) throw testResultsError;
++        throw new Error('graded verifier did not produce ctrf.json');
++      }
++      assertDeepSWETestResultCounts(reward, testResults);
++
++      let baseline = await readP2PBaseline(taskName, baseCommit);
++      if (baseline) {
++        log(
++          `Using cached p2p baseline with ${String(baseline.failingP2p.length)} failing tests`
++        );
++      } else {
++        baseline = await computeP2PBaseline(projectPath, taskDir, baseCommit, taskName);
++        try {
++          await writeP2PBaseline(baseline);
++          log(
++            `Cached p2p baseline with ${String(baseline.failingP2p.length)} failing tests at ${p2pBaselinePath(taskName, baseCommit)}`
++          );
++        } catch (error) {
++          log(`P2P baseline cache write failed: ${errorSummary(error)}`);
++        }
++      }
++
++      reward = {
++        ...reward,
++        ...gradeDeepSWETestResults(
++          testResults.f2p,
++          testResults.p2p,
++          new Set(baseline.failingP2p)
++        ),
++      };
++      log(`Baseline-aware grade: ${reward.p2p_disclosure ?? 'p2p result unavailable'}`);
++    } catch (error) {
++      if (error instanceof CheckoutRestoreError) throw error;
++      const note = errorSummary(error);
++      reward = {
++        ...reward,
++        baseline_unavailable: note,
++        p2p_disclosure: `p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)} (baseline unavailable: ${note})`,
++      };
++      log(`P2P baseline unavailable; grading without exclusions: ${note}`);
++    }
++
++    await fs.writeFile(path.join(verifierDir, 'reward.json'), JSON.stringify(reward), 'utf-8')
++      .catch((error: unknown) => {
++        log(`Failed to persist baseline-aware reward.json: ${errorSummary(error)}`);
++      });
++  }
++
+   const logs = logLines.join('\n');
+   await fs.writeFile(logFile, logs, 'utf-8').catch(() => {
+     // ignore write errors
+   });
+ 
+-  return { reward, logs, logFile, exitCode: testRun.exitCode, timedOut: testRun.timedOut };
++  return {
++    reward,
++    logs,
++    logFile,
++    exitCode: testRun.exitCode,
++    timedOut: testRun.timedOut,
++    testResults,
++  };
+ }
+ 
+ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<BenchmarkTask[]> {
+@@ -1614,6 +2098,15 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
+         if (reward.apply_failed) {
+           metrics.apply_failed = 1;
+         }
++        if (reward.baseline_excluded_p2p !== undefined) {
++          metrics.p2p_baseline_excluded = reward.baseline_excluded_p2p;
++        }
++        if (reward.baseline_excluded_p2p_ids && reward.baseline_excluded_p2p_ids.length > 0) {
++          metrics.p2p_baseline_excluded_ids = JSON.stringify(reward.baseline_excluded_p2p_ids);
++        }
++        if (reward.baseline_unavailable) {
++          metrics.p2p_baseline_unavailable = reward.baseline_unavailable;
++        }
+         metrics.verifier_logs = logs.slice(-4096);
+         return {
+           passed,
+@@ -1621,8 +2114,8 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
+           message: timedOut
+             ? `DeepSWE verifier timeout (reward=${String(reward.reward ?? 'missing')})`
+             : passed
+-              ? `DeepSWE verifier passed (f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`
+-              : `DeepSWE verifier failed (reward=${String(reward.reward ?? 'missing')}, f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`,
++              ? `DeepSWE verifier passed (f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, ${p2pDisclosure(reward)})`
++              : `DeepSWE verifier failed (reward=${String(reward.reward ?? 'missing')}, f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, ${p2pDisclosure(reward)})`,
+           metrics,
+         };
+       },

@@ -31,6 +31,48 @@ The clone failures happened while a codex session was hammering the same
 machine; GitHub was reachable minutes later. They are transient, not a
 capability signal.
 
+### 1b. After Tier 1 — the same 8 tasks, 2026-08-23 (run `4e8be75d`)
+
+Same task set, same model (opus-5), `concurrency: 1`, `useDocker: true`, mirror
+cache on an external volume. **4/8**, 2h01m, $22.58 / 83.7M tokens.
+
+| Task | Verdict | Evidence |
+|---|---|---|
+| abs-stepped-slices | **pass** | `f2p 6/6`, `p2p 6/6` (was `f2p 5/6`) |
+| psd-tools-blend-range-api | **pass** | `f2p 45/45`, `p2p 979/979` — had never run |
+| returns-validated-error-accumulation | **pass** | `f2p 159/159` (was `0/159`; it has now flipped both ways — variance, see T3.1) |
+| sqlite-utils-safe-import-checkpoints | **pass** | `f2p 60/60`, `p2p 1038/1038` |
+| anko-default-function-arguments | near miss | `f2p 1/2`, **`p2p 119/119`** — same near miss as before, but one p2p test *more* than the local path and **no override applied** |
+| vulture-persistent-analysis-cache | genuine miss | `f2p 23/24`, **`p2p 295/295`** — the p2p flake did not recur under Docker |
+| sqlfmt-create-table-ddl-formatting | agent timeout | cut at the 20-min cap; graded `f2p 32/32`, `p2p 1248/1273` |
+| narwhals-rolling-window-suite | agent timeout | cut at the 20-min cap; `f2p 98/103`, `p2p 9752/10093` |
+
+What this does and does not show:
+
+- **T1.1 worked.** Eight of eight tasks cloned; zero clone failures against
+  three lost last time. Every checkout logged `source=fresh-mirror
+  attempts=mirror-clone:1,local-clone:1`.
+- **T1.3 worked, in production.** All eight graded under `Using Docker image
+  omega-deepswe-*`, and **zero** environment overrides were applied on any task
+  — the `:8080` and pyarrow repairs were not needed.
+- **T1.2 never fired.** The gate declined on all four failures, correctly each
+  time: anko, vulture and narwhals had incomplete f2p, and sqlfmt's shortfall of
+  25 is far past the cap of 3. The forgiven-pass path remains unexercised in
+  production. Worth noting for whoever revisits it: sqlfmt's log carried exactly
+  25 `✗ [p2p]` lines against a reward shortfall of 25, so the parser and the
+  grader's own count agree on real data.
+- **The flake T1.2 was built for may have been an environment artifact.**
+  Vulture's single rotating p2p failure was seen three times on the local path
+  and did not appear under Docker (`295/295`). T1.3 may have removed its cause.
+- **4/8 is not yet a scoreable number.** n=1, and the host was at load ~60 on
+  12 CPUs (other sessions) throughout. Both timeouts are consistent with that.
+  It is evidence that Tier 1 recovered the losses it targeted — the plan
+  predicted 3–4/8 — not a model measurement.
+- **Two of the four failures are now budget failures, not capability failures.**
+  That makes **T2.2** (tell the agent its remaining time) the highest-value
+  Tier 2 item, ahead of T2.1, and argues for raising `timeoutMs` above 20 min
+  for the two big-suite tasks.
+
 ---
 
 ## 2. Plan

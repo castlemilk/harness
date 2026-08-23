@@ -292,7 +292,11 @@ DeepSWE clones use a retrying, atomic bare-mirror cache under Omega's work
 directory. Override its location with `OMEGA_DEEPSWE_REPO_CACHE_DIR`, or set
 `OMEGA_DEEPSWE_DISABLE_REPO_CACHE=1` to use the retrying direct-clone path.
 These are full Git mirrors: the corpus currently has 92 distinct repository
-URLs, so budget substantial disk and inspect `df -h` before a sweep. A new
+URLs, so inspect `df -h` before a sweep. Measured, not estimated: the eight
+scoring-set repos cost **96 MB of mirror in total** (run `4e8be75d`) — far less
+than feared. Do not extrapolate that to 92 linearly, though; the scoring set is
+all small repos and the corpus also contains langchain, fastapi, numba, helm,
+opa and ipython. A new
 mirror creation or fetch is skipped when its cache volume has less than
 `OMEGA_DEEPSWE_REPO_CACHE_MIN_FREE_GB` free (default 15 GiB). This box currently
 has about 26 GiB free, so only part of the 92-repository mirror set can be built

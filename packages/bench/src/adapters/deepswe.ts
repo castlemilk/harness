@@ -810,12 +810,12 @@ async function rewriteConfig(
 
   const replacer = (value: unknown): unknown => {
     if (typeof value === 'string') {
-      return value
-        .replace(/\/logs\/verifier/g, verifierDir)
-        .replace(/\/logs\/artifacts/g, artifactsDir)
-        .replace(/\/tests/g, copiedTestsDir)
-        .replace(/\/app\b/g, appDir)
-        .replace(/\/app\//g, `${appDir}/`);
+      return rewriteContainerPaths(value, {
+        '/logs/verifier': verifierDir,
+        '/logs/artifacts': artifactsDir,
+        '/tests': copiedTestsDir,
+        '/app': appDir,
+      });
     }
     if (Array.isArray(value)) {
       return value.map(replacer);
@@ -835,6 +835,46 @@ async function rewriteConfig(
   return rewritten;
 }
 
+/**
+ * Rewrite the container-rooted paths (/app, /tests, /logs/…) a task config
+ * uses into their host equivalents.
+ *
+ * ORDER-SENSITIVE, and the naive chained-replace this replaces had a bug that
+ * silently zeroed whole tasks: `/tests` was rewritten BEFORE `/app`, so a
+ * parametrized test id like `test_read[/app/tests/psd_files/0layers.psb]`
+ * became `<appDir>/<testsDir>/psd_files/…` — an id pytest can never emit.
+ * On psd-tools that made 428 of 979 p2p ids structurally unmatchable for
+ * every model on every run.
+ *
+ * `/app` paths are therefore protected as whole tokens FIRST. The `\b` is
+ * load-bearing in both patterns: without it, `/app` matches inside ordinary
+ * words and re-creates the same class of corruption elsewhere — an adversarial
+ * review caught this mangling 20 ids across four other tasks (e.g. tomlkit's
+ * `invalid/table/append-with-dotted-keys-01`, pebble's `TestBatchGet/apply,…`),
+ * which the tests below pin.
+ */
+export function rewriteContainerPaths(
+  value: string,
+  targets: { '/logs/verifier': string; '/logs/artifacts': string; '/tests': string; '/app': string },
+): string {
+  // Private-use codepoint as the sentinel: it cannot appear in a real test id
+  // or shell line, and unlike NUL it is not a control character. A stray one
+  // in the input would otherwise be resolved against our table on the way
+  // out, so strip it before minting any of our own.
+  const SENTINEL = '\uE000';
+  const source = value.includes(SENTINEL) ? value.split(SENTINEL).join('') : value;
+  const protectedPaths: string[] = [];
+  let out = source.replace(/\/app\b(?:\/[^\s"'\])},:]*)?/g, (match) => {
+    protectedPaths.push(match.replace(/^\/app/, targets['/app']));
+    return `${SENTINEL}${String(protectedPaths.length - 1)}${SENTINEL}`;
+  });
+  out = out
+    .replace(/\/logs\/verifier/g, targets['/logs/verifier'])
+    .replace(/\/logs\/artifacts/g, targets['/logs/artifacts'])
+    .replace(/\/tests\b/g, targets['/tests']);
+  return out.replace(/\uE000(\d+)\uE000/g, (_m, i: string) => protectedPaths[Number(i)]);
+}
+
 const PATH_TO_ENV: Record<string, string> = {
   '/logs/verifier': 'VERIFIER_DIR',
   '/logs/artifacts': 'ARTIFACTS_DIR',
@@ -843,12 +883,12 @@ const PATH_TO_ENV: Record<string, string> = {
 };
 
 function applyShellReplacements(line: string): string {
-  let replaced = line
-    .replace(/\/logs\/verifier/g, '${VERIFIER_DIR}')
-    .replace(/\/logs\/artifacts/g, '${ARTIFACTS_DIR}')
-    .replace(/\/tests/g, '${TESTS_DIR}')
-    .replace(/\/app\b/g, '${APP_DIR}')
-    .replace(/\/app\//g, '${APP_DIR}/');
+  let replaced = rewriteContainerPaths(line, {
+    '/logs/verifier': '${VERIFIER_DIR}',
+    '/logs/artifacts': '${ARTIFACTS_DIR}',
+    '/tests': '${TESTS_DIR}',
+    '/app': '${APP_DIR}',
+  });
   // Single-quoted shell strings do not expand variables; convert any that now
   // contain rewritten harness paths to double-quoted so the env vars resolve.
   replaced = replaced.replace(

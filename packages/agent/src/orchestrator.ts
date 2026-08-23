@@ -23,8 +23,7 @@ import {
   buildPlanPrompt,
   buildReviewPrompt,
   runPool,
-  pickModel,
-} from './orchestrator-utils.js';
+  pickModel, resolvePinnedModel } from './orchestrator-utils.js';
 
 export type { OrchestratorOptions, OrchestratorResult, OrchestratedSubtask } from './orchestrator-types.js';
 
@@ -83,8 +82,24 @@ export async function runOrchestratedTask(
   let summary = '';
 
   try {
+    // An explicit pin on the parent is an operator instruction, not a hint:
+    // it must govern the planner AND every subtask. Without this the
+    // orchestrator silently routed subtasks to whatever the intelligent
+    // router preferred, so "orchestrate model X to build this" ran on a
+    // different model entirely — which also invalidates any model
+    // comparison run through the orchestrator.
+    const pinned = resolvePinnedModel(task);
+    if (pinned) {
+      logger.info('Orchestration honouring pinned model for all subtasks', {
+        taskId,
+        provider: pinned.provider,
+        model: pinned.model,
+      });
+    }
+
     // --- Planning (high tier) ---
-    const plannerPick = await pickModel(prisma, 'high', options.intelligentRouter, task.title, task.complexity);
+    const plannerPick =
+      pinned ?? (await pickModel(prisma, 'high', options.intelligentRouter, task.title, task.complexity));
     if (!plannerPick) throw new Error('No provider available for orchestration planning');
     const planner = await loadProviderByName(prisma, plannerPick.provider);
     if (!planner) throw new Error(`Planner provider '${plannerPick.provider}' is not available`);
@@ -221,7 +236,9 @@ export async function runOrchestratedTask(
       let tierIndex = Math.max(0, tierOrder.indexOf(subtask.tier));
       for (let attempt = 0; attempt <= maxEscalations; attempt++) {
         const tier = tierOrder[Math.min(tierIndex, tierOrder.length - 1)];
-        const pick = await pickModel(prisma, tier, options.intelligentRouter, subtask.title, subtask.complexity);
+        const pick =
+          pinned
+          ?? (await pickModel(prisma, tier, options.intelligentRouter, subtask.title, subtask.complexity));
         const subtaskRow = await prisma.task.create({
           data: {
             projectId: task.projectId,

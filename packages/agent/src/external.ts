@@ -266,7 +266,14 @@ function cliSpec(cli: ExternalCli, model?: string): CliSpec {
     case 'claude-code':
       return {
         command: 'claude',
-        args: (prompt) => ['-p', prompt, '--output-format', 'stream-json', '--verbose'],
+        // Model is caller-selectable (Task.model / options.model); absent
+        // keeps the CLI's own default, exactly as before.
+        args: (prompt) => [
+          '-p', prompt,
+          '--output-format', 'stream-json',
+          '--verbose',
+          ...(model ? ['--model', model] : []),
+        ],
         pty: true,
         metricsParser: parseClaudeCodeStreamJson,
       };
@@ -609,7 +616,7 @@ export async function runExternalAgentTask(
         result: sanitizeForDb(summary),
         error: passed ? null : sanitizeForDb(summary),
         provider: options.cli,
-        model: (options.cli === 'codex' || options.cli === 'opencode') && options.model ? options.model : options.cli,
+        model: (options.cli === 'codex' || options.cli === 'opencode' || options.cli === 'claude-code') && options.model ? options.model : options.cli,
       },
     });
     await prisma.agentRun.update({

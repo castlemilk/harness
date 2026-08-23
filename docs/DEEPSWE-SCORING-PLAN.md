@@ -286,12 +286,49 @@ order/global-state defects. Filter on both `flake_forgiven_pass` and
 `verifier_log_file` and `verifier_log_file_rerun`. Detailed gate/inconclusive
 causes use the single `flake_rerun_skipped_reason` metric.
 
+### Docker verifier (T1.3) — verified 2026-08-23
+
+The eight scoring-set images are pre-built locally under the tag the adapter
+expects (`omega-deepswe-<task>`), so a sweep pays no build time:
+
+```bash
+docker build -t "omega-deepswe-$t" -f deep-swe/tasks/$t/environment/Dockerfile \
+  deep-swe/tasks/$t/environment
+```
+
+Acceptance evidence for anko — the task whose `Example_vmHttp` needed the
+`:8080` exclusion on the local path. Run with an *unrelated host process
+actually holding :8080*, an empty `model.patch`, and no environment override
+applied (the Docker path applies none):
+
+```
+{"reward": 0, "f2p_total": 2, "f2p_passed": 0,
+ "p2p_total": 119, "p2p_passed": 119, "p2p": 1.0}
+```
+
+`p2p 119/119` — one test *more* than the local path's 118, because the excluded
+test now runs and passes inside the container's own network namespace. The
+override in `EXTRA_TASK_DEPS` is left in place for the local path; it is gated
+on a live port probe, so it is inert under Docker. f2p 0/2 is expected with an
+empty patch.
+
 ---
 
 ## 7. Suggested first move next session
 
-Implement **T1.1 + T1.2**, turn on Docker (**T1.3**), then re-run the same 8
-tasks **serialized** (T1.4) at n=3. That yields the first number worth
-comparing across models. Everything in Tier 2 should wait until the
-measurement is trustworthy — otherwise prompt changes will be evaluated
-against noise.
+Tier 1 has landed (T1.1, T1.2, T1.4 in `db5d7ec`; T1.3 verified above). The
+next move is the measurement itself: run the same 8 tasks **serialized**
+(`concurrency: 1`, exclusive host, `useDocker: true`) at **n=3**, per T3.1.
+That yields the first number worth comparing across models.
+
+Two things to watch on that first sweep, because it is their first production
+execution:
+
+- any `flake_forgiven_pass: 1` row — audit `p2p_rerun_failure_disjoint` first
+  and read both verifier logs (§6);
+- the same-tree re-run's second `git apply` of the stored patch. Its
+  precondition (`removePatchPathsMissingFromBase`) is unit-tested in isolation,
+  but no test drives the local verifier twice end to end.
+
+Everything in Tier 2 should wait until the measurement is trustworthy —
+otherwise prompt changes will be evaluated against noise.

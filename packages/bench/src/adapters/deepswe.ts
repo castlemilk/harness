@@ -44,10 +44,53 @@ interface Reward {
   apply_failed?: boolean;
 }
 
+export interface KnownP2PEnvironmentFailure {
+  testId: string;
+  reason: string;
+  /**
+   * The port whose occupancy is the ASSERTED cause. The exclusion only
+   * applies when that port is actually busy — otherwise the same failing
+   * test is a real regression and must fail the task. Without this the
+   * disclosure claimed a cause it had never checked, and a genuine break in
+   * the excluded test was indistinguishable from a busy port.
+   */
+  requiresBusyPort?: number;
+}
+
+export interface TaskEnvironmentOverride {
+  pip?: string[];
+  npm?: string[];
+  dependencyReason?: string;
+  knownP2PEnvironmentFailures?: KnownP2PEnvironmentFailure[];
+}
+
+export type AppliedTaskEnvironmentOverride =
+  | {
+      kind: 'dependency';
+      task: string;
+      requirements: string[];
+      reason: string;
+    }
+  | {
+      kind: 'known-p2p-environment-failure';
+      task: string;
+      testId: string;
+      reason: string;
+    };
+
+interface DeepSWEVerifierResult {
+  reward: Reward;
+  logs: string;
+  logFile: string;
+  exitCode: number;
+  timedOut: boolean;
+  appliedEnvironmentOverrides: AppliedTaskEnvironmentOverride[];
+}
+
 // Per-task dependency/environment overrides. These cover test-only or
 // environment-drift packages that are not declared in the project's own
 // install metadata but are required for the DeepSWE verifier to pass.
-const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
+const EXTRA_TASK_DEPS: Record<string, TaskEnvironmentOverride> = {
   'gql-incremental-graphql-delivery': {
     pip: [
       'graphql-core==3.3.0a7',
@@ -63,6 +106,21 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
   },
   'mobly-grouped-test-barriers': { pip: ['pytz'] },
   'dateutil-rfc5545-timezone-interop': { pip: ['pytest<8'] },
+  'narwhals-rolling-window-suite': {
+    pip: ['pyarrow>=23,<25'],
+    dependencyReason:
+      'Narwhals allows pyarrow>=13 with no lockfile, while PyArrow 25 emits a SortOptions FutureWarning that filterwarnings=error promotes to p2p failures.',
+  },
+  'anko-default-function-arguments': {
+    knownP2PEnvironmentFailures: [
+      {
+        testId: 'github.com/mattn/anko/vm.Example_vmHttp',
+        requiresBusyPort: 8080,
+        reason:
+          'The upstream example hard-codes TCP :8080; the local verifier shares the host network namespace, where an unrelated process can own that port.',
+      },
+    ],
+  },
   'bandit-incremental-cache-control': { pip: ['GitPython', 'sarif-om', 'jschema_to_python'] },
   'bandit-structured-nosec-directives': { pip: ['setuptools', 'wheel', 'GitPython', 'sarif-om', 'jschema_to_python'] },
   'httpx-deterministic-cookie-store': {
@@ -137,6 +195,98 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
     ],
   },
 };
+
+/** Every override entry, so tests can assert the table's SCOPE, not just its contents. */
+export const ALL_TASK_ENVIRONMENT_OVERRIDES: readonly (readonly [string, TaskEnvironmentOverride])[] =
+  Object.entries(EXTRA_TASK_DEPS);
+
+export function getTaskEnvironmentOverride(taskName: string): TaskEnvironmentOverride | undefined {
+  return EXTRA_TASK_DEPS[taskName];
+}
+
+/**
+ * Is something listening on this port right now?
+ *
+ * Used to verify the asserted cause of a known-environment-failure exclusion
+ * before honouring it. Connect-succeeds => occupied. Any error (refused,
+ * timeout) => treated as free, which is the SAFE direction: the exclusion is
+ * withheld and the test grades normally.
+ */
+export async function isPortBusy(port: number, host = '127.0.0.1'): Promise<boolean> {
+  const { createConnection } = await import('node:net');
+  return new Promise<boolean>((resolve) => {
+    const socket = createConnection({ port, host });
+    const settle = (busy: boolean): void => {
+      socket.destroy();
+      resolve(busy);
+    };
+    socket.setTimeout(1_000);
+    socket.once('connect', () => { settle(true); });
+    socket.once('timeout', () => { settle(false); });
+    socket.once('error', () => { settle(false); });
+  });
+}
+
+export function applyKnownEnvironmentFailures(
+  taskName: string,
+  config: Record<string, unknown>,
+  /** Ports observed occupied right now. An exclusion that asserts a port
+   *  collision applies only when its port is in here. */
+  busyPorts: ReadonlySet<number> = new Set<number>()
+): { config: Record<string, unknown>; applied: AppliedTaskEnvironmentOverride[] } {
+  const failures = getTaskEnvironmentOverride(taskName)?.knownP2PEnvironmentFailures;
+  const p2pNodeIds = config.p2p_node_ids;
+  if (!failures || failures.length === 0 || !Array.isArray(p2pNodeIds)) {
+    return { config, applied: [] };
+  }
+
+  const applied: AppliedTaskEnvironmentOverride[] = failures
+    .filter((failure) => p2pNodeIds.includes(failure.testId))
+    // An exclusion whose asserted cause does not hold is NOT applied: the
+    // same failing test is then a real regression and must fail the task.
+    .filter(
+      (failure) =>
+        failure.requiresBusyPort === undefined || busyPorts.has(failure.requiresBusyPort),
+    )
+    .map((failure) => ({
+      kind: 'known-p2p-environment-failure',
+      task: taskName,
+      testId: failure.testId,
+      reason: failure.reason,
+    }));
+  if (applied.length === 0) {
+    return { config, applied };
+  }
+
+  const excludedIds = new Set(
+    applied.map((override) =>
+      override.kind === 'known-p2p-environment-failure' ? override.testId : ''
+    )
+  );
+  return {
+    config: {
+      ...config,
+      p2p_node_ids: p2pNodeIds.filter((nodeId) => typeof nodeId !== 'string' || !excludedIds.has(nodeId)),
+      omega_known_environment_failures: [
+        ...applied.map((override) => ({
+          bucket: 'p2p',
+          task: override.task,
+          test_id: override.kind === 'known-p2p-environment-failure' ? override.testId : '',
+          reason: override.reason,
+          observed: 'asserted precondition verified at grading time',
+        })),
+      ],
+    },
+    applied,
+  };
+}
+
+function formatAppliedEnvironmentOverride(override: AppliedTaskEnvironmentOverride): string {
+  if (override.kind === 'dependency') {
+    return `[environment override applied] task=${override.task} dependencies=${override.requirements.join(' ')} reason=${override.reason}`;
+  }
+  return `[environment override applied] task=${override.task} excluded_p2p=${override.testId} test_still_executed=true reason=${override.reason}`;
+}
 
 function parseToml(raw: string): DeepSWETaskToml {
   const result: DeepSWETaskToml = { task: {}, metadata: {} };
@@ -616,7 +766,7 @@ async function installProjectDependencies(
         }
       }
 
-      const extraDeps = taskName ? EXTRA_TASK_DEPS[taskName] : undefined;
+      const extraDeps = taskName ? getTaskEnvironmentOverride(taskName) : undefined;
       if (!failed && extraDeps?.pip) {
         const extras = extraDeps.pip;
         console.log(`[deepswe] Installing extra deps for ${String(taskName)}: ${extras.join(' ')}`);
@@ -761,9 +911,15 @@ async function forceCheckout(projectPath: string, baseCommit: string): Promise<v
   throw new Error(`Timed out waiting for .git/index.lock in ${projectPath}`);
 }
 
-async function ensureTaskDepsInstalled(projectPath: string, taskName: string): Promise<void> {
-  const extraDeps = EXTRA_TASK_DEPS[taskName] as { pip?: string[]; npm?: string[] } | undefined;
-  if (!extraDeps) return;
+async function ensureTaskDepsInstalled(
+  projectPath: string,
+  taskName: string
+): Promise<AppliedTaskEnvironmentOverride[]> {
+  const extraDeps = getTaskEnvironmentOverride(taskName);
+  if (!extraDeps) return [];
+
+  const appliedRequirements: string[] = [];
+  const failedRequirements: string[] = [];
 
   const venvBin = path.join(projectPath, '.venv', 'bin');
   const pipBin = path.join(venvBin, 'pip');
@@ -778,7 +934,13 @@ async function ensureTaskDepsInstalled(projectPath: string, taskName: string): P
       timeout: 300_000,
     });
     if (result.exitCode !== 0) {
+      // A failed repair that is only a console line manufactures an
+      // unexplained wall of p2p failures that reads like a model regression.
+      // Record it so the verdict carries the reason.
       console.warn(`[deepswe] Verifier dep install failed for ${taskName}: ${result.stderr}`);
+      failedRequirements.push(...extraDeps.pip);
+    } else {
+      appliedRequirements.push(...extraDeps.pip);
     }
   }
 
@@ -792,18 +954,43 @@ async function ensureTaskDepsInstalled(projectPath: string, taskName: string): P
       });
       if (result.exitCode !== 0) {
         console.warn(`[deepswe] Verifier npm dep install failed for ${taskName}: ${result.stderr}`);
+      } else {
+        appliedRequirements.push(...extraDeps.npm);
       }
     }
   }
+
+  const records: AppliedTaskEnvironmentOverride[] = [];
+  if (appliedRequirements.length > 0) {
+    records.push({
+      kind: 'dependency',
+      task: taskName,
+      requirements: appliedRequirements,
+      // Every pin changes behaviour, so every pin is disclosed. Gating this
+      // on an author-supplied reason meant most of the override table
+      // installed silently and an absent disclosure implied "no override".
+      reason: extraDeps.dependencyReason ?? 'undeclared verifier dependency required by the local environment',
+    });
+  }
+  if (failedRequirements.length > 0) {
+    records.push({
+      kind: 'dependency',
+      task: taskName,
+      requirements: failedRequirements,
+      reason: 'environment repair FAILED to install; results below may reflect the broken environment, not the patch',
+    });
+  }
+  return records;
 }
 
 async function rewriteConfig(
   taskDir: string,
+  taskName: string,
   copiedTestsDir: string,
   appDir: string,
   verifierDir: string,
   artifactsDir: string
-): Promise<Record<string, unknown>> {
+): Promise<{ config: Record<string, unknown>; applied: AppliedTaskEnvironmentOverride[] }> {
   const configPath = path.join(taskDir, 'tests', 'config.json');
   const raw = await fs.readFile(configPath, 'utf-8');
   const config = JSON.parse(raw) as Record<string, unknown>;
@@ -831,8 +1018,22 @@ async function rewriteConfig(
   };
 
   const rewritten = replacer(config) as Record<string, unknown>;
-  await writeFile(path.join(copiedTestsDir, 'config.json'), JSON.stringify(rewritten, null, 2));
-  return rewritten;
+  // Verify the asserted cause of each port-based exclusion before honouring
+  // it — an unchecked exclusion forgives real regressions.
+  const declaredPorts = [
+    ...new Set(
+      (getTaskEnvironmentOverride(taskName)?.knownP2PEnvironmentFailures ?? [])
+        .map((failure) => failure.requiresBusyPort)
+        .filter((port): port is number => typeof port === 'number'),
+    ),
+  ];
+  const busyPorts = new Set<number>();
+  for (const port of declaredPorts) {
+    if (await isPortBusy(port)) busyPorts.add(port);
+  }
+  const overrideResult = applyKnownEnvironmentFailures(taskName, rewritten, busyPorts);
+  await writeFile(path.join(copiedTestsDir, 'config.json'), JSON.stringify(overrideResult.config, null, 2));
+  return overrideResult;
 }
 
 /**
@@ -1296,7 +1497,7 @@ async function runDeepSWEVerifierDocker(
   baseCommit: string,
   taskName: string,
   modelPatchArg?: string
-): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }> {
+): Promise<DeepSWEVerifierResult> {
   const absoluteTaskDir = path.resolve(taskDir);
   const testsDir = path.join(absoluteTaskDir, 'tests');
   const workDir = path.join(omegaWorkDir(), 'deepswe', `${path.basename(taskDir)}-${String(Date.now())}`);
@@ -1352,7 +1553,14 @@ async function runDeepSWEVerifierDocker(
     // ignore write errors
   });
 
-  return { reward, logs, logFile, exitCode: testRun.exitCode, timedOut: testRun.timedOut };
+  return {
+    reward,
+    logs,
+    logFile,
+    exitCode: testRun.exitCode,
+    timedOut: testRun.timedOut,
+    appliedEnvironmentOverrides: [],
+  };
 }
 
 async function runDeepSWEVerifier(
@@ -1362,7 +1570,7 @@ async function runDeepSWEVerifier(
   useDocker: boolean,
   taskName: string,
   modelPatchArg?: string
-): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }> {
+): Promise<DeepSWEVerifierResult> {
   if (useDocker && (await dockerAvailable())) {
     try {
       const dockerResult = await runDeepSWEVerifierDocker(
@@ -1406,7 +1614,7 @@ async function runDeepSWEVerifierLocal(
   baseCommit: string,
   taskName: string,
   modelPatchArg?: string
-): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }> {
+): Promise<DeepSWEVerifierResult> {
   const testsDir = path.join(taskDir, 'tests');
   const workDir = path.join(omegaWorkDir(), 'deepswe', `${path.basename(taskDir)}-${String(Date.now())}`);
   const verifierDir = path.join(workDir, 'logs', 'verifier');
@@ -1418,7 +1626,14 @@ async function runDeepSWEVerifierLocal(
   await fs.mkdir(artifactsDir, { recursive: true });
 
   await execFileAsync('cp', ['-R', testsDir, copiedTestsDir], { timeout: 60000 });
-  await rewriteConfig(taskDir, copiedTestsDir, projectPath, verifierDir, artifactsDir);
+  const configOverrideResult = await rewriteConfig(
+    taskDir,
+    taskName,
+    copiedTestsDir,
+    projectPath,
+    verifierDir,
+    artifactsDir
+  );
 
   const modelPatch = normalisePatch(modelPatchArg ?? (await generateModelPatch(projectPath, baseCommit)));
   await writeFile(path.join(artifactsDir, 'model.patch'), modelPatch);
@@ -1426,7 +1641,8 @@ async function runDeepSWEVerifierLocal(
 
   // Re-install any task-specific verifier dependencies that may be missing from
   // a cached or reused project worktree.
-  await ensureTaskDepsInstalled(projectPath, taskName);
+  const dependencyOverrides = await ensureTaskDepsInstalled(projectPath, taskName);
+  const appliedEnvironmentOverrides = [...configOverrideResult.applied, ...dependencyOverrides];
 
   // Re-apply per-task environment fixups after the force-checkout, which
   // discards any uncommitted changes made during initial setup.
@@ -1535,6 +1751,11 @@ async function runDeepSWEVerifierLocal(
   });
   log(`=== test.sh stdout ===\n${testRun.stdout}`);
   log(`=== test.sh stderr ===\n${testRun.stderr}`);
+  if (appliedEnvironmentOverrides.length > 0) {
+    log(
+      `=== environment overrides applied ===\n${appliedEnvironmentOverrides.map(formatAppliedEnvironmentOverride).join('\n')}`
+    );
+  }
 
   let reward: Reward = {};
   try {
@@ -1549,7 +1770,14 @@ async function runDeepSWEVerifierLocal(
     // ignore write errors
   });
 
-  return { reward, logs, logFile, exitCode: testRun.exitCode, timedOut: testRun.timedOut };
+  return {
+    reward,
+    logs,
+    logFile,
+    exitCode: testRun.exitCode,
+    timedOut: testRun.timedOut,
+    appliedEnvironmentOverrides,
+  };
 }
 
 export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<BenchmarkTask[]> {
@@ -1632,15 +1860,22 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
             },
           };
         }
-        const { reward, logs, logFile, exitCode, timedOut } = await runDeepSWEVerifier(
-          ctx.projectPath,
-          dir,
-          commit,
-          options.useDocker ?? false,
-          id,
-          storedPatch
-        );
+        const { reward, logs, logFile, exitCode, timedOut, appliedEnvironmentOverrides } =
+          await runDeepSWEVerifier(
+            ctx.projectPath,
+            dir,
+            commit,
+            options.useDocker ?? false,
+            id,
+            storedPatch
+          );
         const passed = reward.reward === 1;
+        const environmentOverrideDisclosure = appliedEnvironmentOverrides
+          .map(formatAppliedEnvironmentOverride)
+          .join('; ');
+        const environmentOverrideSuffix = environmentOverrideDisclosure
+          ? `; ${environmentOverrideDisclosure}`
+          : '';
         const metrics: Record<string, number | string> = {
           f2p_passed: reward.f2p_passed ?? 0,
           f2p_total: reward.f2p_total ?? 0,
@@ -1654,15 +1889,26 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
         if (reward.apply_failed) {
           metrics.apply_failed = 1;
         }
+        if (appliedEnvironmentOverrides.length > 0) {
+          metrics.environment_override_count = appliedEnvironmentOverrides.length;
+          metrics.known_environment_p2p_exclusion_count = appliedEnvironmentOverrides.filter(
+            (override) => override.kind === 'known-p2p-environment-failure'
+          ).length;
+          metrics.environment_overrides = appliedEnvironmentOverrides
+            .map(formatAppliedEnvironmentOverride)
+            .join('\n');
+        }
         metrics.verifier_logs = logs.slice(-4096);
         return {
           passed,
           score: reward.partial,
-          message: timedOut
-            ? `DeepSWE verifier timeout (reward=${String(reward.reward ?? 'missing')})`
-            : passed
-              ? `DeepSWE verifier passed (f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`
-              : `DeepSWE verifier failed (reward=${String(reward.reward ?? 'missing')}, f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`,
+          message:
+            (timedOut
+              ? `DeepSWE verifier timeout (reward=${String(reward.reward ?? 'missing')})`
+              : passed
+                ? `DeepSWE verifier passed (f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`
+                : `DeepSWE verifier failed (reward=${String(reward.reward ?? 'missing')}, f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`) +
+            environmentOverrideSuffix,
           metrics,
         };
       },

@@ -55,9 +55,9 @@ transient network blip is a permanent zero for that task.
 **T1.2 Flake-aware p2p grading.**
 vulture failed on one p2p test with `f2p 24/24`, and the failing test **differs
 between runs** — a flake signature, not a pre-existing failure.
-- After a graded run, re-run **only** the failing p2p tests once. If they pass,
-  record them as flaky (disclosed in the verdict/metrics) rather than failing
-  the task.
+- After an eligible graded run, run one full confirmation verifier pass in the
+  same project tree. A p2p failure is confirmed only when the same test fails
+  in both runs; otherwise record it as flaky in the verdict/metrics.
 - This is deliberately NOT the cached-baseline design (see §4) — it needs no
   persisted state and cannot be poisoned.
 - Acceptance: a task whose only p2p failure passes on re-run scores as a pass,
@@ -184,6 +184,12 @@ runs before trusting it (vulture proves single-run baselines are wrong).
   that test still fails.
 - `da534d9` — retry classification (transient vs terminal), circuit breakers on
   the external-CLI path, and session capture/resume.
+- T1.1/T1.2 (this working tree) — retrying bare-mirror clone cache plus bounded,
+  same-tree flake confirmation. The verifier now removes patch-created paths
+  that survived `git checkout -f` before applying the stored patch and emits
+  `patch_paths_cleaned_count` when it does so. A task with this metric is not
+  directly comparable across this change if its historical result was
+  `apply_failed`.
 
 Note on `da534d9`: the classifier is the piece most likely to need tuning. It
 was initially treating any bare `5xx`/`429` token as a provider fault, which on
@@ -198,19 +204,34 @@ assuming the policy is at fault.
 ## 6. How to run a scored sweep
 
 ```bash
-# 1. pre-flight: nothing else heavy on the box; Docker up if using T1.3
-task dev                      # or: CODEX_EFFORT=max task dev
+# 1. exclusive-host pre-flight (run before every scored sweep)
+# With the API up, this must print no pending/running run. Cancel only a
+# genuinely orphaned run with the POST shown below.
+curl -s 'http://localhost:4000/bench/run?limit=100' |
+  jq -r '.[] | select(.status == "pending" or .status == "running") | [.id,.status,.suite] | @tsv'
+curl -s -X POST http://localhost:4000/bench/run/<orphaned-id>/cancel
+
+# Quit or pause every unrelated Codex/Claude session and other heavy job.
+# Wait until no unrelated process is consuming sustained CPU and the 1-minute
+# load is below the machine's logical CPU count. Docker must be healthy.
+ps -Ao pid,%cpu,command | sort -k2 -nr | head -20
+pgrep -fl 'codex|claude'          # no session listed here may be doing work
+uptime; getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.logicalcpu
+df -h
+docker info >/dev/null
+
+task dev                      # only if the API is not already up
 
 # 2. launch (adjust model/timeout; taskIds nested under deepswe)
 curl -s -X POST http://localhost:4000/bench/run -H 'Content-Type: application/json' -d '{
   "suite": "deepswe",
   "models": [{"provider": "external:claude-code", "model": "claude-opus-5"}],
-  "strategy": "single", "concurrency": 2, "timeoutMs": 1200000,
+  "strategy": "single", "concurrency": 1, "timeoutMs": 1200000,
   "projectPrefix": "score-run",
   "deepswe": {
     "tasksDir": "'"$PWD"'/deep-swe/tasks",
     "taskIds": ["abs-stepped-slices","anko-default-function-arguments","sqlfmt-create-table-ddl-formatting","returns-validated-error-accumulation","sqlite-utils-safe-import-checkpoints","vulture-persistent-analysis-cache","narwhals-rolling-window-suite","psd-tools-blend-range-api"],
-    "useDocker": false
+    "useDocker": true
   }
 }'
 
@@ -222,6 +243,48 @@ curl -s http://localhost:4000/foreman/benchmarks
 Verifier artifacts (the ground truth for any claim about a score):
 `~/.omega/work/deepswe/<task>-<timestamp>/verifier.log` — contains the
 `reward.json` line and the per-test `[verifier] ✗ [f2p|p2p]` failures.
+
+### Clone and flake safeguards
+
+DeepSWE clones use a retrying, atomic bare-mirror cache under Omega's work
+directory. Override its location with `OMEGA_DEEPSWE_REPO_CACHE_DIR`, or set
+`OMEGA_DEEPSWE_DISABLE_REPO_CACHE=1` to use the retrying direct-clone path.
+These are full Git mirrors: the corpus currently has 92 distinct repository
+URLs, so budget substantial disk and inspect `df -h` before a sweep. A new
+mirror creation or fetch is skipped when its cache volume has less than
+`OMEGA_DEEPSWE_REPO_CACHE_MIN_FREE_GB` free (default 15 GiB). This box currently
+has about 26 GiB free, so only part of the 92-repository mirror set can be built
+before that floor stops further cache growth. Clone setup has a single overall
+deadline controlled by `OMEGA_DEEPSWE_CLONE_DEADLINE_MS` (default 2,700,000 ms /
+45 minutes); it bounds the whole of `cloneRepo`, including the direct fallback.
+The cache currently has no eviction or TTL. Known limitation: bare clones do
+not fetch Git LFS objects, so a mirror-served checkout of an LFS repository can
+contain pointer files.
+
+A failed run with complete f2p and only a small p2p shortfall gets exactly one
+full, same-patch confirmation run in the same project tree, without a fresh
+clone or dependency rebuild; a failure counts only when it appears in both
+runs. There is no persisted grading baseline, first-run metrics remain primary,
+and rerun evidence is disclosed under separate metrics. The effective p2p
+shortfall cap is
+`min(OMEGA_DEEPSWE_FLAKE_MAX_P2P_FAILURES, max(1, floor(2% * p2p_total)))`,
+with an absolute default of 3, so one failure is eligible even in a small
+suite. Set `OMEGA_DEEPSWE_DISABLE_FLAKE_RERUN=1` to disable confirmation.
+`OMEGA_DEEPSWE_FLAKE_MAX_RERUNS` caps confirmations per suite load (default
+1024). `EvaluationContext` currently exposes no stable model or variance-
+repetition identity, so this safety valve remains one first-come-first-served
+budget shared by every model and repetition using that suite load. The raised
+default is intended not to bind in a normal sweep; explicit exhaustion remains
+visible in `flake_rerun_skipped_reason`.
+
+An upgraded pass emits `flake_forgiven_pass: 1`; Tier 3 reporting should filter
+or chart those results as a separate series. Audit forgiven passes with
+`p2p_rerun_failure_disjoint: 1` first: that shape means the non-empty p2p
+failure sets were disjoint, and can also indicate xdist worker crashes or
+order/global-state defects. Filter on both `flake_forgiven_pass` and
+`p2p_rerun_failure_disjoint`, then read both full verifier logs referenced by
+`verifier_log_file` and `verifier_log_file_rerun`. Detailed gate/inconclusive
+causes use the single `flake_rerun_skipped_reason` metric.
 
 ---
 

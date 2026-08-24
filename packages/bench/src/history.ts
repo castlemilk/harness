@@ -65,6 +65,15 @@ export async function saveBenchmarkHistory(
     metadata?: Record<string, unknown>;
   } = {},
 ): Promise<BenchmarkHistoryEntry> {
+  const hasExplicitCost = report.results.some((result) => result.agentRun?.costUsd !== undefined);
+  const hasExplicitTokens = report.results.some((result) =>
+    result.usage?.totalTokens !== undefined || result.agentRun?.totalTokens !== undefined,
+  );
+  const totalCostUsd = report.results.reduce((sum, result) => sum + (result.agentRun?.costUsd ?? 0), 0);
+  const totalTokens = report.results.reduce(
+    (sum, result) => sum + (result.usage?.totalTokens ?? result.agentRun?.totalTokens ?? 0),
+    0,
+  );
   const metadata: Record<string, unknown> = {
     // Supply a useful default for every writer (including the CLI). Callers
     // can replace this with a richer strategy-specific result shape.
@@ -89,8 +98,8 @@ export async function saveBenchmarkHistory(
       timeouts: report.timeouts,
       passRate: report.total > 0 ? report.passed / report.total : 0,
       totalDurationMs: report.totalDurationMs,
-      totalCostUsd: report.results.reduce((sum, r) => sum + (r.agentRun?.costUsd ?? 0), 0) || null,
-      totalTokens: report.results.reduce((sum, r) => sum + (r.usage?.totalTokens ?? r.agentRun?.totalTokens ?? 0), 0) || null,
+      totalCostUsd: hasExplicitCost ? totalCostUsd : null,
+      totalTokens: hasExplicitTokens ? totalTokens : null,
       metadata: JSON.stringify(boundHistoryMetadata(metadata)),
       reportPath: options.reportPath ?? null,
     },

@@ -134,6 +134,350 @@ describe('startBenchRun per-task evaluation reporting', () => {
     expect(summary).toMatchObject({ passed: 1, failed: 0, timeouts: 0 });
   });
 
+  it('replays a stored run patch without invoking the model and records zero-cost provenance', async () => {
+    const storedPatch = [
+      'diff --git a/fixture.txt b/fixture.txt',
+      '--- a/fixture.txt',
+      '+++ b/fixture.txt',
+      '@@ -1 +1 @@',
+      '-fixture',
+      '+replayed',
+      '',
+    ].join('\n');
+    const evaluate = vi.fn(async (context) => {
+      expect(context.taskId).toBe('source-harness-task-1');
+      expect(context.diffs).toEqual([
+        { id: 'source-diff-1', branch: 'source-branch', patch: storedPatch },
+      ]);
+      expect(context.agentRun).toMatchObject({
+        id: 'source-agent-run-1',
+        totalTokens: 98_765,
+        costUsd: 12.34,
+      });
+      return {
+        passed: true,
+        score: 1,
+        message: 'stored patch passed verifier',
+        metrics: { f2p_passed: 6, f2p_total: 6, p2p_passed: 6, p2p_total: 6 },
+      } satisfies BenchmarkEvaluation;
+    });
+    const task: BenchmarkTask = {
+      id: 'deepswe-replay-example',
+      name: 'replay-example',
+      title: 'Replay example',
+      setup: async (projectPath) => {
+        await fs.writeFile(path.join(projectPath, 'fixture.txt'), 'fixture\n', 'utf-8');
+      },
+      evaluate,
+    };
+    mocks.loadDeepSWESuite.mockResolvedValue([task]);
+
+    const updates: { data: Record<string, unknown> }[] = [];
+    const prisma = {
+      benchmarkRun: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'source-run-1',
+          suite: 'deepswe',
+          results: JSON.stringify([{
+            taskName: 'replay-example',
+            harnessTaskId: 'source-harness-task-1',
+            passed: true,
+            durationMs: 300_000,
+          }]),
+        }),
+        update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+          updates.push({ data });
+          return data;
+        }),
+      },
+      project: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({ id: 'replay-project-1' }),
+      },
+      task: {
+        create: vi.fn(() => { throw new Error('replay must not create or run a model task'); }),
+        update: vi.fn().mockResolvedValue({}),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'source-harness-task-1',
+          projectId: 'source-project-1',
+          tags: JSON.stringify(['benchmark', 'agent', 'replay-example']),
+        }),
+      },
+      agentRun: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'source-agent-run-1',
+          resultStatus: 'done',
+          validationSummary: '{"allPassed":true}',
+          totalTokens: 98_765,
+          costUsd: 12.34,
+          createdAt: new Date('2026-08-24T00:00:00.000Z'),
+          updatedAt: new Date('2026-08-24T00:05:00.000Z'),
+        }),
+      },
+      taskDiff: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'source-diff-1', branch: 'source-branch', patch: storedPatch },
+        ]),
+      },
+    } as unknown as PrismaClient;
+
+    await startBenchRun(prisma, 'replay-run-1', {
+      suite: 'deepswe',
+      timeoutMs: 60_000,
+      models: [{ provider: 'external:claude-code', model: 'claude-opus-5' }],
+      replay: { fromRunId: 'source-run-1' },
+      deepswe: { tasksDir: '/unused', useDocker: true },
+    }, new EventEmitter());
+
+    expect(mocks.loadDeepSWESuite).toHaveBeenCalledWith(expect.objectContaining({
+      taskIds: ['replay-example'],
+      useDocker: true,
+    }));
+    expect(mocks.runTask).not.toHaveBeenCalled();
+    expect(prisma.project.findFirst).not.toHaveBeenCalled();
+    expect(prisma.project.create).not.toHaveBeenCalled();
+    expect(prisma.task.create).not.toHaveBeenCalled();
+    expect(evaluate).toHaveBeenCalledOnce();
+
+    const terminalUpdate = updates.find((update) => update.data.status === 'done');
+    expect(terminalUpdate?.data).toMatchObject({ totalCostUsd: 0, totalTokens: 0 });
+    const terminalResults = JSON.parse(String(terminalUpdate?.data.results)) as {
+      harnessTaskId: string;
+      costUsd: number;
+      totalTokens: number;
+      evaluation: BenchmarkEvaluation;
+    }[];
+    expect(terminalResults[0]).toMatchObject({
+      harnessTaskId: 'source-harness-task-1',
+      costUsd: 0,
+      totalTokens: 0,
+      evaluation: {
+        passed: true,
+        metrics: {
+          replay: 1,
+          replay_source_task_id: 'source-harness-task-1',
+          f2p_passed: 6,
+          f2p_total: 6,
+        },
+      },
+    });
+
+    const [, report, options] = mocks.saveBenchmarkHistory.mock.calls[0] as [
+      PrismaClient,
+      BenchmarkReport,
+      { provider?: string; model?: string; metadata?: Record<string, unknown> },
+    ];
+    expect(report.totalUsage?.totalTokens).toBe(0);
+    expect(report.results[0]).toMatchObject({
+      harnessTaskId: 'source-harness-task-1',
+      usage: { totalTokens: 0 },
+      agentRun: { totalTokens: 0, costUsd: 0 },
+      evaluation: { metrics: { replay: 1, replay_source_task_id: 'source-harness-task-1' } },
+    });
+    expect(options).toMatchObject({
+      provider: 'replay',
+      metadata: { replay: 1, replay_from_run_id: 'source-run-1' },
+    });
+    expect(options.model).toBeUndefined();
+  });
+
+  it('reports a replay source with no stored patch without evaluating an empty patch', async () => {
+    const evaluate = vi.fn();
+    const setup = vi.fn(async (projectPath: string) => {
+      await fs.writeFile(path.join(projectPath, 'fixture.txt'), 'fixture\n', 'utf-8');
+    });
+    const task: BenchmarkTask = {
+      id: 'deepswe-no-patch',
+      name: 'no-patch',
+      title: 'No patch',
+      setup,
+      evaluate,
+    };
+    mocks.loadDeepSWESuite.mockResolvedValue([task]);
+    const prisma = {
+      benchmarkRun: { update: vi.fn().mockResolvedValue({}) },
+      project: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({ id: 'replay-no-patch-project' }),
+      },
+      task: {
+        create: vi.fn(() => { throw new Error('replay must not create or run a model task'); }),
+        update: vi.fn().mockResolvedValue({}),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'source-no-patch-task',
+          projectId: 'source-no-patch-project',
+          tags: JSON.stringify(['benchmark', 'agent', 'no-patch']),
+        }),
+      },
+      agentRun: { findFirst: vi.fn().mockResolvedValue(null) },
+      taskDiff: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'empty-diff', branch: 'source', patch: ' \n' },
+        ]),
+      },
+    } as unknown as PrismaClient;
+
+    await startBenchRun(prisma, 'replay-no-patch-run', {
+      suite: 'deepswe',
+      timeoutMs: 60_000,
+      replay: { fromHarnessTaskIds: ['source-no-patch-task'] },
+      deepswe: { tasksDir: '/unused' },
+    }, new EventEmitter());
+
+    expect(mocks.runTask).not.toHaveBeenCalled();
+    expect(prisma.project.findFirst).not.toHaveBeenCalled();
+    expect(prisma.project.create).not.toHaveBeenCalled();
+    expect(prisma.task.create).not.toHaveBeenCalled();
+    expect(setup).not.toHaveBeenCalled();
+    expect(evaluate).not.toHaveBeenCalled();
+    const report = mocks.saveBenchmarkHistory.mock.calls[0]?.[1] as BenchmarkReport;
+    expect(report.results[0]).toMatchObject({
+      harnessTaskId: 'source-no-patch-task',
+      evaluation: {
+        passed: false,
+        message: expect.stringContaining('has no stored TaskDiff patch'),
+        metrics: {
+          replay: 1,
+          replay_source_task_id: 'source-no-patch-task',
+          verifier_skipped: 1,
+        },
+      },
+      usage: { totalTokens: 0 },
+      agentRun: { totalTokens: 0, costUsd: 0 },
+    });
+  });
+
+  it('replays two source tasks independently when they map to the same benchmark task', async () => {
+    const setupPaths: string[] = [];
+    const evaluatedSources: { taskId: string; patch: string; projectPath: string }[] = [];
+    const task: BenchmarkTask = {
+      id: 'deepswe-shared-task',
+      name: 'shared-task',
+      title: 'Shared task',
+      setup: async (projectPath) => {
+        setupPaths.push(projectPath);
+        await fs.writeFile(path.join(projectPath, 'fixture.txt'), 'fixture\n', 'utf8');
+      },
+      evaluate: async (context) => {
+        evaluatedSources.push({
+          taskId: context.taskId,
+          patch: context.diffs[0]?.patch ?? '',
+          projectPath: context.projectPath,
+        });
+        return { passed: true };
+      },
+    };
+    mocks.loadDeepSWESuite.mockResolvedValue([task]);
+    const sourceIds = ['source-shared-1', 'source-shared-2'];
+    const prisma = {
+      benchmarkRun: { update: vi.fn().mockResolvedValue({}) },
+      project: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn(() => { throw new Error('replay must not create a project'); }),
+      },
+      task: {
+        create: vi.fn(() => { throw new Error('replay must not create a model task'); }),
+        update: vi.fn().mockResolvedValue({}),
+        findUnique: vi.fn(({ where }: { where: { id: string } }) => Promise.resolve({
+          id: where.id,
+          projectId: `project-${where.id}`,
+          tags: JSON.stringify(['benchmark', 'shared-task']),
+        })),
+      },
+      agentRun: { findFirst: vi.fn().mockResolvedValue(null) },
+      taskDiff: {
+        findMany: vi.fn(({ where }: { where: { taskId: string } }) => Promise.resolve([{
+          id: `diff-${where.taskId}`,
+          branch: 'source',
+          patch: `patch for ${where.taskId}`,
+        }])),
+      },
+    } as unknown as PrismaClient;
+
+    await startBenchRun(prisma, 'replay-shared-run', {
+      suite: 'deepswe',
+      replay: { fromHarnessTaskIds: sourceIds },
+      concurrency: 2,
+      deepswe: { tasksDir: '/unused' },
+    }, new EventEmitter());
+
+    expect(mocks.runTask).not.toHaveBeenCalled();
+    expect(setupPaths).toHaveLength(2);
+    expect(new Set(setupPaths).size).toBe(2);
+    expect(evaluatedSources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ taskId: 'source-shared-1', patch: 'patch for source-shared-1' }),
+      expect.objectContaining({ taskId: 'source-shared-2', patch: 'patch for source-shared-2' }),
+    ]));
+    const report = mocks.saveBenchmarkHistory.mock.calls[0]?.[1] as BenchmarkReport;
+    expect(report.results.map((result) => result.harnessTaskId).sort()).toEqual(sourceIds);
+  });
+
+  it('keeps replay provenance and zero usage when setup or verification fails', async () => {
+    const task: BenchmarkTask = {
+      id: 'deepswe-replay-error',
+      name: 'replay-error',
+      title: 'Replay error',
+      setup: async (projectPath) => {
+        await fs.writeFile(path.join(projectPath, 'fixture.txt'), 'fixture\n', 'utf8');
+      },
+      evaluate: async () => { throw new Error('verifier exploded'); },
+    };
+    mocks.loadDeepSWESuite.mockResolvedValue([task]);
+    const updates: { data: Record<string, unknown> }[] = [];
+    const prisma = {
+      benchmarkRun: {
+        update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+          updates.push({ data });
+          return data;
+        }),
+      },
+      project: { findFirst: vi.fn(), create: vi.fn() },
+      task: {
+        create: vi.fn(),
+        update: vi.fn(),
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'source-error-task',
+          projectId: 'source-error-project',
+          tags: JSON.stringify(['benchmark', 'replay-error']),
+        }),
+      },
+      agentRun: { findFirst: vi.fn().mockResolvedValue(null) },
+      taskDiff: {
+        findMany: vi.fn().mockResolvedValue([{
+          id: 'source-error-diff',
+          branch: 'source',
+          patch: 'valid stored patch',
+        }]),
+      },
+    } as unknown as PrismaClient;
+
+    await startBenchRun(prisma, 'replay-error-run', {
+      suite: 'deepswe',
+      replay: { fromHarnessTaskIds: ['source-error-task'] },
+      deepswe: { tasksDir: '/unused' },
+    }, new EventEmitter());
+
+    const terminalUpdate = updates.find((update) => update.data.status === 'done');
+    const terminalResults = JSON.parse(String(terminalUpdate?.data.results)) as {
+      harnessTaskId: string;
+      model?: string;
+      costUsd: number;
+      totalTokens: number;
+      evaluation: BenchmarkEvaluation;
+    }[];
+    expect(terminalResults[0]).toMatchObject({
+      harnessTaskId: 'source-error-task',
+      model: 'replay',
+      costUsd: 0,
+      totalTokens: 0,
+      evaluation: {
+        passed: false,
+        message: 'verifier exploded',
+        metrics: { replay: 1, replay_source_task_id: 'source-error-task' },
+      },
+    });
+  });
+
   it('keeps progress compact while the terminal result and history retain errors, evaluation, and usage', async () => {
     const verifierLogs = 'verifier output\n'.repeat(1_000);
     const evaluation: BenchmarkEvaluation = {

@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
@@ -26,7 +27,7 @@ import {
 } from './deepswe.js';
 
 describe('DeepSWE graded patch audit metrics', () => {
-  it('counts remaining test-ish patch paths and carries the harness strip count', () => {
+  it('carries authoritative changed and newly added test-path disclosure', () => {
     const patch = [
       'diff --git a/src/value.ts b/src/value.ts',
       'diff --git a/tests/value.test.ts b/tests/value.test.ts',
@@ -35,17 +36,26 @@ describe('DeepSWE graded patch audit metrics', () => {
 
     expect(deepSwePatchAuditMetrics(
       patch,
-      JSON.stringify({ patchAudit: { specgateThrowawayPathsRemoved: 2 } }),
+      JSON.stringify({
+        patchAudit: {
+          gradedPatchTestPaths: 2,
+          gradedPatchAddedTestPaths: 1,
+          gradedPatchAddedTestPathList: ['tests/value.test.ts'],
+          gradedPatchSha256: createHash('sha256').update(patch).digest('hex'),
+        },
+      }),
     )).toEqual({
-      specgate_throwaway_paths_removed: 2,
       graded_patch_test_paths: 2,
+      graded_patch_added_test_paths: 1,
+      graded_patch_added_test_path_list: 'tests/value.test.ts',
     });
   });
 
   it('defaults malformed or absent audit metadata to zero', () => {
     expect(deepSwePatchAuditMetrics('', 'not json')).toEqual({
-      specgate_throwaway_paths_removed: 0,
       graded_patch_test_paths: 0,
+      graded_patch_added_test_paths: 0,
+      graded_patch_added_test_path_list: '',
     });
   });
 
@@ -56,13 +66,41 @@ describe('DeepSWE graded patch audit metrics', () => {
       patchWithQuotedHeader,
       JSON.stringify({
         patchAudit: {
-          specgateThrowawayPathsRemoved: 0,
           gradedPatchTestPaths: 1,
+          gradedPatchAddedTestPaths: 1,
+          gradedPatchAddedTestPathList: ['tests/a b.test.ts'],
+          gradedPatchSha256: createHash('sha256').update(patchWithQuotedHeader).digest('hex'),
         },
       }),
     )).toEqual({
-      specgate_throwaway_paths_removed: 0,
       graded_patch_test_paths: 1,
+      graded_patch_added_test_paths: 1,
+      graded_patch_added_test_path_list: 'tests/a b.test.ts',
+    });
+  });
+
+  it('ignores authoritative audit metadata captured for a different stored patch', () => {
+    const patch = [
+      'diff --git a/tests/new.test.ts b/tests/new.test.ts',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/tests/new.test.ts',
+    ].join('\n');
+
+    expect(deepSwePatchAuditMetrics(
+      patch,
+      JSON.stringify({
+        patchAudit: {
+          gradedPatchTestPaths: 99,
+          gradedPatchAddedTestPaths: 99,
+          gradedPatchAddedTestPathList: ['tests/wrong.test.ts'],
+          gradedPatchSha256: createHash('sha256').update('different patch').digest('hex'),
+        },
+      }),
+    )).toEqual({
+      graded_patch_test_paths: 1,
+      graded_patch_added_test_paths: 1,
+      graded_patch_added_test_path_list: 'tests/new.test.ts',
     });
   });
 });

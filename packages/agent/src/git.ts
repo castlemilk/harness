@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { isSpecGateTestPath, isTestishPath } from '@omega/core';
+import { isTestishPath } from '@omega/core';
 
 const execFileAsync = promisify(execFile);
 
@@ -10,8 +10,8 @@ export interface GitResult {
 }
 
 export interface GradedDiffResult extends GitResult {
-  specGatePathsRemoved: string[];
   gradedPatchTestPaths: string[];
+  gradedPatchAddedTestPaths: string[];
   /** Diagnostic text is kept separate so callers can never persist it as a patch. */
   error?: string;
 }
@@ -66,19 +66,10 @@ export async function stageAll(projectPath: string): Promise<GitResult> {
 }
 
 const EXCLUDED_DIFF_PATHS = ['pnpm-lock.yaml', 'yarn.lock', 'package-lock.json', 'node_modules', '.omega'];
-/**
- * `E2BIG` is a byte limit (ARG_MAX ≈ 1 MiB), not a count, and each exclusion
- * costs roughly a path's length plus 18 bytes of `:(exclude,literal)`. 4000 is
- * the measured headroom for corpus-shaped paths with a wide margin; a task with
- * more marker files than this is pathological, not ordinary.
- */
-const MAX_GRADED_DIFF_PATHSPEC_EXCLUSIONS = 4000;
-
-function diffPathspecs(extraExclusions: string[] = []): string[] {
+function diffPathspecs(): string[] {
   return [
     '.',
     ...EXCLUDED_DIFF_PATHS.map((filePath) => `:(exclude,literal)${filePath}`),
-    ...extraExclusions.map((filePath) => `:(exclude,literal)${filePath}`),
   ];
 }
 
@@ -91,15 +82,15 @@ function isExcludedDiffPath(filePath: string): boolean {
 
 function failedGradedDiff(
   result: GitResult,
-  specGatePathsRemoved: string[] = [],
   gradedPatchTestPaths: string[] = [],
+  gradedPatchAddedTestPaths: string[] = [],
 ): GradedDiffResult {
   return {
     success: false,
     output: '',
     error: result.output,
-    specGatePathsRemoved,
     gradedPatchTestPaths,
+    gradedPatchAddedTestPaths,
   };
 }
 
@@ -152,40 +143,37 @@ export async function getDiff(projectPath: string, base?: string): Promise<GitRe
 export async function getGradedDiff(projectPath: string, base: string): Promise<GradedDiffResult> {
   const changed = await git(
     projectPath,
-    ['diff', '--name-only', '-z', base, 'HEAD', '--', ...diffPathspecs()],
+    ['diff', '--no-renames', '--name-only', '-z', base, 'HEAD', '--', ...diffPathspecs()],
     { trim: false },
   );
   if (!changed.success) {
     return failedGradedDiff(changed);
   }
   const changedPaths = changed.output.split('\0').filter(Boolean);
-  const markerPaths = changedPaths.filter(isSpecGateTestPath).sort();
-  // Above the cap we grade the patch UNSTRIPPED rather than risk the diff.
-  // Textually re-splitting a patch to drop sections is not safe — a typechange
-  // (symlink replaced by a regular file) emits two `diff --git` sections for
-  // one changed path — and a mis-split patch is a silent zero. Degrading to
-  // "strip nothing, disclose everything" keeps the agent's work intact; the
-  // marker files then show up in gradedPatchTestPaths, which is the truth.
-  const overCap = markerPaths.length > MAX_GRADED_DIFF_PATHSPEC_EXCLUSIONS;
-  if (overCap) {
-    console.warn(
-      `[git] ${String(markerPaths.length)} spec-gate marker paths exceeds the ` +
-        `${String(MAX_GRADED_DIFF_PATHSPEC_EXCLUSIONS)} pathspec cap; grading the patch unstripped`,
-    );
+  const added = await git(
+    projectPath,
+    ['diff', '--no-renames', '--diff-filter=A', '--name-only', '-z', base, 'HEAD', '--', ...diffPathspecs()],
+    { trim: false },
+  );
+  if (!added.success) {
+    return failedGradedDiff(added);
   }
-  const specGatePathsRemoved = overCap ? [] : markerPaths;
+  const addedPaths = added.output.split('\0').filter(Boolean);
   const gradedPatchTestPaths = changedPaths
-    .filter((filePath) => !specGatePathsRemoved.includes(filePath) && (isSpecGateTestPath(filePath) || isTestishPath(filePath)))
+    .filter(isTestishPath)
+    .sort();
+  const gradedPatchAddedTestPaths = addedPaths
+    .filter(isTestishPath)
     .sort();
   const patch = await git(
     projectPath,
-    ['diff', base, 'HEAD', '--', ...diffPathspecs(specGatePathsRemoved)],
+    ['diff', base, 'HEAD', '--', ...diffPathspecs()],
     { trim: false },
   );
   if (!patch.success) {
-    return failedGradedDiff(patch, specGatePathsRemoved, gradedPatchTestPaths);
+    return failedGradedDiff(patch, gradedPatchTestPaths, gradedPatchAddedTestPaths);
   }
-  return { ...patch, specGatePathsRemoved, gradedPatchTestPaths };
+  return { ...patch, gradedPatchTestPaths, gradedPatchAddedTestPaths };
 }
 
 export async function hasChanges(projectPath: string): Promise<boolean> {

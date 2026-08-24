@@ -466,8 +466,8 @@ export async function runOrchestratedTask(
     });
     parentPatchCaptured = true;
     rootSpan.setAttributes({
-      specgateThrowawayPathsRemoved: gradedDiff.specGatePathsRemoved.length,
       gradedPatchTestPaths: gradedDiff.gradedPatchTestPaths.length,
+      gradedPatchAddedTestPaths: gradedDiff.gradedPatchAddedTestPaths.length,
     });
     if (success) {
       // Close the learning loop: turn the successful run into a reusable skill
@@ -533,8 +533,8 @@ export async function runOrchestratedTask(
           });
         }
         rootSpan.setAttributes({
-          specgateThrowawayPathsRemoved: gradedDiff.specGatePathsRemoved.length,
           gradedPatchTestPaths: gradedDiff.gradedPatchTestPaths.length,
+          gradedPatchAddedTestPaths: gradedDiff.gradedPatchAddedTestPaths.length,
         });
       } catch (captureErr) {
         logger.warn('Failed to capture orchestrated task patch after cancellation/error', {

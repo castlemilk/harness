@@ -1,15 +1,8 @@
-/** Exact, case-sensitive token reserved for disposable DeepSWE spec-gate tests. */
-export const SPEC_GATE_TEST_BASENAME_MARKER = 'omega_specgate';
-
 function normalisePath(filePath: string): string {
   return filePath.replace(/\\/g, '/');
 }
 
-export function isSpecGateTestPath(filePath: string): boolean {
-  const basename = normalisePath(filePath).split('/').at(-1) ?? '';
-  return basename.includes(SPEC_GATE_TEST_BASENAME_MARKER);
-}
-
+/** Heuristic used only for audit/disclosure; it never removes patch content. */
 export function isTestishPath(filePath: string): boolean {
   const normalised = normalisePath(filePath).toLowerCase();
   const parts = normalised.split('/');

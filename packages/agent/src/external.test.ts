@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -79,8 +80,8 @@ beforeEach(() => {
   mocks.getGradedDiff.mockResolvedValue({
     success: true,
     output: 'diff --git a/src/file.ts b/src/file.ts\n',
-    specGatePathsRemoved: [],
     gradedPatchTestPaths: [],
+    gradedPatchAddedTestPaths: [],
   });
   mocks.hasChanges.mockResolvedValue(false);
   mocks.deriveVerificationCommand.mockResolvedValue('pnpm test');
@@ -407,12 +408,12 @@ describe('runExternalAgentTask', () => {
     });
   });
 
-  it('stores only the graded patch and persists the marker-strip audit', async () => {
+  it('stores the full graded patch and persists the added-test audit', async () => {
     mocks.getGradedDiff.mockResolvedValueOnce({
       success: true,
-      output: 'diff --git a/src/file.ts b/src/file.ts\n',
-      specGatePathsRemoved: ['tests/file.omega_specgate.test.ts'],
-      gradedPatchTestPaths: [],
+      output: 'diff --git a/src/file.ts b/src/file.ts\ndiff --git a/tests/file.test.ts b/tests/file.test.ts\n',
+      gradedPatchTestPaths: ['tests/file.test.ts'],
+      gradedPatchAddedTestPaths: ['tests/file.test.ts'],
     });
     const taskDiffCreate = vi.fn().mockResolvedValue({});
     const agentRunUpdate = vi.fn().mockResolvedValue({});
@@ -443,16 +444,21 @@ describe('runExternalAgentTask', () => {
     });
 
     expect(taskDiffCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({ patch: expect.not.stringContaining('omega_specgate') }),
+      data: expect.objectContaining({ patch: expect.stringContaining('tests/file.test.ts') }),
     });
     expect(agentRunUpdate).toHaveBeenCalledWith({
       where: { id: 'run-1' },
       data: expect.objectContaining({
         validationSummary: JSON.stringify({
           patchAudit: {
-            specgateThrowawayPathsRemoved: 1,
-            specgateThrowawayPaths: ['tests/file.omega_specgate.test.ts'],
-            gradedPatchTestPaths: 0,
+            gradedPatchTestPaths: 1,
+            gradedPatchAddedTestPaths: 1,
+            gradedPatchAddedTestPathList: ['tests/file.test.ts'],
+            gradedPatchSha256: createHash('sha256')
+              .update(
+                'diff --git a/src/file.ts b/src/file.ts\ndiff --git a/tests/file.test.ts b/tests/file.test.ts\n',
+              )
+              .digest('hex'),
           },
         }),
       }),
@@ -629,8 +635,8 @@ describe('runExternalAgentTask', () => {
     mocks.getGradedDiff.mockResolvedValueOnce({
       success: true,
       output: '',
-      specGatePathsRemoved: [],
       gradedPatchTestPaths: [],
+      gradedPatchAddedTestPaths: [],
     });
     const prisma = {
       task: {

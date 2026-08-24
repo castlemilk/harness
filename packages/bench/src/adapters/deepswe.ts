@@ -9,7 +9,6 @@ import {
   isTestishPath,
   omegaVerifierToolsDir,
   omegaWorkDir,
-  SPEC_GATE_TEST_BASENAME_MARKER,
 } from '@omega/core';
 import type { BenchmarkTask, BenchmarkEvaluation, EvaluationContext } from '../types.js';
 
@@ -28,33 +27,71 @@ export interface DeepSWEOptions {
 export function deepSwePatchAuditMetrics(
   modelPatch: string,
   validationSummary: string | undefined,
-): Record<'specgate_throwaway_paths_removed' | 'graded_patch_test_paths', number> {
+): Record<
+  'graded_patch_test_paths' | 'graded_patch_added_test_paths',
+  number
+> & Record<'graded_patch_added_test_path_list', string> {
   const paths = new Set<string>();
+  const addedPaths = new Set<string>();
+  let currentPath: string | undefined;
+  let currentPathAdded = false;
+  const finishCurrentPath = (): void => {
+    if (currentPath && isTestishPath(currentPath)) {
+      paths.add(currentPath);
+      if (currentPathAdded) addedPaths.add(currentPath);
+    }
+  };
   for (const line of modelPatch.split('\n')) {
     const match = /^diff --git a\/(.+) b\/(.+)$/.exec(line);
-    if (match?.[2] && isTestishPath(match[2])) paths.add(match[2]);
+    if (match?.[2]) {
+      finishCurrentPath();
+      currentPath = match[2];
+      currentPathAdded = false;
+    } else if (currentPath && (line.startsWith('new file mode ') || line === '--- /dev/null')) {
+      currentPathAdded = true;
+    }
   }
-  let stripped = 0;
+  finishCurrentPath();
   let auditedTestPaths: number | undefined;
+  let auditedAddedTestPaths: number | undefined;
+  let auditedAddedTestPathList: string[] | undefined;
   try {
     const parsed = JSON.parse(validationSummary ?? '') as {
       patchAudit?: {
-        specgateThrowawayPathsRemoved?: unknown;
         gradedPatchTestPaths?: unknown;
+        gradedPatchAddedTestPaths?: unknown;
+        gradedPatchAddedTestPathList?: unknown;
+        gradedPatchSha256?: unknown;
       };
     };
-    const value = parsed.patchAudit?.specgateThrowawayPathsRemoved;
-    if (typeof value === 'number' && Number.isInteger(value) && value >= 0) stripped = value;
-    const testPaths = parsed.patchAudit?.gradedPatchTestPaths;
-    if (typeof testPaths === 'number' && Number.isInteger(testPaths) && testPaths >= 0) {
-      auditedTestPaths = testPaths;
+    const capturedPatchSha256 = parsed.patchAudit?.gradedPatchSha256;
+    const currentPatchSha256 = createHash('sha256').update(modelPatch).digest('hex');
+    // Retries can leave several TaskDiff rows but only one latest AgentRun.
+    // Trust its path audit only when it was captured from this exact patch.
+    if (capturedPatchSha256 === currentPatchSha256) {
+      const testPaths = parsed.patchAudit?.gradedPatchTestPaths;
+      if (typeof testPaths === 'number' && Number.isInteger(testPaths) && testPaths >= 0) {
+        auditedTestPaths = testPaths;
+      }
+      const addedTestPaths = parsed.patchAudit?.gradedPatchAddedTestPaths;
+      if (typeof addedTestPaths === 'number' && Number.isInteger(addedTestPaths) && addedTestPaths >= 0) {
+        auditedAddedTestPaths = addedTestPaths;
+      }
+      const addedTestPathList = parsed.patchAudit?.gradedPatchAddedTestPathList;
+      if (Array.isArray(addedTestPathList)) {
+        auditedAddedTestPathList = addedTestPathList.filter(
+          (item): item is string => typeof item === 'string',
+        );
+      }
     }
   } catch {
-    // Missing or legacy validation metadata means the stripper removed none.
+    // Legacy or absent metadata falls back to the stored patch itself.
   }
+  const addedPathList = auditedAddedTestPathList ?? [...addedPaths].sort();
   return {
-    specgate_throwaway_paths_removed: stripped,
     graded_patch_test_paths: auditedTestPaths ?? paths.size,
+    graded_patch_added_test_paths: auditedAddedTestPaths ?? addedPaths.size,
+    graded_patch_added_test_path_list: addedPathList.join('\n'),
   };
 }
 
@@ -685,27 +722,19 @@ function buildDeepSweDescription(instruction: string, language: string | undefin
   }
 
   const specCheck = specGateEnabled
-    ? `SPEC GATE: enumerate every observable behaviour as a checklist: exact error strings and message text, output/file formats, names, signatures, defaults, and boundary and negative cases. For each item, write a disposable assertion whose basename contains the exact marker \`${SPEC_GATE_TEST_BASENAME_MARKER}\` (for example \`test_${SPEC_GATE_TEST_BASENAME_MARKER}_x.py\`, \`${SPEC_GATE_TEST_BASENAME_MARKER}_x_test.go\`, or \`${SPEC_GATE_TEST_BASENAME_MARKER}_x.test.ts\`). Use exact string comparison, not a substring, when text is specified. These assertions are expected to fail before implementation.`
+    ? 'EXACTNESS CHECK: Before editing, make a checklist of the public specification below. Verify exact string/message text with character-for-character equality (not substring matching) and output/file formats exactly; cover names, signatures, defaults, boundaries, and invalid inputs.'
     : BASELINE_SPEC_EXHORTATION;
-  const redGreen = specGateEnabled
-    ? ` Run the marked assertions after editing and implement until every one passes.`
-    : '';
-  const cleanup = specGateEnabled
-    ? ` Delete every \`${SPEC_GATE_TEST_BASENAME_MARKER}\` file. The harness also strips any marked path from the graded patch as a safety net.`
-    : '';
 
-  return `TASK — IMPLEMENT THIS SPECIFICATION
-${cleanedInstruction}
+  return `${guidance}
+
+${BUILD_GATE}
+
+${SCOPE_CONSTRAINT}
+
+${budgetGuidance ? `${budgetGuidance}\n\n` : ''}${specCheck}
 
 ---
-EXECUTION WORKFLOW (follow in order)
-1. Plan and spec-check — ${specCheck}
-2. Implement — Make the smallest source change that satisfies the checklist.${redGreen}
-${SCOPE_CONSTRAINT}
-3. Verify — ${budgetGuidance ? `${budgetGuidance}\n` : ''}${guidance}
-${BUILD_GATE}
-4. Clean up —${cleanup || ' Remove scratch artifacts and unrelated changes.'}${cleanup ? ' Remove any other scratch artifacts and unrelated changes.' : ''}
-5. Finish — Only finish after phase 3 is green.`;
+${cleanedInstruction}`;
 }
 
 async function commandExists(cmd: string): Promise<boolean> {
@@ -3191,7 +3220,7 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
         const storedPatch = ctx.diffs
           .slice()
           .reverse()
-          .find((d) => typeof d.patch === 'string' && d.patch.length > 0)?.patch;
+          .find((d) => typeof d.patch === 'string' && d.patch.trim().length > 0)?.patch;
         const patchAuditMetrics = deepSwePatchAuditMetrics(
           storedPatch ?? '',
           ctx.agentRun?.validationSummary,
@@ -3244,8 +3273,15 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
             invocation.modelPatch,
           ),
         );
+        const addedTestCount = patchAuditMetrics.graded_patch_added_test_paths;
+        const addedTestPaths = patchAuditMetrics.graded_patch_added_test_path_list;
+        const addedTestDisclosure = addedTestCount > 0
+          ? `Graded patch adds ${String(addedTestCount)} test-like path${addedTestCount === 1 ? '' : 's'} absent from the base commit` +
+            `${addedTestPaths ? `: ${addedTestPaths.slice(0, 512)}` : ''}. `
+          : '';
         return {
           ...evaluation,
+          message: `${addedTestDisclosure}${evaluation.message ?? ''}`.trim(),
           metrics: {
             ...evaluation.metrics,
             ...patchAuditMetrics,

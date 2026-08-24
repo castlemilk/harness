@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@omega/db';
 import type { Provider } from '@omega/core';
@@ -10,38 +11,61 @@ const gitMocks = vi.hoisted(() => ({
   getGradedDiff: vi.fn().mockResolvedValue({
     success: true,
     output: '',
-    specGatePathsRemoved: [],
     gradedPatchTestPaths: [],
+    gradedPatchAddedTestPaths: [],
   }),
   getDiff: vi.fn().mockResolvedValue({ success: true, output: '' }),
 }));
 
 vi.mock('./git.js', () => gitMocks);
 
-import { executeAgentLoop, formatBudgetNotice } from './agent-loop.js';
+import {
+  budgetNoticeExperiments,
+  executeAgentLoop,
+  formatBudgetNotice,
+} from './agent-loop.js';
 import { Tracer } from './tracer.js';
+
+const GRADED_PATCH = 'diff --git a/src/value.ts b/src/value.ts\n';
+const GRADED_PATCH_SHA256 = createHash('sha256').update(GRADED_PATCH).digest('hex');
 
 describe('executeAgentLoop terminal disclosure', () => {
   it('reports both remaining steps and remaining wall-clock in budget notices', () => {
-    expect(formatBudgetNotice(12, 8 * 60_000 + 12_000)).toContain('12 steps remain');
-    expect(formatBudgetNotice(12, 8 * 60_000 + 12_000)).toContain('8m 12s wall-clock remain');
+    const notice = formatBudgetNotice(12, 8 * 60_000 + 12_000);
+    expect(notice).toContain('12 steps remain');
+    expect(notice).toContain('8m 12s wall-clock remain');
+    expect(notice).toContain('re-check exact strings and formats');
+    expect(notice).not.toContain('omega_specgate');
   });
 
   it('reproduces the pre-experiment budget notice when both switches are off', () => {
     expect(formatBudgetNotice(12, 8 * 60_000, {
       timeBudget: false,
-      specGate: false,
+      exactnessCheck: false,
     })).toBe(
       '[budget notice] 12 steps remain. Focus: complete the core implementation, verify it compiles/tests, clean scratch files, then finish. No new exploration.',
     );
   });
 
+  it('recognizes the compact exactness treatment when wiring late budget notices', () => {
+    const experiments = budgetNoticeExperiments(
+      'TIME BUDGET: 20 minutes\nEXACTNESS CHECK: verify exact string/message text',
+    );
+
+    expect(experiments).toEqual({ timeBudget: true, exactnessCheck: true });
+    expect(formatBudgetNotice(3, 90_000, experiments)).toContain('re-check exact strings and formats');
+    expect(budgetNoticeExperiments('legacy task text')).toEqual({
+      timeBudget: false,
+      exactnessCheck: false,
+    });
+  });
+
   it('cannot persist a failed task with an empty reason when the step limit is exhausted', async () => {
     gitMocks.getGradedDiff.mockResolvedValueOnce({
       success: true,
-      output: 'diff --git a/src/value.ts b/src/value.ts\n',
-      specGatePathsRemoved: ['tests/value.omega_specgate.test.ts'],
-      gradedPatchTestPaths: [],
+      output: GRADED_PATCH,
+      gradedPatchTestPaths: ['tests/value.test.ts'],
+      gradedPatchAddedTestPaths: ['tests/value.test.ts'],
     });
     const now = new Date('2026-08-23T00:00:00.000Z');
     const taskRow = {
@@ -146,9 +170,10 @@ describe('executeAgentLoop terminal disclosure', () => {
         validationSummary: JSON.stringify({
           allPassed: false,
           patchAudit: {
-            specgateThrowawayPathsRemoved: 1,
-            specgateThrowawayPaths: ['tests/value.omega_specgate.test.ts'],
-            gradedPatchTestPaths: 0,
+            gradedPatchTestPaths: 1,
+            gradedPatchAddedTestPaths: 1,
+            gradedPatchAddedTestPathList: ['tests/value.test.ts'],
+            gradedPatchSha256: GRADED_PATCH_SHA256,
           },
         }),
       }),
@@ -161,9 +186,9 @@ describe('executeAgentLoop terminal disclosure', () => {
   it('captures the filtered patch and audit when the deadline interrupts an in-flight provider', async () => {
     gitMocks.getGradedDiff.mockResolvedValueOnce({
       success: true,
-      output: 'diff --git a/src/value.ts b/src/value.ts\n',
-      specGatePathsRemoved: ['tests/value.omega_specgate.test.ts'],
+      output: GRADED_PATCH,
       gradedPatchTestPaths: ['tests/value.test.ts'],
+      gradedPatchAddedTestPaths: ['tests/value.test.ts'],
     });
     const now = new Date('2026-08-23T00:00:00.000Z');
     const controller = new AbortController();
@@ -257,7 +282,7 @@ describe('executeAgentLoop terminal disclosure', () => {
 
     expect(taskDiffCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        patch: 'diff --git a/src/value.ts b/src/value.ts\n',
+        patch: GRADED_PATCH,
       }),
     });
     expect(agentRunUpdate).toHaveBeenCalledWith({
@@ -266,9 +291,10 @@ describe('executeAgentLoop terminal disclosure', () => {
         resultStatus: 'failed',
         validationSummary: JSON.stringify({
           patchAudit: {
-            specgateThrowawayPathsRemoved: 1,
-            specgateThrowawayPaths: ['tests/value.omega_specgate.test.ts'],
             gradedPatchTestPaths: 1,
+            gradedPatchAddedTestPaths: 1,
+            gradedPatchAddedTestPathList: ['tests/value.test.ts'],
+            gradedPatchSha256: GRADED_PATCH_SHA256,
           },
         }),
       }),

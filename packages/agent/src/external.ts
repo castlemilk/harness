@@ -995,8 +995,8 @@ export async function runExternalAgentTask(
     rootSpan.setAttributes({
       passed,
       diffBytes: patch.length,
-      specgateThrowawayPathsRemoved: diff.specGatePathsRemoved.length,
       gradedPatchTestPaths: diff.gradedPatchTestPaths.length,
+      gradedPatchAddedTestPaths: diff.gradedPatchAddedTestPaths.length,
     });
     await rootSpan.end(passed ? 'ok' : 'error');
     logger.info('External agent task finished', { taskId, cli: options.cli, passed });

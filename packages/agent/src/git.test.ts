@@ -71,7 +71,7 @@ afterEach(async () => {
 });
 
 describe('getGradedDiff', () => {
-  it('strips committed marker paths while retaining source and legitimate tests', async () => {
+  it('preserves every committed test and discloses newly added test paths without a marker convention', async () => {
     const { root, base } = await makeRepo();
     await fs.mkdir(path.join(root, 'tests'), { recursive: true });
     await fs.writeFile(path.join(root, 'src', 'value.ts'), 'export const value = 2;\n');
@@ -85,12 +85,18 @@ describe('getGradedDiff', () => {
     expect(result.success).toBe(true);
     expect(result.output).toContain('src/value.ts');
     expect(result.output).toContain('tests/value.test.ts');
-    expect(result.output).not.toContain('omega_specgate');
-    expect(result.specGatePathsRemoved).toEqual(['tests/value.omega_specgate.test.ts']);
-    expect(result.gradedPatchTestPaths).toEqual(['tests/value.test.ts']);
+    expect(result.output).toContain('tests/value.omega_specgate.test.ts');
+    expect(result.gradedPatchTestPaths).toEqual([
+      'tests/value.omega_specgate.test.ts',
+      'tests/value.test.ts',
+    ]);
+    expect(result.gradedPatchAddedTestPaths).toEqual([
+      'tests/value.omega_specgate.test.ts',
+      'tests/value.test.ts',
+    ]);
   });
 
-  it('recognises root and nested marker basenames without matching ordinary source text', async () => {
+  it('treats marker-like basenames as ordinary test files without matching ordinary source text', async () => {
     const { root, base } = await makeRepo();
     await fs.mkdir(path.join(root, 'pkg'), { recursive: true });
     await fs.writeFile(path.join(root, 'omega_specgate_probe_test.go'), 'package main\n');
@@ -102,20 +108,18 @@ describe('getGradedDiff', () => {
     const result = await getGradedDiff(root, base);
 
     expect(result.output).toContain('src/value.ts');
-    expect(result.output).not.toContain('omega_specgate_probe_test.go');
-    expect(result.output).not.toContain('test_omega_specgate_probe.py');
-    expect(result.specGatePathsRemoved).toEqual([
+    expect(result.output).toContain('omega_specgate_probe_test.go');
+    expect(result.output).toContain('test_omega_specgate_probe.py');
+    expect(result.gradedPatchAddedTestPaths).toEqual([
       'omega_specgate_probe_test.go',
       'pkg/test_omega_specgate_probe.py',
     ]);
   });
 
   it('survives a typechange, which emits two diff sections for one changed path', async () => {
-    // The reason marker stripping is done by git pathspecs and never by
-    // re-splitting the patch text: replacing a symlink with a regular file
-    // reports ONE path via --name-only but emits TWO `diff --git` sections
-    // (deleted mode 120000 + new mode 100644). Any positional text filter
-    // mis-aligns here and silently produces a corrupt or empty patch.
+    // Replacing a symlink with a regular file reports one path via
+    // --name-only but emits two diff sections. The audit must preserve both
+    // sections because it never rewrites patch text.
     const { root, base } = await makeRepo();
     await fs.symlink('src/value.ts', path.join(root, 'link'));
     await git(root, 'add', '.');
@@ -132,9 +136,31 @@ describe('getGradedDiff', () => {
     expect(result.success).toBe(true);
     expect(result.output).toContain('link');
     expect(result.output).toContain('now a real file');
-    expect(result.output).not.toContain('omega_specgate');
-    expect(result.specGatePathsRemoved).toEqual(['value.omega_specgate.test.ts']);
+    expect(result.output).toContain('omega_specgate');
+    expect(result.gradedPatchAddedTestPaths).toEqual(['value.omega_specgate.test.ts']);
     expect(base).not.toBe(withLink);
+  });
+
+  it('discloses a renamed test destination because that path was absent at base', async () => {
+    const { root, base } = await makeRepo();
+    await fs.mkdir(path.join(root, 'tests'));
+    await fs.writeFile(path.join(root, 'tests', 'old.test.ts'), 'test("old", () => {});\n');
+    await git(root, 'add', '.');
+    await git(root, 'commit', '-qm', 'add original test');
+    const withTest = (await git(root, 'rev-parse', 'HEAD')).trim();
+    await fs.rename(
+      path.join(root, 'tests', 'old.test.ts'),
+      path.join(root, 'tests', 'new.test.ts'),
+    );
+    await git(root, 'add', '.');
+    await git(root, 'commit', '-qm', 'rename test');
+
+    const result = await getGradedDiff(root, withTest);
+
+    expect(result.success).toBe(true);
+    expect(result.gradedPatchTestPaths).toEqual(['tests/new.test.ts', 'tests/old.test.ts']);
+    expect(result.gradedPatchAddedTestPaths).toEqual(['tests/new.test.ts']);
+    expect(base).not.toBe(withTest);
   });
 
   it('never exposes name-discovery errors as patch output', async () => {
@@ -157,11 +183,7 @@ describe('getGradedDiff', () => {
     expect(result.output).toBe('');
   });
 
-  it('grades the patch unstripped, and discloses it, when markers exceed the argv cap', async () => {
-    // Textually re-splitting a patch to drop sections is not safe (a typechange
-    // emits two `diff --git` sections for one changed path), and a mis-split
-    // patch is a silent zero. Past the cap we keep the agent's work whole and
-    // report the markers as present rather than as removed.
+  it('grades and discloses thousands of added tests without pathspec exclusions', async () => {
     const { root, base } = await makeRepo();
     await installFakeGit(root);
     process.env.OMEGA_TEST_GIT_MODE = 'overflow';
@@ -169,9 +191,9 @@ describe('getGradedDiff', () => {
     const result = await getGradedDiff(root, base);
 
     expect(result.success).toBe(true);
-    expect(result.specGatePathsRemoved).toEqual([]);
     expect(result.output).toContain('src/value.ts');
     expect(result.output).toContain('omega_specgate');
-    expect(result.gradedPatchTestPaths.some((p) => p.includes('omega_specgate'))).toBe(true);
+    expect(result.gradedPatchTestPaths).toHaveLength(4_001);
+    expect(result.gradedPatchAddedTestPaths).toHaveLength(4_001);
   });
 });

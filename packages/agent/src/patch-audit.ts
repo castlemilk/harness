@@ -1,11 +1,13 @@
+import { createHash } from 'node:crypto';
 import type { PrismaClient } from '@omega/db';
 import type { GradedDiffResult } from './git.js';
 import { sanitizeForDb } from './utils.js';
 
 export interface PatchAuditSummary {
-  specgateThrowawayPathsRemoved: number;
-  specgateThrowawayPaths: string[];
   gradedPatchTestPaths: number;
+  gradedPatchAddedTestPaths: number;
+  gradedPatchAddedTestPathList: string[];
+  gradedPatchSha256: string;
 }
 
 const MAX_PERSISTED_PATCH_AUDIT_PATHS = 500;
@@ -13,9 +15,9 @@ const MAX_PERSISTED_PATCH_AUDIT_PATHS = 500;
 export async function validationSummaryWithPatchAudit(
   prisma: PrismaClient,
   agentRunId: string,
-  audit: Pick<GradedDiffResult, 'specGatePathsRemoved' | 'gradedPatchTestPaths'>,
+  audit: Pick<GradedDiffResult, 'output' | 'gradedPatchTestPaths' | 'gradedPatchAddedTestPaths'>,
 ): Promise<string | undefined> {
-  if (audit.specGatePathsRemoved.length === 0 && audit.gradedPatchTestPaths.length === 0) {
+  if (audit.gradedPatchTestPaths.length === 0 && audit.gradedPatchAddedTestPaths.length === 0) {
     return undefined;
   }
   let existing: Record<string, unknown> = {};
@@ -39,9 +41,10 @@ export async function validationSummaryWithPatchAudit(
       ...(existing.patchAudit !== null && typeof existing.patchAudit === 'object' && !Array.isArray(existing.patchAudit)
         ? existing.patchAudit as Record<string, unknown>
         : {}),
-      specgateThrowawayPathsRemoved: audit.specGatePathsRemoved.length,
-      specgateThrowawayPaths: audit.specGatePathsRemoved.slice(0, MAX_PERSISTED_PATCH_AUDIT_PATHS),
       gradedPatchTestPaths: audit.gradedPatchTestPaths.length,
+      gradedPatchAddedTestPaths: audit.gradedPatchAddedTestPaths.length,
+      gradedPatchAddedTestPathList: audit.gradedPatchAddedTestPaths.slice(0, MAX_PERSISTED_PATCH_AUDIT_PATHS),
+      gradedPatchSha256: createHash('sha256').update(audit.output).digest('hex'),
     } satisfies PatchAuditSummary,
   })) ?? undefined;
 }

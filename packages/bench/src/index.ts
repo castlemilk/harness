@@ -36,3 +36,14 @@ export {
   type BenchmarkHistoryEntry,
   type CostPerPassRate,
 } from './history.js';
+export {
+  formatDeepSWEGoldenSummary,
+  loadDeepSWEGoldenManifest,
+  runDeepSWEGoldenCorpus,
+  type DeepSWEGoldenFixture,
+  type DeepSWEGoldenFixtureResult,
+  type DeepSWEGoldenManifest,
+  type DeepSWEGoldenOutcome,
+  type DeepSWEGoldenRunOptions,
+  type DeepSWEGoldenRunResult,
+} from './deepswe-golden.js';

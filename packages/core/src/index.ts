@@ -4,4 +4,4 @@ export * from './skill.js';
 export * from './agent.js';
 export * from './storage.js';
 export * from './pricing.js';
-export * from './spec-gate.js';
+export * from './test-paths.js';

@@ -791,7 +791,7 @@ function ServerBenchRuns({ onError }: { onError: (msg: string) => void }) {
     models: 'deepseek/deepseek-v4-pro',
     strategy: 'single' as 'single' | 'consensus' | 'variance',
     concurrency: 3,
-    varianceRuns: 5,
+    varianceRuns: 1,
   });
   const [starting, setStarting] = useState(false);
   const evtRef = useRef<EventSource | null>(null);

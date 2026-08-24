@@ -17,6 +17,20 @@ export function normalizeBenchRunResults(serialized: string | null): Record<stri
   return Array.isArray(parsed) ? parsed.filter(isResultRecord) : [];
 }
 
+const replaySchema = z.object({
+  fromRunId: z.string().trim().min(1).optional(),
+  fromHarnessTaskIds: z.array(z.string().trim().min(1)).min(1).optional(),
+}).superRefine((replay, context) => {
+  const selectorCount = Number(replay.fromRunId !== undefined) +
+    Number(replay.fromHarnessTaskIds !== undefined);
+  if (selectorCount !== 1) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'replay requires exactly one of fromRunId or fromHarnessTaskIds',
+    });
+  }
+});
+
 export const benchRunSchema = z.object({
   suite: z.enum(['synthetic', 'fast', 'harder', 'harder-v2', 'hard-targeting', 'swebench-lite', 'deepswe']),
   models: z.array(z.object({
@@ -24,7 +38,7 @@ export const benchRunSchema = z.object({
     model: z.string(),
   })).optional(),
   strategy: z.enum(['single', 'consensus', 'variance']).default('single'),
-  varianceRuns: z.number().int().min(1).max(20).default(5),
+  varianceRuns: z.number().int().min(1).max(20).default(1),
   concurrency: z.number().int().min(1).max(10).default(3),
   timeoutMs: z.number().int().positive().default(600_000),
   tokenBudget: z.number().int().positive().optional(),
@@ -41,6 +55,7 @@ export const benchRunSchema = z.object({
     taskIds: z.array(z.string()).optional(),
     useDocker: z.boolean().optional(),
   }).optional(),
+  replay: replaySchema.optional(),
 });
 
 // Shared event emitter for all benchmark runs

@@ -1,8 +1,9 @@
 # deep-swe scoring — state, diagnosis, and the plan
 
-Handover written 2026-08-23. Everything below is grounded in a real campaign
-(opus-5, gpt-5.6-sol-max, Ox Alpha Free) over the deep-swe suite. Numbers cited
-are from run artifacts on disk, not estimates.
+Handover written 2026-08-23 and updated 2026-08-24 with the fast-feedback
+implementation. Everything below is grounded in a real campaign (opus-5,
+gpt-5.6-sol-max, Ox Alpha Free) over the deep-swe suite. Numbers cited are from
+run artifacts on disk, not estimates.
 
 ---
 
@@ -76,9 +77,9 @@ What this does and does not show:
   (`timeoutMs: 1800000`) for scoring sets that include sqlfmt or narwhals, and
   continue to treat timeout-sensitive results as host-load dependent.
 - **This 4/8 run predates both Tier 2 prompt changes:** the explicit time-budget
-  guidance and the executable spec gate. Runs made with either change enabled
-  are a new measurement series and are not directly comparable to this
-  baseline.
+  guidance and the exactness treatment (including its now-removed marker-gate
+  predecessor). Runs made with either change enabled are a new measurement
+  series and are not directly comparable to this baseline.
 
 ---
 
@@ -86,6 +87,76 @@ What this does and does not show:
 
 Ordered by expected gain per unit of effort. Tier 1 is pure recovery of losses
 and needs no model change.
+
+### Fast feedback — grade first, rerun the model only when needed
+
+**H1 Replay stored patches — implemented.** `POST /bench/run` accepts exactly
+one replay selector: a prior benchmark run or an explicit non-empty list of
+harness task IDs. The runner resolves each source task and its stored
+`TaskDiff`, prepares a fresh checkout at the task's base commit, and invokes the
+normal verifier without creating a new model task or making a provider call.
+
+Replay a whole stored run:
+
+```bash
+curl -s -X POST http://localhost:4000/bench/run \
+  -H 'Content-Type: application/json' -d '{
+  "suite": "deepswe",
+  "replay": {"fromRunId": "<source-benchmark-run-id>"},
+  "concurrency": 1,
+  "timeoutMs": 1800000,
+  "deepswe": {
+    "tasksDir": "'"$PWD"'/deep-swe/tasks",
+    "useDocker": true
+  }
+}'
+```
+
+Replay selected stored harness tasks:
+
+```bash
+curl -s -X POST http://localhost:4000/bench/run \
+  -H 'Content-Type: application/json' -d '{
+  "suite": "deepswe",
+  "replay": {
+    "fromHarnessTaskIds": ["<source-harness-task-id>", "<another-task-id>"]
+  },
+  "concurrency": 1,
+  "timeoutMs": 1800000,
+  "deepswe": {
+    "tasksDir": "'"$PWD"'/deep-swe/tasks",
+    "useDocker": true
+  }
+}'
+```
+
+Every replay result carries `replay: 1` and
+`replay_source_task_id: <source-harness-task-id>`. Replay history is also
+stored under provider `replay`, so it can be excluded from model comparisons.
+`costUsd` and `totalTokens` are explicitly `0`: verifier work spends no model
+tokens and source usage is never copied forward. A source with no non-empty
+stored patch is reported as an explicit skipped-verifier failure, not graded as
+an empty-patch zero.
+
+**H2 Golden grading corpus — implemented.** The checked-in manifest and patch
+files under
+`packages/bench/fixtures/deepswe-golden/t1-shakedown/` pin these four outcomes
+from Docker run `4e8be75d-cfa3-4063-8a7c-c50532b56dcf`:
+
+| Shape | Task | Expected reward summary | Source task duration (setup excluded) |
+|---|---|---|---:|
+| Clean pass | `abs-stepped-slices` | pass; f2p `6/6`, p2p `6/6` | 466,853 ms (7m47s) |
+| Stable near-miss | `anko-default-function-arguments` | fail; f2p `1/2`, p2p `119/119` | 642,175 ms (10m42s) |
+| Regression-heavy fail | `sqlfmt-create-table-ddl-formatting` | fail; f2p `32/32`, p2p `1248/1273` | 1,816,356 ms (30m16s) |
+| Big-suite partial | `narwhals-rolling-window-suite` | fail; f2p `98/103`, p2p `9752/10093` | 1,911,072 ms (31m51s) |
+
+Run the complete corpus with `pnpm bench:deepswe:golden`, or one fixture with
+`pnpm bench:deepswe:golden -- --task abs-stepped-slices`. The command verifies
+each patch checksum, runs setup and the Docker verifier, prints actual versus
+expected counts, and exits non-zero on any drift. This deliberately pins
+**grading**, not model capability: it proves how the current verifier treats
+four already-produced patches. Any changed outcome needs a deliberate grading
+decision and fixture update.
 
 ### Tier 1 — recover the losses (target: 1/8 → 3–4/8)
 
@@ -129,32 +200,44 @@ heavy work. Make this a documented pre-flight step, not a hope.
 
 ### Tier 2 — convert the near-misses (real capability, +1–2)
 
-**T2.1 Add a "spec gate" to the task prompt — implemented.**
-`buildDeepSweDescription()` now puts the public task specification first and
-uses one ordered five-phase workflow: plan/spec-check → implement → verify →
-clean up → finish. The spec-check is a normal red/green loop: enumerate every
-observable behavior, write assertions that are expected to fail before the
-implementation, implement until they pass, and then remove them. Exact text is
-checked with exact comparison. Hidden tests, `f2p_node_ids`,
-`tests/config.json`, and `tests/test.patch` remain outside the prompt.
+**T2.1 Replace the inert marker gate with exactness guidance and patch audit —
+implemented.** The evidence rejected the old contract. Across all eight
+completed repetitions of opus run `99927e3e` and the ox-alpha smoke run,
+`specgate_throwaway_paths_removed` was `0` every time;
+`graded_patch_test_paths` was `0` in seven of the eight opus repetitions. The
+one informative exception was an anko repetition that added one test file
+without the requested marker. Both models could add tests, but neither followed
+the marker convention, so marker-based stripping offered no measured defence
+against leftover tests.
 
-Every disposable assertion must have the exact, case-sensitive token
-`omega_specgate` in its basename (`test_omega_specgate_x.py`,
-`omega_specgate_x_test.go`, `omega_specgate_x.test.ts`, and so on). Final patch
-capture excludes every matching path before writing `TaskDiff`/`model.patch`,
-including a marker file the model committed itself. The pattern had zero
-collisions across the 113-task corpus and 1,133 paths in its reference and test
-patches. Evaluations always expose `specgate_throwaway_paths_removed` (the
-harness safety net fired) and `graded_patch_test_paths` (test-ish paths still in
-the patch). These metrics are audit signals, not part of the reward.
+The `omega_specgate` convention and its stripping machinery are removed. Patch
+capture now preserves the complete patch; the harness never rewrites a model's
+submission based on a filename convention. Instead, it detects test-like paths
+that are present in the graded patch and which of those paths were absent from
+the base commit. Evaluations expose `graded_patch_test_paths`,
+`graded_patch_added_test_paths`, and the bounded
+`graded_patch_added_test_path_list`; newly added test-like paths are also
+disclosed prominently in the evaluation message. These are audit signals, not
+reward inputs. They make the leftover-test hazard visible without pretending
+the harness can infer whether a model-authored test is disposable or required.
+The historical `specgate_throwaway_paths_removed` metric is no longer emitted.
 
-`OMEGA_DEEPSWE_SPEC_GATE` controls this procedure and defaults **on**. Values
-`0`, `false`, `off`, or `no`, in any letter case, disable it. The hidden tests
-must stay hidden (that is the benchmark's premise—leaking them invalidates every
-historical comparison).
+The prompt treatment is now one compact `EXACTNESS CHECK` immediately adjacent
+to the public task specification; the old multi-step test-writing ritual and
+ordered workflow are gone. It asks the model to checklist exact strings,
+names, signatures, defaults, boundaries, invalid inputs, and output/file
+formats, then verify exact text character-for-character rather than by
+substring. This is aimed directly at the stable anko miss: the required parse error was
+`invalid default argument declaration`, while both models emitted `syntax
+error`. It does not disclose `f2p_node_ids`, `tests/config.json`,
+`tests/test.patch`, or any hidden-test detail.
 
-Both observed misses were edge semantics (string-range assignment;
-default-argument visibility) — precisely what a boundary-case pass catches.
+`OMEGA_DEEPSWE_SPEC_GATE` still controls this exactness treatment and defaults
+**on**. Values `0`, `false`, `off`, or `no`, in any letter case, disable it, so
+the smaller intervention remains A/B-able. At a configured 20- or 30-minute
+budget, anko's generated description is 2,746 characters: 873 characters of
+cleaned public task text and **1,873 characters of boilerplate**, down by 536
+from 2,409 after the BUILD GATE restore.
 
 **T2.2 Tell the agent its time budget — implemented with total time.**
 sol wall-clocked all 8 tasks (1809–1998s at a 1800s cap) while opus finished in
@@ -166,7 +249,7 @@ verification and regression repair. The internal executor now derives its
 deadline from that configured timeout, and external CLI retries share one
 absolute deadline instead of receiving a fresh timeout per process. The
 internal guard interrupts in-flight provider calls, shell commands, and final
-validation while still capturing the filtered terminal patch. Internal
+validation while still capturing the complete terminal patch. Internal
 late-step notices report both steps and wall-clock time remaining; external CLI
 prompts include their UTC launch time and absolute UTC deadline, so either path
 can observe the unit used by the guidance.
@@ -179,12 +262,26 @@ late-step notice is injected; this is the clean 4/8-baseline control.
 
 ### Tier 3 — stop the number lying (no true-score change)
 
-**T3.1 n ≥ 3, report pass@k and variance — mostly implemented.**
-returns-validated and vulture both flipped between runs; opus went 2/8 → 1/8
-on an identical task set; sol scored 2/8 twice on *different* task sets. At
-n=1 these numbers cannot rank models.
+**T3.1 Use n=1 for iteration and n ≥ 3 for scoring claims — variance plumbing
+implemented; pass@k reporting remains.** The earlier case for making every run
+n ≥ 3 came from pre-Docker flips, including returns-validated changing between
+`f2p 0/159` and `159/159`. Run `99927e3e` supplies better-matched evidence under
+Docker:
 
-The server runner already supports this mode. Request
+- anko completed 3/3 byte-identical repetitions at f2p `1/2`, p2p `119/119`,
+  partial `0.9917355371900827`;
+- abs completed 3/3 passes at f2p `6/6`;
+- narwhals completed one repetition that exactly reproduced the earlier n=1
+  outcome, f2p `98/103` and p2p `9752/10093`.
+
+That is **exactly seven completed repetitions across three tasks, one model,
+and one environment**. The observed outcomes are deterministic and suggest the
+old variance was environmental rather than model nondeterminism. It is not a
+proof about the full 113-task corpus, another model, or another environment.
+
+Therefore n=1 is the default for iteration in the HTTP schema, runner, CLI, and
+web form. Use n ≥ 3 for a final scoring claim, or earlier for any task whose
+outcome has actually been shown to vary. For that final mode, request
 `"strategy": "variance", "varianceRuns": 3`; the HTTP schema preserves the
 run count, and each task is attempted three times. The existing task-level
 verdict deliberately remains a majority collapse (`passRate >= 0.5`) and the
@@ -219,6 +316,16 @@ the overall duration-threshold fallback. Older variance rows accumulated the
 durations of multiple repetitions and could therefore be labelled as timeouts
 even when no attempt timed out; historical variance `timeouts` values are not
 comparable across this change.
+
+The named quick-signal set is **`deepswe-fast-signal`**. This is a runbook name,
+not a new suite enum: invoke the `deepswe` suite with task IDs
+`abs-stepped-slices` and `anko-default-function-arguments`. They are the cheap
+pair in the measured runs. For an exact common reference, their persisted
+source rows in run `4e8be75d` took 466,853 ms (7m47s) and 642,175 ms (10m42s),
+respectively. Exclude `sqlfmt-create-table-ddl-formatting` at 1,816,356 ms
+(30m16s) and `narwhals-rolling-window-suite` at 1,911,072 ms (31m51s; roughly
+34 minutes in the follow-up data) from this iteration loop. Host load moves the
+absolute figures, but not the choice of the cheap pair.
 
 The remaining T3.1 work is to calculate and render pass@k from those outcomes
 at the run/model level, with confidence intervals, rather than treating the
@@ -261,8 +368,8 @@ internal path against a task whose skill exists.
 - **`deepswe.taskIds` vs top-level `taskIds`**: both are accepted by the
   schema. Nested wins now (fixed), but a 2-task request once launched all 113.
 - **Bench work happens in a worktree**, not the project dir
-  (`~/.omega/work/worktrees/<project>-<taskid>`). Looking at the project path
-  and seeing an empty `src/` means nothing.
+  (`${OMEGA_STORAGE_ROOT:-~/.omega}/work/worktrees/<project>-<taskid>`).
+  Looking at the project path and seeing an empty `src/` means nothing.
 
 ---
 
@@ -327,10 +434,10 @@ assuming the policy is at fault.
 
 ---
 
-## 6. How to run a scored sweep
+## 6. Runbook: quick signal, replay, golden check, and final sweep
 
 ```bash
-# 1. exclusive-host pre-flight (run before every scored sweep)
+# 1. exclusive-host pre-flight (run before every model-scored sweep)
 # With the API up, this must print no pending/running run. Cancel only a
 # genuinely orphaned run with the POST shown below.
 curl -s 'http://localhost:4000/bench/run?limit=100' |
@@ -348,8 +455,22 @@ docker info >/dev/null
 
 task dev                      # only if the API is not already up
 
-# 2. launch (adjust model/timeout; taskIds nested under deepswe)
-# This scoring set contains sqlfmt and narwhals, so use 30 minutes per attempt.
+# 2. iteration: deepswe-fast-signal, one attempt of the two cheap tasks
+curl -s -X POST http://localhost:4000/bench/run -H 'Content-Type: application/json' -d '{
+  "suite": "deepswe",
+  "models": [{"provider": "external:claude-code", "model": "claude-opus-5"}],
+  "strategy": "single",
+  "concurrency": 1, "timeoutMs": 1200000,
+  "projectPrefix": "deepswe-fast-signal",
+  "deepswe": {
+    "tasksDir": "'"$PWD"'/deep-swe/tasks",
+    "taskIds": ["abs-stepped-slices","anko-default-function-arguments"],
+    "useDocker": true
+  }
+}'
+
+# 3. final scoring claim: n>=3, serialized, 30 minutes per attempt because
+# this set includes sqlfmt and narwhals
 curl -s -X POST http://localhost:4000/bench/run -H 'Content-Type: application/json' -d '{
   "suite": "deepswe",
   "models": [{"provider": "external:claude-code", "model": "claude-opus-5"}],
@@ -363,7 +484,33 @@ curl -s -X POST http://localhost:4000/bench/run -H 'Content-Type: application/js
   }
 }'
 
-# 3. watch; results land in BenchmarkHistory and on the Benchmarks tab
+# 4. verifier-only replay of a stored run (no models/provider call)
+curl -s -X POST http://localhost:4000/bench/run -H 'Content-Type: application/json' -d '{
+  "suite": "deepswe",
+  "replay": {"fromRunId": "<source-benchmark-run-id>"},
+  "concurrency": 1, "timeoutMs": 1800000,
+  "deepswe": {
+    "tasksDir": "'"$PWD"'/deep-swe/tasks",
+    "useDocker": true
+  }
+}'
+
+# Or replay explicit source tasks instead of a whole run.
+curl -s -X POST http://localhost:4000/bench/run -H 'Content-Type: application/json' -d '{
+  "suite": "deepswe",
+  "replay": {"fromHarnessTaskIds": ["<source-harness-task-id>"]},
+  "concurrency": 1, "timeoutMs": 1800000,
+  "deepswe": {
+    "tasksDir": "'"$PWD"'/deep-swe/tasks",
+    "useDocker": true
+  }
+}'
+
+# 5. verifier-only golden grading regression (all four, then one fixture)
+pnpm bench:deepswe:golden
+pnpm bench:deepswe:golden -- --task abs-stepped-slices
+
+# 6. watch API runs; results land in BenchmarkHistory and the Benchmarks tab
 curl -s http://localhost:4000/bench/run/<id>
 curl -s http://localhost:4000/foreman/benchmarks
 # Use an id from the aggregate response's `recent` array to fetch its bounded
@@ -371,23 +518,28 @@ curl -s http://localhost:4000/foreman/benchmarks
 curl -s http://localhost:4000/foreman/benchmarks/<benchmark-history-id>
 ```
 
-The spec gate and time guidance default on and are independently controlled by
+The exactness check and time guidance default on and are independently
+controlled by the legacy-named
 `OMEGA_DEEPSWE_SPEC_GATE` and `OMEGA_DEEPSWE_TIME_BUDGET`. Either accepts
 case-insensitive `0|false|off|no`. Record both settings with the run. Turning
 only one off isolates that experiment; turning both off reproduces the complete
 pre-Tier-2 task prompt byte for byte, including no dynamic external deadline and
 the legacy internal step-only late-budget notice. It is the control comparable
-to the 4/8 baseline.
+to the 4/8 baseline. `OMEGA_DEEPSWE_SPEC_GATE` no longer enables filename
+markers or patch stripping; it controls only the compact exactness prompt.
 
 Variance mode runs each task `varianceRuns` times. With the serialized example
 above, plan for up to 90 minutes of agent time per task before setup and
 verification overhead; the individual attempt limit remains 30 minutes.
+Iteration requests should leave the default at n=1. Replays and golden checks
+exercise setup plus verification only and must not be counted as model samples.
 
 Verifier artifacts (the ground truth for any claim about a score):
-`~/.omega/work/deepswe/<task>-<timestamp>/verifier.log` — contains the
-`reward.json` line and the per-test `[verifier] ✗ [f2p|p2p]` failures.
+`${OMEGA_STORAGE_ROOT:-~/.omega}/work/deepswe/<task>-<timestamp>/verifier.log`
+— contains the `reward.json` line and the per-test
+`[verifier] ✗ [f2p|p2p]` failures.
 
-### How to tell if the spec gate helped or hurt
+### How to audit the exactness experiment and patch integrity
 
 Read these signals in this order on the next matched sweep:
 
@@ -398,9 +550,12 @@ Read these signals in this order on the next matched sweep:
    a strong partial result into missing/failed package results.
 3. The `apply_failed` rate, plus any task that drops to `f2p 0` while carrying a
    non-trivial patch. Treat either as a harness/prompt regression until disproved.
-4. `specgate_throwaway_paths_removed` and `graded_patch_test_paths`. The first
-   shows how often harness stripping saved a forgotten disposable test; inspect
-   every remaining test-ish path counted by the second.
+4. `graded_patch_test_paths`, `graded_patch_added_test_paths`, and
+   `graded_patch_added_test_path_list`. Inspect every newly added test-like path;
+   the harness discloses it but deliberately leaves the full patch unchanged.
+5. Run `pnpm bench:deepswe:golden` before and after a grading change. Any drift
+   in the four pinned outcomes requires review; it says nothing by itself about
+   whether a model got better.
 
 ### Clone and flake safeguards
 
@@ -478,21 +633,29 @@ empty patch.
 
 ## 7. Suggested first move next session
 
-Tier 1 has landed (T1.1, T1.2, T1.4 in `db5d7ec`; T1.3 verified above), and
-Tier 2 changes the prompt. The next move is a new measurement series: run the
-same 8 tasks **serialized** (`concurrency: 1`, exclusive host,
-`useDocker: true`) with `strategy: "variance"` and `varianceRuns: 3`, per
-T3.1. Treat it as the first post-Tier-2 baseline; do not compare its headline
-score directly to the pre-gate 4/8 run.
+Start with the verifier-only loop: run `pnpm bench:deepswe:golden` after any
+grading change, or use `replay.fromRunId` / `replay.fromHarnessTaskIds` when the
+patch of interest is already in the database. Neither result belongs in a model
+comparison; filter replay rows using `replay: 1`.
 
-Two things to watch on that first sweep, because it is their first production
-execution:
+For a prompt, runner, or model change, run the two-task
+`deepswe-fast-signal` set serialized under Docker at n=1. Escalate to the full
+eight-task set only after that signal is useful. Reserve
+`strategy: "variance", "varianceRuns": 3` for the final scoring claim or for a
+task that demonstrates non-determinism. Treat the first full run with the new
+exactness treatment as a new post-Tier-2 series; do not compare its headline
+directly with the pre-treatment 4/8 baseline.
+
+Continue to watch:
 
 - any `flake_forgiven_pass: 1` row — audit `p2p_rerun_failure_disjoint` first
   and read both verifier logs (§6);
 - the same-tree re-run's second `git apply` of the stored patch. Its
   precondition (`removePatchPathsMissingFromBase`) is unit-tested in isolation,
-  but no test drives the local verifier twice end to end.
+  but no test drives the local verifier twice end to end;
+- every non-zero `graded_patch_added_test_paths` count and its bounded path
+  list. The patch remains intact, so this is disclosure for review, not an
+  automatic exclusion.
 
 Keep the prompt-switch value, timeout, host pre-flight, and per-run variance
 outcomes with every result so later comparisons do not conflate prompt effects

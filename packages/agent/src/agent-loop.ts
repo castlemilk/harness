@@ -56,15 +56,28 @@ function compactWallClock(milliseconds: number): string {
 export function formatBudgetNotice(
   remainingSteps: number,
   remainingMs: number,
-  experiments: { timeBudget: boolean; specGate: boolean } = { timeBudget: true, specGate: true },
+  experiments: { timeBudget: boolean; exactnessCheck: boolean } = {
+    timeBudget: true,
+    exactnessCheck: true,
+  },
 ): string {
   const remaining = experiments.timeBudget
     ? `${String(remainingSteps)} steps remain; ${compactWallClock(remainingMs)} wall-clock remain.`
     : `${String(remainingSteps)} steps remain.`;
-  const cleanup = experiments.specGate
-    ? 'remove omega_specgate scratch tests'
+  const cleanup = experiments.exactnessCheck
+    ? 're-check exact strings and formats, clean scratch files'
     : 'clean scratch files';
   return `[budget notice] ${remaining} Focus: complete the core implementation, verify it compiles/tests, ${cleanup}, then finish. No new exploration.`;
+}
+
+export function budgetNoticeExperiments(description: string | null | undefined): {
+  timeBudget: boolean;
+  exactnessCheck: boolean;
+} {
+  return {
+    timeBudget: description?.includes('TIME BUDGET:') ?? false,
+    exactnessCheck: description?.includes('EXACTNESS CHECK:') ?? false,
+  };
 }
 
 export { failTask };
@@ -385,10 +398,11 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       const remaining = ctx.maxSteps - stepIndex;
       messages.push({
         role: 'user',
-        content: formatBudgetNotice(remaining, ctx.deadlineMs - Date.now(), {
-          timeBudget: ctx.task.description?.includes('TIME BUDGET:') ?? false,
-          specGate: ctx.task.description?.includes('SPEC GATE:') ?? false,
-        }),
+        content: formatBudgetNotice(
+          remaining,
+          ctx.deadlineMs - Date.now(),
+          budgetNoticeExperiments(ctx.task.description),
+        ),
       });
     }
 
@@ -1007,8 +1021,8 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
   const diff = await getGradedDiff(ctx.projectPath, ctx.baseCommit);
   const patchAuditValidation = await validationSummaryWithPatchAudit(ctx.prisma, ctx.agentRunId, diff);
   ctx.rootSpan.setAttributes({
-    specgateThrowawayPathsRemoved: diff.specGatePathsRemoved.length,
     gradedPatchTestPaths: diff.gradedPatchTestPaths.length,
+    gradedPatchAddedTestPaths: diff.gradedPatchAddedTestPaths.length,
   });
   if (diff.success && diff.output) {
     await ctx.prisma.taskDiff.create({

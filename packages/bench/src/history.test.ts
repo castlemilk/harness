@@ -153,6 +153,27 @@ describe('benchmark history metadata', () => {
       .toHaveLength(BENCHMARK_HISTORY_STRING_METRIC_MAX_CHARS);
   });
 
+  it('persists explicit zero replay usage instead of converting it to missing data', async () => {
+    const report = reportWithPassingDeepSWEResult();
+    report.suite = 'deepswe-replay-zero-usage';
+    report.results[0].usage = { totalTokens: 0 };
+    report.results[0].agentRun = {
+      id: 'source-task-1',
+      resultStatus: 'done',
+      totalTokens: 0,
+      costUsd: 0,
+      createdAt: report.timestamp,
+      updatedAt: report.timestamp,
+    };
+
+    await saveBenchmarkHistory(prisma, report, { provider: 'replay' });
+
+    const [loaded] = await getHistoryBySuite(prisma, report.suite);
+    expect(loaded.provider).toBe('replay');
+    expect(loaded.totalCostUsd).toBe(0);
+    expect(loaded.totalTokens).toBe(0);
+  });
+
   it('bounds every string metric for a non-DeepSWE result and persists score and failure error', async () => {
     const report = reportWithFailingSWEBenchResult();
 

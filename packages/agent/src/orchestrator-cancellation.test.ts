@@ -71,8 +71,8 @@ describe('orchestrator caller cancellation', () => {
     mocks.getGradedDiff.mockResolvedValue({
       success: true,
       output: 'diff --git a/src/file.ts b/src/file.ts\n',
-      specGatePathsRemoved: ['tests/file.omega_specgate.test.ts'],
-      gradedPatchTestPaths: [],
+      gradedPatchTestPaths: ['tests/file.test.ts'],
+      gradedPatchAddedTestPaths: ['tests/file.test.ts'],
     });
     mocks.plannerSend.mockResolvedValue(JSON.stringify([
       {
@@ -122,7 +122,7 @@ describe('orchestrator caller cancellation', () => {
     expect(agentRunUpdate).toHaveBeenCalledWith({
       where: { id: 'agent-run-1' },
       data: expect.objectContaining({
-        validationSummary: expect.stringContaining('specgateThrowawayPathsRemoved'),
+        validationSummary: expect.stringContaining('gradedPatchAddedTestPaths'),
       }),
     });
   });

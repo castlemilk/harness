@@ -6,13 +6,25 @@ import { startBenchRun, cancelRun, type BenchRunConfig } from '../lib/benchmark-
 import { asyncHandler } from '../lib/async-handler.js';
 import { safeJsonParse } from '../lib/utils.js';
 
-const runSchema = z.object({
+function isResultRecord(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const result = value as Record<string, unknown>;
+  return typeof result.taskName === 'string' && typeof result.passed === 'boolean';
+}
+
+export function normalizeBenchRunResults(serialized: string | null): Record<string, unknown>[] {
+  const parsed = safeJsonParse<unknown>(serialized, []);
+  return Array.isArray(parsed) ? parsed.filter(isResultRecord) : [];
+}
+
+export const benchRunSchema = z.object({
   suite: z.enum(['synthetic', 'fast', 'harder', 'harder-v2', 'hard-targeting', 'swebench-lite', 'deepswe']),
   models: z.array(z.object({
     provider: z.string(),
     model: z.string(),
   })).optional(),
   strategy: z.enum(['single', 'consensus', 'variance']).default('single'),
+  varianceRuns: z.number().int().min(1).max(20).default(5),
   concurrency: z.number().int().min(1).max(10).default(3),
   timeoutMs: z.number().int().positive().default(600_000),
   tokenBudget: z.number().int().positive().optional(),
@@ -40,7 +52,7 @@ export function benchRunRoutes(prisma: PrismaClient): Router {
 
   // Start a new benchmark run
   r.post('/', asyncHandler(async (req, res) => {
-    const config: BenchRunConfig = runSchema.parse(req.body);
+    const config: BenchRunConfig = benchRunSchema.parse(req.body);
 
     // Check if a run is already in progress
     const activeRun = await prisma.benchmarkRun.findFirst({
@@ -110,7 +122,7 @@ export function benchRunRoutes(prisma: PrismaClient): Router {
     res.json({
       ...run,
       config: safeJsonParse<BenchRunConfig>(run.config, {} as BenchRunConfig),
-      results: safeJsonParse<unknown>(run.results, null),
+      results: normalizeBenchRunResults(run.results),
     });
   }));
 

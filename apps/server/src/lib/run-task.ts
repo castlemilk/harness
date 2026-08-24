@@ -161,8 +161,10 @@ export async function runTask(
     maxSubtasks?: number;
     maxIterations?: number;
     concurrency?: number;
-    /** Hard cap for an external CLI run; else complexity decides (5–30m). */
+    /** Total wall-clock cap for one internal or external agent attempt. */
     timeoutMs?: number;
+    /** Cancel the active agent attempt (for example, when a benchmark run is cancelled). */
+    signal?: AbortSignal;
   } = {}
 ) {
   const task = await prisma.task.findUnique({ where: { id: taskId }, include: { project: true } });
@@ -220,6 +222,7 @@ export async function runTask(
         model,
         effort,
         timeoutMs: options.timeoutMs,
+        signal: options.signal,
       });
     if (options.detached) {
       const result = queue.enqueue(taskId, cli, async () => {
@@ -232,25 +235,33 @@ export async function runTask(
               firstNonEmpty(externalResult.output) ?? `External CLI ${cli} returned failed.`,
             );
             console.error(`Detached external agent task ${taskId} failed:`, reason);
-            void notifyFailure(prisma, {
-              taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
-              timestamp: new Date().toISOString(),
-            }).catch(console.error);
+            if (!options.signal?.aborted) {
+              void notifyFailure(prisma, {
+                taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
+                timestamp: new Date().toISOString(),
+              }).catch(console.error);
+            }
             // Detached: the caller already returned, so a blocking retry chain
             // would hold this queue slot for up to four sequential runs.
-            void tryAutoRetry(prisma, taskId).catch(console.error);
+            if (!options.signal?.aborted) {
+              void tryAutoRetry(prisma, taskId).catch(console.error);
+            }
           }
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           const reason = await ensureFailedTaskReason(prisma, taskId, message);
           console.error(`Detached external agent task ${taskId} failed:`, message);
-          void notifyFailure(prisma, {
-            taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
-            timestamp: new Date().toISOString(),
-          }).catch(console.error);
+          if (!options.signal?.aborted) {
+            void notifyFailure(prisma, {
+              taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
+              timestamp: new Date().toISOString(),
+            }).catch(console.error);
+          }
           // Detached: the caller already returned, so a blocking retry chain
           // would hold this queue slot for up to four sequential runs.
-          void tryAutoRetry(prisma, taskId).catch(console.error);
+          if (!options.signal?.aborted) {
+            void tryAutoRetry(prisma, taskId).catch(console.error);
+          }
         }
       });
       return { status: 'in_progress', taskId, ...result };
@@ -262,11 +273,15 @@ export async function runTask(
         taskId,
         firstNonEmpty(externalResult.output) ?? `External CLI ${cli} returned failed.`,
       );
-      void notifyFailure(prisma, {
-        taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
-        timestamp: new Date().toISOString(),
-      }).catch(console.error);
-      await tryAutoRetry(prisma, taskId);
+      if (!options.signal?.aborted) {
+        void notifyFailure(prisma, {
+          taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
+          timestamp: new Date().toISOString(),
+        }).catch(console.error);
+      }
+      if (!options.signal?.aborted) {
+        await tryAutoRetry(prisma, taskId);
+      }
     }
     return externalResult;
   }
@@ -341,6 +356,8 @@ export async function runTask(
             maxIterations: options.maxIterations,
             concurrency: options.concurrency,
             complexity: task.complexity,
+            timeoutMs: options.timeoutMs,
+            signal: options.signal,
             intelligentRouter: router,
           })
         : runAgentTask(prisma, taskId, {
@@ -350,6 +367,8 @@ export async function runTask(
             isolated: true,
             tokenBudget,
             complexity: task.complexity,
+            timeoutMs: options.timeoutMs,
+            signal: options.signal,
           }, router);
 
     if (options.detached) {
@@ -368,14 +387,18 @@ export async function runTask(
             );
             traceEvent(trace, 'llm.error', { error: reason });
             completeTrace(trace, 'error', task.provider ?? undefined, task.model ?? undefined);
-            void notifyFailure(prisma, {
-              taskId, title: task.title, provider: task.provider ?? undefined,
-              model: task.model ?? undefined, error: reason, tags,
-              timestamp: new Date().toISOString(),
-            }).catch(console.error);
+            if (!options.signal?.aborted) {
+              void notifyFailure(prisma, {
+                taskId, title: task.title, provider: task.provider ?? undefined,
+                model: task.model ?? undefined, error: reason, tags,
+                timestamp: new Date().toISOString(),
+              }).catch(console.error);
+            }
             // Detached: the caller already returned, so a blocking retry chain
             // would hold this queue slot for up to four sequential runs.
-            void tryAutoRetry(prisma, taskId).catch(console.error);
+            if (!options.signal?.aborted) {
+              void tryAutoRetry(prisma, taskId).catch(console.error);
+            }
           } else {
             completeTrace(trace, 'success', task.provider ?? undefined, task.model ?? undefined);
           }
@@ -385,13 +408,17 @@ export async function runTask(
           traceEvent(trace, 'llm.error', { error: reason });
           completeTrace(trace, 'error');
           console.error(`Detached agent task ${taskId} failed:`, reason);
-          void notifyFailure(prisma, {
-            taskId, title: task.title, error: reason, tags,
-            timestamp: new Date().toISOString(),
-          }).catch(console.error);
+          if (!options.signal?.aborted) {
+            void notifyFailure(prisma, {
+              taskId, title: task.title, error: reason, tags,
+              timestamp: new Date().toISOString(),
+            }).catch(console.error);
+          }
           // Detached: the caller already returned, so a blocking retry chain
           // would hold this queue slot for up to four sequential runs.
-          void tryAutoRetry(prisma, taskId).catch(console.error);
+          if (!options.signal?.aborted) {
+            void tryAutoRetry(prisma, taskId).catch(console.error);
+          }
         }
       });
       return { status: 'in_progress', taskId, ...result };
@@ -401,7 +428,7 @@ export async function runTask(
       traceEvent(trace, 'route.selected', { provider: task.provider ?? undefined, model: task.model ?? undefined });
       // Record health/performance for the intelligent router after agent completion
       const finalTask = 'task' in agentResult ? agentResult.task : await prisma.task.findUnique({ where: { id: taskId } });
-      if (finalTask) {
+      if (finalTask && !options.signal?.aborted) {
         const provider = (finalTask as Record<string, unknown>).provider as string | undefined;
         const model = (finalTask as Record<string, unknown>).model as string | undefined;
         if (provider && model) {
@@ -420,12 +447,16 @@ export async function runTask(
         );
         traceEvent(trace, 'llm.error', { error: reason });
         completeTrace(trace, 'error', task.provider ?? undefined, task.model ?? undefined);
-        void notifyFailure(prisma, {
-          taskId, title: task.title, provider: task.provider ?? undefined,
-          model: task.model ?? undefined, error: reason, tags,
-          timestamp: new Date().toISOString(),
-        }).catch(console.error);
-        await tryAutoRetry(prisma, taskId);
+        if (!options.signal?.aborted) {
+          void notifyFailure(prisma, {
+            taskId, title: task.title, provider: task.provider ?? undefined,
+            model: task.model ?? undefined, error: reason, tags,
+            timestamp: new Date().toISOString(),
+          }).catch(console.error);
+        }
+        if (!options.signal?.aborted) {
+          await tryAutoRetry(prisma, taskId);
+        }
       } else {
         completeTrace(trace, 'success', task.provider ?? undefined, task.model ?? undefined);
       }
@@ -619,6 +650,8 @@ export async function runTask(
       model: candidates[0].model,
     },
   });
-  void tryAutoRetry(prisma, taskId).catch(console.error);
+  if (!options.signal?.aborted) {
+    void tryAutoRetry(prisma, taskId).catch(console.error);
+  }
   return updated;
 }

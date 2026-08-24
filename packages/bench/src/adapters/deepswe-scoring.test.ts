@@ -10,6 +10,7 @@ import {
   cloneRepo,
   createFlakeRerunBudget,
   decideFlakeRerun,
+  deepSwePatchAuditMetrics,
   evaluateDeepSWEWithFlakeRerun,
   isTerminalCheckoutFailure,
   localCloneFailureShowsMirrorCorruption,
@@ -23,6 +24,48 @@ import {
   type DeepSWEVerifierResult,
   type FlakeVerifierRun,
 } from './deepswe.js';
+
+describe('DeepSWE graded patch audit metrics', () => {
+  it('counts remaining test-ish patch paths and carries the harness strip count', () => {
+    const patch = [
+      'diff --git a/src/value.ts b/src/value.ts',
+      'diff --git a/tests/value.test.ts b/tests/value.test.ts',
+      'diff --git a/pkg/value_test.go b/pkg/value_test.go',
+    ].join('\n');
+
+    expect(deepSwePatchAuditMetrics(
+      patch,
+      JSON.stringify({ patchAudit: { specgateThrowawayPathsRemoved: 2 } }),
+    )).toEqual({
+      specgate_throwaway_paths_removed: 2,
+      graded_patch_test_paths: 2,
+    });
+  });
+
+  it('defaults malformed or absent audit metadata to zero', () => {
+    expect(deepSwePatchAuditMetrics('', 'not json')).toEqual({
+      specgate_throwaway_paths_removed: 0,
+      graded_patch_test_paths: 0,
+    });
+  });
+
+  it('uses the harness path count instead of reparsing unusual diff headers', () => {
+    const patchWithQuotedHeader = 'diff --git "a/tests/a b.test.ts" "b/tests/a b.test.ts"\n';
+
+    expect(deepSwePatchAuditMetrics(
+      patchWithQuotedHeader,
+      JSON.stringify({
+        patchAudit: {
+          specgateThrowawayPathsRemoved: 0,
+          gradedPatchTestPaths: 1,
+        },
+      }),
+    )).toEqual({
+      specgate_throwaway_paths_removed: 0,
+      graded_patch_test_paths: 1,
+    });
+  });
+});
 
 const execFileAsync = promisify(execFile);
 

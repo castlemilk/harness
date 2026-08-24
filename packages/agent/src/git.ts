@@ -1,11 +1,17 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { isSpecGateTestPath, isTestishPath } from '@omega/core';
 
 const execFileAsync = promisify(execFile);
 
 export interface GitResult {
   success: boolean;
   output: string;
+}
+
+export interface GradedDiffResult extends GitResult {
+  specGatePathsRemoved: string[];
+  gradedPatchTestPaths: string[];
 }
 
 async function git(
@@ -55,6 +61,14 @@ export async function stageAll(projectPath: string): Promise<GitResult> {
 
 const EXCLUDED_DIFF_PATHS = ['pnpm-lock.yaml', 'yarn.lock', 'package-lock.json', 'node_modules', '.omega'];
 
+function diffPathspecs(extraExclusions: string[] = []): string[] {
+  return [
+    '.',
+    ...EXCLUDED_DIFF_PATHS.map((filePath) => `:(exclude,literal)${filePath}`),
+    ...extraExclusions.map((filePath) => `:(exclude,literal)${filePath}`),
+  ];
+}
+
 function isExcludedDiffPath(filePath: string): boolean {
   const normalised = filePath.replace(/\\/g, '/');
   return EXCLUDED_DIFF_PATHS.some(
@@ -101,16 +115,33 @@ export async function getDiff(projectPath: string, base?: string): Promise<GitRe
         base,
         'HEAD',
         '--',
-        '.',
-        ':!pnpm-lock.yaml',
-        ':!yarn.lock',
-        ':!package-lock.json',
-        ':!node_modules',
-        ':!.omega',
+        ...diffPathspecs(),
       ]
-    : ['diff', '--', '.', ':!pnpm-lock.yaml', ':!yarn.lock', ':!package-lock.json', ':!node_modules', ':!.omega'];
+    : ['diff', '--', ...diffPathspecs()];
   // Preserve exact patch bytes; trimming trailing whitespace corrupts patches.
   return git(projectPath, args, { trim: false });
+}
+
+export async function getGradedDiff(projectPath: string, base: string): Promise<GradedDiffResult> {
+  const changed = await git(
+    projectPath,
+    ['diff', '--name-only', '-z', base, 'HEAD', '--', ...diffPathspecs()],
+    { trim: false },
+  );
+  if (!changed.success) {
+    return { ...changed, specGatePathsRemoved: [], gradedPatchTestPaths: [] };
+  }
+  const changedPaths = changed.output.split('\0').filter(Boolean);
+  const specGatePathsRemoved = changedPaths.filter(isSpecGateTestPath).sort();
+  const gradedPatchTestPaths = changedPaths
+    .filter((filePath) => !isSpecGateTestPath(filePath) && isTestishPath(filePath))
+    .sort();
+  const patch = await git(
+    projectPath,
+    ['diff', base, 'HEAD', '--', ...diffPathspecs(specGatePathsRemoved)],
+    { trim: false },
+  );
+  return { ...patch, specGatePathsRemoved, gradedPatchTestPaths };
 }
 
 export async function hasChanges(projectPath: string): Promise<boolean> {

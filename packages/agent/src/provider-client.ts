@@ -1,6 +1,6 @@
 import type { Provider, ToolCall, ToolDefinition, SendOptions, UsageInfo } from '@omega/core';
 import type { IntelligentRouter } from '@omega/router';
-import { abortableSleep } from './retry.js';
+import { abortableOperation, abortableSleep } from './retry.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
 import { logger } from './logger.js';
 import type { Tracer, Span } from './tracer.js';
@@ -23,6 +23,7 @@ interface ProviderContext {
   systemPrompt: string;
   textToolsSystemPrompt: string;
   signal?: AbortSignal;
+  deadlineMs: number;
   router?: IntelligentRouter;
   tracer: Tracer;
   rootSpan: Span;
@@ -120,15 +121,17 @@ export async function sendToProvider(
   const TURN_BACKOFFS_MS = [30_000, 60_000, 90_000];
   for (let attempt = 0; ; attempt++) {
   try {
-    if (typeof provider.sendWithTools === 'function') {
+    const sendWithTools = provider.sendWithTools;
+    if (typeof sendWithTools === 'function') {
       const sendMessages = prompt ? [...baseMessages, { role: 'user' as const, content: prompt }] : baseMessages;
-      const raw = await provider.sendWithTools(prompt ?? 'Execute the next step.', AGENT_TOOLS, {
+      const raw = await abortableOperation(() => sendWithTools.call(provider, prompt ?? 'Execute the next step.', AGENT_TOOLS, {
         system: ctx.systemPrompt,
         model: ctx.model,
         temperature: 0.3,
         onUsage,
         messages: sendMessages,
-      });
+        timeoutMs: Math.max(1, ctx.deadlineMs - Date.now()),
+      }), ctx.signal);
       span.addEvent('provider.response.received');
       const parsed = parseProviderResponse(raw);
       await span.end('ok');
@@ -150,16 +153,22 @@ export async function sendToProvider(
         return `[${m.role}] ${m.content ?? ''}`;
       })
       .join('\n\n');
-    const raw = await provider.send(transcript, {
+    const raw = await abortableOperation(() => provider.send(transcript, {
       system: ctx.textToolsSystemPrompt,
       model: ctx.model,
       onUsage,
-    });
+      timeoutMs: Math.max(1, ctx.deadlineMs - Date.now()),
+    }), ctx.signal);
     span.addEvent('provider.response.received');
     const parsed = parseProviderResponse(raw);
     await span.end('ok');
     return parsed;
   } catch (err) {
+      if (ctx.signal?.aborted) {
+        span.recordError(err);
+        await span.end('error');
+        throw err;
+      }
       if (attempt < TURN_BACKOFFS_MS.length) {
       const waitMs = TURN_BACKOFFS_MS[attempt];
       logger.warn('Provider call failed, retrying turn after backoff', {

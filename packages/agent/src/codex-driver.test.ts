@@ -117,6 +117,31 @@ describe('runCodexTurn', () => {
     expect(result.turnId).toBe('turn-test-1');
   });
 
+  it('interrupts an active turn promptly when the caller aborts', async () => {
+    process.env.FAKE_CODEX_MODE = 'hang';
+    const controller = new AbortController();
+    const startedAt = Date.now();
+    const resultPromise = runCodexTurn(
+      fs.mkdtempSync(path.join(import.meta.dirname, 'tmp-')),
+      'Implement the feature.',
+      {
+        timeoutMs: 5_000,
+        signal: controller.signal,
+        onProgress: (_message, phase) => {
+          if (phase === 'starting') {
+            controller.abort(new DOMException('Benchmark cancelled', 'AbortError'));
+          }
+        },
+      },
+    );
+
+    const result = await resultPromise;
+    expect(result.status).toBe('interrupted');
+    expect(result.timedOut).toBe(false);
+    expect(result.error).toEqual(expect.objectContaining({ message: 'Benchmark cancelled' }));
+    expect(Date.now() - startedAt).toBeLessThan(1_500);
+  });
+
   it('rejects empty prompts', async () => {
     await expect(runCodexTurn(fs.mkdtempSync(path.join(import.meta.dirname, 'tmp-')), '   ', { timeoutMs: 1000 })).rejects.toThrow(
       'A prompt is required',

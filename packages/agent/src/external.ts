@@ -3,7 +3,7 @@ import { promisify } from 'node:util';
 import type { PrismaClient } from '@omega/db';
 import type { AgentOptions } from '@omega/core';
 import { Tracer } from './tracer.js';
-import { getCurrentCommit, getDiff, getCurrentBranch, hasChanges, stageAllChanges, commit } from './git.js';
+import { getCurrentCommit, getGradedDiff, getCurrentBranch, hasChanges, stageAllChanges, commit } from './git.js';
 import { logger } from './logger.js';
 import { spawnWithPty } from './pty-spawn.js';
 import { extractOpencodeResult, extractOpencodeSessionId, opencodeRunLooksAborted, parseOpencodeMetrics } from './opencode-output.js';
@@ -11,6 +11,7 @@ import { parseClaudeCodeStreamJson } from './claude-code-output.js';
 import { parseAgyMetrics } from './agy-output.js';
 import { runCodexTurn, getCodexAvailability, type CodexTurnResult } from './codex-driver.js';
 import { buildCodexTaskPrompt } from './codex-prompt.js';
+import { validationSummaryWithPatchAudit } from './patch-audit.js';
 import { deriveVerificationCommand } from './project-utils.js';
 import { sanitizeForDb } from './utils.js';
 
@@ -71,13 +72,24 @@ function finishCodexTiming(tracker: CodexTimingTracker, turnEndedAt: number): Co
 function spawnWithStdinClosed(
   command: string,
   args: string[],
-  options: { cwd: string; env?: NodeJS.ProcessEnv; timeoutMs: number },
-): Promise<{ stdout: string; stderr: string; exitCode: number; timedOut: boolean }> {
+  options: { cwd: string; env?: NodeJS.ProcessEnv; timeoutMs: number; signal?: AbortSignal },
+): Promise<{ stdout: string; stderr: string; exitCode: number; timedOut: boolean; aborted: boolean }> {
+  if (options.signal?.aborted) {
+    return Promise.reject(
+      options.signal.reason instanceof Error
+        ? options.signal.reason
+        : new DOMException('External agent process cancelled', 'AbortError'),
+    );
+  }
+
   return new Promise((resolve, reject) => {
     const child: ChildProcess = spawn(command, args, {
       cwd: options.cwd,
       env: { ...process.env, ...options.env },
       stdio: ['ignore', 'pipe', 'pipe'],
+      // A separate process group lets cancellation terminate helper/server
+      // children launched by the CLI instead of orphaning them.
+      detached: process.platform !== 'win32',
     });
 
     const outChunks: Buffer[] = [];
@@ -87,40 +99,68 @@ function spawnWithStdinClosed(
 
     let settled = false;
     let timedOut = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      timedOut = true;
+    let aborted = false;
+    let terminationRequested = false;
+    let forceKillTimer: NodeJS.Timeout | undefined;
+    const cleanup = (): void => {
+      clearTimeout(timer);
+      if (forceKillTimer) clearTimeout(forceKillTimer);
+      options.signal?.removeEventListener('abort', onAbort);
+    };
+    const killChild = (signal: NodeJS.Signals): void => {
       try {
-        child.kill('SIGTERM');
+        if (process.platform !== 'win32' && child.pid !== undefined) {
+          process.kill(-child.pid, signal);
+        } else {
+          child.kill(signal);
+        }
       } catch {
-        /* ignore */
-      }
-      setTimeout(() => {
-        if (settled) return;
         try {
-          child.kill('SIGKILL');
+          child.kill(signal);
         } catch {
           /* ignore */
         }
-      }, 5_000);
+      }
+    };
+    const terminate = (reason: 'timeout' | 'abort'): void => {
+      if (settled || terminationRequested) return;
+      terminationRequested = true;
+      timedOut = reason === 'timeout';
+      aborted = reason === 'abort';
+      killChild('SIGTERM');
+      forceKillTimer = setTimeout(() => {
+        if (!settled) killChild('SIGKILL');
+      }, reason === 'abort' ? 1_000 : 5_000);
+    };
+    const timer = setTimeout(() => {
+      terminate('timeout');
     }, options.timeoutMs);
+    const onAbort = (): void => {
+      terminate('abort');
+    };
+    if (options.signal?.aborted) {
+      onAbort();
+    } else {
+      options.signal?.addEventListener('abort', onAbort, { once: true });
+    }
 
     child.on('error', (err) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      cleanup();
       reject(err);
     });
 
     child.on('close', (code) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      cleanup();
       resolve({
         stdout: Buffer.concat(outChunks).toString('utf8'),
         stderr: Buffer.concat(errChunks).toString('utf8'),
         exitCode: code ?? 1,
         timedOut,
+        aborted,
       });
     });
   });
@@ -200,6 +240,26 @@ function timeoutForComplexity(complexity: string | undefined): number {
     case 'complex': return 30 * 60_000;
     default: return 10 * 60_000;
   }
+}
+
+export function remainingExternalRunMs(deadlineMs: number, nowMs: number = Date.now()): number {
+  return Math.max(0, deadlineMs - nowMs);
+}
+
+export function formatExternalDeadlineNotice(startedAtMs: number, deadlineMs: number): string {
+  return [
+    `Wall-clock budget started (UTC): ${new Date(startedAtMs).toISOString()}.`,
+    `Absolute wall-clock deadline (UTC): ${new Date(deadlineMs).toISOString()}.`,
+    'Check the current clock against that deadline while working; leave enough time to build, test, and remove scratch files.',
+  ].join(' ');
+}
+
+function remainingExternalSpawnTimeout(deadlineMs: number, totalTimeoutMs: number): number {
+  const remainingMs = remainingExternalRunMs(deadlineMs);
+  if (remainingMs <= 0) {
+    throw new Error(`External agent total wall-clock budget of ${String(totalTimeoutMs)}ms was exhausted.`);
+  }
+  return remainingMs;
 }
 
 export type ExternalCli =
@@ -421,9 +481,9 @@ function cliSpec(cli: ExternalCli, model?: string): CliSpec {
   }
 }
 
-async function commandExists(cmd: string): Promise<boolean> {
+async function commandExists(cmd: string, signal?: AbortSignal): Promise<boolean> {
   try {
-    await execFileAsync('command', ['-v', cmd], { timeout: 10_000 });
+    await execFileAsync('command', ['-v', cmd], { timeout: 10_000, signal });
     return true;
   } catch {
     return false;
@@ -491,9 +551,13 @@ export async function runExternalAgentTask(
     options.cli,
     configuredModel !== undefined && configuredModel.length > 0 ? configuredModel : undefined,
   );
-  const available = await commandExists(spec.command);
+  const available = await commandExists(spec.command, options.signal);
   if (!available) {
-    const message = `External agent CLI '${spec.command}' not found in PATH`;
+    const message = options.signal?.aborted
+      ? options.signal.reason instanceof Error
+        ? options.signal.reason.message
+        : 'External agent run cancelled'
+      : `External agent CLI '${spec.command}' not found in PATH`;
     await prisma.task.update({
       where: { id: taskId },
       data: {
@@ -510,11 +574,28 @@ export async function runExternalAgentTask(
     return { status: 'failed', diff: '', output: message, executionSucceeded: false };
   }
 
-  const codexDriverAvailable = options.cli === 'codex' ? (await getCodexAvailability()).available : false;
+  const codexDriverAvailable = options.cli === 'codex'
+    ? (await getCodexAvailability(options.signal)).available
+    : false;
+
+  const totalTimeoutMs = options.timeoutMs !== undefined
+    && Number.isFinite(options.timeoutMs)
+    && options.timeoutMs > 0
+    ? options.timeoutMs
+    : timeoutForComplexity(options.complexity);
+  const runStartedAtMs = Date.now();
+  const runDeadlineMs = runStartedAtMs + totalTimeoutMs;
+  // DeepSWE's independently switchable time experiment advertises itself in
+  // the description. Do not perturb baseline prompts when that switch is off.
+  const deadlineNotice = task.description?.includes('TIME BUDGET:')
+    ? formatExternalDeadlineNotice(runStartedAtMs, runDeadlineMs)
+    : '';
 
   const prompt = [
     `Task: ${task.title}`,
     task.description ? `Description:\n${task.description}` : '',
+    '',
+    deadlineNotice,
     '',
     'Implement the task in the current repository. Make the code changes, run the project build/test command, and ensure it passes before finishing.',
   ]
@@ -526,7 +607,7 @@ export async function runExternalAgentTask(
     const verificationCommand = await deriveVerificationCommand(options.projectPath);
     codexPrompt = buildCodexTaskPrompt({
       title: task.title,
-      description: task.description ?? undefined,
+      description: [task.description, deadlineNotice].filter(Boolean).join('\n\n'),
       verificationCommand,
     });
   }
@@ -553,7 +634,8 @@ export async function runExternalAgentTask(
         let result: CodexTurnResult;
         try {
           result = await runCodexTurn(options.projectPath, codexPrompt, {
-            timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
+            timeoutMs: remainingExternalSpawnTimeout(runDeadlineMs, totalTimeoutMs),
+            signal: options.signal,
             threadName: `task:${taskId} ${task.title}`.slice(0, 96),
             model: options.model,
             effort: options.effort,
@@ -622,7 +704,7 @@ export async function runExternalAgentTask(
           output = result.finalMessage;
         } else {
           const statusReason = result.status === 'timed-out'
-            ? `Codex turn timed out after ${String(options.timeoutMs ?? timeoutForComplexity(options.complexity))}ms.`
+            ? `Codex turn reached the external agent's ${String(totalTimeoutMs)}ms total wall-clock budget.`
             : result.status === 'interrupted'
               ? 'Codex stream was interrupted before the turn completed.'
               : `Codex turn ended with status ${result.status}.`;
@@ -654,30 +736,32 @@ export async function runExternalAgentTask(
         // model produced no patch". One retry resumes the exact captured
         // session when OpenCode emitted one; a clean session is never retried.
         const maxAttempts = options.cli === 'opencode' ? 2 : 1;
-        const spawnTimeoutMs = options.timeoutMs ?? timeoutForComplexity(options.complexity);
         const attemptOutputs: string[] = [];
         let openCodeStreamAborted = false;
         let attemptsRun = 0;
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          const spawnTimeoutMs = remainingExternalSpawnTimeout(runDeadlineMs, totalTimeoutMs);
           attemptsRun = attempt;
           const attemptStartedAt = Date.now();
           let stdout: string;
           let stderr: string;
           let exitCode: number;
           let timedOut: boolean;
+          let aborted: boolean;
 
           if (spec.pty) {
             // PTY path — required for CLIs that gate stdout on isatty()
-            const timeoutMs = options.timeoutMs ?? timeoutForComplexity(options.complexity);
             const result = await spawnWithPty(spec.command, spec.args(prompt, options.projectPath, activeSession), {
               cwd: options.projectPath,
               env: spec.env,
-              timeoutMs,
+              timeoutMs: spawnTimeoutMs,
+              signal: options.signal,
             });
             stdout = result.stdout;
             stderr = result.stderr;
             exitCode = result.exitCode;
             timedOut = result.timedOut;
+            aborted = result.aborted;
           } else {
             const result = await spawnWithStdinClosed(
               spec.command,
@@ -685,13 +769,15 @@ export async function runExternalAgentTask(
               {
                 cwd: options.projectPath,
                 env: spec.env,
-                timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
+                timeoutMs: spawnTimeoutMs,
+                signal: options.signal,
               },
             );
             stdout = result.stdout;
             stderr = result.stderr;
             exitCode = result.exitCode;
             timedOut = result.timedOut;
+            aborted = result.aborted;
           }
 
           // Keep the raw stdout around for metrics parsing — the outputTransform
@@ -717,6 +803,12 @@ export async function runExternalAgentTask(
             }
           }
 
+          if (aborted) {
+            const cancellation = options.signal?.reason instanceof Error
+              ? options.signal.reason
+              : new DOMException('External agent process cancelled', 'AbortError');
+            throw Object.assign(cancellation, { stdout, stderr });
+          }
           if (timedOut) {
             throw Object.assign(
               new Error(`${spec.command} timed out after ${String(spawnTimeoutMs)}ms`),
@@ -846,9 +938,10 @@ export async function runExternalAgentTask(
       await commit(options.projectPath, `external(${options.cli}): ${task.title}`, true);
     }
 
-    const diff = await getDiff(options.projectPath, baseCommitSha);
+    const diff = await getGradedDiff(options.projectPath, baseCommitSha);
     const patch = diff.output;
     const hasPatch = patch.trim().length > 0;
+    const patchAuditValidation = await validationSummaryWithPatchAudit(prisma, agentRun.id, diff);
 
     if (patch) {
       await prisma.taskDiff.create({
@@ -894,9 +987,15 @@ export async function runExternalAgentTask(
         sessionId: activeSession?.sessionId,
         sessionKind: activeSession?.sessionKind,
         ...buildAgentRunMetricsUpdate(spec, rawOutput),
+        ...(patchAuditValidation ? { validationSummary: patchAuditValidation } : {}),
       },
     });
-    rootSpan.setAttributes({ passed, diffBytes: patch.length });
+    rootSpan.setAttributes({
+      passed,
+      diffBytes: patch.length,
+      specgateThrowawayPathsRemoved: diff.specGatePathsRemoved.length,
+      gradedPatchTestPaths: diff.gradedPatchTestPaths.length,
+    });
     await rootSpan.end(passed ? 'ok' : 'error');
     logger.info('External agent task finished', { taskId, cli: options.cli, passed });
     return { status: passed ? 'done' : 'failed', diff: patch, output, executionSucceeded: success };

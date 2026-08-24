@@ -253,6 +253,16 @@ export const api = {
         harnessTaskId: string;
         passed: boolean;
         durationMs: number;
+        /** Absent on benchmark rows persisted before per-task evaluations landed. */
+        evaluation?: {
+          passed: boolean;
+          score?: number;
+          message?: string;
+          metrics?: Record<string, number | string>;
+        };
+        /** Absent on benchmark run rows written before per-task usage landed. */
+        costUsd?: number;
+        totalTokens?: number;
         model?: string;
         winnerModel?: string;
         variancePassRate?: number;

@@ -5,7 +5,12 @@ import os from 'node:os';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { omegaVerifierToolsDir, omegaWorkDir } from '@omega/core';
+import {
+  isTestishPath,
+  omegaVerifierToolsDir,
+  omegaWorkDir,
+  SPEC_GATE_TEST_BASENAME_MARKER,
+} from '@omega/core';
 import type { BenchmarkTask, BenchmarkEvaluation, EvaluationContext } from '../types.js';
 
 const execFileAsync = promisify(execFile);
@@ -16,6 +21,41 @@ export interface DeepSWEOptions {
   sampleSeed?: number;
   taskIds?: string[];
   useDocker?: boolean;
+  /** Per-agent-attempt wall-clock limit advertised in the task prompt. */
+  timeoutMs?: number;
+}
+
+export function deepSwePatchAuditMetrics(
+  modelPatch: string,
+  validationSummary: string | undefined,
+): Record<'specgate_throwaway_paths_removed' | 'graded_patch_test_paths', number> {
+  const paths = new Set<string>();
+  for (const line of modelPatch.split('\n')) {
+    const match = /^diff --git a\/(.+) b\/(.+)$/.exec(line);
+    if (match?.[2] && isTestishPath(match[2])) paths.add(match[2]);
+  }
+  let stripped = 0;
+  let auditedTestPaths: number | undefined;
+  try {
+    const parsed = JSON.parse(validationSummary ?? '') as {
+      patchAudit?: {
+        specgateThrowawayPathsRemoved?: unknown;
+        gradedPatchTestPaths?: unknown;
+      };
+    };
+    const value = parsed.patchAudit?.specgateThrowawayPathsRemoved;
+    if (typeof value === 'number' && Number.isInteger(value) && value >= 0) stripped = value;
+    const testPaths = parsed.patchAudit?.gradedPatchTestPaths;
+    if (typeof testPaths === 'number' && Number.isInteger(testPaths) && testPaths >= 0) {
+      auditedTestPaths = testPaths;
+    }
+  } catch {
+    // Missing or legacy validation metadata means the stripper removed none.
+  }
+  return {
+    specgate_throwaway_paths_removed: stripped,
+    graded_patch_test_paths: auditedTestPaths ?? paths.size,
+  };
 }
 
 interface DeepSWETaskToml {
@@ -576,14 +616,42 @@ function languageGuidance(language: string | undefined): string {
   return cmds;
 }
 
-function buildDeepSweDescription(instruction: string, language: string | undefined): string {
-  const guidance = languageGuidance(language);
-  // Strip branch-management instructions that conflict with the harness's
-  // isolated worktree branch; the agent must stay on its assigned branch.
-  const cleanedInstruction = instruction
-    .replace(/IMPORTANT:[\s\S]*?new branch from main[\s\S]*?(?=\n\n|\n*$)/gi, '')
-    .replace(/work on this in a new branch from main[\s\S]*?(?=\n\n|\n*$)/gi, '')
-    .trim();
+const BASELINE_SPEC_EXHORTATION = 'Implement precisely to the spec below - the hidden test suite checks exact behaviour (error message text, formatting, attribute names, signatures).';
+const DEEPSWE_VERIFICATION_START_FRACTION = 0.6;
+const DISABLED_PROMPT_SWITCH_VALUES = new Set(['0', 'false', 'off', 'no']);
+
+function promptExperimentEnabled(value: string | undefined): boolean {
+  return !DISABLED_PROMPT_SWITCH_VALUES.has(value?.trim().toLowerCase() ?? '');
+}
+
+function formatWallClock(milliseconds: number): string {
+  const totalMilliseconds = Math.max(0.001, milliseconds);
+  const hours = Math.floor(totalMilliseconds / 3_600_000);
+  const minutes = Math.floor((totalMilliseconds % 3_600_000) / 60_000);
+  const seconds = Math.floor((totalMilliseconds % 60_000) / 1_000);
+  const remainingMilliseconds = totalMilliseconds % 1_000;
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${String(hours)} hour${hours === 1 ? '' : 's'}`);
+  if (minutes > 0) parts.push(`${String(minutes)} minute${minutes === 1 ? '' : 's'}`);
+  if (seconds > 0) parts.push(`${String(seconds)} second${seconds === 1 ? '' : 's'}`);
+  if (remainingMilliseconds > 0) {
+    const displayedMilliseconds = Math.round(remainingMilliseconds * 1_000) / 1_000;
+    parts.push(`${String(displayedMilliseconds)} millisecond${displayedMilliseconds === 1 ? '' : 's'}`);
+  }
+  return parts.join(' ');
+}
+
+function timeBudgetGuidance(timeoutMs: number | undefined): string {
+  if (timeoutMs === undefined || !Number.isFinite(timeoutMs) || timeoutMs <= 0) return '';
+  const verifyAtMs = timeoutMs * DEEPSWE_VERIFICATION_START_FRACTION;
+  const startPercent = Math.round(DEEPSWE_VERIFICATION_START_FRACTION * 100);
+  const reservePercent = 100 - startPercent;
+  return `TIME BUDGET: This agent attempt has an enforced total of ${formatWallClock(timeoutMs)}. Internal runs report both steps and wall-clock remaining in budget notices; external CLI runs receive their launch time and absolute UTC deadline.
+Prioritisation: get the new behaviour working, then reserve time to run the existing suite and fix every regression you caused; a broken existing test scores zero no matter how good the feature is.
+By ${String(startPercent)}% of the budget (${formatWallClock(verifyAtMs)} elapsed), stop exploring and start verifying. Reserve the final ${String(reservePercent)}% for regression fixes.`;
+}
+
+function legacyDeepSweDescription(guidance: string, cleanedInstruction: string): string {
   return `${guidance}
 
 BUILD GATE (critical): the verifier scores you zero if the project does not compile or the existing test suite breaks. Before calling finish you MUST:
@@ -593,10 +661,47 @@ BUILD GATE (critical): the verifier scores you zero if the project does not comp
 
 SCOPE CONSTRAINT: Only edit source files directly related to the task. Do NOT modify CI/CD configs (.github/, .coderabbit.yaml, .codesandbox/), documentation (README.md, AUTHORS, CONTRIBUTING.md), meta files (.release-it.json, .prettierignore), build configs (package.json, rollup.config.js, webpack.config.js, tsconfig.json), or project scaffolding. Do NOT delete existing files. Do NOT create new files unless necessary for the implementation. Every extraneous change wastes steps and risks breaking the verifier.
 
-Implement precisely to the spec below - the hidden test suite checks exact behaviour (error message text, formatting, attribute names, signatures).
+${BASELINE_SPEC_EXHORTATION}
 
 ---
 ${cleanedInstruction}`;
+}
+
+function buildDeepSweDescription(instruction: string, language: string | undefined, timeoutMs?: number): string {
+  const guidance = languageGuidance(language);
+  // Strip branch-management instructions that conflict with the harness's
+  // isolated worktree branch; the agent must stay on its assigned branch.
+  const cleanedInstruction = instruction
+    .replace(/IMPORTANT:[\s\S]*?new branch from main[\s\S]*?(?=\n\n|\n*$)/gi, '')
+    .replace(/work on this in a new branch from main[\s\S]*?(?=\n\n|\n*$)/gi, '')
+    .trim();
+  const specGateEnabled = promptExperimentEnabled(process.env.OMEGA_DEEPSWE_SPEC_GATE);
+  const timeBudgetEnabled = promptExperimentEnabled(process.env.OMEGA_DEEPSWE_TIME_BUDGET);
+  const budgetGuidance = timeBudgetEnabled ? timeBudgetGuidance(timeoutMs) : '';
+  if (!specGateEnabled && !budgetGuidance) {
+    return legacyDeepSweDescription(guidance, cleanedInstruction);
+  }
+
+  const specCheck = specGateEnabled
+    ? `SPEC GATE: enumerate every observable behaviour as a checklist: exact error strings and message text, output/file formats, names, signatures, defaults, and boundary and negative cases. For each item, write a disposable assertion whose basename contains the exact marker \`${SPEC_GATE_TEST_BASENAME_MARKER}\` (for example \`test_${SPEC_GATE_TEST_BASENAME_MARKER}_x.py\`, \`${SPEC_GATE_TEST_BASENAME_MARKER}_x_test.go\`, or \`${SPEC_GATE_TEST_BASENAME_MARKER}_x.test.ts\`). Use exact string comparison, not a substring, when text is specified. These assertions are expected to fail before implementation.`
+    : BASELINE_SPEC_EXHORTATION;
+  const redGreen = specGateEnabled
+    ? ` Run the marked assertions after editing and implement until every one passes.`
+    : '';
+  const cleanup = specGateEnabled
+    ? ` Delete every \`${SPEC_GATE_TEST_BASENAME_MARKER}\` file. The harness also strips any marked path from the graded patch as a safety net.`
+    : '';
+
+  return `TASK — IMPLEMENT THIS SPECIFICATION
+${cleanedInstruction}
+
+---
+EXECUTION WORKFLOW (follow in order)
+1. Plan and spec-check — ${specCheck}
+2. Implement — Make the smallest source change that satisfies the checklist. Do not edit CI, docs, build configuration, scaffolding, or unrelated files; new files are allowed only when required by the implementation or the marked spec-check above.${redGreen}
+3. Verify — ${budgetGuidance ? `${budgetGuidance}\n` : ''}${guidance}
+4. Clean up —${cleanup || ' Remove scratch artifacts and unrelated changes.'}${cleanup ? ' Remove any other scratch artifacts and unrelated changes.' : ''}
+5. Finish — Only finish after phase 3 is green.`;
 }
 
 async function commandExists(cmd: string): Promise<boolean> {
@@ -3054,7 +3159,7 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
       id: `deepswe-${id}`,
       name: id,
       title,
-      description: buildDeepSweDescription(instruction, language),
+      description: buildDeepSweDescription(instruction, language, options.timeoutMs),
       complexity: (process.env.OMEGA_DEEPSWE_COMPLEXITY as 'simple' | 'medium' | 'complex' | undefined) ?? 'medium',
       tags: [id],
       setup: async (projectPath: string) => {
@@ -3083,6 +3188,10 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
           .slice()
           .reverse()
           .find((d) => typeof d.patch === 'string' && d.patch.length > 0)?.patch;
+        const patchAuditMetrics = deepSwePatchAuditMetrics(
+          storedPatch ?? '',
+          ctx.agentRun?.validationSummary,
+        );
         if (!storedPatch) {
           // No agent patch → the task already failed. Running the full
           // verifier with an empty patch burns up to 30 min per no-patch
@@ -3098,6 +3207,7 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
               p2p_passed: 0,
               p2p_total: 0,
               partial: 0,
+              ...patchAuditMetrics,
               verifier_skipped: 1,
               flake_rerun: 0,
               p2p_flaky_count: 0,
@@ -3108,7 +3218,7 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
             },
           };
         }
-        return evaluateDeepSWEWithFlakeRerun(
+        const evaluation = await evaluateDeepSWEWithFlakeRerun(
           {
             invocation: {
               projectPath: ctx.projectPath,
@@ -3130,6 +3240,13 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
             invocation.modelPatch,
           ),
         );
+        return {
+          ...evaluation,
+          metrics: {
+            ...evaluation.metrics,
+            ...patchAuditMetrics,
+          },
+        };
       },
     });
   }

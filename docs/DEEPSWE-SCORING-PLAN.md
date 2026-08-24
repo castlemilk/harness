@@ -72,6 +72,13 @@ What this does and does not show:
   That makes **T2.2** (tell the agent its remaining time) the highest-value
   Tier 2 item, ahead of T2.1, and argues for raising `timeoutMs` above 20 min
   for the two big-suite tasks.
+- **The 20-minute limit was binding on 2/8 tasks.** Use at least 30 minutes
+  (`timeoutMs: 1800000`) for scoring sets that include sqlfmt or narwhals, and
+  continue to treat timeout-sensitive results as host-load dependent.
+- **This 4/8 run predates both Tier 2 prompt changes:** the explicit time-budget
+  guidance and the executable spec gate. Runs made with either change enabled
+  are a new measurement series and are not directly comparable to this
+  baseline.
 
 ---
 
@@ -82,9 +89,10 @@ and needs no model change.
 
 ### Tier 1 — recover the losses (target: 1/8 → 3–4/8)
 
-**T1.1 Retry + cache repo clones.**
-`packages/bench/src/adapters/deepswe.ts:403` `cloneRepo()` has **no retry** — a
-transient network blip is a permanent zero for that task.
+**T1.1 Retry + cache repo clones — implemented.**
+Before Tier 1, `cloneRepo()` had no retry, so a transient network blip was a
+permanent zero for that task. It now uses bounded retries and a local mirror
+cache.
 - Wrap the clone/checkout in bounded retry with backoff (3 attempts).
 - Add a local mirror cache: clone each repo **once** into a cache dir, then
   create per-task checkouts from the mirror (`git clone --reference` or a
@@ -94,7 +102,7 @@ transient network blip is a permanent zero for that task.
   succeeds rather than recording a 0s failure; confirm a second task on the
   same repo does not re-clone from the network.
 
-**T1.2 Flake-aware p2p grading.**
+**T1.2 Flake-aware p2p grading — implemented.**
 vulture failed on one p2p test with `f2p 24/24`, and the failing test **differs
 between runs** — a flake signature, not a pre-existing failure.
 - After an eligible graded run, run one full confirmation verifier pass in the
@@ -105,12 +113,11 @@ between runs** — a flake signature, not a pre-existing failure.
 - Acceptance: a task whose only p2p failure passes on re-run scores as a pass,
   with the flake named in the verdict.
 
-**T1.3 Run the verifier under Docker.**
+**T1.3 Run the verifier under Docker — implemented.**
 The local verifier shares the host network namespace and a host venv — the root
 cause of both the `:8080` collision and the pyarrow drift that needed per-task
-repairs. `useDocker` is already plumbed
-(`apps/server/src/lib/benchmark-runner.ts:140`); the Docker daemon was simply
-down. Turning it on removes that whole class of false zeros and makes the
+repairs. `useDocker` is plumbed through the benchmark runner; enabling it
+removes that whole class of false zeros and makes the
 per-task overrides in §4 largely unnecessary.
 - Acceptance: anko passes its p2p suite with **no** environment override
   applied.
@@ -122,35 +129,109 @@ heavy work. Make this a documented pre-flight step, not a hope.
 
 ### Tier 2 — convert the near-misses (real capability, +1–2)
 
-**T2.1 Add a "spec gate" to the task prompt.**
-`packages/bench/src/adapters/deepswe.ts:371` `buildDeepSweDescription()`
-currently enforces a BUILD GATE (line 381): build passes + *existing* tests
-pass. Nothing makes the agent prove the **new** behaviour, which is exactly
-where both near-misses died.
-The hidden tests must stay hidden (that is the benchmark's premise — do NOT
-leak `f2p_node_ids` into the prompt; that is cheating, and it would also
-invalidate every historical comparison). Instead require the agent to:
-1. enumerate each observable behaviour the instruction specifies (exact error
-   text, formatting, signatures, boundary/negative cases),
-2. write throwaway tests for each, run them, fix failures,
-3. delete the throwaway tests before finishing.
+**T2.1 Add a "spec gate" to the task prompt — implemented.**
+`buildDeepSweDescription()` now puts the public task specification first and
+uses one ordered five-phase workflow: plan/spec-check → implement → verify →
+clean up → finish. The spec-check is a normal red/green loop: enumerate every
+observable behavior, write assertions that are expected to fail before the
+implementation, implement until they pass, and then remove them. Exact text is
+checked with exact comparison. Hidden tests, `f2p_node_ids`,
+`tests/config.json`, and `tests/test.patch` remain outside the prompt.
+
+Every disposable assertion must have the exact, case-sensitive token
+`omega_specgate` in its basename (`test_omega_specgate_x.py`,
+`omega_specgate_x_test.go`, `omega_specgate_x.test.ts`, and so on). Final patch
+capture excludes every matching path before writing `TaskDiff`/`model.patch`,
+including a marker file the model committed itself. The pattern had zero
+collisions across the 113-task corpus and 1,133 paths in its reference and test
+patches. Evaluations always expose `specgate_throwaway_paths_removed` (the
+harness safety net fired) and `graded_patch_test_paths` (test-ish paths still in
+the patch). These metrics are audit signals, not part of the reward.
+
+`OMEGA_DEEPSWE_SPEC_GATE` controls this procedure and defaults **on**. Values
+`0`, `false`, `off`, or `no`, in any letter case, disable it. The hidden tests
+must stay hidden (that is the benchmark's premise—leaking them invalidates every
+historical comparison).
+
 Both observed misses were edge semantics (string-range assignment;
 default-argument visibility) — precisely what a boundary-case pass catches.
 
-**T2.2 Tell the agent its remaining time budget.**
+**T2.2 Tell the agent its time budget — implemented with total time.**
 sol wall-clocked all 8 tasks (1809–1998s at a 1800s cap) while opus finished in
 400–1200s. A model that knows its deadline can prioritize; one that doesn't
-burns the budget exploring.
+burns the budget exploring. Every DeepSWE description now states the configured
+wall-clock budget, tells the agent to get the new behavior working first, and
+names 60% of the budget as the point to stop exploring and begin existing-suite
+verification and regression repair. The internal executor now derives its
+deadline from that configured timeout, and external CLI retries share one
+absolute deadline instead of receiving a fresh timeout per process. The
+internal guard interrupts in-flight provider calls, shell commands, and final
+validation while still capturing the filtered terminal patch. Internal
+late-step notices report both steps and wall-clock time remaining; external CLI
+prompts include their UTC launch time and absolute UTC deadline, so either path
+can observe the unit used by the guidance.
+
+`OMEGA_DEEPSWE_TIME_BUDGET` independently controls this prompt block and accepts
+the same case-insensitive off values (`0|false|off|no`). With both prompt
+switches off, the complete task description is byte-for-byte the pre-Tier-2
+prompt, and neither the external deadline notice nor the enhanced internal
+late-step notice is injected; this is the clean 4/8-baseline control.
 
 ### Tier 3 — stop the number lying (no true-score change)
 
-**T3.1 n ≥ 3, report pass@k and variance.** returns-validated and vulture both
-flipped between runs; opus went 2/8 → 1/8 on an identical task set; sol scored
-2/8 twice on *different* task sets. At n=1 these numbers cannot rank models.
+**T3.1 n ≥ 3, report pass@k and variance — mostly implemented.**
+returns-validated and vulture both flipped between runs; opus went 2/8 → 1/8
+on an identical task set; sol scored 2/8 twice on *different* task sets. At
+n=1 these numbers cannot rank models.
 
-**T3.2 Track partial reward as a secondary metric.** abs scored `partial 0.917`
-— real progress a binary hides. Surface it on the Benchmarks tab so
-improvement is visible before it flips a pass.
+The server runner already supports this mode. Request
+`"strategy": "variance", "varianceRuns": 3`; the HTTP schema preserves the
+run count, and each task is attempted three times. The existing task-level
+verdict deliberately remains a majority collapse (`passRate >= 0.5`) and the
+top-level `harnessTaskId` remains the last repetition for compatibility.
+Aggregate `passRate`, `passes`, and `nRuns` are retained, and
+`variance_run_outcomes` now records a compact ordered JSON array containing
+each repetition's run number, harness task id, pass/fail result, score when
+present, duration, and numeric evaluator metrics. String-valued output and log
+fields are omitted from that repeated array; the aggregate task row still
+carries the latest completed repetition's score and bounded metrics so the
+Benchmarks tab can show partial reward and verifier detail in variance mode.
+Aggregate pass/fail and pass-rate fields still describe the whole requested
+series. The JSON string is kept parseable within the shared 2,048-character
+history metric budget, omitting the oldest outcomes with an explicit count when
+necessary.
+`nRuns` remains the requested count. If cancellation or a setup/provider error
+ends the series early, `completedRuns` records the number of non-cancelled
+outcomes retained, and `variance_incomplete: 1` makes the short series explicit.
+For compatibility, the existing `passRate` and majority verdict keep the
+requested `nRuns` as their denominator, so an uncompleted repetition still
+counts against the aggregate; `completedPassRate` separately reports passes
+among non-cancelled recorded outcomes. A
+repetition error is retained as a failed outcome with a bounded error summary,
+after which the series stops to avoid multiplying a potentially terminal
+failure. Cancellation is retained as an explicit `cancelled: true` outcome and
+`variance_cancelled: 1`, and it is not inferred to be a timeout.
+
+The top-level `timeouts` field now infers a variance timeout from each
+non-cancelled attempt's duration rather than from the cumulative duration of the
+whole variance task. Strategies without that task-level `timedOut` result retain
+the overall duration-threshold fallback. Older variance rows accumulated the
+durations of multiple repetitions and could therefore be labelled as timeouts
+even when no attempt timed out; historical variance `timeouts` values are not
+comparable across this change.
+
+The remaining T3.1 work is to calculate and render pass@k from those outcomes
+at the run/model level, with confidence intervals, rather than treating the
+majority verdict as the whole statistical report.
+
+**T3.2 Track partial reward as a secondary metric — implemented.** abs scored
+`partial 0.917` — real progress a binary hides. DeepSWE task rows on the
+Benchmarks tab now show partial reward, f2p/p2p counts, verifier mode, and
+flake-rerun disclosures. Partial remains a neutral numeric progress measure. A
+failed task is labelled a near miss only when it has a valid f2p denominator and
+completed at least half of the requested fail-to-pass work
+(`f2p_passed / f2p_total >= 0.5`); the p2p-dominated partial score does not drive
+the badge.
 
 **T3.3 Keep skills OFF for scoring runs.** `.agents/skills` holds **36**
 `solution.patch` skills from previous solves. One made abs-stepped-slices
@@ -170,8 +251,11 @@ internal path against a task whose skill exists.
   Corollary: an in-flight bench run is immune to rebuilds, which is how to make
   a measurement reproducible while editing.
 - **`codex exec` hangs without `< /dev/null`** when launched detached.
-- **Cancelled bench runs write no `BenchmarkHistory` row**, so their per-task
-  results are lost. Do not cancel a run you intend to report.
+- **Cancellation is terminal but auditable.** The runner now writes the
+  completed/cancelled task outcomes to `BenchmarkHistory`; a variance
+  repetition is marked `cancelled: true` and `variance_cancelled: 1` rather than
+  disappearing or masquerading as a timeout. Unstarted tasks still have no
+  per-task result.
 - **An orphaned `running` run blocks new ones** (`A benchmark run is already in
   progress`) — cancel it via `POST /bench/run/:id/cancel` first.
 - **`deepswe.taskIds` vs top-level `taskIds`**: both are accepted by the
@@ -226,7 +310,7 @@ runs before trusting it (vulture proves single-run baselines are wrong).
   that test still fails.
 - `da534d9` — retry classification (transient vs terminal), circuit breakers on
   the external-CLI path, and session capture/resume.
-- T1.1/T1.2 (this working tree) — retrying bare-mirror clone cache plus bounded,
+- T1.1/T1.2 (`db5d7ec`) — retrying bare-mirror clone cache plus bounded,
   same-tree flake confirmation. The verifier now removes patch-created paths
   that survived `git checkout -f` before applying the stored patch and emits
   `patch_paths_cleaned_count` when it does so. A task with this metric is not
@@ -265,10 +349,12 @@ docker info >/dev/null
 task dev                      # only if the API is not already up
 
 # 2. launch (adjust model/timeout; taskIds nested under deepswe)
+# This scoring set contains sqlfmt and narwhals, so use 30 minutes per attempt.
 curl -s -X POST http://localhost:4000/bench/run -H 'Content-Type: application/json' -d '{
   "suite": "deepswe",
   "models": [{"provider": "external:claude-code", "model": "claude-opus-5"}],
-  "strategy": "single", "concurrency": 1, "timeoutMs": 1200000,
+  "strategy": "variance", "varianceRuns": 3,
+  "concurrency": 1, "timeoutMs": 1800000,
   "projectPrefix": "score-run",
   "deepswe": {
     "tasksDir": "'"$PWD"'/deep-swe/tasks",
@@ -280,11 +366,41 @@ curl -s -X POST http://localhost:4000/bench/run -H 'Content-Type: application/js
 # 3. watch; results land in BenchmarkHistory and on the Benchmarks tab
 curl -s http://localhost:4000/bench/run/<id>
 curl -s http://localhost:4000/foreman/benchmarks
+# Use an id from the aggregate response's `recent` array to fetch its bounded
+# per-task evaluation detail only when needed.
+curl -s http://localhost:4000/foreman/benchmarks/<benchmark-history-id>
 ```
+
+The spec gate and time guidance default on and are independently controlled by
+`OMEGA_DEEPSWE_SPEC_GATE` and `OMEGA_DEEPSWE_TIME_BUDGET`. Either accepts
+case-insensitive `0|false|off|no`. Record both settings with the run. Turning
+only one off isolates that experiment; turning both off reproduces the complete
+pre-Tier-2 task prompt byte for byte, including no dynamic external deadline and
+the legacy internal step-only late-budget notice. It is the control comparable
+to the 4/8 baseline.
+
+Variance mode runs each task `varianceRuns` times. With the serialized example
+above, plan for up to 90 minutes of agent time per task before setup and
+verification overhead; the individual attempt limit remains 30 minutes.
 
 Verifier artifacts (the ground truth for any claim about a score):
 `~/.omega/work/deepswe/<task>-<timestamp>/verifier.log` — contains the
 `reward.json` line and the per-test `[verifier] ✗ [f2p|p2p]` failures.
+
+### How to tell if the spec gate helped or hurt
+
+Read these signals in this order on the next matched sweep:
+
+1. Timeout count first: the pre-Tier-2 baseline was **2/8**. A correctness gain
+   bought by more timeouts is not a clean gain.
+2. `p2p_passed/p2p_total` on sqlfmt and narwhals. Sqlfmt's reference is
+   **1248/1273** (narwhals was 9752/10093); a compile-breaking leftover can turn
+   a strong partial result into missing/failed package results.
+3. The `apply_failed` rate, plus any task that drops to `f2p 0` while carrying a
+   non-trivial patch. Treat either as a harness/prompt regression until disproved.
+4. `specgate_throwaway_paths_removed` and `graded_patch_test_paths`. The first
+   shows how often harness stripping saved a forgotten disposable test; inspect
+   every remaining test-ish path counted by the second.
 
 ### Clone and flake safeguards
 
@@ -362,10 +478,12 @@ empty patch.
 
 ## 7. Suggested first move next session
 
-Tier 1 has landed (T1.1, T1.2, T1.4 in `db5d7ec`; T1.3 verified above). The
-next move is the measurement itself: run the same 8 tasks **serialized**
-(`concurrency: 1`, exclusive host, `useDocker: true`) at **n=3**, per T3.1.
-That yields the first number worth comparing across models.
+Tier 1 has landed (T1.1, T1.2, T1.4 in `db5d7ec`; T1.3 verified above), and
+Tier 2 changes the prompt. The next move is a new measurement series: run the
+same 8 tasks **serialized** (`concurrency: 1`, exclusive host,
+`useDocker: true`) with `strategy: "variance"` and `varianceRuns: 3`, per
+T3.1. Treat it as the first post-Tier-2 baseline; do not compare its headline
+score directly to the pre-gate 4/8 run.
 
 Two things to watch on that first sweep, because it is their first production
 execution:
@@ -376,5 +494,6 @@ execution:
   precondition (`removePatchPathsMissingFromBase`) is unit-tested in isolation,
   but no test drives the local verifier twice end to end.
 
-Everything in Tier 2 should wait until the measurement is trustworthy —
-otherwise prompt changes will be evaluated against noise.
+Keep the prompt-switch value, timeout, host pre-flight, and per-run variance
+outcomes with every result so later comparisons do not conflate prompt effects
+with scheduling noise.

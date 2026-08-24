@@ -115,22 +115,54 @@ export interface BenchmarkModelRow {
   suites: string[];
 }
 
+export interface BenchmarkTaskEvaluation {
+  passed: boolean;
+  score?: number;
+  message?: string;
+  metrics?: Record<string, number | string>;
+}
+
+export interface BenchmarkTaskResult {
+  taskName: string;
+  harnessTaskId: string;
+  passed: boolean;
+  durationMs: number;
+  /** Absent on task rows written before per-task evaluations were persisted. */
+  evaluation?: BenchmarkTaskEvaluation;
+  /** Per-task spend/usage; absent on history written before audit fields landed. */
+  costUsd?: number;
+  totalTokens?: number;
+  model?: string;
+  winnerModel?: string;
+  variancePassRate?: number;
+  error?: string;
+}
+
+export interface BenchmarkRunSummary {
+  id: string;
+  suite: string;
+  provider: string | null;
+  model: string | null;
+  totalTasks: number;
+  passed: number;
+  failed: number;
+  timeouts: number;
+  passRate: number;
+  totalCostUsd: number | null;
+  totalTokens: number | null;
+  createdAt: string;
+  /** Legacy aggregate responses included this field; current responses do not. */
+  results?: BenchmarkTaskResult[];
+}
+
+export interface BenchmarkRunDetail {
+  id: string;
+  results: BenchmarkTaskResult[];
+}
+
 export interface BenchmarkSummary {
   models: BenchmarkModelRow[];
-  recent: {
-    id: string;
-    suite: string;
-    provider: string | null;
-    model: string | null;
-    totalTasks: number;
-    passed: number;
-    failed: number;
-    timeouts: number;
-    passRate: number;
-    totalCostUsd: number | null;
-    totalTokens: number | null;
-    createdAt: string;
-  }[];
+  recent: BenchmarkRunSummary[];
   totalRuns: number;
 }
 
@@ -180,6 +212,9 @@ export const foremanApi = {
   getProvidersHealth: () => request<ProviderHealth[]>('/foreman/providers/health'),
 
   getBenchmarks: () => request<BenchmarkSummary>('/foreman/benchmarks'),
+
+  getBenchmarkDetails: (id: string) =>
+    request<BenchmarkRunDetail>(`/foreman/benchmarks/${encodeURIComponent(id)}`),
 
   // Carries every pending intervention, and a tool approval's whole basis for
   // the decision is the command it wants to run.

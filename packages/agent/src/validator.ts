@@ -2,6 +2,10 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {
+  boundedExecutionTimeoutMs,
+  type ExecutionDeadlineOptions,
+} from './project-utils.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -21,12 +25,14 @@ const COREPACK_ENV: NodeJS.ProcessEnv = {
 async function runStep(
   projectPath: string,
   command: string,
-  args: string[]
+  args: string[],
+  options: ExecutionDeadlineOptions,
 ): Promise<{ passed: boolean; output: string }> {
   try {
     const { stdout, stderr } = await execFileAsync(command, args, {
       cwd: projectPath,
-      timeout: 300_000,
+      timeout: boundedExecutionTimeoutMs(300_000, options),
+      signal: options.signal,
       env: command === 'corepack' ? COREPACK_ENV : undefined,
     });
     return { passed: true, output: stdout + stderr };
@@ -88,16 +94,22 @@ async function packageHasDependencies(projectPath: string): Promise<boolean> {
   return false;
 }
 
-async function commandExists(cmd: string): Promise<boolean> {
+async function commandExists(cmd: string, options: ExecutionDeadlineOptions): Promise<boolean> {
   try {
-    await execFileAsync('command', ['-v', cmd], { timeout: 10_000 });
+    await execFileAsync('command', ['-v', cmd], {
+      timeout: boundedExecutionTimeoutMs(10_000, options),
+      signal: options.signal,
+    });
     return true;
   } catch {
     return false;
   }
 }
 
-async function validateNodeProject(projectPath: string): Promise<ValidationSummary> {
+async function validateNodeProject(
+  projectPath: string,
+  options: ExecutionDeadlineOptions,
+): Promise<ValidationSummary> {
   const pm = await detectNodePm(projectPath);
   if (!pm) {
     // No package.json — nothing to validate.
@@ -112,8 +124,8 @@ async function validateNodeProject(projectPath: string): Promise<ValidationSumma
     !(await pathExists(path.join(projectPath, 'node_modules'))) &&
     (await packageHasDependencies(projectPath))
   ) {
-    if (await commandExists(pm.command)) {
-      await runStep(projectPath, pm.command, pm.installArgs);
+    if (await commandExists(pm.command, options)) {
+      await runStep(projectPath, pm.command, pm.installArgs, options);
     }
   }
 
@@ -130,13 +142,13 @@ async function validateNodeProject(projectPath: string): Promise<ValidationSumma
   };
 
   const lint = (await fileHasScript(projectPath, 'lint'))
-    ? await runStep(projectPath, pm.command, scriptArgs('lint'))
+    ? await runStep(projectPath, pm.command, scriptArgs('lint'), options)
     : pass();
   const test = (await fileHasScript(projectPath, 'test'))
-    ? await runStep(projectPath, pm.command, scriptArgs('test'))
+    ? await runStep(projectPath, pm.command, scriptArgs('test'), options)
     : pass();
   const build = (await fileHasScript(projectPath, 'build'))
-    ? await runStep(projectPath, pm.command, scriptArgs('build'))
+    ? await runStep(projectPath, pm.command, scriptArgs('build'), options)
     : pass();
 
   return { lint, test, build, allPassed: lint.passed && test.passed && build.passed };
@@ -146,10 +158,13 @@ function pass(): { passed: boolean; output: string } {
   return { passed: true, output: 'skipped (no script or project marker)' };
 }
 
-export async function validateProject(projectPath: string): Promise<ValidationSummary> {
+export async function validateProject(
+  projectPath: string,
+  options: ExecutionDeadlineOptions = {},
+): Promise<ValidationSummary> {
   const hasPackageJson = await pathExists(path.join(projectPath, 'package.json'));
   if (hasPackageJson) {
-    return validateNodeProject(projectPath);
+    return validateNodeProject(projectPath, options);
   }
 
   // Non-Node projects: we currently do not impose a validation harness. Future

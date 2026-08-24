@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   runOrchestratedTask: vi.fn(),
   getRouter: vi.fn(),
   recordTaskOutcome: vi.fn(),
+  notifyFailure: vi.fn(),
 }));
 
 vi.mock('@omega/agent', () => ({
@@ -18,6 +19,10 @@ vi.mock('@omega/agent', () => ({
 vi.mock('./intelligent-router.js', () => ({
   getRouter: mocks.getRouter,
   recordTaskOutcome: mocks.recordTaskOutcome,
+}));
+
+vi.mock('./webhook-alerts.js', () => ({
+  notifyFailure: mocks.notifyFailure,
 }));
 
 import { runTask } from './run-task.js';
@@ -62,6 +67,7 @@ function makePrisma(task: ReturnType<typeof makeTask>): PrismaClient {
 describe('external task circuit routing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.notifyFailure.mockResolvedValue(undefined);
     delete process.env.OMEGA_AUTO_RETRY;
   });
 
@@ -79,13 +85,73 @@ describe('external task circuit routing', () => {
       executionSucceeded: true,
     });
     const prisma = makePrisma(makeTask('codex', 'gpt-5.6-luna'));
+    const controller = new AbortController();
 
-    await runTask(prisma, 'task-1');
+    await runTask(prisma, 'task-1', { signal: controller.signal });
 
     expect(health.isCircuitBroken).toHaveBeenCalledWith('external:codex');
+    expect(mocks.runExternalAgentTask).toHaveBeenCalledWith(
+      prisma,
+      'task-1',
+      expect.objectContaining({ signal: controller.signal }),
+    );
     expect(health.record).toHaveBeenCalledWith('external:codex', expect.objectContaining({ success: true }));
     expect(performance.update).toHaveBeenCalledWith('external:codex/gpt-5.6-luna', true, 0, expect.any(Number));
     expect(health.record).not.toHaveBeenCalledWith('codex', expect.anything());
+  });
+
+  it('threads the benchmark wall-clock timeout into the internal agent executor', async () => {
+    const task = {
+      ...makeTask('codex', 'internal-model'),
+      title: 'Internal task',
+      tags: JSON.stringify(['agent']),
+      provider: 'internal-provider',
+    };
+    const router = { health: { record: vi.fn() }, performance: { update: vi.fn() } };
+    mocks.getRouter.mockResolvedValue(router);
+    mocks.runAgentTask.mockResolvedValue({ task: { ...task, status: 'done' }, agentRunId: 'run-1' });
+    const prisma = {
+      ...makePrisma(task),
+      providerConfig: { findMany: vi.fn().mockResolvedValue([]) },
+    } as unknown as PrismaClient;
+    const controller = new AbortController();
+
+    await runTask(prisma, task.id, { timeoutMs: 1_200_000, signal: controller.signal });
+
+    expect(mocks.runAgentTask).toHaveBeenCalledWith(
+      prisma,
+      task.id,
+      expect.objectContaining({ timeoutMs: 1_200_000, signal: controller.signal }),
+      router,
+    );
+  });
+
+  it('threads caller cancellation into the orchestrated agent executor', async () => {
+    const task = {
+      ...makeTask('codex', 'internal-model'),
+      title: 'Orchestrated task',
+      tags: JSON.stringify(['agent', 'orchestrate']),
+      provider: 'internal-provider',
+    };
+    const router = { health: { record: vi.fn() }, performance: { update: vi.fn() } };
+    mocks.getRouter.mockResolvedValue(router);
+    mocks.runOrchestratedTask.mockResolvedValue({
+      task: { ...task, status: 'done' },
+      agentRunId: 'run-1',
+    });
+    const prisma = {
+      ...makePrisma(task),
+      providerConfig: { findMany: vi.fn().mockResolvedValue([]) },
+    } as unknown as PrismaClient;
+    const controller = new AbortController();
+
+    await runTask(prisma, task.id, { signal: controller.signal });
+
+    expect(mocks.runOrchestratedTask).toHaveBeenCalledWith(
+      prisma,
+      task.id,
+      expect.objectContaining({ signal: controller.signal }),
+    );
   });
 
   it('does not fail a completed CLI run when router telemetry throws', async () => {
@@ -140,7 +206,8 @@ describe('external task circuit routing', () => {
       isCircuitBroken: vi.fn().mockReturnValue(false),
       record: vi.fn(),
     };
-    mocks.getRouter.mockResolvedValue({ health, performance: { update: vi.fn() } });
+    const performance = { update: vi.fn() };
+    mocks.getRouter.mockResolvedValue({ health, performance });
     const state = makeTask('opencode', 'openrouter/test-model');
     const update = vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
       Object.assign(state, data);
@@ -183,5 +250,85 @@ describe('external task circuit routing', () => {
     }));
     expect(state.status).toBe('failed');
     expect(mocks.runExternalAgentTask).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not start an automatic retry after caller cancellation', async () => {
+    const health = {
+      isCircuitBroken: vi.fn().mockReturnValue(false),
+      record: vi.fn(),
+    };
+    const performance = { update: vi.fn() };
+    mocks.getRouter.mockResolvedValue({ health, performance });
+    const state = makeTask('opencode', 'openrouter/test-model');
+    const update = vi.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+      Object.assign(state, data);
+      return state;
+    });
+    const prisma = {
+      task: {
+        findUnique: vi.fn().mockImplementation(async () => state),
+        update,
+      },
+      agentRun: {
+        findFirst: vi.fn().mockResolvedValue({ costUsd: 0 }),
+      },
+      taskTrace: {
+        create: vi.fn().mockResolvedValue({}),
+      },
+    } as unknown as PrismaClient;
+    mocks.runExternalAgentTask.mockImplementation(async () => {
+      Object.assign(state, {
+        status: 'failed',
+        error: 'External agent (opencode) produced no changes',
+        result: 'External agent (opencode) produced no changes',
+      });
+      return {
+        status: 'failed',
+        diff: '',
+        output: 'External agent (opencode) produced no changes',
+        executionSucceeded: false,
+      };
+    });
+    const controller = new AbortController();
+    controller.abort(new DOMException('Benchmark cancelled', 'AbortError'));
+
+    await runTask(prisma, state.id, { signal: controller.signal });
+
+    expect(state.retryHistory).toBeNull();
+    expect(mocks.runExternalAgentTask).toHaveBeenCalledTimes(1);
+    expect(mocks.notifyFailure).not.toHaveBeenCalled();
+    expect(health.record).not.toHaveBeenCalled();
+    expect(performance.update).not.toHaveBeenCalled();
+  });
+
+  it('does not record an internal cancellation as model health or page operators', async () => {
+    const task = {
+      ...makeTask('codex', 'internal-model'),
+      title: 'Internal task',
+      tags: JSON.stringify(['agent']),
+      provider: 'internal-provider',
+    };
+    const router = { health: { record: vi.fn() }, performance: { update: vi.fn() } };
+    mocks.getRouter.mockResolvedValue(router);
+    mocks.runAgentTask.mockResolvedValue({
+      task: {
+        ...task,
+        status: 'failed',
+        error: 'Benchmark cancelled',
+        result: 'Benchmark cancelled',
+      },
+      agentRunId: 'run-1',
+    });
+    const prisma = {
+      ...makePrisma(task),
+      providerConfig: { findMany: vi.fn().mockResolvedValue([]) },
+    } as unknown as PrismaClient;
+    const controller = new AbortController();
+    controller.abort(new DOMException('Benchmark cancelled', 'AbortError'));
+
+    await runTask(prisma, task.id, { signal: controller.signal });
+
+    expect(mocks.recordTaskOutcome).not.toHaveBeenCalled();
+    expect(mocks.notifyFailure).not.toHaveBeenCalled();
   });
 });

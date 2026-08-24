@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   getCodexAvailability: vi.fn(),
   getCurrentBranch: vi.fn(),
   getCurrentCommit: vi.fn(),
-  getDiff: vi.fn(),
+  getGradedDiff: vi.fn(),
   hasChanges: vi.fn(),
   stageAllChanges: vi.fn(),
   commit: vi.fn(),
@@ -23,7 +23,7 @@ vi.mock('./codex-driver.js', () => ({
 vi.mock('./git.js', () => ({
   getCurrentBranch: mocks.getCurrentBranch,
   getCurrentCommit: mocks.getCurrentCommit,
-  getDiff: mocks.getDiff,
+  getGradedDiff: mocks.getGradedDiff,
   hasChanges: mocks.hasChanges,
   stageAllChanges: mocks.stageAllChanges,
   commit: mocks.commit,
@@ -47,6 +47,10 @@ beforeAll(() => {
     fakeOpencode,
     [
       '#!/bin/sh',
+      'if [ "${FAKE_OPENCODE_MODE:-}" = "hang" ]; then',
+      '  trap "exit 42" TERM INT',
+      '  while :; do sleep 1; done',
+      'fi',
       'if [ "${FAKE_OPENCODE_MODE:-}" = "fail" ]; then',
       '  printf \'%s\\n\' \'{"type":"step_start","sessionID":"opencode-session-failed","part":{}}\'',
       '  printf \'%s\\n\' \'stream aborted: ECONNRESET\' >&2',
@@ -72,7 +76,12 @@ beforeEach(() => {
   mocks.getCodexAvailability.mockResolvedValue({ available: true });
   mocks.getCurrentBranch.mockResolvedValue({ success: true, output: 'main' });
   mocks.getCurrentCommit.mockResolvedValue({ success: true, output: 'base-sha' });
-  mocks.getDiff.mockResolvedValue({ success: true, output: 'diff --git a/src/file.ts b/src/file.ts\n' });
+  mocks.getGradedDiff.mockResolvedValue({
+    success: true,
+    output: 'diff --git a/src/file.ts b/src/file.ts\n',
+    specGatePathsRemoved: [],
+    gradedPatchTestPaths: [],
+  });
   mocks.hasChanges.mockResolvedValue(false);
   mocks.deriveVerificationCommand.mockResolvedValue('pnpm test');
   mocks.runCodexTurn.mockResolvedValue({
@@ -93,6 +102,113 @@ afterEach(() => {
 });
 
 describe('runExternalAgentTask', () => {
+  it('derives each external spawn timeout from one absolute run deadline', () => {
+    expect(externalModule.remainingExternalRunMs(10_000, 2_500)).toBe(7_500);
+    expect(externalModule.remainingExternalRunMs(10_000, 10_000)).toBe(0);
+  });
+
+  it('gives an external agent an observable absolute wall-clock deadline', async () => {
+    const prisma = {
+      task: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          title: 'Timed task',
+          description: 'TIME BUDGET: Finish before the deadline',
+          tags: null,
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      agentRun: {
+        create: vi.fn().mockResolvedValue({ id: 'run-1' }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      taskDiff: { create: vi.fn().mockResolvedValue({}) },
+      taskTrace: { create: vi.fn().mockResolvedValue({}) },
+      traceSpan: { create: vi.fn().mockResolvedValue({}) },
+    } as unknown as PrismaClient;
+
+    await runExternalAgentTask(prisma, 'task-1', {
+      cli: 'codex',
+      projectPath: '/tmp/project',
+      projectName: 'project',
+      timeoutMs: 60_000,
+    });
+
+    expect(mocks.runCodexTurn).toHaveBeenCalledWith(
+      '/tmp/project',
+      expect.stringMatching(/Absolute wall-clock deadline \(UTC\): .*Z/),
+      expect.any(Object),
+    );
+  });
+
+  it('passes caller cancellation into the Codex app-server turn', async () => {
+    const prisma = {
+      task: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          title: 'Cancelable task',
+          description: 'Implement it',
+          tags: null,
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      agentRun: {
+        create: vi.fn().mockResolvedValue({ id: 'run-1' }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      taskDiff: { create: vi.fn().mockResolvedValue({}) },
+      taskTrace: { create: vi.fn().mockResolvedValue({}) },
+      traceSpan: { create: vi.fn().mockResolvedValue({}) },
+    } as unknown as PrismaClient;
+    const controller = new AbortController();
+
+    await runExternalAgentTask(prisma, 'task-1', {
+      cli: 'codex',
+      projectPath: '/tmp/project',
+      projectName: 'project',
+      timeoutMs: 60_000,
+      signal: controller.signal,
+    });
+
+    expect(mocks.runCodexTurn).toHaveBeenCalledWith(
+      '/tmp/project',
+      expect.any(String),
+      expect.objectContaining({ signal: controller.signal }),
+    );
+  });
+
+  it('does not perturb an external prompt when time guidance is disabled', async () => {
+    const prisma = {
+      task: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          title: 'Baseline task',
+          description: 'Baseline description without the time experiment',
+          tags: null,
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      agentRun: {
+        create: vi.fn().mockResolvedValue({ id: 'run-1' }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      taskDiff: { create: vi.fn().mockResolvedValue({}) },
+      taskTrace: { create: vi.fn().mockResolvedValue({}) },
+      traceSpan: { create: vi.fn().mockResolvedValue({}) },
+    } as unknown as PrismaClient;
+
+    await runExternalAgentTask(prisma, 'task-1', {
+      cli: 'codex',
+      projectPath: '/tmp/project',
+      projectName: 'project',
+      timeoutMs: 60_000,
+    });
+
+    const prompt = mocks.runCodexTurn.mock.calls[0]?.[1] as string;
+    expect(prompt).not.toContain('Absolute wall-clock deadline');
+    expect(prompt).not.toContain('Wall-clock budget started');
+  });
+
   it('records Codex phase timings in the metrics envelope, agent run, and trace', async () => {
     let now = 1_000;
     vi.spyOn(Date, 'now').mockImplementation(() => now);
@@ -291,6 +407,57 @@ describe('runExternalAgentTask', () => {
     });
   });
 
+  it('stores only the graded patch and persists the marker-strip audit', async () => {
+    mocks.getGradedDiff.mockResolvedValueOnce({
+      success: true,
+      output: 'diff --git a/src/file.ts b/src/file.ts\n',
+      specGatePathsRemoved: ['tests/file.omega_specgate.test.ts'],
+      gradedPatchTestPaths: [],
+    });
+    const taskDiffCreate = vi.fn().mockResolvedValue({});
+    const agentRunUpdate = vi.fn().mockResolvedValue({});
+    const prisma = {
+      task: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          title: 'Test task',
+          description: 'Test description',
+          tags: null,
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      agentRun: {
+        create: vi.fn().mockResolvedValue({ id: 'run-1' }),
+        findUnique: vi.fn().mockResolvedValue({ validationSummary: null }),
+        update: agentRunUpdate,
+      },
+      taskDiff: { create: taskDiffCreate },
+      traceSpan: { create: vi.fn().mockResolvedValue({}) },
+    } as unknown as PrismaClient;
+
+    await runExternalAgentTask(prisma, 'task-1', {
+      cli: 'codex',
+      projectPath: '/tmp/project',
+      projectName: 'project',
+      timeoutMs: 1_000,
+    });
+
+    expect(taskDiffCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ patch: expect.not.stringContaining('omega_specgate') }),
+    });
+    expect(agentRunUpdate).toHaveBeenCalledWith({
+      where: { id: 'run-1' },
+      data: expect.objectContaining({
+        validationSummary: JSON.stringify({
+          patchAudit: {
+            specgateThrowawayPathsRemoved: 1,
+            gradedPatchTestPaths: 0,
+          },
+        }),
+      }),
+    });
+  });
+
   it('initializes currentTurn=1 at agentRun creation', async () => {
     const agentRunCreate = vi.fn().mockResolvedValue({ id: 'run-1' });
     const agentRunUpdate = vi.fn().mockResolvedValue({});
@@ -400,7 +567,7 @@ describe('runExternalAgentTask', () => {
       projectPath: fakeBinDir,
       projectName: 'project',
       model: 'openrouter/test-model',
-      timeoutMs: 1_000,
+      timeoutMs: 5_000,
     });
 
     expect(result.status).toBe('done');
@@ -439,7 +606,7 @@ describe('runExternalAgentTask', () => {
       cli: 'opencode',
       projectPath: fakeBinDir,
       projectName: 'project',
-      timeoutMs: 1_000,
+      timeoutMs: 5_000,
     });
 
     expect(result).toEqual(expect.objectContaining({
@@ -454,5 +621,54 @@ describe('runExternalAgentTask', () => {
         sessionKind: 'opencode-session',
       }),
     });
+  });
+
+  it('terminates a standard external CLI promptly when the caller aborts', async () => {
+    process.env.FAKE_OPENCODE_MODE = 'hang';
+    mocks.getGradedDiff.mockResolvedValueOnce({
+      success: true,
+      output: '',
+      specGatePathsRemoved: [],
+      gradedPatchTestPaths: [],
+    });
+    const prisma = {
+      task: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          title: 'Cancelable OpenCode task',
+          description: null,
+          tags: null,
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      agentRun: {
+        create: vi.fn().mockResolvedValue({ id: 'run-1' }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      taskDiff: { create: vi.fn().mockResolvedValue({}) },
+      taskTrace: { create: vi.fn().mockResolvedValue({}) },
+      traceSpan: { create: vi.fn().mockResolvedValue({}) },
+    } as unknown as PrismaClient;
+    const controller = new AbortController();
+    const startedAt = Date.now();
+    const resultPromise = runExternalAgentTask(prisma, 'task-1', {
+      cli: 'opencode',
+      projectPath: fakeBinDir,
+      projectName: 'project',
+      timeoutMs: 5_000,
+      signal: controller.signal,
+    });
+
+    setTimeout(() => {
+      controller.abort(new DOMException('Benchmark cancelled', 'AbortError'));
+    }, 100);
+
+    const result = await resultPromise;
+    expect(result).toEqual(expect.objectContaining({
+      status: 'failed',
+      executionSucceeded: false,
+      output: expect.stringMatching(/Benchmark cancelled/),
+    }));
+    expect(Date.now() - startedAt).toBeLessThan(2_000);
   });
 });

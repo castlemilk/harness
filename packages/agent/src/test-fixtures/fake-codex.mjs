@@ -64,6 +64,7 @@ rl.on('line', (line) => {
   if (msg.method === 'turn/start') {
     respond(msg.id, { turn: { id: 'turn-test-1', status: 'inProgress' } });
     if (process.env.FAKE_CODEX_MODE === 'hang') {
+      notify('turn/started', { threadId: activeThreadId, turn: { id: 'turn-test-1', status: 'inProgress' } });
       return;
     }
 

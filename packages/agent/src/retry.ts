@@ -2,6 +2,55 @@ export interface RetryLogger {
   warn: (msg: string, data?: Record<string, unknown>) => void;
 }
 
+function errorFromUnknown(value: unknown, fallbackName: string = 'Error'): Error {
+  if (value instanceof Error) return value;
+  const message = typeof value === 'string' && value.trim().length > 0 ? value : fallbackName;
+  return new DOMException(message, fallbackName);
+}
+
+function signalError(signal: AbortSignal): Error {
+  return errorFromUnknown(signal.reason as unknown, 'AbortError');
+}
+
+/** Reject when cancellation wins, while still observing the underlying promise. */
+export function abortableOperation<T>(
+  operation: Promise<T> | (() => Promise<T>),
+  signal?: AbortSignal,
+): Promise<T> {
+  if (signal?.aborted) {
+    return Promise.reject(signalError(signal));
+  }
+
+  let pending: Promise<T>;
+  try {
+    pending = typeof operation === 'function' ? operation() : operation;
+  } catch (error) {
+    return Promise.reject(errorFromUnknown(error));
+  }
+  if (!signal) return pending;
+
+  return new Promise<T>((resolve, reject) => {
+    const cleanup = (): void => {
+      signal.removeEventListener('abort', onAbort);
+    };
+    const onAbort = (): void => {
+      cleanup();
+      reject(signalError(signal));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    pending.then(
+      (value) => {
+        cleanup();
+        resolve(value);
+      },
+      (error: unknown) => {
+        cleanup();
+        reject(errorFromUnknown(error));
+      },
+    );
+  });
+}
+
 export function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {

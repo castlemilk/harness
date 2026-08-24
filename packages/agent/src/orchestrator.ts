@@ -4,7 +4,7 @@ import { runAgentTask } from './executor.js';
 import { validateProject } from './validator.js';
 import { generateSkillFromTask, recallRelevantSkills } from './skill-generator.js';
 import { Tracer } from './tracer.js';
-import { getCurrentBranch, getCurrentCommit, getDiff } from './git.js';
+import { getCurrentBranch, getCurrentCommit, getDiff, getGradedDiff } from './git.js';
 import { logger } from './logger.js';
 import { sanitizeForDb } from './utils.js';
 import type {
@@ -24,14 +24,25 @@ import {
   buildReviewPrompt,
   runPool,
   pickModel, resolvePinnedModel } from './orchestrator-utils.js';
+import { validationSummaryWithPatchAudit } from './patch-audit.js';
+import { createDeadlineGuard } from './project-utils.js';
+import { abortableOperation } from './retry.js';
 
 export type { OrchestratorOptions, OrchestratorResult, OrchestratedSubtask } from './orchestrator-types.js';
+
+function throwIfCancelled(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw signal.reason instanceof Error
+    ? signal.reason
+    : new DOMException('Orchestrated task cancelled', 'AbortError');
+}
 
 export async function runOrchestratedTask(
   prisma: PrismaClient,
   taskId: string,
   options: OrchestratorOptions
 ): Promise<OrchestratorResult> {
+  throwIfCancelled(options.signal);
   const maxSubtasks = options.maxSubtasks ?? 5;
   const maxIterations = options.maxIterations ?? 3;
   const concurrency = options.concurrency ?? 1;
@@ -80,6 +91,7 @@ export async function runOrchestratedTask(
   let iterations = 0;
   let finished = false;
   let summary = '';
+  let parentPatchCaptured = false;
 
   try {
     // An explicit pin on the parent is an operator instruction, not a hint:
@@ -114,12 +126,15 @@ export async function runOrchestratedTask(
         ? recalled.map((s) => `- ${s.name}: ${s.description}`).join('\n')
         : '';
       planSpan.setAttributes({ recalledSkills: recalled.length });
-      const raw = await planner.send(buildPlanPrompt(task.title, task.description ?? '', maxSubtasks, memory), {
-        system: 'You are a meticulous staff engineer producing execution plans as strict JSON.',
-        model: plannerModel,
-        temperature: 0.2,
-        onUsage: recordUsage,
-      });
+      const raw = await abortableOperation(
+        () => planner.send(buildPlanPrompt(task.title, task.description ?? '', maxSubtasks, memory), {
+          system: 'You are a meticulous staff engineer producing execution plans as strict JSON.',
+          model: plannerModel,
+          temperature: 0.2,
+          onUsage: recordUsage,
+        }),
+        options.signal,
+      );
       const parsed = extractJson(raw);
       if (Array.isArray(parsed)) {
         planned = parsed
@@ -132,6 +147,7 @@ export async function runOrchestratedTask(
     } catch (err) {
       planSpan.recordError(err);
       await planSpan.end('error');
+      throwIfCancelled(options.signal);
       logger.warn('Orchestrator planning call failed; falling back to a single subtask', {
         taskId,
         error: err instanceof Error ? err.message : String(err),
@@ -161,7 +177,8 @@ export async function runOrchestratedTask(
 
     const runVerification = async (): Promise<{ allPassed: boolean; summary: string }> => {
       try {
-        const validation = await validateProject(options.projectPath);
+        const validation = await validateProject(options.projectPath, { signal: options.signal });
+        throwIfCancelled(options.signal);
         const parts: string[] = [];
         for (const key of ['lint', 'test', 'build'] as const) {
           const step = validation[key];
@@ -172,6 +189,7 @@ export async function runOrchestratedTask(
           summary: parts.length > 0 ? parts.join('\n') : 'no validation steps run',
         };
       } catch (err) {
+        throwIfCancelled(options.signal);
         return {
           allPassed: false,
           summary: `verification error: ${err instanceof Error ? err.message : String(err)}`,
@@ -192,14 +210,17 @@ export async function runOrchestratedTask(
             notes: `Verification failed; cannot mark done. ${verification.summary}`,
           };
         }
-        const raw = await planner.send(
-          buildReviewPrompt(task.title, task.description ?? '', subtasks, diff, verification.summary),
-          {
-            system: 'You are a meticulous staff engineer reviewing implementation progress as strict JSON.',
-            model: plannerModel,
-            temperature: 0.2,
-            onUsage: recordUsage,
-          }
+        const raw = await abortableOperation(
+          () => planner.send(
+            buildReviewPrompt(task.title, task.description ?? '', subtasks, diff, verification.summary),
+            {
+              system: 'You are a meticulous staff engineer reviewing implementation progress as strict JSON.',
+              model: plannerModel,
+              temperature: 0.2,
+              onUsage: recordUsage,
+            },
+          ),
+          options.signal,
         );
         const parsed = extractJson(raw) as Record<string, unknown> | undefined;
         reviewSpan.setAttributes({ verificationPassed: true });
@@ -220,6 +241,7 @@ export async function runOrchestratedTask(
       } catch (err) {
         reviewSpan.recordError(err);
         await reviewSpan.end('error');
+        throwIfCancelled(options.signal);
         logger.warn('Orchestrator review call failed; continuing without review guidance', {
           taskId,
           error: err instanceof Error ? err.message : String(err),
@@ -232,6 +254,7 @@ export async function runOrchestratedTask(
     const tierOrder: ('low' | 'medium' | 'high')[] = ['low', 'medium', 'high'];
     const maxEscalations = options.maxEscalations ?? 1;
     const runSubtask = async (subtask: SubtaskState): Promise<void> => {
+      throwIfCancelled(options.signal);
       subtask.status = 'running';
       let tierIndex = Math.max(0, tierOrder.indexOf(subtask.tier));
       for (let attempt = 0; attempt <= maxEscalations; attempt++) {
@@ -262,27 +285,32 @@ export async function runOrchestratedTask(
           attempt: attempt + 1,
         });
         try {
-          // Per-subtask timeout via AbortController to prevent hung subtasks
-          // from blocking the entire orchestration pipeline
+          // Combine the per-subtask deadline with caller cancellation so
+          // either source stops the active executor without leaking timers.
           const subtaskTimeoutMs = subtask.complexity === 'complex'
             ? 10 * 60 * 1000
             : subtask.complexity === 'medium'
               ? 5 * 60 * 1000
               : 3 * 60 * 1000;
-          const abort = new AbortController();
-          const timeoutId = setTimeout(() => {
-            abort.abort();
-          }, subtaskTimeoutMs);
+          const deadlineGuard = createDeadlineGuard(
+            Date.now() + subtaskTimeoutMs,
+            options.signal,
+          );
 
-          const result = await runAgentTask(prisma, subtaskRow.id, {
-            ...options,
-            projectPath: options.projectPath,
-            projectName: options.projectName,
-            isolated: false,
-            tokenBudget: options.tokenBudget,
-            signal: abort.signal,
-          }, options.intelligentRouter);
-          clearTimeout(timeoutId);
+          const result = await (async () => {
+            try {
+              return await runAgentTask(prisma, subtaskRow.id, {
+                ...options,
+                projectPath: options.projectPath,
+                projectName: options.projectName,
+                isolated: false,
+                tokenBudget: options.tokenBudget,
+                signal: deadlineGuard.signal,
+              }, options.intelligentRouter);
+            } finally {
+              deadlineGuard.dispose();
+            }
+          })();
           if (result.task.status === 'done') {
             subtask.status = 'done';
             subtask.notes = result.task.result ?? undefined;
@@ -300,6 +328,7 @@ export async function runOrchestratedTask(
             subtaskId: subtaskRow.id,
             error: subtask.notes,
           });
+          throwIfCancelled(options.signal);
         }
         if (attempt < maxEscalations) {
           tierIndex = Math.min(tierIndex + 1, tierOrder.length - 1);
@@ -315,6 +344,7 @@ export async function runOrchestratedTask(
 
     // Every path that sets `finished = true` also breaks out of the loop.
     while (iterations < maxIterations) {
+      throwIfCancelled(options.signal);
       iterations++;
       const completedIndexes = new Set(
         subtasks.filter((s) => s.status === 'done').map((s) => s.index)
@@ -394,7 +424,9 @@ export async function runOrchestratedTask(
 
     // --- Integration: capture the final diff and close out the task ---
     const integrateSpan = tracer.startSpan('orchestrator.integrate', rootSpan.toContext());
-    const finalDiff = await currentDiff();
+    const gradedDiff = await getGradedDiff(options.projectPath, baseCommitSha);
+    const finalDiff = gradedDiff.output;
+    const patchAuditValidation = await validationSummaryWithPatchAudit(prisma, agentRun.id, gradedDiff);
     const success =
       subtasks.some((s) => s.status === 'done') &&
       (finished || subtasks.every((s) => s.status !== 'pending'));
@@ -427,7 +459,13 @@ export async function runOrchestratedTask(
         promptTokens: usage.promptTokens,
         completionTokens: usage.completionTokens,
         totalTokens: usage.totalTokens,
+        ...(patchAuditValidation ? { validationSummary: patchAuditValidation } : {}),
       },
+    });
+    parentPatchCaptured = true;
+    rootSpan.setAttributes({
+      specgateThrowawayPathsRemoved: gradedDiff.specGatePathsRemoved.length,
+      gradedPatchTestPaths: gradedDiff.gradedPatchTestPaths.length,
     });
     if (success) {
       // Close the learning loop: turn the successful run into a reusable skill
@@ -466,8 +504,42 @@ export async function runOrchestratedTask(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     rootSpan.recordError(err);
-    await rootSpan.end('error');
     logger.error('Orchestrated task failed', { taskId, agentRunId: agentRun.id, error: message });
+
+    // A caller cancellation can arrive after a non-isolated subtask edited the
+    // shared worktree. Preserve the same graded patch/audit evidence as the
+    // normal integration path before disclosing the cancelled parent run.
+    if (!parentPatchCaptured) {
+      try {
+        const gradedDiff = await getGradedDiff(options.projectPath, baseCommitSha);
+        const patchAuditValidation = await validationSummaryWithPatchAudit(prisma, agentRun.id, gradedDiff);
+        if (gradedDiff.output) {
+          await prisma.taskDiff.create({
+            data: {
+              taskId,
+              branch,
+              patch: sanitizeForDb(gradedDiff.output) ?? '',
+            },
+          });
+        }
+        if (patchAuditValidation) {
+          await prisma.agentRun.update({
+            where: { id: agentRun.id },
+            data: { validationSummary: patchAuditValidation },
+          });
+        }
+        rootSpan.setAttributes({
+          specgateThrowawayPathsRemoved: gradedDiff.specGatePathsRemoved.length,
+          gradedPatchTestPaths: gradedDiff.gradedPatchTestPaths.length,
+        });
+      } catch (captureErr) {
+        logger.warn('Failed to capture orchestrated task patch after cancellation/error', {
+          taskId,
+          error: captureErr instanceof Error ? captureErr.message : String(captureErr),
+        });
+      }
+    }
+    await rootSpan.end('error');
     await prisma.task.update({
       where: { id: taskId },
       data: { status: 'failed', error: sanitizeForDb(message) },

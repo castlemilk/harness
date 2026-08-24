@@ -1,6 +1,31 @@
 import type { PrismaClient } from '@omega/db';
 import type { BenchmarkReport } from './types.js';
 
+/**
+ * Maximum persisted length of each string-valued evaluation metric. The full
+ * evaluation remains available on the live report, while history applies the
+ * same bound to output from every benchmark adapter regardless of metric key.
+ */
+export const BENCHMARK_HISTORY_STRING_METRIC_MAX_CHARS: number = 2_048;
+
+function boundHistoryMetadata(value: unknown, withinMetrics: boolean = false): unknown {
+  if (withinMetrics && typeof value === 'string') {
+    return value.slice(0, BENCHMARK_HISTORY_STRING_METRIC_MAX_CHARS);
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => boundHistoryMetadata(entry, withinMetrics));
+  }
+  if (value === null || typeof value !== 'object') return value;
+  const prototype = Object.getPrototypeOf(value) as unknown;
+  if (prototype !== Object.prototype && prototype !== null) return value;
+
+  const bounded: Record<string, unknown> = {};
+  for (const [entryKey, entryValue] of Object.entries(value)) {
+    bounded[entryKey] = boundHistoryMetadata(entryValue, withinMetrics || entryKey === 'metrics');
+  }
+  return bounded;
+}
+
 export interface BenchmarkHistoryEntry {
   id: string;
   suite: string;
@@ -40,6 +65,19 @@ export async function saveBenchmarkHistory(
     metadata?: Record<string, unknown>;
   } = {},
 ): Promise<BenchmarkHistoryEntry> {
+  const metadata: Record<string, unknown> = {
+    // Supply a useful default for every writer (including the CLI). Callers
+    // can replace this with a richer strategy-specific result shape.
+    results: report.results.map((result) => ({
+      taskName: result.task.name,
+      harnessTaskId: result.harnessTaskId,
+      passed: result.evaluation.passed,
+      durationMs: result.durationMs,
+      evaluation: result.evaluation,
+      error: result.evaluation.passed ? undefined : (result.evaluation.message ?? result.taskError),
+    })),
+    ...options.metadata,
+  };
   return prisma.benchmarkHistory.create({
     data: {
       suite: report.suite,
@@ -53,7 +91,7 @@ export async function saveBenchmarkHistory(
       totalDurationMs: report.totalDurationMs,
       totalCostUsd: report.results.reduce((sum, r) => sum + (r.agentRun?.costUsd ?? 0), 0) || null,
       totalTokens: report.results.reduce((sum, r) => sum + (r.usage?.totalTokens ?? r.agentRun?.totalTokens ?? 0), 0) || null,
-      metadata: options.metadata ? JSON.stringify(options.metadata) : null,
+      metadata: JSON.stringify(boundHistoryMetadata(metadata)),
       reportPath: options.reportPath ?? null,
     },
   });

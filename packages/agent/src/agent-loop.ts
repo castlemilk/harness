@@ -13,7 +13,7 @@ import {
   generateAutoApiChecks,
   FORCE_ACTION_PROMPT,
 } from './prompts.js';
-import { hasChanges, stageAllChanges, commit, getDiff } from './git.js';
+import { hasChanges, stageAllChanges, commit, getGradedDiff } from './git.js';
 import { validateProject } from './validator.js';
 import { publishOmega, type PublishResult } from './publisher.js';
 import {
@@ -22,8 +22,9 @@ import {
   taskMentionsPublicApi,
   taskLikelyHasTests,
   toCoreTask,
+  remainingDeadlineMs,
 } from './project-utils.js';
-import { withProviderRetry } from './retry.js';
+import { abortableOperation, withProviderRetry } from './retry.js';
 import { createPlan } from './planner.js';
 import { isReadOnlyShellCommand, isFileReadingShellCommand } from './shell-patterns.js';
 import { runTypeCheck } from './ts-runner.js';
@@ -37,6 +38,33 @@ import {
   applySkillPatches,
   runAutoApiChecks,
 } from './agent-helpers.js';
+import { validationSummaryWithPatchAudit } from './patch-audit.js';
+
+function compactWallClock(milliseconds: number): string {
+  const seconds = Math.max(0, Math.ceil(milliseconds / 1_000));
+  const hours = Math.floor(seconds / 3_600);
+  const minutes = Math.floor((seconds % 3_600) / 60);
+  const remainingSeconds = seconds % 60;
+  return [
+    hours > 0 ? `${String(hours)}h` : '',
+    minutes > 0 ? `${String(minutes)}m` : '',
+    remainingSeconds > 0 || (hours === 0 && minutes === 0) ? `${String(remainingSeconds)}s` : '',
+  ].filter(Boolean).join(' ');
+}
+
+export function formatBudgetNotice(
+  remainingSteps: number,
+  remainingMs: number,
+  experiments: { timeBudget: boolean; specGate: boolean } = { timeBudget: true, specGate: true },
+): string {
+  const remaining = experiments.timeBudget
+    ? `${String(remainingSteps)} steps remain; ${compactWallClock(remainingMs)} wall-clock remain.`
+    : `${String(remainingSteps)} steps remain.`;
+  const cleanup = experiments.specGate
+    ? 'remove omega_specgate scratch tests'
+    : 'clean scratch files';
+  return `[budget notice] ${remaining} Focus: complete the core implementation, verify it compiles/tests, ${cleanup}, then finish. No new exploration.`;
+}
 
 export { failTask };
 
@@ -116,9 +144,64 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
   ctx.stepCount = 0;
   ctx.lastToolError = undefined;
 
+  const stopForAbort = (error?: unknown): boolean => {
+    if (!ctx.signal?.aborted) return false;
+    const signalReason = ctx.signal.reason as unknown;
+    const deadlineReached = Date.now() >= ctx.deadlineMs
+      || (signalReason instanceof DOMException && signalReason.name === 'TimeoutError');
+    finished = true;
+    success = false;
+    stopCondition = deadlineReached ? 'deadline' : 'external-abort';
+    summary = deadlineReached
+      ? 'The enforced wall-clock deadline interrupted in-flight agent work.'
+      : 'Task externally aborted during in-flight agent work.';
+    const errorMessage = error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : signalReason instanceof Error
+          ? signalReason.message
+          : '';
+    ctx.rootSpan.addEvent(deadlineReached ? 'deadline.exceeded' : 'abort.external', {
+      stepIndex,
+      error: errorMessage,
+    });
+    return true;
+  };
+
   const advanceStep = (): void => {
     stepIndex++;
     ctx.stepCount = stepIndex;
+  };
+  const deadlineOptions = (): { deadlineMs: number; signal?: AbortSignal } => ({
+    deadlineMs: ctx.deadlineMs,
+    signal: ctx.signal,
+  });
+  const runAgentOperation = async <T>(operation: () => Promise<T>): Promise<T | undefined> => {
+    try {
+      return await abortableOperation(operation, ctx.signal);
+    } catch (error) {
+      if (stopForAbort(error)) return undefined;
+      throw error;
+    }
+  };
+  const executeAgentTool = (
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<ToolResult> => {
+    if (stopForAbort()) {
+      return Promise.resolve({ success: false, output: summary });
+    }
+    return abortableOperation(
+      () => executeTool(ctx.projectPath, name, args, {
+        timeoutMs: remainingDeadlineMs(ctx.deadlineMs),
+        signal: ctx.signal,
+      }),
+      ctx.signal,
+    ).catch((error: unknown) => {
+      if (stopForAbort(error)) return { success: false, output: summary };
+      throw error;
+    });
   };
 
   const messages: {
@@ -133,10 +216,18 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
   ];
 
   const skillVerify = process.env.OMEGA_SKILL_VERIFY === 'true';
-  const skillPatchResult = await applySkillPatches(ctx.projectPath, ctx.baseCommit, skills);
+  let skillPatchResult: Awaited<ReturnType<typeof applySkillPatches>> = { applied: [], patch: '' };
+  try {
+    skillPatchResult = await abortableOperation(
+      () => applySkillPatches(ctx.projectPath, ctx.baseCommit, skills),
+      ctx.signal,
+    );
+  } catch (error) {
+    if (!stopForAbort(error)) throw error;
+  }
   const appliedSkills = skillPatchResult.applied;
   const skillPatch = skillPatchResult.patch;
-  if (appliedSkills.length > 0) {
+  if (!ctx.signal?.aborted && appliedSkills.length > 0) {
     await addTrace(
       ctx,
       'system',
@@ -169,13 +260,16 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         stopCondition = 'skill-patch';
         summary = `Finished via skill reference patch: ${appliedSkills.join(', ')}`;
         await checkpointCommit(ctx);
-        await ctx.prisma.taskDiff.create({
-          data: {
-            taskId: ctx.task.id,
-            branch: ctx.branch,
-            patch: skillPatch,
-          },
-        });
+        const gradedSkillDiff = await getGradedDiff(ctx.projectPath, ctx.baseCommit);
+        if (gradedSkillDiff.output) {
+          await ctx.prisma.taskDiff.create({
+            data: {
+              taskId: ctx.task.id,
+              branch: ctx.branch,
+              patch: gradedSkillDiff.output,
+            },
+          });
+        }
         ctx.rootSpan.addEvent('agent.skill_oracle.finish', { skills: appliedSkills.join(', ') });
       } else {
         logger.warn('Skill patch reported applied but produced empty diff; falling back to agent loop', {
@@ -191,24 +285,34 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
 
   if (!finished) {
     const planSpan = ctx.tracer.startSpan('agent.plan', ctx.rootSpan.toContext());
-    const plan = await withProviderRetry('planner', () =>
-      createPlan(
-        ctx.provider,
-        ctx.task.title,
-        ctx.task.description ?? undefined,
-        ctx.promptContext,
-        (usage) => {
-          recordUsage(ctx, usage);
-        }
-      ),
-      ctx.signal,
-      logger
-    );
-    planSpan.setAttributes({ planSteps: plan.plan.length });
-    planSpan.addEvent('plan.created');
-    await planSpan.end('ok');
-    await addTrace(ctx, 'assistant', `Plan: ${JSON.stringify(plan)}`);
-    messages.push({ role: 'assistant', content: `Plan: ${JSON.stringify(plan)}` });
+    try {
+      const plan = await withProviderRetry('planner', () =>
+        createPlan(
+          ctx.provider,
+          ctx.task.title,
+          ctx.task.description ?? undefined,
+          ctx.promptContext,
+          (usage) => {
+            recordUsage(ctx, usage);
+          },
+          {
+            timeoutMs: remainingDeadlineMs(ctx.deadlineMs),
+            signal: ctx.signal,
+          },
+        ),
+        ctx.signal,
+        logger
+      );
+      planSpan.setAttributes({ planSteps: plan.plan.length });
+      planSpan.addEvent('plan.created');
+      await planSpan.end('ok');
+      await addTrace(ctx, 'assistant', `Plan: ${JSON.stringify(plan)}`);
+      messages.push({ role: 'assistant', content: `Plan: ${JSON.stringify(plan)}` });
+    } catch (error) {
+      if (!stopForAbort(error)) throw error;
+      planSpan.recordError(error);
+      await planSpan.end('error');
+    }
   }
 
   while (stepIndex < ctx.maxSteps && !finished) {
@@ -265,8 +369,10 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       const remaining = ctx.maxSteps - stepIndex;
       messages.push({
         role: 'user',
-        content:
-          `[budget notice] ${String(remaining)} steps remain. Focus: complete the core implementation, verify it compiles/tests, clean scratch files, then finish. No new exploration.`,
+        content: formatBudgetNotice(remaining, ctx.deadlineMs - Date.now(), {
+          timeBudget: ctx.task.description?.includes('TIME BUDGET:') ?? false,
+          specGate: ctx.task.description?.includes('SPEC GATE:') ?? false,
+        }),
       });
     }
 
@@ -284,7 +390,13 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         error: err instanceof Error ? err.message : String(err),
       });
     }
-    const response = await sendToProvider(ctx, messages);
+    let response: Awaited<ReturnType<typeof sendToProvider>>;
+    try {
+      response = await sendToProvider(ctx, messages);
+    } catch (error) {
+      if (!stopForAbort(error)) throw error;
+      break;
+    }
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
       noActionCount++;
@@ -350,6 +462,10 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     }
 
     for (const call of toolCalls) {
+      if (stopForAbort()) {
+        rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
+        break;
+      }
       toolCallCounts[call.name] = (toolCallCounts[call.name] ?? 0) + 1;
       const input =
         call.name === 'run_command'
@@ -405,7 +521,11 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           break;
         }
         if (ctx.modifiedFiles.size > 0 || (await hasChanges(ctx.projectPath))) {
-          const patchCheck = await validatePatch(ctx.projectPath, ctx.baseCommit);
+          const patchCheck = await validatePatch(ctx.projectPath, ctx.baseCommit, deadlineOptions());
+          if (stopForAbort()) {
+            rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
+            break;
+          }
           if (!patchCheck.success) {
             await rejectFinish(
               `finish rejected: the current changes do not form a clean patch. Run validate_patch to diagnose, then fix the diff before finishing. Details: ${patchCheck.output}`,
@@ -417,7 +537,11 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
 
         const modifiedTsFiles = await getModifiedTsFiles(ctx);
         if (modifiedTsFiles.length > 0) {
-          const typeCheck = await runTypeCheck(ctx.projectPath);
+          const typeCheck = await runAgentOperation(() => runTypeCheck(ctx.projectPath, deadlineOptions()));
+          if (!typeCheck) {
+            rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
+            break;
+          }
           if (!typeCheck.success) {
             await rejectFinish(
               `finish rejected: TypeScript typecheck failed after editing ${String(modifiedTsFiles.length)} file(s). Fix the type errors before finishing.\n\n${typeCheck.output}`,
@@ -430,7 +554,11 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         const skipValidation = ctx.task.tags.includes('skip-validation');
         const validation = skipValidation
           ? { lint: { passed: true, output: '' }, test: { passed: true, output: '' }, build: { passed: true, output: '' }, allPassed: true }
-          : await validateProject(ctx.projectPath);
+          : await runAgentOperation(() => validateProject(ctx.projectPath, deadlineOptions()));
+        if (!validation) {
+          rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
+          break;
+        }
         const validationSpan = ctx.tracer.startSpan('agent.validate', ctx.rootSpan.toContext());
         await ctx.prisma.agentRun.update({
           where: { id: ctx.agentRunId },
@@ -452,7 +580,15 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
 
         const autoChecks = generateAutoApiChecks(ctx.task.description);
         if (autoChecks.length > 0) {
-          const checkResult = await runAutoApiChecks(ctx.projectPath, autoChecks);
+          const checkResult = await runAgentOperation(() => runAutoApiChecks(
+            ctx.projectPath,
+            autoChecks,
+            deadlineOptions(),
+          ));
+          if (!checkResult) {
+            rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
+            break;
+          }
           if (!checkResult.success) {
             await rejectFinish(`finish rejected: automatic API surface check failed. ${checkResult.output}`);
             break;
@@ -489,7 +625,11 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         const skipValidation = ctx.task.tags.includes('skip-validation');
         const validation = skipValidation
           ? { lint: { passed: true, output: '' }, test: { passed: true, output: '' }, build: { passed: true, output: '' }, allPassed: true }
-          : await validateProject(ctx.projectPath);
+          : await runAgentOperation(() => validateProject(ctx.projectPath, deadlineOptions()));
+        if (!validation) {
+          rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
+          break;
+        }
         await ctx.prisma.agentRun.update({
           where: { id: ctx.agentRunId },
           data: { validationSummary: sanitizeForDb(JSON.stringify(validation)) },
@@ -645,17 +785,17 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
             output: `Think rejected: you have already thought ${String(ctx.consecutiveThinks - 1)} times in a row. Stop planning and execute the next concrete step using read_file, run_command, or edit_file.`,
           };
         } else {
-          result = await executeTool(ctx.projectPath, call.name, call.arguments);
+          result = await executeAgentTool(call.name, call.arguments);
         }
       } else if (call.name === 'read_file' && typeof call.arguments.path === 'string') {
         ctx.consecutiveThinks = 0;
-        result = await executeTool(ctx.projectPath, call.name, call.arguments);
+        result = await executeAgentTool(call.name, call.arguments);
       } else if (call.name === 'run_command' && typeof call.arguments.command === 'string') {
         ctx.consecutiveThinks = 0;
-        result = await executeTool(ctx.projectPath, call.name, call.arguments);
+        result = await executeAgentTool(call.name, call.arguments);
       } else {
         ctx.consecutiveThinks = 0;
-        result = await executeTool(ctx.projectPath, call.name, call.arguments);
+        result = await executeAgentTool(call.name, call.arguments);
       }
 
       if (budgetAdvisory && result.success) {
@@ -717,8 +857,10 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         ctx.explorationSinceLastEdit = 0;
 
         if (await isTypeScriptProject(ctx.projectPath)) {
-          const typeCheck = await runTypeCheck(ctx.projectPath);
-          if (!typeCheck.success) {
+          const typeCheck = await runAgentOperation(() => runTypeCheck(ctx.projectPath, deadlineOptions()));
+          if (!typeCheck) {
+            result = { success: false, output: summary };
+          } else if (!typeCheck.success) {
             result = {
               success: false,
               output: `TypeScript typecheck failed after this edit. Fix the type errors before continuing.\n\n${typeCheck.output}`,
@@ -740,6 +882,11 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       messages.push({ role: 'tool', tool_call_id: call.id, content: displayOutput });
       processedToolCallIds.add(call.id);
       advanceStep();
+
+      if (ctx.signal?.aborted) {
+        stopForAbort();
+        break;
+      }
 
       if (forcedEditMode) {
         forcedEditModeSteps++;
@@ -841,7 +988,12 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     await stageAllChanges(ctx.projectPath);
     await commit(ctx.projectPath, `agent: ${ctx.task.title}`, true);
   }
-  const diff = await getDiff(ctx.projectPath, ctx.baseCommit);
+  const diff = await getGradedDiff(ctx.projectPath, ctx.baseCommit);
+  const patchAuditValidation = await validationSummaryWithPatchAudit(ctx.prisma, ctx.agentRunId, diff);
+  ctx.rootSpan.setAttributes({
+    specgateThrowawayPathsRemoved: diff.specGatePathsRemoved.length,
+    gradedPatchTestPaths: diff.gradedPatchTestPaths.length,
+  });
   if (diff.output) {
     await ctx.prisma.taskDiff.create({
       data: {
@@ -873,6 +1025,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       promptTokens: ctx.usage.promptTokens,
       completionTokens: ctx.usage.completionTokens,
       totalTokens: ctx.usage.totalTokens,
+      ...(patchAuditValidation ? { validationSummary: patchAuditValidation } : {}),
     },
   });
 

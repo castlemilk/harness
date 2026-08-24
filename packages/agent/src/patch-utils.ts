@@ -1,6 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { isInsideProject, execFileAsync } from './project-utils.js';
+import {
+  boundedExecutionTimeoutMs,
+  execFileAsync,
+  isInsideProject,
+  type ExecutionDeadlineOptions,
+} from './project-utils.js';
 import type { ToolResult } from './tool-types.js';
 
 interface PatchHunk {
@@ -224,22 +229,31 @@ export async function applyPatch(projectPath: string, patch: string): Promise<To
   };
 }
 
-export async function validatePatch(projectPath: string, baseCommit?: string): Promise<ToolResult> {
+export async function validatePatch(
+  projectPath: string,
+  baseCommit?: string,
+  options: ExecutionDeadlineOptions = {},
+): Promise<ToolResult> {
+  const execOptions = (maximumMs: number): { cwd: string; timeout: number; signal?: AbortSignal } => ({
+    cwd: projectPath,
+    timeout: boundedExecutionTimeoutMs(maximumMs, options),
+    signal: options.signal,
+  });
   let priorIndexTree: string | undefined;
   try {
     try {
-      const { stdout } = await execFileAsync('git', ['write-tree'], { cwd: projectPath, timeout: 30_000 });
+      const { stdout } = await execFileAsync('git', ['write-tree'], execOptions(30_000));
       priorIndexTree = stdout.trim();
     } catch {
       // ignore
     }
 
-    await execFileAsync('git', ['add', '-A'], { cwd: projectPath, timeout: 30_000 });
+    await execFileAsync('git', ['add', '-A'], execOptions(30_000));
 
     let base = baseCommit;
     if (!base) {
       try {
-        const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: projectPath, timeout: 30_000 });
+        const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], execOptions(30_000));
         base = stdout.trim();
       } catch {
         // ignore
@@ -249,7 +263,7 @@ export async function validatePatch(projectPath: string, baseCommit?: string): P
     const diffArgs = base
       ? ['diff', '--cached', base, '--', '.', ':!pnpm-lock.yaml', ':!yarn.lock', ':!package-lock.json', ':!node_modules', ':!.omega']
       : ['diff', '--cached', '--', '.', ':!pnpm-lock.yaml', ':!yarn.lock', ':!package-lock.json', ':!node_modules', ':!.omega'];
-    const { stdout: patch } = await execFileAsync('git', diffArgs, { cwd: projectPath, timeout: 30_000 });
+    const { stdout: patch } = await execFileAsync('git', diffArgs, execOptions(30_000));
     if (!patch || patch.trim().length === 0) {
       return { success: true, output: 'No changes to validate.' };
     }
@@ -263,7 +277,11 @@ export async function validatePatch(projectPath: string, baseCommit?: string): P
         const emptyDir = path.join(`/tmp`, `omega-patch-check-empty-${String(Date.now())}-${Math.random().toString(36).slice(2, 8)}`);
         await fs.mkdir(emptyDir, { recursive: true });
         try {
-          await execFileAsync('git', ['apply', '--check', patchFile], { cwd: emptyDir, timeout: 30_000 });
+          await execFileAsync('git', ['apply', '--check', patchFile], {
+            cwd: emptyDir,
+            timeout: boundedExecutionTimeoutMs(30_000, options),
+            signal: options.signal,
+          });
           return { success: true, output: `Patch is valid and applies cleanly (${String(patch.length)} bytes).` };
         } finally {
           await fs.rm(emptyDir, { recursive: true, force: true }).catch(() => undefined);
@@ -273,10 +291,15 @@ export async function validatePatch(projectPath: string, baseCommit?: string): P
       const tempWorktree = path.join(`/tmp`, `omega-patch-check-${String(Date.now())}-${Math.random().toString(36).slice(2, 8)}`);
       await execFileAsync('git', ['worktree', 'add', '--detach', tempWorktree, base], {
         cwd: projectPath,
-        timeout: 60_000,
+        timeout: boundedExecutionTimeoutMs(60_000, options),
+        signal: options.signal,
       });
       try {
-        await execFileAsync('git', ['apply', '--check', patchFile], { cwd: tempWorktree, timeout: 30_000 });
+        await execFileAsync('git', ['apply', '--check', patchFile], {
+          cwd: tempWorktree,
+          timeout: boundedExecutionTimeoutMs(30_000, options),
+          signal: options.signal,
+        });
         return { success: true, output: `Patch is valid and applies cleanly (${String(patch.length)} bytes).` };
       } finally {
         await execFileAsync('git', ['worktree', 'remove', '--force', tempWorktree], { cwd: projectPath, timeout: 30_000 }).catch(() => undefined);

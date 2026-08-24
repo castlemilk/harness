@@ -164,6 +164,27 @@ function jsonArray<T>(value: string | null | undefined): T[] {
   return Array.isArray(parsed) ? parsed as T[] : [];
 }
 
+function benchmarkResultsFromMetadata(metadataJson: string | null | undefined): Record<string, unknown>[] {
+  const metadata = safeJsonParse<unknown>(metadataJson, {});
+  if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) return [];
+  const results = (metadata as Record<string, unknown>).results;
+  if (!Array.isArray(results)) return [];
+  return results.flatMap((value) => {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return [];
+    const result = value as Record<string, unknown>;
+    if (typeof result.taskName !== 'string' || typeof result.passed !== 'boolean') return [];
+    return [{
+      ...result,
+      taskName: result.taskName,
+      harnessTaskId: typeof result.harnessTaskId === 'string' ? result.harnessTaskId : '',
+      passed: result.passed,
+      durationMs: typeof result.durationMs === 'number' && Number.isFinite(result.durationMs)
+        ? result.durationMs
+        : 0,
+    }];
+  });
+}
+
 const permissionArray = parsePermissions;
 
 function playbookSteps(value: string | null | undefined): PlaybookStep[] {
@@ -1434,6 +1455,20 @@ export function foremanRoutes(prisma: PrismaClient): Router {
     const rows = await prisma.benchmarkHistory.findMany({
       orderBy: { createdAt: 'desc' },
       take: 500,
+      select: {
+        id: true,
+        suite: true,
+        provider: true,
+        model: true,
+        totalTasks: true,
+        passed: true,
+        failed: true,
+        timeouts: true,
+        passRate: true,
+        totalCostUsd: true,
+        totalTokens: true,
+        createdAt: true,
+      },
     });
     interface ModelAgg {
       provider: string | null;
@@ -1488,21 +1523,23 @@ export function foremanRoutes(prisma: PrismaClient): Router {
       .sort((a, b) => b.latestPassRate - a.latestPassRate || a.runs - b.runs);
     res.json({
       models,
-      recent: rows.slice(0, 40).map((row) => ({
-        id: row.id,
-        suite: row.suite,
-        provider: row.provider,
-        model: row.model,
-        totalTasks: row.totalTasks,
-        passed: row.passed,
-        failed: row.failed,
-        timeouts: row.timeouts,
-        passRate: row.passRate,
-        totalCostUsd: row.totalCostUsd,
-        totalTokens: row.totalTokens,
-        createdAt: row.createdAt,
-      })),
+      recent: rows.slice(0, 40),
       totalRuns: rows.length,
+    });
+  }));
+
+  r.get('/benchmarks/:id', asyncHandler(async (req, res) => {
+    const row = await prisma.benchmarkHistory.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, metadata: true },
+    });
+    if (!row) {
+      res.status(404).json({ error: 'Benchmark run not found' });
+      return;
+    }
+    res.json({
+      id: row.id,
+      results: benchmarkResultsFromMetadata(row.metadata),
     });
   }));
 

@@ -170,6 +170,7 @@ export const api = {
       costByProvider: Record<string, number>;
       costByModel: Record<string, number>;
       costByDay: Record<string, number>;
+      // Always a number: `/costs/summary` sums with `?? 0` (costs.ts:25).
       totalTokens: number;
       avgCostPerRun: number;
       avgTokensPerRun: number;
@@ -247,7 +248,9 @@ export const api = {
       timeouts: number;
       totalDurationMs: number;
       totalCostUsd: number | null;
-      totalTokens: number;
+      // Nullable in the schema (BenchmarkRun.totalTokens is `Int?`) — a run that
+      // never recorded usage leaves it null, so the UI must guard it.
+      totalTokens: number | null;
       results: {
         taskName: string;
         harnessTaskId: string;

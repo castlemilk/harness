@@ -8,8 +8,8 @@ import { buildReflectionPrompt } from './prompts.js';
 import { hasChanges, stageAllChanges, commit, getDiff } from './git.js';
 import {
   boundedExecutionTimeoutMs,
+  boundedProviderRequestTimeoutMs,
   isTypeScriptProject,
-  remainingDeadlineMs,
   type ExecutionDeadlineOptions,
 } from './project-utils.js';
 import { abortableOperation } from './retry.js';
@@ -113,7 +113,7 @@ export async function tryStuckSolve(ctx: AgentContext): Promise<boolean> {
       system: 'You are a senior software engineer. Output ONLY a unified diff patch in git apply format. No explanation, no markdown fences.',
       model: ctx.model,
       temperature: 0.2,
-      timeoutMs: remainingDeadlineMs(ctx.deadlineMs),
+      timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
     }), ctx.signal);
     const patch = extractPatch(raw);
     if (!patch) return false;
@@ -177,7 +177,7 @@ export async function reflectOnTrace(ctx: AgentContext, maxTurns: number): Promi
       {
         system: ctx.systemPrompt,
         model: ctx.model,
-        timeoutMs: remainingDeadlineMs(ctx.deadlineMs),
+        timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
       },
     ), ctx.signal);
     reflectionSpan.addEvent('reflection.received');

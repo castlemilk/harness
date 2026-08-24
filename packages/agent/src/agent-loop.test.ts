@@ -120,14 +120,14 @@ describe('executeAgentLoop terminal disclosure', () => {
       apiSurfaceVerified: false,
       turnCount: 0,
       stepCount: 0,
-      deadlineMs: Date.now() + 60_000,
+      deadlineMs: Date.now() + 10 * 60_000,
     };
 
     await executeAgentLoop(ctx, []);
 
     expect(provider.send).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ timeoutMs: expect.any(Number) }),
+      expect.objectContaining({ timeoutMs: 120_000 }),
     );
 
     const terminalWrite = taskUpdate.mock.calls
@@ -147,6 +147,7 @@ describe('executeAgentLoop terminal disclosure', () => {
           allPassed: false,
           patchAudit: {
             specgateThrowawayPathsRemoved: 1,
+            specgateThrowawayPaths: ['tests/value.omega_specgate.test.ts'],
             gradedPatchTestPaths: 0,
           },
         }),
@@ -266,6 +267,7 @@ describe('executeAgentLoop terminal disclosure', () => {
         validationSummary: JSON.stringify({
           patchAudit: {
             specgateThrowawayPathsRemoved: 1,
+            specgateThrowawayPaths: ['tests/value.omega_specgate.test.ts'],
             gradedPatchTestPaths: 1,
           },
         }),

@@ -430,7 +430,7 @@ export async function runOrchestratedTask(
     const success =
       subtasks.some((s) => s.status === 'done') &&
       (finished || subtasks.every((s) => s.status !== 'pending'));
-    if (finalDiff) {
+    if (gradedDiff.success && finalDiff) {
       await prisma.taskDiff.create({
         data: {
           taskId,
@@ -438,6 +438,8 @@ export async function runOrchestratedTask(
           patch: sanitizeForDb(finalDiff) ?? '',
         },
       });
+    } else if (!gradedDiff.success) {
+      logger.warn(`graded diff failed for task ${taskId}: ${gradedDiff.error ?? 'unknown error'}`);
     }
     const finalSummary = sanitizeForDb(
       `${summary}\n\nOrchestration: ${String(subtasks.filter((s) => s.status === 'done').length)}/${String(subtasks.length)} subtasks done in ${String(iterations)} iteration(s).`
@@ -513,7 +515,7 @@ export async function runOrchestratedTask(
       try {
         const gradedDiff = await getGradedDiff(options.projectPath, baseCommitSha);
         const patchAuditValidation = await validationSummaryWithPatchAudit(prisma, agentRun.id, gradedDiff);
-        if (gradedDiff.output) {
+        if (gradedDiff.success && gradedDiff.output) {
           await prisma.taskDiff.create({
             data: {
               taskId,
@@ -521,6 +523,8 @@ export async function runOrchestratedTask(
               patch: sanitizeForDb(gradedDiff.output) ?? '',
             },
           });
+        } else if (!gradedDiff.success) {
+          logger.warn(`graded diff failed for task ${taskId}: ${gradedDiff.error ?? 'unknown error'}`);
         }
         if (patchAuditValidation) {
           await prisma.agentRun.update({

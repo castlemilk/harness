@@ -14,7 +14,7 @@ import {
   FORCE_ACTION_PROMPT,
 } from './prompts.js';
 import { hasChanges, stageAllChanges, commit, getGradedDiff } from './git.js';
-import { validateProject } from './validator.js';
+import { validateProject, type ValidationSummary } from './validator.js';
 import { publishOmega, type PublishResult } from './publisher.js';
 import {
   isTypeScriptProject,
@@ -22,6 +22,7 @@ import {
   taskMentionsPublicApi,
   taskLikelyHasTests,
   toCoreTask,
+  boundedProviderRequestTimeoutMs,
   remainingDeadlineMs,
 } from './project-utils.js';
 import { abortableOperation, withProviderRetry } from './retry.js';
@@ -185,6 +186,17 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       throw error;
     }
   };
+  const runValidation = async (): Promise<ValidationSummary | undefined> => {
+    try {
+      // Validation owns a small deadline grace period so a correct patch is
+      // not rejected merely because its existing suite runs past the agent
+      // turn budget. validateProject still forwards explicit cancellation.
+      return await validateProject(ctx.projectPath, deadlineOptions());
+    } catch (error) {
+      if (stopForAbort(error)) return undefined;
+      throw error;
+    }
+  };
   const executeAgentTool = (
     name: string,
     args: Record<string, unknown>,
@@ -192,13 +204,17 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     if (stopForAbort()) {
       return Promise.resolve({ success: false, output: summary });
     }
-    return abortableOperation(
-      () => executeTool(ctx.projectPath, name, args, {
+    const operation = () => executeTool(ctx.projectPath, name, args, {
         timeoutMs: remainingDeadlineMs(ctx.deadlineMs),
         signal: ctx.signal,
-      }),
-      ctx.signal,
-    ).catch((error: unknown) => {
+      });
+    // validate_patch temporarily mutates the index. Its read-only checks still
+    // observe cancellation, but the outer loop must await index restoration
+    // instead of racing terminal stage/commit work against its finally block.
+    const pending = name === 'validate_patch'
+      ? operation()
+      : abortableOperation(operation, ctx.signal);
+    return pending.catch((error: unknown) => {
       if (stopForAbort(error)) return { success: false, output: summary };
       throw error;
     });
@@ -261,7 +277,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         summary = `Finished via skill reference patch: ${appliedSkills.join(', ')}`;
         await checkpointCommit(ctx);
         const gradedSkillDiff = await getGradedDiff(ctx.projectPath, ctx.baseCommit);
-        if (gradedSkillDiff.output) {
+        if (gradedSkillDiff.success && gradedSkillDiff.output) {
           await ctx.prisma.taskDiff.create({
             data: {
               taskId: ctx.task.id,
@@ -296,7 +312,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
             recordUsage(ctx, usage);
           },
           {
-            timeoutMs: remainingDeadlineMs(ctx.deadlineMs),
+            timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
             signal: ctx.signal,
           },
         ),
@@ -554,7 +570,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         const skipValidation = ctx.task.tags.includes('skip-validation');
         const validation = skipValidation
           ? { lint: { passed: true, output: '' }, test: { passed: true, output: '' }, build: { passed: true, output: '' }, allPassed: true }
-          : await runAgentOperation(() => validateProject(ctx.projectPath, deadlineOptions()));
+          : await runValidation();
         if (!validation) {
           rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
           break;
@@ -625,7 +641,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         const skipValidation = ctx.task.tags.includes('skip-validation');
         const validation = skipValidation
           ? { lint: { passed: true, output: '' }, test: { passed: true, output: '' }, build: { passed: true, output: '' }, allPassed: true }
-          : await runAgentOperation(() => validateProject(ctx.projectPath, deadlineOptions()));
+          : await runValidation();
         if (!validation) {
           rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
           break;
@@ -994,7 +1010,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     specgateThrowawayPathsRemoved: diff.specGatePathsRemoved.length,
     gradedPatchTestPaths: diff.gradedPatchTestPaths.length,
   });
-  if (diff.output) {
+  if (diff.success && diff.output) {
     await ctx.prisma.taskDiff.create({
       data: {
         taskId: ctx.task.id,
@@ -1002,6 +1018,10 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         patch: diff.output,
       },
     });
+  } else if (!diff.success) {
+    // No TaskDiff row is written here, so without this the run is
+    // indistinguishable from one that simply made no changes.
+    logger.warn(`graded diff failed for task ${ctx.task.id}: ${diff.error ?? 'unknown error'}`);
   }
 
   const updatedTask = await ctx.prisma.task.update({

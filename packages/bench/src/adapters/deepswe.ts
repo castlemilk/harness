@@ -617,6 +617,11 @@ function languageGuidance(language: string | undefined): string {
 }
 
 const BASELINE_SPEC_EXHORTATION = 'Implement precisely to the spec below - the hidden test suite checks exact behaviour (error message text, formatting, attribute names, signatures).';
+const BUILD_GATE = `BUILD GATE (critical): the verifier scores you zero if the project does not compile or the existing test suite breaks. Before calling finish you MUST:
+   1. Run the build/compile command above and confirm zero errors.
+   2. Run the existing test command above and confirm the pre-existing tests still pass.
+   3. If either fails, fix it before finishing. Do NOT finish while the build is broken.`;
+const SCOPE_CONSTRAINT = 'SCOPE CONSTRAINT: Only edit source files directly related to the task. Do NOT modify CI/CD configs (.github/, .coderabbit.yaml, .codesandbox/), documentation (README.md, AUTHORS, CONTRIBUTING.md), meta files (.release-it.json, .prettierignore), build configs (package.json, rollup.config.js, webpack.config.js, tsconfig.json), or project scaffolding. Do NOT delete existing files. Do NOT create new files unless necessary for the implementation. Every extraneous change wastes steps and risks breaking the verifier.';
 const DEEPSWE_VERIFICATION_START_FRACTION = 0.6;
 const DISABLED_PROMPT_SWITCH_VALUES = new Set(['0', 'false', 'off', 'no']);
 
@@ -654,12 +659,9 @@ By ${String(startPercent)}% of the budget (${formatWallClock(verifyAtMs)} elapse
 function legacyDeepSweDescription(guidance: string, cleanedInstruction: string): string {
   return `${guidance}
 
-BUILD GATE (critical): the verifier scores you zero if the project does not compile or the existing test suite breaks. Before calling finish you MUST:
-   1. Run the build/compile command above and confirm zero errors.
-   2. Run the existing test command above and confirm the pre-existing tests still pass.
-   3. If either fails, fix it before finishing. Do NOT finish while the build is broken.
+${BUILD_GATE}
 
-SCOPE CONSTRAINT: Only edit source files directly related to the task. Do NOT modify CI/CD configs (.github/, .coderabbit.yaml, .codesandbox/), documentation (README.md, AUTHORS, CONTRIBUTING.md), meta files (.release-it.json, .prettierignore), build configs (package.json, rollup.config.js, webpack.config.js, tsconfig.json), or project scaffolding. Do NOT delete existing files. Do NOT create new files unless necessary for the implementation. Every extraneous change wastes steps and risks breaking the verifier.
+${SCOPE_CONSTRAINT}
 
 ${BASELINE_SPEC_EXHORTATION}
 
@@ -698,8 +700,10 @@ ${cleanedInstruction}
 ---
 EXECUTION WORKFLOW (follow in order)
 1. Plan and spec-check — ${specCheck}
-2. Implement — Make the smallest source change that satisfies the checklist. Do not edit CI, docs, build configuration, scaffolding, or unrelated files; new files are allowed only when required by the implementation or the marked spec-check above.${redGreen}
+2. Implement — Make the smallest source change that satisfies the checklist.${redGreen}
+${SCOPE_CONSTRAINT}
 3. Verify — ${budgetGuidance ? `${budgetGuidance}\n` : ''}${guidance}
+${BUILD_GATE}
 4. Clean up —${cleanup || ' Remove scratch artifacts and unrelated changes.'}${cleanup ? ' Remove any other scratch artifacts and unrelated changes.' : ''}
 5. Finish — Only finish after phase 3 is green.`;
 }

@@ -6,6 +6,11 @@ import { loadDeepSWESuite } from './deepswe.js';
 
 const BASELINE_EXHORTATION = 'Implement precisely to the spec below - the hidden test suite checks exact behaviour (error message text, formatting, attribute names, signatures).';
 const TASK_INSTRUCTION = 'Return the exact error `example failure` for invalid input.';
+const BUILD_GATE = `BUILD GATE (critical): the verifier scores you zero if the project does not compile or the existing test suite breaks. Before calling finish you MUST:
+   1. Run the build/compile command above and confirm zero errors.
+   2. Run the existing test command above and confirm the pre-existing tests still pass.
+   3. If either fails, fix it before finishing. Do NOT finish while the build is broken.`;
+const SCOPE_CONSTRAINT = 'SCOPE CONSTRAINT: Only edit source files directly related to the task. Do NOT modify CI/CD configs (.github/, .coderabbit.yaml, .codesandbox/), documentation (README.md, AUTHORS, CONTRIBUTING.md), meta files (.release-it.json, .prettierignore), build configs (package.json, rollup.config.js, webpack.config.js, tsconfig.json), or project scaffolding. Do NOT delete existing files. Do NOT create new files unless necessary for the implementation. Every extraneous change wastes steps and risks breaking the verifier.';
 const roots: string[] = [];
 const originalSpecGate = process.env.OMEGA_DEEPSWE_SPEC_GATE;
 const originalTimeBudget = process.env.OMEGA_DEEPSWE_TIME_BUDGET;
@@ -37,6 +42,15 @@ async function loadDescription(timeoutMs?: number): Promise<string> {
 
   const [task] = await loadDeepSWESuite({ tasksDir: root, timeoutMs });
   return task.description ?? '';
+}
+
+function expectConsolidatedSafeguards(description: string): void {
+  expect(description).toContain(SCOPE_CONSTRAINT);
+  expect(description).toContain(BUILD_GATE);
+  expect(description.indexOf(SCOPE_CONSTRAINT)).toBeGreaterThan(description.indexOf('2. Implement'));
+  expect(description.indexOf(SCOPE_CONSTRAINT)).toBeLessThan(description.indexOf('3. Verify'));
+  expect(description.indexOf(BUILD_GATE)).toBeGreaterThan(description.indexOf('- If no pytest'));
+  expect(description.indexOf(BUILD_GATE)).toBeLessThan(description.indexOf('4. Clean up'));
 }
 
 afterEach(async () => {
@@ -74,7 +88,8 @@ describe('DeepSWE task description', () => {
     expect(description).not.toContain('DO_NOT_LEAK_PATCH_SENTINEL');
     expect(description).not.toContain('f2p_node_ids');
     expect(description.indexOf(TASK_INSTRUCTION)).toBeLessThan(description.indexOf('1. Plan and spec-check'));
-    expect(description.length - TASK_INSTRUCTION.length).toBeLessThan(2_259);
+    expectConsolidatedSafeguards(description);
+    expect(description.length - TASK_INSTRUCTION.length).toBeLessThan(2_500);
   });
 
   it.each(['0', 'false', 'off', 'no', 'OFF', 'NO'])('accepts %s as a case-insensitive spec-gate off value', async (value) => {
@@ -93,6 +108,8 @@ describe('DeepSWE task description', () => {
     expect(timeOnly).toContain(BASELINE_EXHORTATION);
     expect(timeOnly).not.toContain('SPEC GATE');
     expect(timeOnly).toContain('20 minutes');
+    expectConsolidatedSafeguards(timeOnly);
+    expect(timeOnly.length - TASK_INSTRUCTION.length).toBeLessThan(3_100);
 
     Reflect.deleteProperty(process.env, 'OMEGA_DEEPSWE_SPEC_GATE');
     process.env.OMEGA_DEEPSWE_TIME_BUDGET = 'off';
@@ -100,6 +117,7 @@ describe('DeepSWE task description', () => {
     expect(gateOnly).toContain('SPEC GATE');
     expect(gateOnly).not.toContain('TIME BUDGET');
     expect(gateOnly).not.toContain('20 minutes');
+    expectConsolidatedSafeguards(gateOnly);
   });
 
   it('reproduces the pre-change prompt byte for byte when both experiments are off', async () => {

@@ -8,6 +8,7 @@ import {
 } from './project-utils.js';
 
 const execFileAsync = promisify(execFile);
+const MIN_VALIDATION_STEP_TIMEOUT_MS = 60_000;
 
 export interface ValidationSummary {
   lint: { passed: boolean; output: string };
@@ -31,7 +32,10 @@ async function runStep(
   try {
     const { stdout, stderr } = await execFileAsync(command, args, {
       cwd: projectPath,
-      timeout: boundedExecutionTimeoutMs(300_000, options),
+      timeout: Math.max(
+        MIN_VALIDATION_STEP_TIMEOUT_MS,
+        boundedExecutionTimeoutMs(300_000, options),
+      ),
       signal: options.signal,
       env: command === 'corepack' ? COREPACK_ENV : undefined,
     });
@@ -41,6 +45,45 @@ async function runStep(
     const output = (execErr.stdout ?? '') + (execErr.stderr ?? '') || (execErr.message ?? String(err));
     return { passed: false, output };
   }
+}
+
+function isDeadlineAbort(options: ExecutionDeadlineOptions): boolean {
+  return options.deadlineMs !== undefined
+    && options.signal?.reason instanceof DOMException
+    && options.signal.reason.name === 'TimeoutError';
+}
+
+function throwIfCallerCancelled(options: ExecutionDeadlineOptions): void {
+  if (!options.signal?.aborted || isDeadlineAbort(options)) return;
+  throw options.signal.reason instanceof Error
+    ? options.signal.reason
+    : new DOMException('Operation aborted', 'AbortError');
+}
+
+/**
+ * Keep explicit caller cancellation abortable while allowing validation's
+ * minimum budget to outlive the agent's ordinary wall-clock deadline.
+ */
+function validationExecutionOptions(options: ExecutionDeadlineOptions): {
+  options: ExecutionDeadlineOptions;
+  dispose: () => void;
+} {
+  if (!options.signal) return { options, dispose: () => undefined };
+
+  const controller = new AbortController();
+  const forwardCallerCancellation = (): void => {
+    if (!isDeadlineAbort(options)) controller.abort(options.signal?.reason);
+  };
+  if (options.signal.aborted) {
+    forwardCallerCancellation();
+  } else {
+    options.signal.addEventListener('abort', forwardCallerCancellation, { once: true });
+  }
+
+  return {
+    options: { ...options, signal: controller.signal },
+    dispose: () => options.signal?.removeEventListener('abort', forwardCallerCancellation),
+  };
 }
 
 async function pathExists(filePath: string): Promise<boolean> {
@@ -97,7 +140,10 @@ async function packageHasDependencies(projectPath: string): Promise<boolean> {
 async function commandExists(cmd: string, options: ExecutionDeadlineOptions): Promise<boolean> {
   try {
     await execFileAsync('command', ['-v', cmd], {
-      timeout: boundedExecutionTimeoutMs(10_000, options),
+      // Floored for the same reason `runStep` is: past the deadline an
+      // unfloored budget collapses to 1ms, and this probe silently reporting
+      // "missing" makes the whole dependency install get skipped.
+      timeout: Math.max(5_000, boundedExecutionTimeoutMs(10_000, options)),
       signal: options.signal,
     });
     return true;
@@ -162,12 +208,18 @@ export async function validateProject(
   projectPath: string,
   options: ExecutionDeadlineOptions = {},
 ): Promise<ValidationSummary> {
-  const hasPackageJson = await pathExists(path.join(projectPath, 'package.json'));
-  if (hasPackageJson) {
-    return validateNodeProject(projectPath, options);
+  throwIfCallerCancelled(options);
+  const managedOptions = validationExecutionOptions(options);
+  try {
+    const hasPackageJson = await pathExists(path.join(projectPath, 'package.json'));
+    // Non-Node projects currently have no imposed validation harness. Future
+    // work can add pytest, go test, cargo test, and similar checks here.
+    const summary = hasPackageJson
+      ? await validateNodeProject(projectPath, managedOptions.options)
+      : { lint: pass(), test: pass(), build: pass(), allPassed: true };
+    throwIfCallerCancelled(options);
+    return summary;
+  } finally {
+    managedOptions.dispose();
   }
-
-  // Non-Node projects: we currently do not impose a validation harness. Future
-  // work can add pytest, go test, cargo test, etc.
-  return { lint: pass(), test: pass(), build: pass(), allPassed: true };
 }

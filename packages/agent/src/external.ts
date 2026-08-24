@@ -940,13 +940,15 @@ export async function runExternalAgentTask(
 
     const diff = await getGradedDiff(options.projectPath, baseCommitSha);
     const patch = diff.output;
-    const hasPatch = patch.trim().length > 0;
+    const hasPatch = diff.success && patch.trim().length > 0;
     const patchAuditValidation = await validationSummaryWithPatchAudit(prisma, agentRun.id, diff);
 
-    if (patch) {
+    if (diff.success && patch) {
       await prisma.taskDiff.create({
         data: { taskId, branch, patch: sanitizeForDb(patch) ?? '' },
       });
+    } else if (!diff.success) {
+      logger.warn(`graded diff failed for task ${taskId}: ${diff.error ?? 'unknown error'}`);
     }
 
     // Benchmark tasks are evaluated by re-applying the stored patch to a clean

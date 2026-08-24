@@ -261,6 +261,14 @@ export function remainingDeadlineMs(deadlineMs: number, nowMs: number = Date.now
   return Math.max(1, deadlineMs - nowMs);
 }
 
+/** Bound one provider transport request without defeating the outer deadline signal. */
+export function boundedProviderRequestTimeoutMs(
+  deadlineMs: number,
+  nowMs: number = Date.now(),
+): number {
+  return Math.min(120_000, Math.max(5_000, remainingDeadlineMs(deadlineMs, nowMs)));
+}
+
 export function boundedExecutionTimeoutMs(
   maximumMs: number,
   options: ExecutionDeadlineOptions = {},

@@ -4,8 +4,11 @@ import { sanitizeForDb } from './utils.js';
 
 export interface PatchAuditSummary {
   specgateThrowawayPathsRemoved: number;
+  specgateThrowawayPaths: string[];
   gradedPatchTestPaths: number;
 }
+
+const MAX_PERSISTED_PATCH_AUDIT_PATHS = 500;
 
 export async function validationSummaryWithPatchAudit(
   prisma: PrismaClient,
@@ -37,6 +40,7 @@ export async function validationSummaryWithPatchAudit(
         ? existing.patchAudit as Record<string, unknown>
         : {}),
       specgateThrowawayPathsRemoved: audit.specGatePathsRemoved.length,
+      specgateThrowawayPaths: audit.specGatePathsRemoved.slice(0, MAX_PERSISTED_PATCH_AUDIT_PATHS),
       gradedPatchTestPaths: audit.gradedPatchTestPaths.length,
     } satisfies PatchAuditSummary,
   })) ?? undefined;

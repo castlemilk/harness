@@ -239,16 +239,13 @@ export async function validatePatch(
     timeout: boundedExecutionTimeoutMs(maximumMs, options),
     signal: options.signal,
   });
+  const indexOptions = { cwd: projectPath, timeout: 30_000 };
   let priorIndexTree: string | undefined;
   try {
-    try {
-      const { stdout } = await execFileAsync('git', ['write-tree'], execOptions(30_000));
-      priorIndexTree = stdout.trim();
-    } catch {
-      // ignore
-    }
+    const { stdout } = await execFileAsync('git', ['write-tree'], indexOptions);
+    priorIndexTree = stdout.trim();
 
-    await execFileAsync('git', ['add', '-A'], execOptions(30_000));
+    await execFileAsync('git', ['add', '-A'], indexOptions);
 
     let base = baseCommit;
     if (!base) {
@@ -315,7 +312,7 @@ export async function validatePatch(
     return { success: false, output: `Patch validation failed:\n${output}` };
   } finally {
     if (priorIndexTree) {
-      await execFileAsync('git', ['read-tree', priorIndexTree], { cwd: projectPath, timeout: 30_000 }).catch(() => undefined);
+      await execFileAsync('git', ['read-tree', priorIndexTree], indexOptions).catch(() => undefined);
     }
   }
 }

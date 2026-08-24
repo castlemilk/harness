@@ -12,6 +12,8 @@ export interface GitResult {
 export interface GradedDiffResult extends GitResult {
   specGatePathsRemoved: string[];
   gradedPatchTestPaths: string[];
+  /** Diagnostic text is kept separate so callers can never persist it as a patch. */
+  error?: string;
 }
 
 async function git(
@@ -23,6 +25,10 @@ async function git(
     const { stdout, stderr } = await execFileAsync('git', args, {
       cwd: projectPath,
       timeout: options.timeout ?? 30_000,
+      // Node's 1 MiB default silently kills the child, which for a diff means
+      // the agent's patch is dropped rather than truncated. A large patch is
+      // ordinary on these repos.
+      maxBuffer: 64 * 1024 * 1024,
     });
     const shouldTrim = options.trim ?? true;
     const out = shouldTrim ? stdout.trim() + stderr.trim() : stdout + stderr;
@@ -60,6 +66,13 @@ export async function stageAll(projectPath: string): Promise<GitResult> {
 }
 
 const EXCLUDED_DIFF_PATHS = ['pnpm-lock.yaml', 'yarn.lock', 'package-lock.json', 'node_modules', '.omega'];
+/**
+ * `E2BIG` is a byte limit (ARG_MAX ≈ 1 MiB), not a count, and each exclusion
+ * costs roughly a path's length plus 18 bytes of `:(exclude,literal)`. 4000 is
+ * the measured headroom for corpus-shaped paths with a wide margin; a task with
+ * more marker files than this is pathological, not ordinary.
+ */
+const MAX_GRADED_DIFF_PATHSPEC_EXCLUSIONS = 4000;
 
 function diffPathspecs(extraExclusions: string[] = []): string[] {
   return [
@@ -74,6 +87,20 @@ function isExcludedDiffPath(filePath: string): boolean {
   return EXCLUDED_DIFF_PATHS.some(
     (excluded) => normalised === excluded || normalised.startsWith(`${excluded}/`)
   );
+}
+
+function failedGradedDiff(
+  result: GitResult,
+  specGatePathsRemoved: string[] = [],
+  gradedPatchTestPaths: string[] = [],
+): GradedDiffResult {
+  return {
+    success: false,
+    output: '',
+    error: result.output,
+    specGatePathsRemoved,
+    gradedPatchTestPaths,
+  };
 }
 
 export async function getChangedFiles(projectPath: string): Promise<string[]> {
@@ -129,18 +156,35 @@ export async function getGradedDiff(projectPath: string, base: string): Promise<
     { trim: false },
   );
   if (!changed.success) {
-    return { ...changed, specGatePathsRemoved: [], gradedPatchTestPaths: [] };
+    return failedGradedDiff(changed);
   }
   const changedPaths = changed.output.split('\0').filter(Boolean);
-  const specGatePathsRemoved = changedPaths.filter(isSpecGateTestPath).sort();
+  const markerPaths = changedPaths.filter(isSpecGateTestPath).sort();
+  // Above the cap we grade the patch UNSTRIPPED rather than risk the diff.
+  // Textually re-splitting a patch to drop sections is not safe — a typechange
+  // (symlink replaced by a regular file) emits two `diff --git` sections for
+  // one changed path — and a mis-split patch is a silent zero. Degrading to
+  // "strip nothing, disclose everything" keeps the agent's work intact; the
+  // marker files then show up in gradedPatchTestPaths, which is the truth.
+  const overCap = markerPaths.length > MAX_GRADED_DIFF_PATHSPEC_EXCLUSIONS;
+  if (overCap) {
+    console.warn(
+      `[git] ${String(markerPaths.length)} spec-gate marker paths exceeds the ` +
+        `${String(MAX_GRADED_DIFF_PATHSPEC_EXCLUSIONS)} pathspec cap; grading the patch unstripped`,
+    );
+  }
+  const specGatePathsRemoved = overCap ? [] : markerPaths;
   const gradedPatchTestPaths = changedPaths
-    .filter((filePath) => !isSpecGateTestPath(filePath) && isTestishPath(filePath))
+    .filter((filePath) => !specGatePathsRemoved.includes(filePath) && (isSpecGateTestPath(filePath) || isTestishPath(filePath)))
     .sort();
   const patch = await git(
     projectPath,
     ['diff', base, 'HEAD', '--', ...diffPathspecs(specGatePathsRemoved)],
     { trim: false },
   );
+  if (!patch.success) {
+    return failedGradedDiff(patch, specGatePathsRemoved, gradedPatchTestPaths);
+  }
   return { ...patch, specGatePathsRemoved, gradedPatchTestPaths };
 }
 

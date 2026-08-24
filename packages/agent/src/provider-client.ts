@@ -4,6 +4,7 @@ import { abortableOperation, abortableSleep } from './retry.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
 import { logger } from './logger.js';
 import type { Tracer, Span } from './tracer.js';
+import { boundedProviderRequestTimeoutMs } from './project-utils.js';
 
 const AGENT_TOOL_NAMES = new Set(AGENT_TOOLS.map((t) => t.name));
 
@@ -130,7 +131,7 @@ export async function sendToProvider(
         temperature: 0.3,
         onUsage,
         messages: sendMessages,
-        timeoutMs: Math.max(1, ctx.deadlineMs - Date.now()),
+        timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
       }), ctx.signal);
       span.addEvent('provider.response.received');
       const parsed = parseProviderResponse(raw);
@@ -157,7 +158,7 @@ export async function sendToProvider(
       system: ctx.textToolsSystemPrompt,
       model: ctx.model,
       onUsage,
-      timeoutMs: Math.max(1, ctx.deadlineMs - Date.now()),
+      timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
     }), ctx.signal);
     span.addEvent('provider.response.received');
     const parsed = parseProviderResponse(raw);

@@ -451,6 +451,7 @@ describe('runExternalAgentTask', () => {
         validationSummary: JSON.stringify({
           patchAudit: {
             specgateThrowawayPathsRemoved: 1,
+            specgateThrowawayPaths: ['tests/file.omega_specgate.test.ts'],
             gradedPatchTestPaths: 0,
           },
         }),

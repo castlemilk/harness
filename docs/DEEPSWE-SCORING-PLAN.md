@@ -603,6 +603,70 @@ order/global-state defects. Filter on both `flake_forgiven_pass` and
 `verifier_log_file` and `verifier_log_file_rerun`. Detailed gate/inconclusive
 causes use the single `flake_rerun_skipped_reason` metric.
 
+### narwhals is UNWINNABLE under Docker — do not score it until repaired
+
+Found 2026-08-25 in 195 seconds, using an empty-patch replay. It had been
+hidden behind 34-minute model runs.
+
+Run the task's verifier against a **pristine tree** (empty `model.patch`) and it
+reports `p2p 9752/10093` — **341 pre-existing failures**. The graded opus run
+reported the same `9752/10093`, and the two failing sets are **identical**: zero
+failures caused by the model, zero fixed by it. `reward=1` requires every p2p
+test to pass, so narwhals is a guaranteed zero for every model on every Docker
+run — the same class of defect as the `/app` path corruption in `4f269f1`.
+
+Root cause, confirmed: the image ships **pyarrow 25.0.1**, whose
+`Specifying null_placement in SortOptions is deprecated` FutureWarning is
+promoted to an error by narwhals' `filterwarnings=error`. `EXTRA_TASK_DEPS`
+already carries the correct pin (`pyarrow>=23,<25`) with that exact reasoning —
+but `runDeepSWEVerifierDocker` never applies pip overrides, so turning Docker on
+(T1.3) silently dropped a repair the local path had. §1b's claim that "zero
+environment overrides were applied" was true and, for narwhals, exactly the
+problem.
+
+**Do not "fix" it by pip-installing in the container at run time.** Tried and
+reverted: `pyarrow<25` has no wheel for this container's architecture, so pip
+builds it from source and exceeds 10 minutes *per run*, then a failed install
+short-circuits `test.sh`, the Docker result is unusable, and the adapter falls
+back to the local verifier. That turns a fast wrong answer into a slow one.
+
+Two viable repairs, neither yet done:
+1. Bake the pin into a derived image (`FROM omega-deepswe-narwhals…` +
+   `RUN pip install 'pyarrow>=23,<25'`) so the source build is paid once and
+   cached. This is the straightforward fix; budget a long first build.
+2. Suppress only that warning. Harder than it looks: `tests/test.sh` hard-sets
+   `PYTEST_ADDOPTS` itself, so an env-var override does not survive, and editing
+   `conftest.py` is recorded as a cheating signal by the task frame.
+
+Until one lands, **treat narwhals as excluded**: the achievable maximum on the
+eight-task set is 7, not 8, and every historical narwhals result is noise.
+
+### The empty-patch baseline — the safe version of a rejected idea
+
+The technique that found the above is worth keeping. Grading an **empty patch**
+in a **pristine container** measures what the environment does with no model
+involved. Across the scoring set it takes seconds, and it gives exactly the
+"which p2p tests fail on a clean tree" signal that §4's baseline-grading design
+wanted — but computed in a throwaway container rather than in the agent's tree,
+which is precisely the safe construction §4 said would be required. It is a
+diagnostic, not a grading input: nothing here excludes a test from scoring.
+
+Measured 2026-08-25, empty patch, Docker (`p2p passed/total`):
+
+| Task | Baseline | Verdict |
+|---|---|---|
+| abs-stepped-slices | 6/6 | clean |
+| anko-default-function-arguments | 119/119 | clean |
+| sqlfmt-create-table-ddl-formatting | 1273/1273 | clean — so opus's 1248/1273 was **real** regression damage |
+| returns-validated-error-accumulation | 61/61 | clean |
+| sqlite-utils-safe-import-checkpoints | 1038/1038 | clean |
+| vulture-persistent-analysis-cache | 295/295 | clean — the rotating flake does not occur under Docker |
+| psd-tools-blend-range-api | 979/979 | clean |
+| narwhals-rolling-window-suite | **9752/10093** | **broken, see above** |
+
+Run one before trusting any new task, and before blaming a model for p2p
+damage: 341 of them turned out not to be the model's fault.
+
 ### Docker verifier (T1.3) — verified 2026-08-23
 
 The eight scoring-set images are pre-built locally under the tag the adapter

@@ -35,7 +35,9 @@ capability signal.
 ### 1b. After Tier 1 — the same 8 tasks, 2026-08-23 (run `4e8be75d`)
 
 Same task set, same model (opus-5), `concurrency: 1`, `useDocker: true`, mirror
-cache on an external volume. **4/8**, 2h01m, $22.58 / 83.7M tokens.
+cache on an external volume. Scored **4/8** at the time; it was really **5/8** —
+narwhals was a correct solve that a broken environment scored as a zero (see
+"narwhals" below). 2h01m, $22.58 / 83.7M tokens.
 
 | Task | Verdict | Evidence |
 |---|---|---|
@@ -46,16 +48,19 @@ cache on an external volume. **4/8**, 2h01m, $22.58 / 83.7M tokens.
 | anko-default-function-arguments | near miss | `f2p 1/2`, **`p2p 119/119`** — same near miss as before, but one p2p test *more* than the local path and **no override applied** |
 | vulture-persistent-analysis-cache | genuine miss | `f2p 23/24`, **`p2p 295/295`** — the p2p flake did not recur under Docker |
 | sqlfmt-create-table-ddl-formatting | agent timeout | cut at the 20-min cap; graded `f2p 32/32`, `p2p 1248/1273` |
-| narwhals-rolling-window-suite | agent timeout | cut at the 20-min cap; `f2p 98/103`, `p2p 9752/10093` |
+| narwhals-rolling-window-suite | **actually a pass** | scored `f2p 98/103`, `p2p 9752/10093`, but that was pyarrow drift, not the patch. Replaying the same stored patch with the pin applied gives `f2p 103/103`, `p2p 10093/10093` |
 
 What this does and does not show:
 
 - **T1.1 worked.** Eight of eight tasks cloned; zero clone failures against
   three lost last time. Every checkout logged `source=fresh-mirror
   attempts=mirror-clone:1,local-clone:1`.
-- **T1.3 worked, in production.** All eight graded under `Using Docker image
-  omega-deepswe-*`, and **zero** environment overrides were applied on any task
-  — the `:8080` and pyarrow repairs were not needed.
+- **T1.3 worked, in production — with one costly gap.** All eight graded under
+  `Using Docker image omega-deepswe-*`, and **zero** environment overrides were
+  applied. For `:8080` that was correct: the container's own network namespace
+  makes the exclusion unnecessary. For pyarrow it was the bug — the Docker path
+  applied no pip pins at all, which cost narwhals a genuine pass. Fixed
+  2026-08-25; the Docker path now applies and discloses them.
 - **T1.2 never fired.** The gate declined on all four failures, correctly each
   time: anko, vulture and narwhals had incomplete f2p, and sqlfmt's shortfall of
   25 is far past the cap of 3. The forgiven-pass path remains unexercised in
@@ -148,7 +153,7 @@ from Docker run `4e8be75d-cfa3-4063-8a7c-c50532b56dcf`:
 | Clean pass | `abs-stepped-slices` | pass; f2p `6/6`, p2p `6/6` | 466,853 ms (7m47s) |
 | Stable near-miss | `anko-default-function-arguments` | fail; f2p `1/2`, p2p `119/119` | 642,175 ms (10m42s) |
 | Regression-heavy fail | `sqlfmt-create-table-ddl-formatting` | fail; f2p `32/32`, p2p `1248/1273` | 1,816,356 ms (30m16s) |
-| Big-suite partial | `narwhals-rolling-window-suite` | fail; f2p `98/103`, p2p `9752/10093` | 1,911,072 ms (31m51s) |
+| Big suite, clean pass | `narwhals-rolling-window-suite` | pass; f2p `103/103`, p2p `10093/10093` (re-baselined 2026-08-25 — the original `98/103` / `9752/10093` recorded a broken environment) | 1,911,072 ms (31m51s) |
 
 Run the complete corpus with `pnpm bench:deepswe:golden`, or one fixture with
 `pnpm bench:deepswe:golden -- --task abs-stepped-slices`. The command verifies
@@ -603,43 +608,58 @@ order/global-state defects. Filter on both `flake_forgiven_pass` and
 `verifier_log_file` and `verifier_log_file_rerun`. Detailed gate/inconclusive
 causes use the single `flake_rerun_skipped_reason` metric.
 
-### narwhals is UNWINNABLE under Docker — do not score it until repaired
+### narwhals: an environment defect was eating a genuine solve — FIXED 2026-08-25
 
-Found 2026-08-25 in 195 seconds, using an empty-patch replay. It had been
-hidden behind 34-minute model runs.
+Found in 195 seconds with an empty-patch replay, after being hidden behind
+34-minute model runs.
 
-Run the task's verifier against a **pristine tree** (empty `model.patch`) and it
-reports `p2p 9752/10093` — **341 pre-existing failures**. The graded opus run
-reported the same `9752/10093`, and the two failing sets are **identical**: zero
-failures caused by the model, zero fixed by it. `reward=1` requires every p2p
-test to pass, so narwhals is a guaranteed zero for every model on every Docker
-run — the same class of defect as the `/app` path corruption in `4f269f1`.
+Grading the task against a **pristine tree** (empty `model.patch`) reported
+`p2p 9752/10093` — **341 pre-existing failures**. The graded opus run reported
+the same `9752/10093`, and the two failing sets were **identical**: none caused
+by the model. Since `reward=1` needs every p2p test, narwhals was a guaranteed
+zero for every model on every Docker run.
 
-Root cause, confirmed: the image ships **pyarrow 25.0.1**, whose
+Root cause: the image ships **pyarrow 25.0.1**, whose
 `Specifying null_placement in SortOptions is deprecated` FutureWarning is
 promoted to an error by narwhals' `filterwarnings=error`. `EXTRA_TASK_DEPS`
-already carries the correct pin (`pyarrow>=23,<25`) with that exact reasoning —
-but `runDeepSWEVerifierDocker` never applies pip overrides, so turning Docker on
-(T1.3) silently dropped a repair the local path had. §1b's claim that "zero
-environment overrides were applied" was true and, for narwhals, exactly the
-problem.
+already carried the correct `pyarrow>=23,<25` pin with exactly that reasoning —
+but `runDeepSWEVerifierDocker` never applied pip overrides, so enabling Docker
+(T1.3) silently dropped a repair the local path had. §1b's "zero environment
+overrides were applied" was true, and for narwhals that was the bug.
 
-**Do not "fix" it by pip-installing in the container at run time.** Tried and
-reverted: `pyarrow<25` has no wheel for this container's architecture, so pip
-builds it from source and exceeds 10 minutes *per run*, then a failed install
-short-circuits `test.sh`, the Docker result is unusable, and the adapter falls
-back to the local verifier. That turns a fast wrong answer into a slow one.
+**The fix**: apply the task's pip pin inside the container before `test.sh`.
+The install is gated with `&&` on purpose — grading with the wrong pin is what
+produced the false zeros, so a failed pin must not quietly grade anyway — and
+the container output lands in `verifier.log` so a failure stays legible. The
+Docker path now also reports the pin through the normal
+`appliedEnvironmentOverrides` disclosure instead of hard-coding an empty list.
 
-Two viable repairs, neither yet done:
-1. Bake the pin into a derived image (`FROM omega-deepswe-narwhals…` +
-   `RUN pip install 'pyarrow>=23,<25'`) so the source build is paid once and
-   cached. This is the straightforward fix; budget a long first build.
-2. Suppress only that warning. Harder than it looks: `tests/test.sh` hard-sets
-   `PYTEST_ADDOPTS` itself, so an env-var override does not survive, and editing
-   `conftest.py` is recorded as a cheating signal by the task frame.
+**The result is bigger than a repaired environment.** Replaying opus's *stored*
+patch with the pin applied:
 
-Until one lands, **treat narwhals as excluded**: the achievable maximum on the
-eight-task set is 7, not 8, and every historical narwhals result is noise.
+```
+narwhals-rolling-window-suite  passed=true  f2p=103/103  p2p=10093/10093
+```
+
+The patch was **correct all along**. Not only were the 341 p2p failures not the
+model's, so were the 5 missing f2p tests. The task was scored 0 on work that had
+actually solved it, which means **the post-Tier-1 shakedown was really 5/8, not
+4/8** (§1b), and the achievable maximum is 8 — the earlier "max 7" note was
+wrong.
+
+Two corrections to earlier claims in this document, both mine:
+
+- An earlier revision said the pin could not be installed in-container because
+  `pyarrow<25` "has no wheel for this architecture and builds from source,
+  exceeding 10 minutes per run". That was **wrong**. The link was throttled at
+  the time; on a healthy connection the wheel installs in **62 seconds**
+  (`Successfully installed pyarrow-24.0.0`). Beware diagnosing a slow network as
+  a missing wheel.
+- The same revision advised treating narwhals as excluded. It is now scoreable.
+
+Cost: the pin adds ~60s to each narwhals grading run. The golden replay of the
+full corpus went from 133.7s to 344.3s, most of it narwhals now actually
+running its whole 10,093-test suite instead of failing 341 of them early.
 
 ### The empty-patch baseline — the safe version of a rejected idea
 
@@ -662,10 +682,11 @@ Measured 2026-08-25, empty patch, Docker (`p2p passed/total`):
 | sqlite-utils-safe-import-checkpoints | 1038/1038 | clean |
 | vulture-persistent-analysis-cache | 295/295 | clean — the rotating flake does not occur under Docker |
 | psd-tools-blend-range-api | 979/979 | clean |
-| narwhals-rolling-window-suite | **9752/10093** | **broken, see above** |
+| narwhals-rolling-window-suite | 9752/10093 → **10093/10093** | was broken; clean since the pin fix above |
 
 Run one before trusting any new task, and before blaming a model for p2p
-damage: 341 of them turned out not to be the model's fault.
+damage: 341 of them turned out not to be the model's fault — and repairing that
+turned a scored zero into a pass.
 
 ### Docker verifier (T1.3) — verified 2026-08-23
 

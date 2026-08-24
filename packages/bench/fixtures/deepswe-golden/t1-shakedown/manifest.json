@@ -56,12 +56,13 @@
       "patchSha256": "df249db91585bbd4cf98b40d1f389ec9021022defdb8eb2f28a835303d5bd6c9",
       "sourceDurationMs": 1911072,
       "expected": {
-        "passed": false,
-        "f2p_passed": 98,
+        "passed": true,
+        "f2p_passed": 103,
         "f2p_total": 103,
-        "p2p_passed": 9752,
+        "p2p_passed": 10093,
         "p2p_total": 10093
-      }
+      },
+      "note": "Re-baselined 2026-08-25: the original expectation (passed=false, f2p 98/103, p2p 9752/10093) recorded a broken environment, not the patch. The Docker path never applied the pyarrow>=23,<25 pin, so pyarrow 25 FutureWarnings were promoted to failures. With the pin applied the same stored patch scores a clean pass."
     }
   ]
 }

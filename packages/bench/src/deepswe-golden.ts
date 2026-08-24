@@ -276,14 +276,26 @@ export async function runDeepSWEGoldenCorpus(
       else await runSetup();
 
       const verifierStartedAt = performance.now();
-      let evaluation = await task.evaluate(evalContext);
+      // A skipped setup leaves projectPath empty, which only the Docker
+      // verifier tolerates. If Docker did not grade — whether it reported the
+      // local fallback or threw on the empty checkout — redo the fixture with
+      // a real project rather than reporting a replay artefact as a result.
+      let evaluation: BenchmarkEvaluation | undefined;
+      let firstAttemptError: unknown;
+      try {
+        evaluation = await task.evaluate(evalContext);
+      } catch (error) {
+        if (!skippedSetup) throw error;
+        firstAttemptError = error;
+      }
       verifierDurationMs = roundedDuration(verifierStartedAt);
-      if (skippedSetup && evaluation.metrics?.verifier_mode !== 'docker') {
+      if (skippedSetup && (firstAttemptError !== undefined || evaluation?.metrics?.verifier_mode !== 'docker')) {
         await runSetup();
         const retryStartedAt = performance.now();
         evaluation = await task.evaluate(evalContext);
         verifierDurationMs += roundedDuration(retryStartedAt);
       }
+      if (!evaluation) throw firstAttemptError ?? new Error('replay produced no evaluation');
       const actual = outcomeFromEvaluation(evaluation);
       const differences = compareOutcomes(fixture.expected, actual);
       results.push({

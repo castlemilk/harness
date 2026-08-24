@@ -2621,6 +2621,38 @@ async function runDeepSWEVerifierDocker(
   }
   log(`Using Docker image ${image}`);
 
+  // Per-task pip pins are NOT local-path-only. Turning Docker on silently
+  // dropped them and narwhals paid for it: the image ships pyarrow 25.0.1,
+  // whose SortOptions FutureWarning `filterwarnings=error` promotes to
+  // failures, so 341 p2p tests failed on a PRISTINE tree — measured with an
+  // empty patch as p2p 9752/10093, the identical 341 ids the graded run
+  // reported. reward=1 needs every p2p test, so the task was unwinnable for
+  // every model on every Docker run.
+  //
+  // The install is deliberately gated with `&&`: grading with the wrong pin is
+  // what produced the false zeros, so a failed pin must not silently grade
+  // anyway. The container's stdout/stderr is captured into verifier.log, so the
+  // reason stays legible.
+  const dockerOverride = getTaskEnvironmentOverride(taskName);
+  const dockerPip = dockerOverride?.pip ?? [];
+  const appliedDockerOverrides: AppliedTaskEnvironmentOverride[] = dockerPip.length > 0
+    ? [{
+        kind: 'dependency',
+        task: taskName,
+        requirements: dockerPip,
+        reason: dockerOverride?.dependencyReason
+          ?? 'Task-specific verifier dependency pin applied inside the container.',
+      }]
+    : [];
+  const containerCommand = dockerPip.length > 0
+    ? `python3 -m pip install --disable-pip-version-check ${dockerPip
+        .map((requirement) => `'${requirement}'`)
+        .join(' ')} && bash /tests/test.sh`
+    : 'bash /tests/test.sh';
+  if (appliedDockerOverrides.length > 0) {
+    log(`Applying container dependency pin before grading: ${dockerPip.join(' ')}`);
+  }
+
   const args = [
     'run',
     '--rm',
@@ -2632,7 +2664,8 @@ async function runDeepSWEVerifierDocker(
     `${verifierDir}:/logs/verifier`,
     image,
     'bash',
-    '/tests/test.sh',
+    '-lc',
+    containerCommand,
   ];
 
   const testRun = await runCommand('docker', args, { timeout: 1_800_000 });
@@ -2660,7 +2693,7 @@ async function runDeepSWEVerifierDocker(
     logFile,
     exitCode: testRun.exitCode,
     timedOut: testRun.timedOut,
-    appliedEnvironmentOverrides: [],
+    appliedEnvironmentOverrides: appliedDockerOverrides,
     patchPathsCleanedCount: 0,
   };
 }

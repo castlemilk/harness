@@ -148,6 +148,66 @@ Cross-model so far (both n=1, Docker, corrected grading, 30-min budget):
 anko and vulture are common near-misses; the rest are disjoint. Both headline
 numbers are n=1 on a contended host — directional, not scoreable.
 
+### 1d. Near-miss dissection — what actually failed (2026-08-25)
+
+Every finding below came from the stored patches of run `7c8a47d7` replayed
+through the verifier (~60s each, zero model spend) plus direct reads of the
+patch text. This is the fast loop doing its job: none of it required running
+a model.
+
+**1. anko — the exact-string failure, confirmed deterministic across models.**
+`TestDefaultArgumentsVisible` asserts the parse error contains the substring
+`invalid default argument declaration`; both opus (3 byte-identical
+repetitions) and ox-alpha return the generic `syntax error`. Four attempts,
+one identical miss. This is the canonical T2.1 target: an instruction-stated
+string that no model reproduces from prose alone.
+
+**2. vulture f2p — an instruction ambiguity that eats every model.**
+The instruction says "a backup of the cache (`cache.json.bak`) ... must be
+written, even on the very first save" and never says what the backup must
+*contain*. The held-out test demands `.bak` mirror the just-written
+`cache.json` bytes on **every** save (`assert backup == cache` after both the
+first and the second save). Both models implemented a *generational* backup —
+previous contents — which diverges the moment a second save changes content:
+the graded diff is one byte inside a sha256 hex (`9` vs `f`). Reproduced
+locally in under a second from ox-alpha's stored patch; opus failed the same
+test. A correct reading requires inferring mirror-not-archive semantics the
+instruction never states.
+
+**3. vulture p2p — a parametrize-id scoring trap producing phantom failures.**
+`test_incompatible_option_type` is parametrized over `list(DEFAULTS.items())`,
+so pytest assigns positional ids (`[paths-value2]`, `[exclude-value3]`, ...)
+to the empty-list defaults. The natural implementation of this task — adding
+`cache` / `cache_clear` / `cache_dir` to `DEFAULTS` — **renumbers those ids**
+when inserted ahead of existing keys. `tests/config.json` pins the expected
+295 p2p node ids as generated against the reference solution; after
+renumbering, 4 expected ids no longer appear in the report and are graded
+`missing from report` → four p2p failures that have nothing to do with
+behaviour. Verified deterministically: re-running ox-alpha's stored patch in
+the Docker image reproduces exactly `p2p 291/295` with the same four ids.
+Keys whose defaults render value-derived ids (`[config-pyproject.toml]`,
+`[min_confidence-0]`) are position-independent, which is why exactly 4 vanish
+and not 7. Consequences:
+
+- ox-alpha's vulture "miss" is really one genuine f2p gap plus four phantom
+  p2p penalties. Any model that reorders `DEFAULTS` pays the same tax;
+  appending at the end preserves id stability and is what the reference
+  solution evidently did.
+- Until the corpus pins these ids (or grading normalizes them), treat up to
+  4 of vulture's 295 p2p as noise, and never attribute a vulture delta to
+  capability without checking this list first.
+
+**4. Grading can silently degrade Docker → local under host load.**
+Replaying vulture through the API produced `verifier_mode: local` despite
+`useDocker: true` being recorded and passed through: `dockerAvailable()`
+returned false while the Docker VM was pegged by other sessions' containers,
+and `runDeepSWEVerifier` fell through to the macOS-local path with no marker
+in the logs. The local run then collected a different suite (298 items,
+pytest 9.1.1 on darwin) and scored `p2p 290/295`. Same patch, same day:
+291/295 under Docker, 290/295 locally. Watch `verifier_mode` on every graded
+result; a `local` grade when Docker was requested is an environment event,
+not a measurement.
+
 ---
 
 ## 2. Plan

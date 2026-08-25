@@ -524,6 +524,143 @@ describe('GET /foreman/benchmarks', () => {
     // No run reported cost: unknown, never $0.00-per-pass.
     expect(codex?.costPerPass).toBeNull();
   });
+
+  it('keeps aggregate rows compact and exposes per-task evaluation only by run id', async () => {
+    const history = await prisma.benchmarkHistory.create({
+      data: {
+        suite: 'deepswe',
+        provider: 'external:codex',
+        model: 'detail-model',
+        totalTasks: 1,
+        passed: 0,
+        failed: 1,
+        timeouts: 0,
+        passRate: 0,
+        totalDurationMs: 90_000,
+        metadata: JSON.stringify({
+          results: [{
+            taskName: 'sqlfmt-create-table-ddl-formatting',
+            harnessTaskId: 'task-detail-1',
+            passed: false,
+            durationMs: 90_000,
+            evaluation: {
+              passed: false,
+              score: 0.981,
+              message: 'DeepSWE tests failed with partial progress',
+              metrics: {
+                partial: 0.981,
+                f2p_passed: 32,
+                f2p_total: 32,
+                p2p_passed: 1248,
+                p2p_total: 1273,
+                verifier_mode: 'docker',
+              },
+            },
+          }],
+        }),
+      },
+    });
+
+    const aggregate = await invoke('get', '/benchmarks');
+    const body = aggregate.body as {
+      recent: {
+        id: string;
+        model: string | null;
+        results?: { taskName: string; evaluation: { message?: string; metrics?: Record<string, number | string> } }[];
+      }[];
+    };
+    const run = body.recent.find((entry) => entry.model === 'detail-model');
+
+    expect(run).toBeDefined();
+    expect(Object.keys(run ?? {}).sort()).toEqual([
+      'createdAt',
+      'failed',
+      'id',
+      'model',
+      'passRate',
+      'passed',
+      'provider',
+      'suite',
+      'timeouts',
+      'totalCostUsd',
+      'totalTasks',
+      'totalTokens',
+    ]);
+    expect(run).not.toHaveProperty('metadata');
+    expect(run).not.toHaveProperty('results');
+    expect(run).not.toHaveProperty('reportPath');
+    expect(run).not.toHaveProperty('totalDurationMs');
+
+    const detail = await invoke('get', '/benchmarks/:id', {
+      params: { id: history.id },
+    });
+    expect(detail.status).toBe(200);
+    expect((detail.body as { results: unknown[] }).results).toHaveLength(1);
+    expect((detail.body as { results: unknown[] }).results[0]).toMatchObject({
+      taskName: 'sqlfmt-create-table-ddl-formatting',
+      evaluation: {
+        message: 'DeepSWE tests failed with partial progress',
+        metrics: {
+          partial: 0.981,
+          f2p_passed: 32,
+          f2p_total: 32,
+          p2p_passed: 1248,
+          p2p_total: 1273,
+          verifier_mode: 'docker',
+        },
+      },
+    });
+  });
+
+  it('normalizes legacy detail metadata and filters malformed task results', async () => {
+    const base = {
+      suite: 'deepswe',
+      provider: 'external:codex',
+      totalTasks: 1,
+      passed: 0,
+      failed: 1,
+      timeouts: 0,
+      passRate: 0,
+      totalDurationMs: 1,
+    };
+    const nullMetadata = await prisma.benchmarkHistory.create({
+      data: { ...base, model: 'legacy-null-metadata', metadata: 'null' },
+    });
+    const malformedResults = await prisma.benchmarkHistory.create({
+      data: {
+        ...base,
+        model: 'legacy-malformed-results',
+        metadata: JSON.stringify({
+          results: [
+            null,
+            'bad',
+            { evaluation: { score: 'bad' } },
+            { taskName: 'valid-result', passed: false },
+          ],
+        }),
+      },
+    });
+
+    const nullDetail = await invoke('get', '/benchmarks/:id', {
+      params: { id: nullMetadata.id },
+    });
+    const malformedDetail = await invoke('get', '/benchmarks/:id', {
+      params: { id: malformedResults.id },
+    });
+
+    expect((nullDetail.body as { results: unknown[] }).results).toEqual([]);
+    expect((malformedDetail.body as { results: unknown[] }).results).toEqual([
+      { taskName: 'valid-result', harnessTaskId: '', passed: false, durationMs: 0 },
+    ]);
+  });
+
+  it('returns 404 for unknown benchmark detail ids', async () => {
+    const result = await invoke('get', '/benchmarks/:id', {
+      params: { id: 'missing-benchmark-history' },
+    });
+
+    expect(result).toEqual({ status: 404, body: { error: 'Benchmark run not found' } });
+  });
 });
 
 describe('GET /foreman/providers/health', () => {

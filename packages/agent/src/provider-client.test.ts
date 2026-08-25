@@ -1,5 +1,30 @@
-import { describe, expect, it } from 'vitest';
-import { parseProviderResponse } from './provider-client.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Provider } from '@omega/core';
+import { parseProviderResponse, sendToProvider } from './provider-client.js';
+
+function providerContext(provider: Provider, deadlineMs: number): Parameters<typeof sendToProvider>[0] {
+  const span = {
+    setAttributes: vi.fn(),
+    addEvent: vi.fn(),
+    recordError: vi.fn(),
+    end: vi.fn().mockResolvedValue(undefined),
+    toContext: vi.fn().mockReturnValue({}),
+  };
+  return {
+    provider,
+    model: 'test-model',
+    systemPrompt: 'system',
+    textToolsSystemPrompt: 'text tools',
+    deadlineMs,
+    tracer: { startSpan: vi.fn().mockReturnValue(span) },
+    rootSpan: span,
+    usage: {},
+  } as unknown as Parameters<typeof sendToProvider>[0];
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('parseProviderResponse reasoning_content', () => {
   it('extracts reasoning_content from a JSON tool_calls response', () => {
@@ -22,5 +47,37 @@ describe('parseProviderResponse reasoning_content', () => {
     const parsed = parseProviderResponse('just some text');
     expect(parsed.content).toBe('just some text');
     expect(parsed.reasoningContent).toBeUndefined();
+  });
+});
+
+describe('sendToProvider request timeout', () => {
+  it('caps a plain provider request at the normal 120 second limit', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    const send = vi.fn().mockResolvedValue('done');
+    const provider = { config: { name: 'plain' }, send } as unknown as Provider;
+
+    await sendToProvider(providerContext(provider, 1_600_000), []);
+
+    expect(send).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      timeoutMs: 120_000,
+    }));
+  });
+
+  it('gives a near-deadline tool request a five second transport floor', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    const sendWithTools = vi.fn().mockResolvedValue('done');
+    const provider = {
+      config: { name: 'tools' },
+      send: vi.fn(),
+      sendWithTools,
+    } as unknown as Provider;
+
+    await sendToProvider(providerContext(provider, 1_001_000), []);
+
+    expect(sendWithTools).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(Array),
+      expect.objectContaining({ timeoutMs: 5_000 }),
+    );
   });
 });

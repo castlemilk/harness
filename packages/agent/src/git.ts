@@ -1,11 +1,19 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { isTestishPath } from '@omega/core';
 
 const execFileAsync = promisify(execFile);
 
 export interface GitResult {
   success: boolean;
   output: string;
+}
+
+export interface GradedDiffResult extends GitResult {
+  gradedPatchTestPaths: string[];
+  gradedPatchAddedTestPaths: string[];
+  /** Diagnostic text is kept separate so callers can never persist it as a patch. */
+  error?: string;
 }
 
 async function git(
@@ -17,6 +25,10 @@ async function git(
     const { stdout, stderr } = await execFileAsync('git', args, {
       cwd: projectPath,
       timeout: options.timeout ?? 30_000,
+      // Node's 1 MiB default silently kills the child, which for a diff means
+      // the agent's patch is dropped rather than truncated. A large patch is
+      // ordinary on these repos.
+      maxBuffer: 64 * 1024 * 1024,
     });
     const shouldTrim = options.trim ?? true;
     const out = shouldTrim ? stdout.trim() + stderr.trim() : stdout + stderr;
@@ -54,12 +66,32 @@ export async function stageAll(projectPath: string): Promise<GitResult> {
 }
 
 const EXCLUDED_DIFF_PATHS = ['pnpm-lock.yaml', 'yarn.lock', 'package-lock.json', 'node_modules', '.omega'];
+function diffPathspecs(): string[] {
+  return [
+    '.',
+    ...EXCLUDED_DIFF_PATHS.map((filePath) => `:(exclude,literal)${filePath}`),
+  ];
+}
 
 function isExcludedDiffPath(filePath: string): boolean {
   const normalised = filePath.replace(/\\/g, '/');
   return EXCLUDED_DIFF_PATHS.some(
     (excluded) => normalised === excluded || normalised.startsWith(`${excluded}/`)
   );
+}
+
+function failedGradedDiff(
+  result: GitResult,
+  gradedPatchTestPaths: string[] = [],
+  gradedPatchAddedTestPaths: string[] = [],
+): GradedDiffResult {
+  return {
+    success: false,
+    output: '',
+    error: result.output,
+    gradedPatchTestPaths,
+    gradedPatchAddedTestPaths,
+  };
 }
 
 export async function getChangedFiles(projectPath: string): Promise<string[]> {
@@ -101,16 +133,47 @@ export async function getDiff(projectPath: string, base?: string): Promise<GitRe
         base,
         'HEAD',
         '--',
-        '.',
-        ':!pnpm-lock.yaml',
-        ':!yarn.lock',
-        ':!package-lock.json',
-        ':!node_modules',
-        ':!.omega',
+        ...diffPathspecs(),
       ]
-    : ['diff', '--', '.', ':!pnpm-lock.yaml', ':!yarn.lock', ':!package-lock.json', ':!node_modules', ':!.omega'];
+    : ['diff', '--', ...diffPathspecs()];
   // Preserve exact patch bytes; trimming trailing whitespace corrupts patches.
   return git(projectPath, args, { trim: false });
+}
+
+export async function getGradedDiff(projectPath: string, base: string): Promise<GradedDiffResult> {
+  const changed = await git(
+    projectPath,
+    ['diff', '--no-renames', '--name-only', '-z', base, 'HEAD', '--', ...diffPathspecs()],
+    { trim: false },
+  );
+  if (!changed.success) {
+    return failedGradedDiff(changed);
+  }
+  const changedPaths = changed.output.split('\0').filter(Boolean);
+  const added = await git(
+    projectPath,
+    ['diff', '--no-renames', '--diff-filter=A', '--name-only', '-z', base, 'HEAD', '--', ...diffPathspecs()],
+    { trim: false },
+  );
+  if (!added.success) {
+    return failedGradedDiff(added);
+  }
+  const addedPaths = added.output.split('\0').filter(Boolean);
+  const gradedPatchTestPaths = changedPaths
+    .filter(isTestishPath)
+    .sort();
+  const gradedPatchAddedTestPaths = addedPaths
+    .filter(isTestishPath)
+    .sort();
+  const patch = await git(
+    projectPath,
+    ['diff', base, 'HEAD', '--', ...diffPathspecs()],
+    { trim: false },
+  );
+  if (!patch.success) {
+    return failedGradedDiff(patch, gradedPatchTestPaths, gradedPatchAddedTestPaths);
+  }
+  return { ...patch, gradedPatchTestPaths, gradedPatchAddedTestPaths };
 }
 
 export async function hasChanges(projectPath: string): Promise<boolean> {

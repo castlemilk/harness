@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "name": "Tier 1 Docker shakedown grading corpus",
+  "sourceBenchmarkRunId": "4e8be75d-cfa3-4063-8a7c-c50532b56dcf",
+  "fixtures": [
+    {
+      "taskId": "abs-stepped-slices",
+      "sourceHarnessTaskId": "14a8817a-a125-4208-913b-29a49237fdf5",
+      "sourceTaskDiffId": "428c468a-922f-4408-baa2-fe034be9b8f5",
+      "patchFile": "patches/abs-stepped-slices.patch",
+      "patchSha256": "ea23ceed16ca1c326c9a581eaa54452d86db265226e449fe9ea98014d5cf1758",
+      "sourceDurationMs": 466853,
+      "expected": {
+        "passed": true,
+        "f2p_passed": 6,
+        "f2p_total": 6,
+        "p2p_passed": 6,
+        "p2p_total": 6
+      }
+    },
+    {
+      "taskId": "anko-default-function-arguments",
+      "sourceHarnessTaskId": "75bd8db4-2f1d-482b-b181-cd866da6b7c1",
+      "sourceTaskDiffId": "7a3802fc-b607-4f50-81f3-ab15b6ce3c7a",
+      "patchFile": "patches/anko-default-function-arguments.patch",
+      "patchSha256": "497f2d64c13caefb20dbb99831befd4835601980067319b54a2f550fea25c923",
+      "sourceDurationMs": 642175,
+      "expected": {
+        "passed": false,
+        "f2p_passed": 1,
+        "f2p_total": 2,
+        "p2p_passed": 119,
+        "p2p_total": 119
+      }
+    },
+    {
+      "taskId": "sqlfmt-create-table-ddl-formatting",
+      "sourceHarnessTaskId": "78193199-18c8-43cc-8a20-200dce02aca7",
+      "sourceTaskDiffId": "e9bf0700-79c7-4838-abba-d3f59f93c1fb",
+      "patchFile": "patches/sqlfmt-create-table-ddl-formatting.patch",
+      "patchSha256": "8bd11e6021a0be215f538f925deea60baf7c9d0e563dad48003483d2a42186a8",
+      "sourceDurationMs": 1816356,
+      "expected": {
+        "passed": false,
+        "f2p_passed": 32,
+        "f2p_total": 32,
+        "p2p_passed": 1248,
+        "p2p_total": 1273
+      }
+    },
+    {
+      "taskId": "narwhals-rolling-window-suite",
+      "sourceHarnessTaskId": "26dfdeb0-85c5-4844-922e-7186789baed3",
+      "sourceTaskDiffId": "261a3a10-eb29-4b4c-9f8f-b2e027b378a1",
+      "patchFile": "patches/narwhals-rolling-window-suite.patch",
+      "patchSha256": "df249db91585bbd4cf98b40d1f389ec9021022defdb8eb2f28a835303d5bd6c9",
+      "sourceDurationMs": 1911072,
+      "expected": {
+        "passed": true,
+        "f2p_passed": 103,
+        "f2p_total": 103,
+        "p2p_passed": 10093,
+        "p2p_total": 10093
+      },
+      "note": "Re-baselined 2026-08-25: the original expectation (passed=false, f2p 98/103, p2p 9752/10093) recorded a broken environment, not the patch. The Docker path never applied the pyarrow>=23,<25 pin, so pyarrow 25 FutureWarnings were promoted to failures. With the pin applied the same stored patch scores a clean pass."
+    }
+  ]
+}

@@ -6,7 +6,10 @@ import { execSync, execFileSync } from 'node:child_process';
 import { omegaWorkDir } from '@omega/core';
 import type { PrismaClient } from '@omega/db';
 import type { BenchmarkTask, BenchmarkReport, BenchmarkEvaluation } from '@omega/bench';
-import { saveBenchmarkHistory } from '@omega/bench';
+import {
+  BENCHMARK_HISTORY_STRING_METRIC_MAX_CHARS,
+  saveBenchmarkHistory,
+} from '@omega/bench';
 import { runTask } from './run-task.js';
 
 export interface BenchRunConfig {
@@ -25,6 +28,8 @@ export interface BenchRunConfig {
   swebench?: { datasetPath?: string; repos?: string[]; sampleSeed?: number };
   /** DeepSWE adapter options (when suite is 'deepswe'). */
   deepswe?: { tasksDir: string; taskIds?: string[]; useDocker?: boolean };
+  /** Re-grade stored patches without invoking an agent or provider. */
+  replay?: { fromRunId?: string; fromHarnessTaskIds?: string[] };
 }
 
 export interface BenchRunEvent {
@@ -42,6 +47,8 @@ export interface BenchRunEvent {
   winnerModel?: string;
   /** For variance: pass rate across runs. */
   variancePassRate?: number;
+  /** Full per-task evaluator output, including adapter-specific metrics. */
+  evaluation?: BenchmarkEvaluation;
   summary?: {
     total: number;
     passed: number;
@@ -114,7 +121,7 @@ function tryGitApply(repoPath: string, patch: string): boolean {
 
 async function loadSuite(
   suite: string,
-  options: { nTasks?: number; taskIds?: string[]; swebench?: BenchRunConfig['swebench']; deepswe?: BenchRunConfig['deepswe'] } = {},
+  options: { nTasks?: number; taskIds?: string[]; timeoutMs?: number; swebench?: BenchRunConfig['swebench']; deepswe?: BenchRunConfig['deepswe'] } = {},
 ): Promise<BenchmarkTask[]> {
   let tasks: BenchmarkTask[];
 
@@ -138,6 +145,7 @@ async function loadSuite(
       // the whole 113-task suite. Nested wins — it is the more specific ask.
       taskIds: options.deepswe.taskIds ?? options.taskIds,
       useDocker: options.deepswe.useDocker,
+      timeoutMs: options.timeoutMs,
     });
   } else {
     const {
@@ -239,6 +247,113 @@ async function getAgentRunData(prisma: PrismaClient, taskId: string) {
   return prisma.agentRun.findFirst({ where: { taskId }, orderBy: { createdAt: 'desc' } });
 }
 
+interface ReplaySource {
+  harnessTaskId: string;
+  taskName?: string;
+  tags?: string[];
+  projectId: string;
+  agentRun: Awaited<ReturnType<typeof getAgentRunData>>;
+  diffs: Awaited<ReturnType<typeof getTaskDiffs>>;
+}
+
+type ReplaySourceRef = Pick<ReplaySource, 'harnessTaskId' | 'taskName'>;
+
+function parseStringArray(value: string | null | undefined): string[] {
+  try {
+    const parsed = JSON.parse(value ?? '[]') as unknown;
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function replayRunSourceRefs(
+  results: string | null,
+  sourceRunId: string,
+): ReplaySourceRef[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(results ?? '[]') as unknown;
+  } catch {
+    throw new Error(`Replay source run ${sourceRunId} has malformed results`);
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`Replay source run ${sourceRunId} has malformed results`);
+  }
+  const sources = parsed.flatMap((value): ReplaySourceRef[] => {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return [];
+    const result = value as Record<string, unknown>;
+    if (typeof result.taskName !== 'string' || typeof result.harnessTaskId !== 'string') return [];
+    return [{ taskName: result.taskName, harnessTaskId: result.harnessTaskId }];
+  });
+  if (sources.length === 0) {
+    throw new Error(`Replay source run ${sourceRunId} has no replayable task results`);
+  }
+  return sources;
+}
+
+async function hydrateReplaySource(
+  prisma: PrismaClient,
+  source: ReplaySourceRef,
+): Promise<ReplaySource> {
+  if (!source.harnessTaskId) {
+    throw new Error(`Replay source for ${source.taskName ?? 'unknown task'} has no harness task id`);
+  }
+  const [sourceTask, agentRun, diffs] = await Promise.all([
+    prisma.task.findUnique({
+      where: { id: source.harnessTaskId },
+      select: { id: true, projectId: true, tags: true },
+    }),
+    getAgentRunData(prisma, source.harnessTaskId),
+    getTaskDiffs(prisma, source.harnessTaskId),
+  ]);
+  if (!sourceTask) {
+    throw new Error(`Replay source harness task not found: ${source.harnessTaskId}`);
+  }
+  return {
+    ...source,
+    projectId: sourceTask.projectId,
+    tags: parseStringArray(sourceTask.tags),
+    agentRun,
+    diffs,
+  };
+}
+
+async function loadReplaySources(
+  prisma: PrismaClient,
+  suite: string,
+  replay: NonNullable<BenchRunConfig['replay']>,
+): Promise<ReplaySource[]> {
+  if (replay.fromRunId) {
+    const sourceRun = await prisma.benchmarkRun.findUnique({
+      where: { id: replay.fromRunId },
+      select: { suite: true, results: true },
+    });
+    if (!sourceRun) throw new Error(`Replay source run not found: ${replay.fromRunId}`);
+    if (sourceRun.suite !== suite) {
+      throw new Error(
+        `Replay source run ${replay.fromRunId} belongs to suite ${sourceRun.suite}, not ${suite}`,
+      );
+    }
+    const sourceRefs = replayRunSourceRefs(sourceRun.results, replay.fromRunId);
+    return Promise.all(sourceRefs.map((source) => hydrateReplaySource(prisma, source)));
+  }
+
+  const sourceIds = [...new Set(replay.fromHarnessTaskIds ?? [])];
+  return Promise.all(sourceIds.map((sourceId) => hydrateReplaySource(prisma, {
+    harnessTaskId: sourceId,
+  })));
+}
+
+function replaySourcesForTask(task: BenchmarkTask, sources: ReplaySource[]): ReplaySource[] {
+  return sources.filter((source) =>
+    source.taskName === task.name ||
+    source.taskName === task.id ||
+    source.tags?.includes(task.name) === true ||
+    source.tags?.includes(task.id) === true,
+  );
+}
+
 function buildEvalContext(
   agentRun: Awaited<ReturnType<typeof getAgentRunData>>,
   diffs: Awaited<ReturnType<typeof getTaskDiffs>>,
@@ -254,6 +369,7 @@ function buildEvalContext(
     agentRun: agentRun ? {
       id: agentRun.id,
       resultStatus: agentRun.resultStatus,
+      validationSummary: agentRun.validationSummary ?? undefined,
       totalTokens: agentRun.totalTokens ?? undefined,
       costUsd: agentRun.costUsd ?? undefined,
       createdAt: agentRun.createdAt.toISOString(),
@@ -280,8 +396,11 @@ async function runSingleTask(
   const harnessTaskId = await createHarnessTask(prisma, projectId, task, model);
   const modelUsed = model ? `${model.provider}/${model.model}` : undefined;
 
-  await runTask(prisma, harnessTaskId, { tokenBudget, timeoutMs });
-  await waitForTaskCompletion(prisma, harnessTaskId, timeoutMs, signal);
+  await runTask(prisma, harnessTaskId, { tokenBudget, timeoutMs, signal });
+  const completion = await waitForTaskCompletion(prisma, harnessTaskId, timeoutMs, signal);
+  if (completion.status === 'cancelled') {
+    throw new Error(completion.error ?? 'Run cancelled');
+  }
 
   const agentRun = await getAgentRunData(prisma, harnessTaskId);
   const diffs = await getTaskDiffs(prisma, harnessTaskId);
@@ -294,6 +413,64 @@ async function runSingleTask(
     model: modelUsed,
     costUsd: agentRun?.costUsd ?? 0,
     totalTokens: agentRun?.totalTokens ?? 0,
+  };
+}
+
+async function runReplayTask(
+  prisma: PrismaClient,
+  task: BenchmarkTask,
+  projectPath: string,
+  source: ReplaySource,
+): Promise<{
+  harnessTaskId: string;
+  evaluation: BenchmarkEvaluation;
+  durationMs: number;
+  model: string;
+  costUsd: number;
+  totalTokens: number;
+}> {
+  const start = Date.now();
+  const { agentRun, diffs } = source;
+  const hasStoredPatch = diffs.some((diff) => diff.patch.trim().length > 0);
+  const replayMetrics = {
+    replay: 1,
+    replay_source_task_id: source.harnessTaskId,
+  };
+
+  if (!hasStoredPatch) {
+    return {
+      harnessTaskId: source.harnessTaskId,
+      evaluation: {
+        passed: false,
+        message: `Replay skipped: source harness task ${source.harnessTaskId} has no stored TaskDiff patch`,
+        metrics: { ...replayMetrics, verifier_skipped: 1 },
+      },
+      durationMs: Date.now() - start,
+      model: 'replay',
+      costUsd: 0,
+      totalTokens: 0,
+    };
+  }
+
+  const evaluation = await task.evaluate(buildEvalContext(
+    agentRun,
+    diffs,
+    projectPath,
+    source.projectId,
+    source.harnessTaskId,
+  ));
+
+  return {
+    harnessTaskId: source.harnessTaskId,
+    evaluation: {
+      ...evaluation,
+      metrics: { ...evaluation.metrics, ...replayMetrics },
+    },
+    durationMs: Date.now() - start,
+    model: 'replay',
+    // A replay invokes no provider, so source usage must never be charged to it.
+    costUsd: 0,
+    totalTokens: 0,
   };
 }
 
@@ -323,7 +500,7 @@ async function runConsensusTask(
   // Run all models in parallel
   const runs = models.map(async (model) => {
     const harnessTaskId = await createHarnessTask(prisma, projectId, task, model, [`consensus:${model.provider}/${model.model}`]);
-    await runTask(prisma, harnessTaskId, { tokenBudget });
+    await runTask(prisma, harnessTaskId, { tokenBudget, timeoutMs, signal });
     const finished = await waitForTaskCompletion(prisma, harnessTaskId, timeoutMs, signal);
     const agentRun = await getAgentRunData(prisma, harnessTaskId);
     const diffs = await getTaskDiffs(prisma, harnessTaskId);
@@ -347,6 +524,8 @@ async function runConsensusTask(
 
   // Try each candidate's patch on a clean checkout, smallest first
   let winner: typeof candidates[0] | undefined;
+  let selectedCandidate: typeof candidates[0] | undefined;
+  let selectedEvaluation: BenchmarkEvaluation | undefined;
   for (const candidate of [...withPatch, ...withoutPatch]) {
     if (signal.aborted) break;
     resetToCommit(projectPath, baseCommit);
@@ -356,6 +535,8 @@ async function runConsensusTask(
     const agentRun = await getAgentRunData(prisma, candidate.harnessTaskId);
     const diffs = await getTaskDiffs(prisma, candidate.harnessTaskId);
     const evaluation = await task.evaluate(buildEvalContext(agentRun, diffs, projectPath, projectId, candidate.harnessTaskId));
+    selectedCandidate = candidate;
+    selectedEvaluation = evaluation;
 
     if (evaluation.passed) {
       winner = candidate;
@@ -372,7 +553,7 @@ async function runConsensusTask(
   if (winner) {
     return {
       harnessTaskId: winner.harnessTaskId,
-      evaluation: { passed: true, message: `winner: ${winner.model.provider}/${winner.model.model}` },
+      evaluation: selectedEvaluation ?? { passed: true, message: `winner: ${winner.model.provider}/${winner.model.model}` },
       durationMs: Date.now() - start,
       winnerModel: `${winner.model.provider}/${winner.model.model}`,
       costUsd: totalCost,
@@ -381,8 +562,8 @@ async function runConsensusTask(
   }
 
   return {
-    harnessTaskId: candidates[0]?.harnessTaskId ?? '',
-    evaluation: { passed: false, message: 'no candidate passed eval' },
+    harnessTaskId: selectedCandidate?.harnessTaskId ?? candidates.at(0)?.harnessTaskId ?? '',
+    evaluation: selectedEvaluation ?? { passed: false, message: 'no candidate passed eval' },
     durationMs: Date.now() - start,
     costUsd: totalCost,
     totalTokens,
@@ -390,6 +571,83 @@ async function runConsensusTask(
 }
 
 // ─── Variance strategy ───────────────────────────────────────────────────────
+
+const VARIANCE_OUTCOME_ERROR_MAX_CHARS = 512;
+const VARIANCE_OUTCOME_TASK_ID_MAX_CHARS = 128;
+
+export interface VarianceRunOutcome {
+  run: number;
+  harnessTaskId: string;
+  passed: boolean;
+  score?: number;
+  durationMs: number;
+  metrics?: Record<string, number | string>;
+  error?: string;
+  cancelled?: boolean;
+  omittedRuns?: number;
+}
+
+function signalIsAborted(signal: AbortSignal): boolean {
+  return signal.aborted;
+}
+
+function numericMetrics(
+  metrics: BenchmarkEvaluation['metrics'],
+): Record<string, number> | undefined {
+  if (!metrics) return undefined;
+  const compact = Object.fromEntries(
+    Object.entries(metrics).filter(
+      (entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]),
+    ),
+  ) as Record<string, number>;
+  return Object.keys(compact).length > 0 ? compact : undefined;
+}
+
+function compactVarianceOutcome(outcome: VarianceRunOutcome): VarianceRunOutcome {
+  return {
+    run: outcome.run,
+    harnessTaskId: outcome.harnessTaskId.slice(0, VARIANCE_OUTCOME_TASK_ID_MAX_CHARS),
+    passed: outcome.passed,
+    score: outcome.score,
+    durationMs: outcome.durationMs,
+    metrics: numericMetrics(outcome.metrics),
+    error: outcome.error?.slice(0, VARIANCE_OUTCOME_ERROR_MAX_CHARS),
+    cancelled: outcome.cancelled,
+    omittedRuns: outcome.omittedRuns,
+  };
+}
+
+/**
+ * Keep the scalar `variance_run_outcomes` metric valid JSON under history's
+ * generic string budget. Numeric metrics survive; string output blobs do not.
+ * If core outcomes alone exceed the budget, retain the newest ordered suffix
+ * plus a structured count of the older outcomes that were omitted.
+ */
+export function serializeVarianceRunOutcomes(outcomes: VarianceRunOutcome[]): string {
+  const compact = outcomes.map(compactVarianceOutcome);
+  const full = JSON.stringify(compact);
+  if (full.length <= BENCHMARK_HISTORY_STRING_METRIC_MAX_CHARS) return full;
+
+  for (let omittedRuns = 1; omittedRuns < compact.length; omittedRuns++) {
+    const sentinel: VarianceRunOutcome = {
+      run: compact[omittedRuns]?.run ?? omittedRuns + 1,
+      harnessTaskId: '',
+      passed: false,
+      durationMs: 0,
+      omittedRuns,
+    };
+    const candidate = JSON.stringify([sentinel, ...compact.slice(omittedRuns)]);
+    if (candidate.length <= BENCHMARK_HISTORY_STRING_METRIC_MAX_CHARS) return candidate;
+  }
+
+  return JSON.stringify([{
+    run: compact.at(-1)?.run ?? 0,
+    harnessTaskId: '',
+    passed: false,
+    durationMs: 0,
+    omittedRuns: compact.length,
+  } satisfies VarianceRunOutcome]);
+}
 
 async function runVarianceTask(
   prisma: PrismaClient,
@@ -407,6 +665,7 @@ async function runVarianceTask(
   durationMs: number;
   model?: string;
   variancePassRate: number;
+  timedOut: boolean;
   costUsd: number;
   totalTokens: number;
 }> {
@@ -416,36 +675,121 @@ async function runVarianceTask(
   let totalCost = 0;
   let totalTokens = 0;
   let lastHarnessTaskId = '';
+  let lastEvaluation: BenchmarkEvaluation | undefined;
+  const runOutcomes: VarianceRunOutcome[] = [];
 
   for (let run = 0; run < nRuns; run++) {
-    if (signal.aborted) break;
+    if (signal.aborted) {
+      runOutcomes.push({
+        run: run + 1,
+        harnessTaskId: '',
+        passed: false,
+        durationMs: 0,
+        error: 'Run cancelled',
+        cancelled: true,
+      });
+      break;
+    }
+    const runStartedAt = Date.now();
     const runProjectPath = path.join(projectPath, `run-${String(run)}`);
-    await fs.mkdir(runProjectPath, { recursive: true });
-    // Copy the base project files by using the task's setup function again
-    if (task.setup) await task.setup(runProjectPath);
-    ensureGitRepo(runProjectPath);
+    try {
+      await fs.mkdir(runProjectPath, { recursive: true });
+      // Copy the base project files by using the task's setup function again
+      if (task.setup) await task.setup(runProjectPath);
+      ensureGitRepo(runProjectPath);
 
-    const result = await runSingleTask(prisma, task, runProjectPath, `${projectPrefix}-${task.id}`, model, timeoutMs, tokenBudget, signal);
-    lastHarnessTaskId = result.harnessTaskId;
-    if (result.evaluation.passed) passes++;
-    totalCost += result.costUsd;
-    totalTokens += result.totalTokens;
+      const result = await runSingleTask(prisma, task, runProjectPath, `${projectPrefix}-${task.id}`, model, timeoutMs, tokenBudget, signal);
+      lastHarnessTaskId = result.harnessTaskId;
+      lastEvaluation = result.evaluation;
+      runOutcomes.push({
+        run: run + 1,
+        harnessTaskId: result.harnessTaskId,
+        passed: result.evaluation.passed,
+        score: result.evaluation.score,
+        durationMs: result.durationMs,
+        metrics: numericMetrics(result.evaluation.metrics),
+      });
+      if (result.evaluation.passed) passes++;
+      totalCost += result.costUsd;
+      totalTokens += result.totalTokens;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // The signal can change during any awaited setup/agent operation above;
+      // keep this runtime read out of TypeScript's stale loop narrowing.
+      const cancelled = signalIsAborted(signal);
+      runOutcomes.push({
+        run: run + 1,
+        harnessTaskId: '',
+        passed: false,
+        durationMs: Date.now() - runStartedAt,
+        error: cancelled ? 'Run cancelled' : message.slice(0, VARIANCE_OUTCOME_ERROR_MAX_CHARS),
+        cancelled: cancelled || undefined,
+      });
+      // Preserve completed outcomes, but stop after a potentially terminal
+      // setup/provider failure instead of multiplying it across repetitions.
+      break;
+    }
   }
 
+  const cancelledRuns = runOutcomes.filter((outcome) => outcome.cancelled).length;
+  const completedRuns = runOutcomes.length - cancelledRuns;
+  // Keep the historical passRate denominator and verdict semantics: requested
+  // repetitions that do not complete still count against the aggregate.
   const passRate = nRuns > 0 ? passes / nRuns : 0;
+  const completedPassRate = completedRuns > 0 ? passes / completedRuns : 0;
+  const incomplete = completedRuns < nRuns;
+  const attemptTimeoutThreshold = Math.max(0, timeoutMs - 5_000);
+  const timedOut = runOutcomes.some(
+    (outcome) => !outcome.cancelled && outcome.durationMs >= attemptTimeoutThreshold,
+  );
 
   return {
     harnessTaskId: lastHarnessTaskId,
-    evaluation: { passed: passRate >= 0.5, message: `${String(passes)}/${String(nRuns)} passed (${(passRate * 100).toFixed(0)}%)`, metrics: { passRate, passes, nRuns } },
+    evaluation: {
+      passed: passRate >= 0.5,
+      score: lastEvaluation?.score,
+      message: `${String(passes)}/${String(nRuns)} passed (${(passRate * 100).toFixed(0)}%)${incomplete ? `; ${String(completedRuns)}/${String(nRuns)} runs completed` : ''}${cancelledRuns > 0 ? '; cancelled' : ''}`,
+      metrics: {
+        ...lastEvaluation?.metrics,
+        passRate,
+        completedPassRate,
+        passes,
+        nRuns,
+        completedRuns,
+        variance_incomplete: incomplete ? 1 : 0,
+        variance_cancelled: cancelledRuns > 0 ? 1 : 0,
+        // BenchmarkEvaluation metrics are scalar values, so retain compact,
+        // ordered run outcomes as JSON without copying full logs/messages.
+        variance_run_outcomes: serializeVarianceRunOutcomes(runOutcomes),
+      },
+    },
     durationMs: Date.now() - start,
     model: modelUsed,
     variancePassRate: passRate,
+    timedOut,
     costUsd: totalCost,
     totalTokens,
   };
 }
 
 // ─── Main runner ─────────────────────────────────────────────────────────────
+
+const BENCHMARK_PROGRESS_TEXT_MAX_CHARS = 512;
+
+function compactProgressResult<
+  T extends { evaluation: BenchmarkEvaluation; error?: string },
+>(result: T): T {
+  return {
+    ...result,
+    error: result.error?.slice(0, BENCHMARK_PROGRESS_TEXT_MAX_CHARS),
+    evaluation: {
+      passed: result.evaluation.passed,
+      score: result.evaluation.score,
+      message: result.evaluation.message?.slice(0, BENCHMARK_PROGRESS_TEXT_MAX_CHARS),
+      metrics: numericMetrics(result.evaluation.metrics),
+    },
+  };
+}
 
 export async function startBenchRun(
   prisma: PrismaClient,
@@ -464,24 +808,65 @@ export async function startBenchRun(
 
     emitter.emit('run', { type: 'started', runId, suite: config.suite } satisfies BenchRunEvent);
 
-    const tasks = await loadSuite(config.suite, { nTasks: config.nTasks, taskIds: config.taskIds, swebench: config.swebench, deepswe: config.deepswe });
+    const timeoutMs = config.timeoutMs ?? 600_000;
+    const replaySources = config.replay
+      ? await loadReplaySources(prisma, config.suite, config.replay)
+      : undefined;
+    const replayTaskIds = replaySources
+      ?.map((source) => source.taskName)
+      .filter((taskName): taskName is string => taskName !== undefined);
+    let tasks = await loadSuite(config.suite, {
+      // Replay selectors define the work set. Sampling or stale task filters
+      // must not silently drop a stored source before it can be resolved.
+      nTasks: replaySources ? undefined : config.nTasks,
+      taskIds: replaySources ? replayTaskIds : config.taskIds,
+      timeoutMs,
+      swebench: config.swebench,
+      deepswe: replaySources && config.deepswe
+        ? { ...config.deepswe, taskIds: replayTaskIds }
+        : config.deepswe,
+    });
+
+    let replayWorkItems: { task: BenchmarkTask; source: ReplaySource }[] | undefined;
+    if (replaySources) {
+      replayWorkItems = [];
+      for (const source of replaySources) {
+        const matches = tasks.filter((task) => replaySourcesForTask(task, [source]).length > 0);
+        if (matches.length === 0) {
+          throw new Error(
+            `Replay source ${source.harnessTaskId} does not map to a task in suite ${config.suite}`,
+          );
+        }
+        if (matches.length > 1) {
+          throw new Error(
+            `Replay source ${source.harnessTaskId} maps to multiple tasks in suite ${config.suite}: ` +
+              matches.map((task) => task.name).join(', '),
+          );
+        }
+        replayWorkItems.push({ task: matches[0], source });
+      }
+      // One benchmark definition may intentionally be replayed from several
+      // stored task IDs. Keep one work item per source instead of collapsing
+      // them into an ambiguous task-level mapping.
+      tasks = replayWorkItems.map((item) => item.task);
+    }
 
     if (tasks.length === 0) {
-      await prisma.benchmarkRun.update({ where: { id: runId }, data: { status: 'done', completedAt: new Date(), totalTasks: 0 } });
-      emitter.emit('run', { type: 'completed', runId, summary: { total: 0, passed: 0, failed: 0, timeouts: 0, totalDurationMs: 0 } } satisfies BenchRunEvent);
+      const status = abortController.signal.aborted ? 'cancelled' : 'done';
+      await prisma.benchmarkRun.update({ where: { id: runId }, data: { status, completedAt: new Date(), totalTasks: 0 } });
+      emitter.emit('run', { type: 'completed', runId, status, summary: { total: 0, passed: 0, failed: 0, timeouts: 0, totalDurationMs: 0 } } satisfies BenchRunEvent);
       return;
     }
 
     await prisma.benchmarkRun.update({ where: { id: runId }, data: { totalTasks: tasks.length } });
 
-    const timeoutMs = config.timeoutMs ?? 600_000;
     const projectPrefix = config.projectPrefix ?? 'bench';
     const baseDir = path.join(omegaWorkDir(), 'bench', runId);
     await fs.mkdir(baseDir, { recursive: true });
 
     const strategy = config.strategy ?? 'single';
     const models = config.models ?? [];
-    const varianceRuns = config.varianceRuns ?? 5;
+    const varianceRuns = config.varianceRuns ?? 1;
 
     let passed = 0;
     let failed = 0;
@@ -495,6 +880,9 @@ export async function startBenchRun(
       harnessTaskId: string;
       passed: boolean;
       durationMs: number;
+      evaluation: BenchmarkEvaluation;
+      costUsd: number;
+      totalTokens: number;
       model?: string;
       winnerModel?: string;
       variancePassRate?: number;
@@ -518,48 +906,79 @@ export async function startBenchRun(
       running++;
 
       void (async () => {
-        const projectPath = path.join(baseDir, task.id);
+        const projectPath = path.join(
+          baseDir,
+          replayWorkItems ? `${task.id}-replay-${String(idx + 1)}` : task.id,
+        );
 
         emitter.emit('run', {
           type: 'task-started',
           runId,
           taskName: task.name,
-          model: strategy === 'consensus' ? models.map((m) => m.model).join('+') : models[0] ? `${models[0].provider}/${models[0].model}` : undefined,
+          model: replaySources ? 'replay' : strategy === 'consensus' ? models.map((m) => m.model).join('+') : models[0] ? `${models[0].provider}/${models[0].model}` : undefined,
         } satisfies BenchRunEvent);
 
-        let result: Awaited<ReturnType<typeof runSingleTask>> & { winnerModel?: string; variancePassRate?: number };
+        let result: Awaited<ReturnType<typeof runSingleTask>> & { winnerModel?: string; variancePassRate?: number; timedOut?: boolean };
+        const replaySource = replayWorkItems?.[idx]?.source;
 
         try {
-          // Setup (clone + dependency install) INSIDE the try: a rejection
-          // here used to escape the async IIFE entirely — an unhandled
-          // rejection that never decremented `running`, so each broken
-          // environment leaked a pool slot until the whole run silently
-          // wedged (observed live: 4 install failures froze a 113-task run
-          // at 58 with zero workers left). A setup failure is a task
-          // failure, not a pool leak.
-          await fs.mkdir(projectPath, { recursive: true });
-          if (task.setup) await task.setup(projectPath);
-          ensureGitRepo(projectPath);
-
-          if (strategy === 'consensus' && models.length > 1) {
-            result = await runConsensusTask(prisma, task, projectPath, projectPrefix, models, timeoutMs, config.tokenBudget, abortController.signal);
-          } else if (strategy === 'variance') {
-            result = await runVarianceTask(prisma, task, projectPath, projectPrefix, models[0], varianceRuns, timeoutMs, config.tokenBudget, abortController.signal);
+          if (replaySource && !replaySource.diffs.some((diff) => diff.patch.trim().length > 0)) {
+            // Resolve the stored patch before setup so a missing patch is a
+            // cheap, explicit replay failure rather than a clone/install run.
+            result = await runReplayTask(
+              prisma,
+              task,
+              projectPath,
+              replaySource,
+            );
           } else {
-            result = await runSingleTask(prisma, task, projectPath, projectPrefix, models[0], timeoutMs, config.tokenBudget, abortController.signal);
+            // Setup (clone + dependency install) INSIDE the try: a rejection
+            // here used to escape the async IIFE entirely — an unhandled
+            // rejection that never decremented `running`, so each broken
+            // environment leaked a pool slot until the whole run silently
+            // wedged (observed live: 4 install failures froze a 113-task run
+            // at 58 with zero workers left). A setup failure is a task
+            // failure, not a pool leak.
+            await fs.mkdir(projectPath, { recursive: true });
+            if (task.setup) await task.setup(projectPath);
+            ensureGitRepo(projectPath);
+
+            if (replaySource) {
+              result = await runReplayTask(
+                prisma,
+                task,
+                projectPath,
+                replaySource,
+              );
+            } else if (strategy === 'consensus' && models.length > 1) {
+              result = await runConsensusTask(prisma, task, projectPath, projectPrefix, models, timeoutMs, config.tokenBudget, abortController.signal);
+            } else if (strategy === 'variance') {
+              result = await runVarianceTask(prisma, task, projectPath, projectPrefix, models[0], varianceRuns, timeoutMs, config.tokenBudget, abortController.signal);
+            } else {
+              result = await runSingleTask(prisma, task, projectPath, projectPrefix, models[0], timeoutMs, config.tokenBudget, abortController.signal);
+            }
           }
         } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
           result = {
-            harnessTaskId: '',
-            evaluation: { passed: false, message: err instanceof Error ? err.message : String(err) },
+            harnessTaskId: replaySource?.harnessTaskId ?? '',
+            evaluation: {
+              passed: false,
+              message,
+              metrics: replaySource ? {
+                replay: 1,
+                replay_source_task_id: replaySource.harnessTaskId,
+              } : undefined,
+            },
             durationMs: 0,
+            model: replaySource ? 'replay' : undefined,
             costUsd: 0,
             totalTokens: 0,
           };
         }
 
         if (result.evaluation.passed) passed++;
-        else if (result.durationMs >= timeoutMs - 5000) timeouts++;
+        else if (result.timedOut ?? result.durationMs >= timeoutMs - 5000) timeouts++;
         else failed++;
 
         totalDurationMs += result.durationMs;
@@ -575,6 +994,9 @@ export async function startBenchRun(
           harnessTaskId: result.harnessTaskId,
           passed: result.evaluation.passed,
           durationMs: result.durationMs,
+          evaluation: result.evaluation,
+          costUsd: result.costUsd,
+          totalTokens: result.totalTokens,
           model: result.model,
           winnerModel: result.winnerModel,
           variancePassRate: result.variancePassRate,
@@ -591,12 +1013,26 @@ export async function startBenchRun(
           durationMs: result.durationMs,
           winnerModel: result.winnerModel,
           variancePassRate: result.variancePassRate,
+          evaluation: result.evaluation,
         } satisfies BenchRunEvent);
 
-        await prisma.benchmarkRun.update({
-          where: { id: runId },
-          data: { passed, failed, timeouts, totalDurationMs, totalCostUsd, totalTokens },
-        });
+        try {
+          await prisma.benchmarkRun.update({
+            where: { id: runId },
+            data: {
+              passed,
+              failed,
+              timeouts,
+              totalDurationMs,
+              totalCostUsd,
+              totalTokens,
+              results: JSON.stringify(results.map(compactProgressResult)),
+            },
+          });
+        } catch {
+          // Live progress is best-effort. The final update below retries the
+          // complete snapshot; a transient write must not strand a pool slot.
+        }
 
         running--;
         launchNext();
@@ -611,16 +1047,18 @@ export async function startBenchRun(
     await allDone;
 
     // Save to history
+    const reportTimestamp = new Date().toISOString();
     const report: BenchmarkReport = {
-      timestamp: new Date().toISOString(),
+      timestamp: reportTimestamp,
       suite: config.suite,
       total: tasks.length,
       passed,
       failed,
       timeouts,
       totalDurationMs,
+      totalUsage: { totalTokens },
       results: results.map((r) => {
-        const metrics: Record<string, string | number> = {};
+        const metrics: Record<string, string | number> = { ...r.evaluation.metrics };
         if (r.winnerModel) metrics.winnerModel = r.winnerModel;
         if (r.variancePassRate != null) metrics.passRate = r.variancePassRate;
         return {
@@ -628,7 +1066,19 @@ export async function startBenchRun(
           harnessTaskId: r.harnessTaskId,
           durationMs: r.durationMs,
           status: r.passed ? 'done' as const : 'failed' as const,
-          evaluation: { passed: r.passed, message: r.error ?? (r.winnerModel ? `winner: ${r.winnerModel}` : undefined), metrics: Object.keys(metrics).length > 0 ? metrics : undefined },
+          evaluation: {
+            ...r.evaluation,
+            metrics: Object.keys(metrics).length > 0 ? metrics : undefined,
+          },
+          usage: { totalTokens: r.totalTokens },
+          agentRun: {
+            id: r.harnessTaskId,
+            resultStatus: r.passed ? 'done' : 'failed',
+            totalTokens: r.totalTokens,
+            costUsd: r.costUsd,
+            createdAt: reportTimestamp,
+            updatedAt: reportTimestamp,
+          },
           spanCount: 0,
         };
       }),
@@ -636,26 +1086,54 @@ export async function startBenchRun(
 
     try {
       await saveBenchmarkHistory(prisma, report, {
-        provider: strategy === 'consensus' ? 'consensus' : models[0]?.provider,
-        model: strategy === 'consensus' ? models.map((m) => m.model).join('+') : models[0]?.model,
-        metadata: strategy === 'consensus' ? { winsByModel } : undefined,
+        provider: config.replay ? 'replay' : strategy === 'consensus' ? 'consensus' : models[0]?.provider,
+        model: config.replay ? undefined : strategy === 'consensus' ? models.map((m) => m.model).join('+') : models[0]?.model,
+        metadata: {
+          ...(config.replay ? {
+            replay: 1,
+            ...(config.replay.fromRunId ? { replay_from_run_id: config.replay.fromRunId } : {}),
+            ...(config.replay.fromHarnessTaskIds
+              ? { replay_from_harness_task_ids: config.replay.fromHarnessTaskIds }
+              : {}),
+          } : {}),
+          ...(strategy === 'consensus' ? { winsByModel } : {}),
+          results,
+        },
       });
     } catch { /* best-effort */ }
 
+    const terminalStatus = abortController.signal.aborted ? 'cancelled' : 'done';
     await prisma.benchmarkRun.update({
       where: { id: runId },
-      data: { status: 'done', completedAt: new Date(), results: JSON.stringify(results) },
+      data: {
+        status: terminalStatus,
+        completedAt: new Date(),
+        passed,
+        failed,
+        timeouts,
+        totalDurationMs,
+        totalCostUsd,
+        totalTokens,
+        results: JSON.stringify(results),
+      },
     });
 
     emitter.emit('run', {
       type: 'completed',
       runId,
+      status: terminalStatus,
       summary: { total: tasks.length, passed, failed, timeouts, totalDurationMs, winsByModel: Object.keys(winsByModel).length > 0 ? winsByModel : undefined },
     } satisfies BenchRunEvent);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await prisma.benchmarkRun.update({ where: { id: runId }, data: { status: 'failed', error: message, completedAt: new Date() } });
-    emitter.emit('run', { type: 'failed', runId, error: message } satisfies BenchRunEvent);
+    const status = abortController.signal.aborted ? 'cancelled' : 'failed';
+    await prisma.benchmarkRun.update({ where: { id: runId }, data: { status, error: message, completedAt: new Date() } });
+    emitter.emit('run', {
+      type: status === 'cancelled' ? 'completed' : 'failed',
+      runId,
+      status,
+      error: message,
+    } satisfies BenchRunEvent);
   } finally {
     activeRuns.delete(runId);
   }

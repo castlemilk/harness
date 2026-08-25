@@ -82,7 +82,8 @@ export async function runRoutedExternalAgentTask(
     });
   }
 
-  if (router) {
+  // Do not rewrite an already-cancelled attempt as a circuit-open failure.
+  if (router && !options.signal?.aborted) {
     try {
       if (router.health.isCircuitBroken(keys.healthProviderKey)) {
         return await discloseCircuitOpen(prisma, taskId, options, keys.healthProviderKey);
@@ -126,7 +127,9 @@ export async function runRoutedExternalAgentTask(
     result = { status: 'failed', diff: '', output: reason, executionSucceeded: false };
   }
 
-  if (router) {
+  // Intentional caller cancellation is not a provider/CLI health outcome.
+  // Recording it would poison routing decisions for subsequent benchmark tasks.
+  if (router && !options.signal?.aborted) {
     const durationMs = Date.now() - startedAt;
     let costUsd = 0;
     try {

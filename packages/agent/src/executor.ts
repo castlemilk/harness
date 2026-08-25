@@ -8,7 +8,7 @@ import { selectProvider } from '@omega/router';
 import type { IntelligentRouter } from '@omega/router';
 import { type AgentResult, type AgentContext } from './agent-types.js';
 import { executeAgentLoop } from './agent-loop.js';
-import { maxStepsForComplexity, installWorktreeDependencies, deadlineMsForComplexity, explorationBudgetForComplexity, projectHasTestableArtifacts, toCoreTask } from './project-utils.js';
+import { maxStepsForComplexity, installWorktreeDependencies, createDeadlineGuard, deadlineAtForTask, explorationBudgetForComplexity, projectHasTestableArtifacts, toCoreTask } from './project-utils.js';
 import { buildSystemPrompt, buildTextToolsSystemPrompt } from './prompts.js';
 import { adaptPrompts, type PromptFormat } from './prompt-adapters.js';
 import { buildPromptContext } from './prompt-context.js';
@@ -275,6 +275,8 @@ export async function runAgentTask(
     skillsInjected: skills.map((s) => s.name),
   });
 
+  const deadlineMs = deadlineAtForTask(task.complexity, options.timeoutMs);
+  const deadlineGuard = createDeadlineGuard(deadlineMs, options.signal);
   const ctx: AgentContext = {
     prisma,
     task: toCoreTask(task),
@@ -308,8 +310,8 @@ export async function runAgentTask(
     turnCount: 0,
     stepCount: 0,
     repoOverview: repoOverviewText,
-    deadlineMs: Date.now() + deadlineMsForComplexity(task.complexity),
-    signal: options.signal,
+    deadlineMs,
+    signal: deadlineGuard.signal,
     router,
   };
 
@@ -346,10 +348,13 @@ export async function runAgentTask(
     return agentResult;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const deadlineExpired = ctx.signal?.aborted === true && Date.now() >= ctx.deadlineMs;
     const reason = formatAgentTerminalReason({
       success: false,
-      stopCondition: 'exception',
-      summary: message.trim() || 'The agent loop threw an error with no message.',
+      stopCondition: deadlineExpired ? 'deadline' : 'exception',
+      summary: deadlineExpired
+        ? 'The enforced wall-clock deadline interrupted in-flight agent work.'
+        : message.trim() || 'The agent loop threw an error with no message.',
       stepCount: ctx.stepCount,
       maxSteps: ctx.maxSteps,
       turnCount: ctx.turnCount,
@@ -374,6 +379,7 @@ export async function runAgentTask(
     });
     throw new Error(reason, { cause: err });
   } finally {
+    deadlineGuard.dispose();
     for (const client of new Set(lspClients.values())) {
       try {
         await client.stop();

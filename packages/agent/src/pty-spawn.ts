@@ -6,12 +6,14 @@ export interface PtyResult {
   stderr: string;
   exitCode: number;
   timedOut: boolean;
+  aborted: boolean;
 }
 
 interface SpawnPtyOptions {
   cwd: string;
   env?: NodeJS.ProcessEnv;
   timeoutMs: number;
+  signal?: AbortSignal;
 }
 
 /**
@@ -27,6 +29,12 @@ export async function spawnWithPty(
   args: string[],
   options: SpawnPtyOptions,
 ): Promise<PtyResult> {
+  if (options.signal?.aborted) {
+    throw options.signal.reason instanceof Error
+      ? options.signal.reason
+      : new DOMException('PTY process cancelled', 'AbortError');
+  }
+
   // Dynamic import so non-PTY code paths don't require node-pty at all.
   const pty = await import('node-pty');
 
@@ -51,6 +59,9 @@ export async function spawnWithPty(
   const outputChunks: string[] = [];
   let settled = false;
   let timedOut = false;
+  let aborted = false;
+  let terminationRequested = false;
+  let forceKillTimer: NodeJS.Timeout | undefined;
 
   const onData = ptyProcess.onData((data: string) => {
     if (!settled) outputChunks.push(data);
@@ -62,25 +73,47 @@ export async function spawnWithPty(
     });
   });
 
-  // Timeout: SIGTERM → 5s grace → SIGKILL
-  const timeoutId = setTimeout(() => {
-    if (settled) return;
-    timedOut = true;
+  const terminate = (reason: 'timeout' | 'abort'): void => {
+    if (settled || terminationRequested) return;
+    terminationRequested = true;
+    timedOut = reason === 'timeout';
+    aborted = reason === 'abort';
     const pid = ptyProcess.pid;
     try {
       process.kill(-pid, 'SIGTERM');
     } catch {
-      // Process may already be dead
+      try {
+        ptyProcess.kill('SIGTERM');
+      } catch {
+        // Process may already be dead
+      }
     }
-    setTimeout(() => {
+    forceKillTimer = setTimeout(() => {
       if (settled) return;
       try {
         process.kill(-pid, 'SIGKILL');
       } catch {
-        // Ignore
+        try {
+          ptyProcess.kill('SIGKILL');
+        } catch {
+          // Ignore
+        }
       }
-    }, 5_000);
+    }, reason === 'abort' ? 1_000 : 5_000);
+  };
+
+  // Timeout: SIGTERM → 5s grace → SIGKILL
+  const timeoutId = setTimeout(() => {
+    terminate('timeout');
   }, options.timeoutMs);
+  const onAbort = (): void => {
+    terminate('abort');
+  };
+  if (options.signal?.aborted) {
+    onAbort();
+  } else {
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+  }
 
   let exitCode: number;
   try {
@@ -88,6 +121,8 @@ export async function spawnWithPty(
   } finally {
     settled = true;
     clearTimeout(timeoutId);
+    if (forceKillTimer) clearTimeout(forceKillTimer);
+    options.signal?.removeEventListener('abort', onAbort);
     onData.dispose();
     // Always close the PTY fd to prevent leaked pseudo-terminals
     try {
@@ -101,5 +136,5 @@ export async function spawnWithPty(
   // Strip ANSI escape sequences (cursor movement, colors, clear-screen)
   const stdout = stripAnsi(raw);
 
-  return { stdout, stderr: '', exitCode, timedOut };
+  return { stdout, stderr: '', exitCode, timedOut, aborted };
 }

@@ -6,7 +6,13 @@ import { sanitizeForDb } from './utils.js';
 import { parseProviderResponse, parseToolCalls } from './provider-client.js';
 import { buildReflectionPrompt } from './prompts.js';
 import { hasChanges, stageAllChanges, commit, getDiff } from './git.js';
-import { isTypeScriptProject } from './project-utils.js';
+import {
+  boundedExecutionTimeoutMs,
+  boundedProviderRequestTimeoutMs,
+  isTypeScriptProject,
+  type ExecutionDeadlineOptions,
+} from './project-utils.js';
+import { abortableOperation } from './retry.js';
 import { runTypeCheck } from './ts-runner.js';
 import path from 'node:path';
 import fs from 'node:fs/promises';
@@ -103,11 +109,12 @@ export async function tryStuckSolve(ctx: AgentContext): Promise<boolean> {
   }
   const prompt = `Task: ${ctx.task.title}\n\nDescription:\n${ctx.task.description ?? ''}\n\n${ctx.repoOverview ?? ''}\n\nRecent exploration the agent has already done (file contents, tool outputs):\n${explorationContext || '(none)'}\n\nProduce the smallest unified diff patch (git apply format) that makes concrete progress on this task. Use the exact file paths and content from the exploration above. Output ONLY the diff, no explanation, no markdown fences.`;
   try {
-    const raw = await ctx.provider.send(prompt, {
+    const raw = await abortableOperation(() => ctx.provider.send(prompt, {
       system: 'You are a senior software engineer. Output ONLY a unified diff patch in git apply format. No explanation, no markdown fences.',
       model: ctx.model,
       temperature: 0.2,
-    });
+      timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
+    }), ctx.signal);
     const patch = extractPatch(raw);
     if (!patch) return false;
     const tmp = path.join(ctx.projectPath, '.stuck-solve.patch');
@@ -165,10 +172,14 @@ export async function reflectOnTrace(ctx: AgentContext, maxTurns: number): Promi
 
   const reflectionSpan = ctx.tracer.startSpan('agent.reflect', ctx.rootSpan.toContext());
   try {
-    const raw = await ctx.provider.send(
+    const raw = await abortableOperation(() => ctx.provider.send(
       buildReflectionPrompt(ctx.task, summary),
-      { system: ctx.systemPrompt, model: ctx.model }
-    );
+      {
+        system: ctx.systemPrompt,
+        model: ctx.model,
+        timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
+      },
+    ), ctx.signal);
     reflectionSpan.addEvent('reflection.received');
     const parsed = parseProviderResponse(raw);
     const thinkCall = parsed.toolCalls
@@ -273,12 +284,13 @@ export async function applySkillPatches(
 
 export async function runAutoApiChecks(
   projectPath: string,
-  checks: { label: string; script: string /* must write its own result with console.log('true'/'false') */ }[]
+  checks: { label: string; script: string /* must write its own result with console.log('true'/'false') */ }[],
+  options: ExecutionDeadlineOptions = {},
 ): Promise<{ success: boolean; output: string }> {
   const isTs = await isTypeScriptProject(projectPath);
 
   if (isTs) {
-    const typeCheck = await runTypeCheck(projectPath);
+    const typeCheck = await runTypeCheck(projectPath, options);
     if (!typeCheck.success) {
       return {
         success: false,
@@ -303,7 +315,8 @@ export async function runAutoApiChecks(
       try {
         const { stdout, stderr } = await execFileAsync('npx', ['tsx', tmpFile], {
           cwd: projectPath,
-          timeout: 30_000,
+          timeout: boundedExecutionTimeoutMs(30_000, options),
+          signal: options.signal,
         });
         output = (stdout + stderr).trim();
         passed = output === 'true';
@@ -318,7 +331,8 @@ export async function runAutoApiChecks(
       try {
         const { stdout } = await execFileAsync('node', ['-e', check.script], {
           cwd: projectPath,
-          timeout: 30_000,
+          timeout: boundedExecutionTimeoutMs(30_000, options),
+          signal: options.signal,
         });
         output = stdout.trim();
         passed = output === 'true';

@@ -1,6 +1,7 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { promisify } from 'node:util';
 import readline from 'node:readline';
+import { abortableOperation } from './retry.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -104,6 +105,8 @@ export interface CodexRunOptions {
   /** Called as soon as the persistent thread identity is known. */
   onSession?: (threadId: string) => void | Promise<void>;
   timeoutMs: number;
+  /** Interrupt the active turn and stop the app-server when the caller cancels. */
+  signal?: AbortSignal;
   onProgress?: CodexProgressReporter;
 }
 
@@ -178,16 +181,27 @@ interface TurnCaptureState {
   commandExecutions: CodexThreadItem[];
   onProgress: CodexProgressReporter | null;
   timedOut: boolean;
+  interrupted: boolean;
 }
 
-export async function getCodexAvailability(): Promise<{ available: boolean; detail: string }> {
+function abortError(signal: AbortSignal): Error {
+  return signal.reason instanceof Error
+    ? signal.reason
+    : new DOMException('Codex turn cancelled', 'AbortError');
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortError(signal);
+}
+
+export async function getCodexAvailability(signal?: AbortSignal): Promise<{ available: boolean; detail: string }> {
   try {
-    await execFileAsync('codex', ['--version'], { timeout: 10_000 });
+    await execFileAsync('codex', ['--version'], { timeout: 10_000, signal });
   } catch (err) {
     return { available: false, detail: `codex CLI not found: ${err instanceof Error ? err.message : String(err)}` };
   }
   try {
-    await execFileAsync('codex', ['app-server', '--help'], { timeout: 10_000 });
+    await execFileAsync('codex', ['app-server', '--help'], { timeout: 10_000, signal });
   } catch (err) {
     return { available: false, detail: `codex app-server unavailable: ${err instanceof Error ? err.message : String(err)}` };
   }
@@ -274,16 +288,28 @@ class CodexAppServerClient {
 
     this.readline?.close();
 
-    if (this.proc && !this.proc.killed) {
+    let terminateTimer: NodeJS.Timeout | undefined;
+    let forceKillTimer: NodeJS.Timeout | undefined;
+    if (this.proc?.exitCode === null) {
       this.proc.stdin?.end();
-      setTimeout(() => {
-        if (this.proc && !this.proc.killed && this.proc.exitCode === null) {
+      terminateTimer = setTimeout(() => {
+        if (this.proc?.exitCode === null) {
           this.proc.kill('SIGTERM');
         }
-      }, 50).unref();
+      }, 50);
+      forceKillTimer = setTimeout(() => {
+        if (this.proc?.exitCode === null) {
+          this.proc.kill('SIGKILL');
+        }
+      }, 1_050);
     }
 
-    await this.exitPromise;
+    try {
+      await this.exitPromise;
+    } finally {
+      if (terminateTimer) clearTimeout(terminateTimer);
+      if (forceKillTimer) clearTimeout(forceKillTimer);
+    }
   }
 
   request<M extends AppServerMethod>(method: M, params: AppServerRequestMap[M]['params']): Promise<AppServerRequestMap[M]['result']> {
@@ -564,6 +590,7 @@ function createTurnCaptureState(threadId: string, onProgress: CodexProgressRepor
     commandExecutions: [],
     onProgress,
     timedOut: false,
+    interrupted: false,
   };
 }
 
@@ -586,15 +613,34 @@ function completeTurn(state: TurnCaptureState, turn: CodexTurn | null = null): v
   } else {
     state.finalTurn ??= {
       id: state.turnId ?? 'inferred-turn',
-      status: state.timedOut ? 'interrupted' : 'completed',
+      status: state.timedOut || state.interrupted ? 'interrupted' : 'completed',
     };
   }
 
   if (state.timedOut) {
     emitProgress(state.onProgress, 'Turn timed out; interrupting Codex.', 'failed');
+  } else if (state.interrupted) {
+    emitProgress(state.onProgress, 'Turn cancelled; interrupting Codex.', 'failed');
   }
 
   state.resolveCompletion(state);
+}
+
+function interruptCapturedTurn(
+  client: CodexAppServerClient,
+  state: TurnCaptureState,
+  threadId: string,
+  reason: unknown,
+  timedOut: boolean,
+): void {
+  if (state.completed) return;
+  state.timedOut = timedOut;
+  state.interrupted = !timedOut;
+  state.error = reason;
+  if (state.turnId) {
+    void client.request('turn/interrupt', { threadId, turnId: state.turnId }).catch(() => undefined);
+  }
+  completeTurn(state);
 }
 
 function scheduleInferredCompletion(state: TurnCaptureState): void {
@@ -754,6 +800,7 @@ async function captureTurn(
   startRequest: () => Promise<{ turn?: CodexTurn }>,
   onProgress: CodexProgressReporter | null,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<TurnCaptureState> {
   const state = createTurnCaptureState(threadId, onProgress);
   const previousHandler = client.notificationHandler;
@@ -780,17 +827,31 @@ async function captureTurn(
   let timeoutTimer: NodeJS.Timeout | null = null;
   if (timeoutMs > 0) {
     timeoutTimer = setTimeout(() => {
-      if (state.completed) return;
-      state.timedOut = true;
-      if (state.turnId) {
-        void client.request('turn/interrupt', { threadId, turnId: state.turnId }).catch(() => undefined);
-      }
-      completeTurn(state);
+      interruptCapturedTurn(
+        client,
+        state,
+        threadId,
+        new DOMException('Codex turn timed out', 'TimeoutError'),
+        true,
+      );
     }, timeoutMs);
+  }
+  const onAbort = (): void => {
+    interruptCapturedTurn(client, state, threadId, signal?.reason, false);
+  };
+  if (signal?.aborted) {
+    onAbort();
+  } else {
+    signal?.addEventListener('abort', onAbort, { once: true });
   }
 
   try {
-    const response = await startRequest();
+    if (state.completed) return state;
+    const response = await Promise.race([
+      startRequest(),
+      state.completion.then(() => null),
+    ]);
+    if (response === null) return state;
     state.turnId = response.turn?.id ?? null;
     if (state.turnId) {
       state.threadTurnIds.set(state.threadId, state.turnId);
@@ -811,13 +872,16 @@ async function captureTurn(
     return await state.completion;
   } finally {
     if (timeoutTimer) clearTimeout(timeoutTimer);
+    signal?.removeEventListener('abort', onAbort);
     clearCompletionTimer(state);
     client.setNotificationHandler(previousHandler ?? null);
   }
 }
 
 export async function runCodexTurn(cwd: string, prompt: string, options: CodexRunOptions): Promise<CodexTurnResult> {
-  const availability = await getCodexAvailability();
+  throwIfAborted(options.signal);
+  const availability = await getCodexAvailability(options.signal);
+  throwIfAborted(options.signal);
   if (!availability.available) {
     throw new CodexUnavailableError(availability.detail);
   }
@@ -828,33 +892,41 @@ export async function runCodexTurn(cwd: string, prompt: string, options: CodexRu
   }
 
   const client = new CodexAppServerClient(cwd);
-  await client.initialize();
   try {
-    const threadResponse = options.resumeThreadId
-      ? await client.request('thread/resume', { threadId: options.resumeThreadId })
-      : await client.request('thread/start', {
-          cwd,
-          model: options.model ?? null,
-          approvalPolicy: 'never',
-          sandbox: 'workspace-write',
-          serviceName: SERVICE_NAME,
-          // Persist the thread so a bounded retry or later Task retry can
-          // continue the same investigation after this app-server exits.
-          // Ephemeral by default: a persisted thread is only useful if a
-          // retry will actually resume it. Persisting unconditionally wrote
-          // one permanent rollout per task — 113 per benchmark sweep, never
-          // pruned — and polluted the operator's own `codex exec resume`.
-          ephemeral: options.persistThread !== true,
-        });
+    await abortableOperation(() => client.initialize(), options.signal);
+    const threadResponse = await abortableOperation(
+      () => options.resumeThreadId
+        ? client.request('thread/resume', { threadId: options.resumeThreadId })
+        : client.request('thread/start', {
+            cwd,
+            model: options.model ?? null,
+            approvalPolicy: 'never',
+            sandbox: 'workspace-write',
+            serviceName: SERVICE_NAME,
+            // Persist the thread so a bounded retry or later Task retry can
+            // continue the same investigation after this app-server exits.
+            // Ephemeral by default: a persisted thread is only useful if a
+            // retry will actually resume it. Persisting unconditionally wrote
+            // one permanent rollout per task — 113 per benchmark sweep, never
+            // pruned — and polluted the operator's own `codex exec resume`.
+            ephemeral: options.persistThread !== true,
+          }),
+      options.signal,
+    );
     const threadId = threadResponse.thread.id;
-    await options.onSession?.(threadId);
+    await abortableOperation(async () => {
+      await options.onSession?.(threadId);
+    }, options.signal);
 
     if (!options.resumeThreadId) {
       const threadName = options.threadName ?? buildTaskThreadName(trimmedPrompt);
       try {
-        await client.request('thread/name/set', { threadId, name: threadName });
+        await abortableOperation(
+          () => client.request('thread/name/set', { threadId, name: threadName }),
+          options.signal,
+        );
       } catch {
-        /* ignored */
+        throwIfAborted(options.signal);
       }
     }
     const state = await captureTurn(
@@ -870,10 +942,11 @@ export async function runCodexTurn(cwd: string, prompt: string, options: CodexRu
         }),
       options.onProgress ?? null,
       options.timeoutMs,
+      options.signal,
     );
 
     return {
-      status: state.timedOut ? 'timed-out' : buildResultStatus(state),
+      status: state.timedOut ? 'timed-out' : state.interrupted ? 'interrupted' : buildResultStatus(state),
       threadId,
       turnId: state.turnId,
       finalMessage: state.lastAgentMessage,

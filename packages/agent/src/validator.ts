@@ -2,8 +2,13 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {
+  boundedExecutionTimeoutMs,
+  type ExecutionDeadlineOptions,
+} from './project-utils.js';
 
 const execFileAsync = promisify(execFile);
+const MIN_VALIDATION_STEP_TIMEOUT_MS = 60_000;
 
 export interface ValidationSummary {
   lint: { passed: boolean; output: string };
@@ -21,12 +26,17 @@ const COREPACK_ENV: NodeJS.ProcessEnv = {
 async function runStep(
   projectPath: string,
   command: string,
-  args: string[]
+  args: string[],
+  options: ExecutionDeadlineOptions,
 ): Promise<{ passed: boolean; output: string }> {
   try {
     const { stdout, stderr } = await execFileAsync(command, args, {
       cwd: projectPath,
-      timeout: 300_000,
+      timeout: Math.max(
+        MIN_VALIDATION_STEP_TIMEOUT_MS,
+        boundedExecutionTimeoutMs(300_000, options),
+      ),
+      signal: options.signal,
       env: command === 'corepack' ? COREPACK_ENV : undefined,
     });
     return { passed: true, output: stdout + stderr };
@@ -35,6 +45,45 @@ async function runStep(
     const output = (execErr.stdout ?? '') + (execErr.stderr ?? '') || (execErr.message ?? String(err));
     return { passed: false, output };
   }
+}
+
+function isDeadlineAbort(options: ExecutionDeadlineOptions): boolean {
+  return options.deadlineMs !== undefined
+    && options.signal?.reason instanceof DOMException
+    && options.signal.reason.name === 'TimeoutError';
+}
+
+function throwIfCallerCancelled(options: ExecutionDeadlineOptions): void {
+  if (!options.signal?.aborted || isDeadlineAbort(options)) return;
+  throw options.signal.reason instanceof Error
+    ? options.signal.reason
+    : new DOMException('Operation aborted', 'AbortError');
+}
+
+/**
+ * Keep explicit caller cancellation abortable while allowing validation's
+ * minimum budget to outlive the agent's ordinary wall-clock deadline.
+ */
+function validationExecutionOptions(options: ExecutionDeadlineOptions): {
+  options: ExecutionDeadlineOptions;
+  dispose: () => void;
+} {
+  if (!options.signal) return { options, dispose: () => undefined };
+
+  const controller = new AbortController();
+  const forwardCallerCancellation = (): void => {
+    if (!isDeadlineAbort(options)) controller.abort(options.signal?.reason);
+  };
+  if (options.signal.aborted) {
+    forwardCallerCancellation();
+  } else {
+    options.signal.addEventListener('abort', forwardCallerCancellation, { once: true });
+  }
+
+  return {
+    options: { ...options, signal: controller.signal },
+    dispose: () => options.signal?.removeEventListener('abort', forwardCallerCancellation),
+  };
 }
 
 async function pathExists(filePath: string): Promise<boolean> {
@@ -88,16 +137,25 @@ async function packageHasDependencies(projectPath: string): Promise<boolean> {
   return false;
 }
 
-async function commandExists(cmd: string): Promise<boolean> {
+async function commandExists(cmd: string, options: ExecutionDeadlineOptions): Promise<boolean> {
   try {
-    await execFileAsync('command', ['-v', cmd], { timeout: 10_000 });
+    await execFileAsync('command', ['-v', cmd], {
+      // Floored for the same reason `runStep` is: past the deadline an
+      // unfloored budget collapses to 1ms, and this probe silently reporting
+      // "missing" makes the whole dependency install get skipped.
+      timeout: Math.max(5_000, boundedExecutionTimeoutMs(10_000, options)),
+      signal: options.signal,
+    });
     return true;
   } catch {
     return false;
   }
 }
 
-async function validateNodeProject(projectPath: string): Promise<ValidationSummary> {
+async function validateNodeProject(
+  projectPath: string,
+  options: ExecutionDeadlineOptions,
+): Promise<ValidationSummary> {
   const pm = await detectNodePm(projectPath);
   if (!pm) {
     // No package.json — nothing to validate.
@@ -112,8 +170,8 @@ async function validateNodeProject(projectPath: string): Promise<ValidationSumma
     !(await pathExists(path.join(projectPath, 'node_modules'))) &&
     (await packageHasDependencies(projectPath))
   ) {
-    if (await commandExists(pm.command)) {
-      await runStep(projectPath, pm.command, pm.installArgs);
+    if (await commandExists(pm.command, options)) {
+      await runStep(projectPath, pm.command, pm.installArgs, options);
     }
   }
 
@@ -130,13 +188,13 @@ async function validateNodeProject(projectPath: string): Promise<ValidationSumma
   };
 
   const lint = (await fileHasScript(projectPath, 'lint'))
-    ? await runStep(projectPath, pm.command, scriptArgs('lint'))
+    ? await runStep(projectPath, pm.command, scriptArgs('lint'), options)
     : pass();
   const test = (await fileHasScript(projectPath, 'test'))
-    ? await runStep(projectPath, pm.command, scriptArgs('test'))
+    ? await runStep(projectPath, pm.command, scriptArgs('test'), options)
     : pass();
   const build = (await fileHasScript(projectPath, 'build'))
-    ? await runStep(projectPath, pm.command, scriptArgs('build'))
+    ? await runStep(projectPath, pm.command, scriptArgs('build'), options)
     : pass();
 
   return { lint, test, build, allPassed: lint.passed && test.passed && build.passed };
@@ -146,13 +204,22 @@ function pass(): { passed: boolean; output: string } {
   return { passed: true, output: 'skipped (no script or project marker)' };
 }
 
-export async function validateProject(projectPath: string): Promise<ValidationSummary> {
-  const hasPackageJson = await pathExists(path.join(projectPath, 'package.json'));
-  if (hasPackageJson) {
-    return validateNodeProject(projectPath);
+export async function validateProject(
+  projectPath: string,
+  options: ExecutionDeadlineOptions = {},
+): Promise<ValidationSummary> {
+  throwIfCallerCancelled(options);
+  const managedOptions = validationExecutionOptions(options);
+  try {
+    const hasPackageJson = await pathExists(path.join(projectPath, 'package.json'));
+    // Non-Node projects currently have no imposed validation harness. Future
+    // work can add pytest, go test, cargo test, and similar checks here.
+    const summary = hasPackageJson
+      ? await validateNodeProject(projectPath, managedOptions.options)
+      : { lint: pass(), test: pass(), build: pass(), allPassed: true };
+    throwIfCallerCancelled(options);
+    return summary;
+  } finally {
+    managedOptions.dispose();
   }
-
-  // Non-Node projects: we currently do not impose a validation harness. Future
-  // work can add pytest, go test, cargo test, etc.
-  return { lint: pass(), test: pass(), build: pass(), allPassed: true };
 }

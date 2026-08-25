@@ -35,6 +35,10 @@ tasks:
   setup:
     desc: Install dependencies, generate the client, and migrate (fresh checkout)
     cmds:
+      # The DeepSWE task corpus is a submodule pinned to a corpus state the
+      # golden fixtures and image tags are keyed to — clone --recursive gets
+      # it, a plain clone does not.
+      - git submodule update --init deep-swe
       - pnpm install
       - task: db:generate
       - task: db:migrate
@@ -261,6 +265,42 @@ tasks:
     desc: Is the pulse engine running?
     cmds:
       - 'curl -sS "http://localhost:{{.API_PORT}}/foreman/engine" | python3 -m json.tool'
+
+  # ------------------------------------------------------------ deep-swe --
+
+  deep-swe:images:
+    desc: Warm the Docker verifier image cache (scoring set by default; `task deep-swe:images -- --all` for the whole corpus)
+    cmds:
+      - ./scripts/build-deepswe-images.sh {{.CLI_ARGS}}
+
+  deep-swe:golden:
+    desc: Verifier-only golden replay — no models, minutes not hours; non-zero exit on drift (task deep-swe:golden -- --task anko-default-function-arguments for one fixture)
+    cmds:
+      - pnpm --filter @omega/cli build
+      # Invoked directly, not via `pnpm bench:deepswe:golden`: under the task
+      # runner's stream capture the pnpm→node indirection leaves a grandchild
+      # holding the output pipe open, so the task never exits. node itself
+      # exits 0 on match, non-zero on drift.
+      - node apps/cli/dist/index.js bench golden {{.CLI_ARGS}}
+
+  deep-swe:smoke:
+    desc: One cheap task through the full Docker path (image, clone, grade) to validate a fresh machine
+    cmds:
+      - ./scripts/build-deepswe-images.sh abs-stepped-slices
+      - cmd: 'curl -sf "http://localhost:{{.API_PORT}}/bench/run" > /dev/null || { echo "API not on :{{.API_PORT}} — start it with: task dev"; exit 1; }'
+      - cmd: |
+          curl -s -X POST "http://localhost:{{.API_PORT}}/bench/run" -H 'Content-Type: application/json' -d '{
+            "suite": "deepswe",
+            "models": [{"provider": "external:opencode", "model": "opencode-go/ox-alpha-free"}],
+            "strategy": "single", "concurrency": 1, "timeoutMs": 1800000,
+            "projectPrefix": "fresh-machine-smoke",
+            "deepswe": {
+              "tasksDir": "{{.ROOT_DIR}}/deep-swe/tasks",
+              "taskIds": ["abs-stepped-slices"],
+              "useDocker": true
+            }
+          }' | python3 -m json.tool
+      - cmd: 'echo "(needs opencode authenticated once on this machine: opencode login)"'
 
   # ---------------------------------------------------------------- clean --
 

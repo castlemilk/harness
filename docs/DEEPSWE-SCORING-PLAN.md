@@ -876,7 +876,15 @@ Continue to watch:
   but no test drives the local verifier twice end to end;
 - every non-zero `graded_patch_added_test_paths` count and its bounded path
   list. The patch remains intact, so this is disclosure for review, not an
-  automatic exclusion.
+  automatic exclusion;
+- `verifier_fallback_reason` (§1d #4) — set when Docker was requested but
+  grading degraded to the local runtime. A `local` grade under a
+  Docker-requested run is an environment event; do not compare it against
+  Docker-graded numbers;
+- `p2p_missing_from_report_count` / `_tests` (§1d #3) — p2p failures with no
+  reported test behind them (id renumbering, report loss). Phantom penalties,
+  not model damage; check them before attributing any vulture-style delta to
+  capability.
 
 Keep the prompt-switch value, timeout, host pre-flight, and per-run variance
 outcomes with every result so later comparisons do not conflate prompt effects

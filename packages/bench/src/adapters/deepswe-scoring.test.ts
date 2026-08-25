@@ -12,11 +12,15 @@ import {
   createFlakeRerunBudget,
   decideFlakeRerun,
   deepSwePatchAuditMetrics,
+  dockerAvailable,
+  DOCKER_AVAILABILITY_PROBE_ATTEMPTS,
+  DOCKER_AVAILABILITY_RETRY_DELAY_MS,
   evaluateDeepSWEWithFlakeRerun,
   isTerminalCheckoutFailure,
   localCloneFailureShowsMirrorCorruption,
   removePatchPathsMissingFromBase,
   parseFailingP2PTestIds,
+  parseMissingFromReportP2PTestIds,
   repoMirrorDirectoryName,
   retryWithBackoff,
   synthesizeFlakeAwareVerdict,
@@ -785,6 +789,73 @@ describe('parseFailingP2PTestIds', () => {
       'prefix [verifier] ✗ [p2p] tests/b.py::test_prefixed',
       '[verifier] ✗ [f2p] tests/c.py::test_feature',
     ].join('\n'))).toEqual([]);
+  });
+});
+
+describe('parseMissingFromReportP2PTestIds', () => {
+  it('flags only p2p failures whose reason is missing-from-report', () => {
+    const logs = [
+      '[verifier] ===== FAILURES (3) =====',
+      '[verifier] ✗ [p2p] tests.test_config.test_incompatible_option_type[paths-value2]',
+      '    missing from report (test did not run or produced no result — see raw output)',
+      '[verifier] ✗ [p2p] tests.test_cache.test_backup_semantics',
+      '    assert b\'{"modules":...}}\' == b\'{"modules":...}}\'',
+      '      At index 97 diff: b\'9\' != b\'f\'',
+      '[verifier] ✗ [f2p] tests.test_cache.test_feature[value]',
+      '    missing from report (f2p ids are out of scope for this parser)',
+      '[verifier] ✗ [p2p] tests.test_other.test_report_lost\r',
+      '    missing from report (test did not run or produced no result — see raw output)',
+    ].join('\n');
+
+    expect(parseMissingFromReportP2PTestIds(logs)).toEqual([
+      'tests.test_config.test_incompatible_option_type[paths-value2]',
+      'tests.test_other.test_report_lost',
+    ]);
+  });
+
+  it('treats a p2p failure with no continuation lines as a real failure, not missing', () => {
+    const logs = [
+      '[verifier] ✗ [p2p] tests.a.test_one',
+      '[verifier] ✗ [p2p] tests.b.test_two',
+      '    missing from report (test did not run or produced no result — see raw output)',
+    ].join('\n');
+
+    expect(parseMissingFromReportP2PTestIds(logs)).toEqual(['tests.b.test_two']);
+  });
+
+  it('returns empty for logs without any p2p failures', () => {
+    expect(parseMissingFromReportP2PTestIds('all good\n[verifier] reward.json={"reward":1}')).toEqual([]);
+  });
+});
+
+describe('dockerAvailable probe retries', () => {
+  it('retries a slow daemon and succeeds on a later probe', async () => {
+    let attempts = 0;
+    const delays: number[] = [];
+    const probe = vi.fn(async () => {
+      attempts += 1;
+      return attempts >= 3;
+    });
+    const delay = vi.fn(async (ms: number) => { delays.push(ms); });
+
+    await expect(dockerAvailable(probe, delay)).resolves.toBe(true);
+    expect(attempts).toBe(3);
+    expect(delays).toEqual([DOCKER_AVAILABILITY_RETRY_DELAY_MS, DOCKER_AVAILABILITY_RETRY_DELAY_MS]);
+    expect(DOCKER_AVAILABILITY_PROBE_ATTEMPTS).toBeGreaterThanOrEqual(2);
+  });
+
+  it('returns false after exhausting probes when the daemon never answers', async () => {
+    const probe = vi.fn(async () => false);
+    const delay = vi.fn(async () => undefined);
+
+    await expect(dockerAvailable(probe, delay)).resolves.toBe(false);
+    expect(probe).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not sleep after the final failed probe', async () => {
+    const delay = vi.fn(async () => undefined);
+    await dockerAvailable(vi.fn(async () => false), delay);
+    expect(delay).toHaveBeenCalledTimes(2);
   });
 });
 

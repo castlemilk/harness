@@ -86,6 +86,68 @@ What this does and does not show:
   predecessor). Runs made with either change enabled are a new measurement
   series and are not directly comparable to this baseline.
 
+### 1c. First ox-alpha sweep — 2026-08-25 (run `7c8a47d7`)
+
+First full-set run on the free model (`external:opencode` /
+`opencode-go/ox-alpha-free`) — chosen over the OpenRouter wiring deliberately,
+because the internal agent loop's `applySkillPatches` would have injected
+stored solution patches for 3 of the 8 tasks and short-circuited them to
+instant passes (§3). n=1, serialized, Docker, 30-minute budgets, corrected
+grading (the pyarrow pin live and disclosed), Tier 2 prompt treatment ON —
+this is the first run of the post-Tier-2 series. **4/8**, 3h53m, **$0**
+(free model, `totalCostUsd: 0`, ~15.6M tokens).
+
+| Task | Verdict | Evidence |
+|---|---|---|
+| abs-stepped-slices | **pass** | `f2p 6/6`, `p2p 6/6` |
+| psd-tools-blend-range-api | **pass** | `f2p 45/45`, `p2p 979/979` |
+| sqlfmt-create-table-ddl-formatting | **pass** | `f2p 32/32`, **`p2p 1273/1273`** — a perfect p2p where opus timed out with 25 regressions |
+| sqlite-utils-safe-import-checkpoints | **pass** | `f2p 60/60`, `p2p 1038/1038` |
+| anko-default-function-arguments | near miss | `f2p 1/2`, `p2p 119/119` — identical to opus's three byte-identical repetitions |
+| vulture-persistent-analysis-cache | near miss | `f2p 23/24`, `p2p 291/295` — the 4 p2p failures are model damage this time (clean 295/295 baseline) |
+| narwhals-rolling-window-suite | capability miss | `f2p 72/103`, **`p2p 10093/10093`** — first genuinely winnable run; the environment repair held in production |
+| returns-validated-error-accumulation | miss | `f2p 0/159`, `p2p 61/61` — flipped again, see below |
+
+What it shows:
+
+- **The narwhals repair works in a real run.** `p2p 10093/10093` graded, with
+  the pin disclosed in `appliedEnvironmentOverrides`. The miss is genuine
+  capability (unfinished feature work), not environment.
+- **sqlfmt is a budget story, not a capability story.** The free model passed
+  it with a *perfect* p2p under the 30-minute budget that opus lacked at 20.
+  When a cheaper model cleanly solves a task a frontier model "failed", the
+  first suspect is the clock, not the model.
+- **anko is deterministic across models.** The same `f2p 1/2, p2p 119/119`
+  near-miss from four opus repetitions reproduced exactly on a different
+  model. Whatever the gap is, it is stable and spec-shaped (the instruction's
+  exact error string), which keeps it the canonical probe for exactness
+  interventions.
+- **returns-validated's flip-flop is at least partly model-dependent.** Under
+  Docker — same environment, same grading — opus scored `159/159` and ox-alpha
+  `0/159`. The earlier "the variance looked environmental and Docker removed
+  it" conclusion (§1b) holds only for the *local-path* flake; this task
+  separately varies by model, so T3.1 variance claims must name the model.
+- **3 of 4 misses were timeout cuts** (narwhals, returns-validated, vulture all
+  exceeded 1800s; anko finished at 25.9m), and the host sat at load ~44 on 12
+  CPUs for the whole run — other sessions again. Timeout-sensitive results
+  remain host-load-dependent; the f2p/p2p instruments stay readable.
+- **The no-marker disclosure works in production.** `graded_patch_added_test_paths`
+  reported 2 paths on sqlfmt and 1 on vulture — models leave unmarked test
+  files in the graded patch, exactly as the ox-alpha smoke test predicted, and
+  the harness now discloses them without needing model compliance.
+- **The flake gate declined on all four misses**, correctly each time
+  (incomplete f2p). The forgiven-pass path remains unexercised.
+
+Cross-model so far (both n=1, Docker, corrected grading, 30-min budget):
+
+| Model | Score | Misses |
+|---|---|---|
+| opus-5 (§1b, corrected) | 5/8 | anko, vulture, sqlfmt (timeout) |
+| ox-alpha-free (this run) | 4/8 | anko, narwhals, returns-validated, vulture |
+
+anko and vulture are common near-misses; the rest are disjoint. Both headline
+numbers are n=1 on a contended host — directional, not scoreable.
+
 ---
 
 ## 2. Plan

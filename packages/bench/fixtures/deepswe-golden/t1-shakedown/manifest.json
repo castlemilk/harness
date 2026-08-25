@@ -63,6 +63,22 @@
         "p2p_total": 10093
       },
       "note": "Re-baselined 2026-08-25: the original expectation (passed=false, f2p 98/103, p2p 9752/10093) recorded a broken environment, not the patch. The Docker path never applied the pyarrow>=23,<25 pin, so pyarrow 25 FutureWarnings were promoted to failures. With the pin applied the same stored patch scores a clean pass."
+    },
+    {
+      "taskId": "vulture-persistent-analysis-cache",
+      "sourceHarnessTaskId": "d9998a09-6976-413b-ab9c-b4bb767abe44",
+      "sourceTaskDiffId": "d9998a09-diff-deleted-from-db-2026-08-25",
+      "patchFile": "patches/vulture-persistent-analysis-cache.patch",
+      "patchSha256": "bc0294f27a564f1499af65da82ad2a8246828e5942bc5e5072f15df179c3dd8c",
+      "sourceDurationMs": 1880241,
+      "expected": {
+        "passed": false,
+        "f2p_passed": 23,
+        "f2p_total": 24,
+        "p2p_passed": 291,
+        "p2p_total": 295
+      },
+      "note": "Added 2026-08-25 from run 7c8a47d7 (ox-alpha). Pins the parametrize-id trap: the patch inserts cache/cache_clear/cache_dir at the FRONT of vulture's DEFAULTS dict, renumbering the positional pytest ids that tests/config.json expects, so exactly 4 p2p ids go missing-from-report (phantom penalties, not behaviour). Also pins the backup-semantics f2p failure both models hit. If either count changes, grading drifted — re-baseline deliberately with a note."
     }
   ]
 }

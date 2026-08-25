@@ -104,10 +104,16 @@ The plan's rules that most often bite (§1b/§1c have the war stories):
 1. **Host pre-flight** — 1-minute load under the logical CPU count, no other
    Docker stacks or agent sessions running. Three of four misses in the last
    sweep were timeout cuts on a contended box.
-2. **`concurrency: 1`** for anything you intend to compare.
-3. **n=1 first**, `strategy: "variance", "varianceRuns": 3` only for a final
+2. **`verifier_mode` on every graded result** — if Docker was requested but
+   the daemon probe failed under load, grading silently used the host runtime;
+   `verifier_fallback_reason` now records when that happens. Not comparable.
+3. **`p2p_missing_from_report_count`** — p2p failures with no reported test
+   behind them (e.g. vulture's positional-id renumbering). Phantom penalties,
+   not model damage (plan §1d).
+4. **`concurrency: 1`** for anything you intend to compare.
+5. **n=1 first**, `strategy: "variance", "varianceRuns": 3` only for a final
    claim or a task that demonstrates non-determinism.
-4. **Run the golden replay after any grading-side change** — it is the
+6. **Run the golden replay after any grading-side change** — it is the
    circuit breaker between "grading drifted" and "the model got worse".
 
 ## Reference scores on this corpus state

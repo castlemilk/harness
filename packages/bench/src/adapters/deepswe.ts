@@ -164,6 +164,12 @@ export interface DeepSWEVerifierResult {
   /** Logs for the verifier invocation whose reward was selected for grading. */
   gradingLogs: string;
   verifierMode: 'docker' | 'local';
+  /**
+   * Set when Docker was requested but the graded result came from the local
+   * verifier — a different runtime with a different test collection, so the
+   * grade is not environment-comparable. Surfaced as verifier_fallback_reason.
+   */
+  fallbackReason?: 'docker-unavailable' | 'docker-invalid-result' | 'docker-error';
   logFile: string;
   exitCode: number;
   timedOut: boolean;
@@ -245,6 +251,34 @@ export function parseFailingP2PTestIds(logs: string): string[] {
     if (testId) failures.add(testId);
   }
   return [...failures];
+}
+
+/**
+ * P2P failures the grader could not match to any reported test — "missing
+ * from report" rather than an assertion failure. This class is NOT model
+ * damage: it fires when a patch renumbers positional pytest ids (vulture's
+ * `list(DEFAULTS.items())` parametrization) or when a report loses entries.
+ * Counted separately so a phantom penalty is visible as such in metrics.
+ */
+export function parseMissingFromReportP2PTestIds(logs: string): string[] {
+  const missing = new Set<string>();
+  const lines = logs.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const match = /^\[verifier\] ✗ \[p2p\] (.+)\r?$/.exec(lines[i] ?? '');
+    const testId = match?.[1]?.trim();
+    if (!testId) continue;
+    // The reason sits on indented continuation lines below the ✗ entry,
+    // before the next `[verifier]` line.
+    for (let j = i + 1; j < lines.length; j++) {
+      const line = lines[j] ?? '';
+      if (line.startsWith('[verifier]')) break;
+      if (line.includes('missing from report')) {
+        missing.add(testId);
+        break;
+      }
+    }
+  }
+  return [...missing];
 }
 
 export interface FlakeVerifierRun {
@@ -2555,13 +2589,38 @@ module.exports = async function * (source) {
   return reporterPath;
 }
 
-async function dockerAvailable(): Promise<boolean> {
+export const DOCKER_AVAILABILITY_PROBE_ATTEMPTS = 3;
+export const DOCKER_AVAILABILITY_RETRY_DELAY_MS = 3000;
+
+const sleepMs = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function probeDockerOnce(): Promise<boolean> {
   try {
-    const { exitCode } = await runCommand('docker', ['info'], { timeout: 10000 });
+    const { exitCode } = await runCommand('docker', ['info'], { timeout: 10_000 });
     return exitCode === 0;
   } catch {
     return false;
   }
+}
+
+/**
+ * A single `docker info` probe answers false when the daemon is merely slow
+ * under host load — exactly the conditions a sweep runs in — and silently
+ * degrading to the local verifier changes both the runtime and the test
+ * collection being graded. Probe with short retries before concluding
+ * Docker is genuinely unavailable.
+ */
+export async function dockerAvailable(
+  probe: () => Promise<boolean> = probeDockerOnce,
+  delay: (ms: number) => Promise<void> = sleepMs,
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= DOCKER_AVAILABILITY_PROBE_ATTEMPTS; attempt++) {
+    if (await probe()) return true;
+    if (attempt < DOCKER_AVAILABILITY_PROBE_ATTEMPTS) {
+      await delay(DOCKER_AVAILABILITY_RETRY_DELAY_MS);
+    }
+  }
+  return false;
 }
 
 async function imageExists(tag: string): Promise<boolean> {
@@ -2734,7 +2793,7 @@ async function runDeepSWEVerifier(
         taskName,
         modelPatchArg,
       );
-      return { ...fallback, logs: fallbackLogs + fallback.logs };
+      return { ...fallback, logs: fallbackLogs + fallback.logs, fallbackReason: 'docker-invalid-result' };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       // Docker build or runtime failure: try local verifier as fallback.
@@ -2748,17 +2807,21 @@ async function runDeepSWEVerifier(
       return {
         ...fallback,
         logs: `[Docker verifier failed, falling back to local]\n${message}\n\n${fallback.logs}`,
+        fallbackReason: 'docker-error',
       };
     }
   }
 
-  return runDeepSWEVerifierLocal(
+  const local = await runDeepSWEVerifierLocal(
     projectPath,
     taskDir,
     baseCommit,
     taskName,
     modelPatchArg,
   );
+  return useDocker
+    ? { ...local, fallbackReason: 'docker-unavailable' }
+    : local;
 }
 
 async function runDeepSWEVerifierLocal(
@@ -3074,6 +3137,11 @@ export async function evaluateDeepSWEWithFlakeRerun(
   const passed = flakeVerdict?.passed ?? originalPassed;
   const flakyTests = flakeVerdict?.flakyTests ?? [];
   const confirmedFailingTests = flakeVerdict?.confirmedFailingTests ?? [];
+  // Phantom penalties: p2p failures with no reported test behind them (id
+  // renumbering, report loss) — not model damage, so counted separately.
+  const missingFromReportTests = uniqueSorted(
+    parseMissingFromReportP2PTestIds(firstResult.gradingLogs),
+  );
   const environmentOverrideDisclosure = appliedEnvironmentOverrides
     .map(formatAppliedEnvironmentOverride)
     .join('; ');
@@ -3089,12 +3157,17 @@ export async function evaluateDeepSWEWithFlakeRerun(
     verifier_exit_code: exitCode,
     verifier_log_file: logFile,
     verifier_mode: firstResult.verifierMode,
+    ...(firstResult.fallbackReason
+      ? { verifier_fallback_reason: firstResult.fallbackReason }
+      : {}),
     ...(timedOut ? { verifier_timed_out: 1 } : {}),
     flake_rerun: rerunAttempted ? 1 : 0,
     p2p_flaky_count: flakyTests.length,
     p2p_flaky_tests: flakyTests.join('\n'),
     p2p_confirmed_failing_count: confirmedFailingTests.length,
     p2p_confirmed_failing_tests: confirmedFailingTests.join('\n'),
+    p2p_missing_from_report_count: missingFromReportTests.length,
+    p2p_missing_from_report_tests: missingFromReportTests.join('\n'),
     ...(flakeRerunSkippedReason ? { flake_rerun_skipped_reason: flakeRerunSkippedReason } : {}),
     ...(
       !originalPassed &&
@@ -3132,6 +3205,7 @@ export async function evaluateDeepSWEWithFlakeRerun(
     metrics.verifier_exit_code_rerun = rerunResult.exitCode;
     metrics.verifier_log_file_rerun = rerunResult.logFile;
     metrics.verifier_mode_rerun = rerunResult.verifierMode;
+    if (rerunResult.fallbackReason) metrics.verifier_fallback_reason_rerun = rerunResult.fallbackReason;
     metrics.verifier_logs_rerun = rerunResult.logs.slice(-4096);
     if (rerunResult.timedOut) metrics.verifier_timed_out_rerun = 1;
     if (rerunResult.reward.apply_failed) metrics.apply_failed_rerun = 1;

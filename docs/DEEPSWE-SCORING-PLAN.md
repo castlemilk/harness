@@ -143,6 +143,16 @@ tokens and source usage is never copied forward. A source with no non-empty
 stored patch is reported as an explicit skipped-verifier failure, not graded as
 an empty-patch zero.
 
+**Replay-from-run is not durable — the committed corpus is.** A `replay` by
+`fromRunId` / `fromHarnessTaskIds` resolves the stored `TaskDiff` out of the
+harness database, and those rows do not survive indefinitely. Attempting to
+replay run `4e8be75d` on 2026-08-25 failed with
+`Replay source harness task not found: 14a8817a-…` — its harness tasks were
+already gone, weeks of runs having rotated through. Use `fromRunId` for quick
+iteration on a run you just did; for anything you want to be able to re-grade
+later, promote it into the golden corpus, where the patch is a committed file
+with a sha256 rather than a database row.
+
 **H2 Golden grading corpus — implemented.** The checked-in manifest and patch
 files under
 `packages/bench/fixtures/deepswe-golden/t1-shakedown/` pin these four outcomes

@@ -790,6 +790,10 @@ empty patch.
 
 ## 7. Suggested first move next session
 
+On a fresh machine, start with [DEEPSWE-QUICKSTART.md](DEEPSWE-QUICKSTART.md)
+(`task setup`, `task deep-swe:golden`) — it verifies the whole grading
+pipeline in ~5 minutes with no model spend.
+
 Start with the verifier-only loop: run `pnpm bench:deepswe:golden` after any
 grading change, or use `replay.fromRunId` / `replay.fromHarnessTaskIds` when the
 patch of interest is already in the database. Neither result belongs in a model

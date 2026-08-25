@@ -295,7 +295,11 @@ export async function runDeepSWEGoldenCorpus(
         evaluation = await task.evaluate(evalContext);
         verifierDurationMs += roundedDuration(retryStartedAt);
       }
-      if (!evaluation) throw firstAttemptError ?? new Error('replay produced no evaluation');
+      if (!evaluation) {
+        throw firstAttemptError instanceof Error
+          ? firstAttemptError
+          : new Error('replay produced no evaluation');
+      }
       const actual = outcomeFromEvaluation(evaluation);
       const differences = compareOutcomes(fixture.expected, actual);
       results.push({

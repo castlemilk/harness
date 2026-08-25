@@ -98,12 +98,25 @@ harness bench eval --suite deep \
 
 Reports are written to `~/.omega/reports/model-eval-*.json` (and `.md`).
 
+### DeepSWE benchmarking
+
+Long-horizon tasks from real open-source repositories with Docker-isolated
+program-based verifiers, a golden grading-replay corpus, and flake-aware
+scoring. The task corpus ships as a pinned submodule. Fresh-machine runbook:
+[docs/DEEPSWE-QUICKSTART.md](docs/DEEPSWE-QUICKSTART.md); methodology and
+scoring history: [docs/DEEPSWE-SCORING-PLAN.md](docs/DEEPSWE-SCORING-PLAN.md).
+
+```bash
+git clone --recursive https://github.com/castlemilk/harness.git
+task setup && task deep-swe:golden   # verifier-only, no model spend
+```
+
 ## Install from source
 
 Requirements: Node.js >=20, pnpm.
 
 ```bash
-git clone https://github.com/castlemilk/harness.git
+git clone --recursive https://github.com/castlemilk/harness.git
 cd harness
 pnpm install
 pnpm db:migrate

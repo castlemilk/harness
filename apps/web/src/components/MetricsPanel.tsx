@@ -36,6 +36,14 @@ interface Metrics {
     avgDurationMs: number;
     models: string[];
   }>;
+  persistedProviderRouting: Record<string, {
+    calls: number;
+    retries: number;
+    rateLimitRetries: number;
+    rotations: number;
+    budgetExceededRuns: number;
+    models: string[];
+  }>;
   agentHealth: {
     tokenBudgetExceededRuns: number;
     traceSpanSampleSize: number;
@@ -73,7 +81,7 @@ export function MetricsPanel() {
     return <div className="p-4 text-xs text-gray-400">Loading metrics…</div>;
   }
 
-  const { taskCounts, totalTasks, providerUsage, providerRouting, agentHealth, avgDurationMs, recentRuns, latestReports } = metrics;
+  const { taskCounts, totalTasks, providerUsage, providerRouting, persistedProviderRouting, agentHealth, avgDurationMs, recentRuns, latestReports } = metrics;
 
   return (
     <div className="p-4 space-y-6 text-sm">
@@ -117,6 +125,29 @@ export function MetricsPanel() {
                   <span>429 retries: {stats.rateLimitRetries}</span>
                   <span>Rotations: {stats.rotations}</span>
                   <span>Avg: {stats.avgDurationMs}ms</span>
+                </div>
+                <div className="text-gray-400 truncate mt-1" title={stats.models.join(', ')}>
+                  Models: {stats.models.join(', ') || '-'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {Object.keys(persistedProviderRouting).length > 0 && (
+        <div>
+          <h3 className="font-semibold mb-2">Persisted run telemetry</h3>
+          <div className="space-y-2 text-xs">
+            {Object.entries(persistedProviderRouting).map(([provider, stats]) => (
+              <div key={provider} className="bg-gray-50 p-2 rounded">
+                <div className="font-medium truncate" title={stats.models.join(', ')}>{provider}</div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-gray-500 mt-1">
+                  <span>Calls: {stats.calls}</span>
+                  <span>Retries: {stats.retries}</span>
+                  <span>429 retries: {stats.rateLimitRetries}</span>
+                  <span>Rotations: {stats.rotations}</span>
+                  <span>Budget overruns: {stats.budgetExceededRuns}</span>
                 </div>
                 <div className="text-gray-400 truncate mt-1" title={stats.models.join(', ')}>
                   Models: {stats.models.join(', ') || '-'}

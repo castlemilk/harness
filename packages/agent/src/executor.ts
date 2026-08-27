@@ -306,6 +306,13 @@ export async function runAgentTask(
     promptFormat,
     promptContext: combinedContext,
     usage: {},
+    providerTelemetry: {
+      calls: 0,
+      retries: 0,
+      rateLimitRetries: 0,
+      rotations: 0,
+      modelsTried: [],
+    },
     apiSurfaceVerified: false,
     repoOverview: repoOverviewText,
     deadlineMs: Date.now() + deadlineMsForComplexity(task.complexity),
@@ -347,7 +354,24 @@ export async function runAgentTask(
     await failTask(prisma, taskId, message);
     await prisma.agentRun.update({
       where: { id: agentRun.id },
-      data: { resultStatus: 'failed' },
+      data: {
+        resultStatus: 'failed',
+        providerCalls: ctx.providerTelemetry.calls,
+        providerRetries: ctx.providerTelemetry.retries,
+        providerRateLimitRetries: ctx.providerTelemetry.rateLimitRetries,
+        providerRotations: ctx.providerTelemetry.rotations,
+        providerLastStatus: ctx.providerTelemetry.lastStatus,
+        effectiveModel: ctx.providerTelemetry.effectiveModel,
+        modelsTried: JSON.stringify(ctx.providerTelemetry.modelsTried),
+        tokenBudget: ctx.tokenBudget,
+        tokenBudgetExceeded:
+          ctx.tokenBudget !== undefined && (ctx.usage.totalTokens ?? 0) > ctx.tokenBudget,
+        promptTokens: ctx.usage.promptTokens,
+        completionTokens: ctx.usage.completionTokens,
+        totalTokens: ctx.usage.totalTokens,
+        deadlineMs: ctx.deadlineMs - ctx.rootSpan.startTime.getTime(),
+        deadlineRemainingMs: Math.max(0, ctx.deadlineMs - Date.now()),
+      },
     });
     throw err;
   } finally {

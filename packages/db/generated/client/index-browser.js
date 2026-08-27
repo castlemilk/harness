@@ -203,6 +203,17 @@ exports.Prisma.AgentRunScalarFieldEnum = {
   currentPhase: 'currentPhase',
   currentPhaseStartedAt: 'currentPhaseStartedAt',
   currentTurn: 'currentTurn',
+  providerCalls: 'providerCalls',
+  providerRetries: 'providerRetries',
+  providerRateLimitRetries: 'providerRateLimitRetries',
+  providerRotations: 'providerRotations',
+  providerLastStatus: 'providerLastStatus',
+  effectiveModel: 'effectiveModel',
+  modelsTried: 'modelsTried',
+  tokenBudget: 'tokenBudget',
+  tokenBudgetExceeded: 'tokenBudgetExceeded',
+  deadlineMs: 'deadlineMs',
+  deadlineRemainingMs: 'deadlineRemainingMs',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

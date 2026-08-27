@@ -43,6 +43,50 @@ describe('API', () => {
     expect(selectRes.body.model).toBeDefined();
   });
 
+  it('exposes persisted provider telemetry in task state and metrics', async () => {
+    const project = await prisma.project.create({ data: { name: 'telemetry-project', path: '/tmp/telemetry' } });
+    const task = await prisma.task.create({
+      data: {
+        projectId: project.id,
+        title: 'telemetry task',
+        status: 'done',
+        provider: 'openrouter',
+        model: 'z-ai/glm-5.2:free',
+      },
+    });
+    await prisma.agentRun.create({
+      data: {
+        taskId: task.id,
+        branch: 'agent/telemetry',
+        baseCommit: 'abc123',
+        resultStatus: 'done',
+        providerCalls: 4,
+        providerRetries: 26,
+        providerRateLimitRetries: 26,
+        providerRotations: 3,
+        effectiveModel: 'minimax/minimax-m3:free',
+        modelsTried: JSON.stringify(['z-ai/glm-5.2:free', 'minimax/minimax-m3:free']),
+        tokenBudget: 100000,
+        tokenBudgetExceeded: false,
+        deadlineMs: 1800000,
+        deadlineRemainingMs: 1600000,
+      },
+    });
+
+    const runRes = await request(app).get(`/tasks/${task.id}/agent-run`);
+    expect(runRes.status).toBe(200);
+    expect(runRes.body.providerRotations).toBe(3);
+    expect(runRes.body.effectiveModel).toBe('minimax/minimax-m3:free');
+
+    const metricsRes = await request(app).get('/metrics');
+    expect(metricsRes.status).toBe(200);
+    expect(metricsRes.body.persistedProviderRouting.openrouter).toMatchObject({
+      calls: 4,
+      rateLimitRetries: 26,
+      rotations: 3,
+    });
+  });
+
   describe('unknown API paths', () => {
     it('answers /api/... with a JSON 404 in the standard error envelope', async () => {
       const res = await request(app).get('/api/does-not-exist');

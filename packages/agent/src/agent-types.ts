@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@omega/db';
-import type { Provider, Task, UsageInfo } from '@omega/core';
+import type { Provider, ProviderTelemetry, Task, UsageInfo } from '@omega/core';
 import type { IntelligentRouter } from '@omega/router';
 import type { Tracer, Span } from './tracer.js';
 import type { ValidationSummary } from './validator.js';
@@ -41,6 +41,7 @@ export interface AgentContext {
   promptFormat: PromptFormat;
   promptContext?: string;
   usage: UsageInfo;
+  providerTelemetry: ProviderTelemetry;
   apiSurfaceVerified: boolean;
   tokenBudget?: number;
   repoOverview?: string;

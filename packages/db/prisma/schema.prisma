@@ -113,6 +113,17 @@ model AgentRun {
   currentPhase          String?
   currentPhaseStartedAt DateTime?
   currentTurn           Int?
+  providerCalls         Int             @default(0)
+  providerRetries       Int             @default(0)
+  providerRateLimitRetries Int           @default(0)
+  providerRotations     Int             @default(0)
+  providerLastStatus    Int?
+  effectiveModel        String?
+  modelsTried           String? // JSON array
+  tokenBudget           Int?
+  tokenBudgetExceeded   Boolean         @default(false)
+  deadlineMs            Int?
+  deadlineRemainingMs   Int?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 

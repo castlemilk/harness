@@ -783,6 +783,18 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       promptTokens: ctx.usage.promptTokens,
       completionTokens: ctx.usage.completionTokens,
       totalTokens: ctx.usage.totalTokens,
+      providerCalls: ctx.providerTelemetry.calls,
+      providerRetries: ctx.providerTelemetry.retries,
+      providerRateLimitRetries: ctx.providerTelemetry.rateLimitRetries,
+      providerRotations: ctx.providerTelemetry.rotations,
+      providerLastStatus: ctx.providerTelemetry.lastStatus,
+      effectiveModel: ctx.providerTelemetry.effectiveModel,
+      modelsTried: sanitizeForDb(JSON.stringify(ctx.providerTelemetry.modelsTried)),
+      tokenBudget: ctx.tokenBudget,
+      tokenBudgetExceeded:
+        ctx.tokenBudget !== undefined && (ctx.usage.totalTokens ?? 0) > ctx.tokenBudget,
+      deadlineMs: ctx.deadlineMs - ctx.rootSpan.startTime.getTime(),
+      deadlineRemainingMs: Math.max(0, ctx.deadlineMs - Date.now()),
     },
   });
 

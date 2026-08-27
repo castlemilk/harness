@@ -17,6 +17,7 @@ const config = {
   projectPath: process.env.OMEGA_LOOP_PROJECT_PATH ?? root,
   maxIterations: parseInt(process.env.OMEGA_LOOP_MAX_ITERATIONS ?? '3', 10),
   intervalMs: parseInt(process.env.OMEGA_LOOP_INTERVAL_MS ?? '60000', 10),
+  taskTimeoutMs: parseInt(process.env.OMEGA_LOOP_TASK_TIMEOUT_MS ?? '1800000', 10),
   autoPublish: process.env.OMEGA_LOOP_AUTO_PUBLISH === 'true',
   validate: process.env.OMEGA_LOOP_VALIDATE !== 'false',
   maxConsecutiveFailures: parseInt(process.env.OMEGA_LOOP_MAX_CONSECUTIVE_FAILURES ?? '2', 10),
@@ -207,7 +208,7 @@ async function main() {
       task = await submitSelfImproveTask(projectId);
       console.log(`Submitted self-improve task ${task.id}`);
       await runTask(task.id);
-      task = await waitForTask(task.id);
+      task = await waitForTask(task.id, config.taskTimeoutMs);
       console.log(`Task finished with status: ${task.status}`);
       artifacts = await fetchArtifacts(task.id);
 

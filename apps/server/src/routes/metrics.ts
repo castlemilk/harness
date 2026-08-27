@@ -17,7 +17,7 @@ interface BenchmarkReport {
   timeouts: number;
   totalDurationMs: number;
   totalUsage?: { promptTokens?: number; completionTokens?: number; totalTokens?: number };
-  results: {
+  results?: {
     task: { name: string };
     status: string;
     durationMs: number;
@@ -81,6 +81,7 @@ export function metricsRoutes(prisma: PrismaClient): Router {
       tasks,
       agentRuns,
       traceSpans,
+      telemetryRuns,
     ] = await Promise.all([
       prisma.task.findMany({
         select: { status: true, provider: true, model: true, createdAt: true, updatedAt: true },
@@ -95,6 +96,21 @@ export function metricsRoutes(prisma: PrismaClient): Router {
         take: 1000,
         orderBy: { startTime: 'desc' },
         select: { name: true, status: true, attributes: true, startTime: true, endTime: true },
+      }),
+      prisma.agentRun.findMany({
+        where: { providerCalls: { gt: 0 } },
+        take: 1000,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          providerCalls: true,
+          providerRetries: true,
+          providerRateLimitRetries: true,
+          providerRotations: true,
+          effectiveModel: true,
+          modelsTried: true,
+          tokenBudgetExceeded: true,
+          task: { select: { provider: true, model: true } },
+        },
       }),
     ]);
 
@@ -116,6 +132,14 @@ export function metricsRoutes(prisma: PrismaClient): Router {
       models: Set<string>;
     }> = {};
     let tokenBudgetExceededRuns = 0;
+    const persistedProviderRouting: Record<string, {
+      calls: number;
+      retries: number;
+      rateLimitRetries: number;
+      rotations: number;
+      budgetExceededRuns: number;
+      models: Set<string>;
+    }> = {};
 
     for (const task of tasks) {
       taskCounts[task.status as keyof typeof taskCounts]++;
@@ -167,6 +191,38 @@ export function metricsRoutes(prisma: PrismaClient): Router {
       }]),
     );
 
+    for (const run of telemetryRuns) {
+      const provider = run.task.provider ?? 'unknown';
+      const stats = persistedProviderRouting[provider] ?? {
+        calls: 0,
+        retries: 0,
+        rateLimitRetries: 0,
+        rotations: 0,
+        budgetExceededRuns: 0,
+        models: new Set<string>(),
+      };
+      stats.calls += run.providerCalls;
+      stats.retries += run.providerRetries;
+      stats.rateLimitRetries += run.providerRateLimitRetries;
+      stats.rotations += run.providerRotations;
+      if (run.tokenBudgetExceeded) stats.budgetExceededRuns++;
+      if (run.effectiveModel) stats.models.add(run.effectiveModel);
+      if (run.task.model) stats.models.add(run.task.model);
+      if (run.modelsTried) {
+        const models = safeJsonParse<unknown[]>(run.modelsTried, []);
+        for (const model of models) {
+          if (typeof model === 'string') stats.models.add(model);
+        }
+      }
+      persistedProviderRouting[provider] = stats;
+    }
+    const persistedProviderRoutingJson = Object.fromEntries(
+      Object.entries(persistedProviderRouting).map(([provider, stats]) => [provider, {
+        ...stats,
+        models: [...stats.models],
+      }]),
+    );
+
     const completedRuns = agentRuns.filter((r) => r.resultStatus !== 'running');
     const avgDurationMs =
       completedRuns.length > 0
@@ -211,7 +267,7 @@ export function metricsRoutes(prisma: PrismaClient): Router {
       benchmarkPassRate = latest.total > 0 ? Math.round((latest.passed / latest.total) * 100) : 0;
 
       for (const report of benchmarkReports) {
-        for (const result of report.results) {
+        for (const result of report.results ?? []) {
           const tokens = result.agentRun?.totalTokens ?? 0;
           benchmarkTotalTokens += tokens;
           if (result.evaluation.passed) {
@@ -243,6 +299,7 @@ export function metricsRoutes(prisma: PrismaClient): Router {
       providerUsage,
       modelUsage,
       providerRouting: providerRoutingJson,
+      persistedProviderRouting: persistedProviderRoutingJson,
       agentHealth: {
         tokenBudgetExceededRuns,
         traceSpanSampleSize: traceSpans.length,

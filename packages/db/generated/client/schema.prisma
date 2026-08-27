@@ -92,29 +92,40 @@ model TaskDiff {
 }
 
 model AgentRun {
-  id                    String         @id @default(uuid())
-  taskId                String
-  task                  Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  promptVersionId       String?
-  promptVersion         PromptVersion? @relation(fields: [promptVersionId], references: [id], onDelete: SetNull)
-  branch                String
-  baseCommit            String
-  resultStatus          String         @default("running")
-  validationSummary     String? // JSON
-  publishedVersion      String?
-  promptTokens          Int?
-  completionTokens      Int?
-  totalTokens           Int?
-  costUsd               Float?
-  turnCount             Int?
-  toolCalls             String? // JSON: { toolName: count, ... }
-  turnDurationMs        Int?
-  phaseTimings          String? // JSON: { phaseName: durationMs, ... }
-  currentPhase          String?
-  currentPhaseStartedAt DateTime?
-  currentTurn           Int?
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+  id                       String         @id @default(uuid())
+  taskId                   String
+  task                     Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  promptVersionId          String?
+  promptVersion            PromptVersion? @relation(fields: [promptVersionId], references: [id], onDelete: SetNull)
+  branch                   String
+  baseCommit               String
+  resultStatus             String         @default("running")
+  validationSummary        String? // JSON
+  publishedVersion         String?
+  promptTokens             Int?
+  completionTokens         Int?
+  totalTokens              Int?
+  costUsd                  Float?
+  turnCount                Int?
+  toolCalls                String? // JSON: { toolName: count, ... }
+  turnDurationMs           Int?
+  phaseTimings             String? // JSON: { phaseName: durationMs, ... }
+  currentPhase             String?
+  currentPhaseStartedAt    DateTime?
+  currentTurn              Int?
+  providerCalls            Int            @default(0)
+  providerRetries          Int            @default(0)
+  providerRateLimitRetries Int            @default(0)
+  providerRotations        Int            @default(0)
+  providerLastStatus       Int?
+  effectiveModel           String?
+  modelsTried              String? // JSON array
+  tokenBudget              Int?
+  tokenBudgetExceeded      Boolean        @default(false)
+  deadlineMs               Int?
+  deadlineRemainingMs      Int?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
 
   @@index([taskId])
   @@index([promptVersionId])

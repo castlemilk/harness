@@ -8126,6 +8126,14 @@ export namespace Prisma {
     turnCount: number | null
     turnDurationMs: number | null
     currentTurn: number | null
+    providerCalls: number | null
+    providerRetries: number | null
+    providerRateLimitRetries: number | null
+    providerRotations: number | null
+    providerLastStatus: number | null
+    tokenBudget: number | null
+    deadlineMs: number | null
+    deadlineRemainingMs: number | null
   }
 
   export type AgentRunSumAggregateOutputType = {
@@ -8136,6 +8144,14 @@ export namespace Prisma {
     turnCount: number | null
     turnDurationMs: number | null
     currentTurn: number | null
+    providerCalls: number | null
+    providerRetries: number | null
+    providerRateLimitRetries: number | null
+    providerRotations: number | null
+    providerLastStatus: number | null
+    tokenBudget: number | null
+    deadlineMs: number | null
+    deadlineRemainingMs: number | null
   }
 
   export type AgentRunMinAggregateOutputType = {
@@ -8158,6 +8174,17 @@ export namespace Prisma {
     currentPhase: string | null
     currentPhaseStartedAt: Date | null
     currentTurn: number | null
+    providerCalls: number | null
+    providerRetries: number | null
+    providerRateLimitRetries: number | null
+    providerRotations: number | null
+    providerLastStatus: number | null
+    effectiveModel: string | null
+    modelsTried: string | null
+    tokenBudget: number | null
+    tokenBudgetExceeded: boolean | null
+    deadlineMs: number | null
+    deadlineRemainingMs: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -8182,6 +8209,17 @@ export namespace Prisma {
     currentPhase: string | null
     currentPhaseStartedAt: Date | null
     currentTurn: number | null
+    providerCalls: number | null
+    providerRetries: number | null
+    providerRateLimitRetries: number | null
+    providerRotations: number | null
+    providerLastStatus: number | null
+    effectiveModel: string | null
+    modelsTried: string | null
+    tokenBudget: number | null
+    tokenBudgetExceeded: boolean | null
+    deadlineMs: number | null
+    deadlineRemainingMs: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -8206,6 +8244,17 @@ export namespace Prisma {
     currentPhase: number
     currentPhaseStartedAt: number
     currentTurn: number
+    providerCalls: number
+    providerRetries: number
+    providerRateLimitRetries: number
+    providerRotations: number
+    providerLastStatus: number
+    effectiveModel: number
+    modelsTried: number
+    tokenBudget: number
+    tokenBudgetExceeded: number
+    deadlineMs: number
+    deadlineRemainingMs: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -8220,6 +8269,14 @@ export namespace Prisma {
     turnCount?: true
     turnDurationMs?: true
     currentTurn?: true
+    providerCalls?: true
+    providerRetries?: true
+    providerRateLimitRetries?: true
+    providerRotations?: true
+    providerLastStatus?: true
+    tokenBudget?: true
+    deadlineMs?: true
+    deadlineRemainingMs?: true
   }
 
   export type AgentRunSumAggregateInputType = {
@@ -8230,6 +8287,14 @@ export namespace Prisma {
     turnCount?: true
     turnDurationMs?: true
     currentTurn?: true
+    providerCalls?: true
+    providerRetries?: true
+    providerRateLimitRetries?: true
+    providerRotations?: true
+    providerLastStatus?: true
+    tokenBudget?: true
+    deadlineMs?: true
+    deadlineRemainingMs?: true
   }
 
   export type AgentRunMinAggregateInputType = {
@@ -8252,6 +8317,17 @@ export namespace Prisma {
     currentPhase?: true
     currentPhaseStartedAt?: true
     currentTurn?: true
+    providerCalls?: true
+    providerRetries?: true
+    providerRateLimitRetries?: true
+    providerRotations?: true
+    providerLastStatus?: true
+    effectiveModel?: true
+    modelsTried?: true
+    tokenBudget?: true
+    tokenBudgetExceeded?: true
+    deadlineMs?: true
+    deadlineRemainingMs?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -8276,6 +8352,17 @@ export namespace Prisma {
     currentPhase?: true
     currentPhaseStartedAt?: true
     currentTurn?: true
+    providerCalls?: true
+    providerRetries?: true
+    providerRateLimitRetries?: true
+    providerRotations?: true
+    providerLastStatus?: true
+    effectiveModel?: true
+    modelsTried?: true
+    tokenBudget?: true
+    tokenBudgetExceeded?: true
+    deadlineMs?: true
+    deadlineRemainingMs?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -8300,6 +8387,17 @@ export namespace Prisma {
     currentPhase?: true
     currentPhaseStartedAt?: true
     currentTurn?: true
+    providerCalls?: true
+    providerRetries?: true
+    providerRateLimitRetries?: true
+    providerRotations?: true
+    providerLastStatus?: true
+    effectiveModel?: true
+    modelsTried?: true
+    tokenBudget?: true
+    tokenBudgetExceeded?: true
+    deadlineMs?: true
+    deadlineRemainingMs?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -8411,6 +8509,17 @@ export namespace Prisma {
     currentPhase: string | null
     currentPhaseStartedAt: Date | null
     currentTurn: number | null
+    providerCalls: number
+    providerRetries: number
+    providerRateLimitRetries: number
+    providerRotations: number
+    providerLastStatus: number | null
+    effectiveModel: string | null
+    modelsTried: string | null
+    tokenBudget: number | null
+    tokenBudgetExceeded: boolean
+    deadlineMs: number | null
+    deadlineRemainingMs: number | null
     createdAt: Date
     updatedAt: Date
     _count: AgentRunCountAggregateOutputType | null
@@ -8454,6 +8563,17 @@ export namespace Prisma {
     currentPhase?: boolean
     currentPhaseStartedAt?: boolean
     currentTurn?: boolean
+    providerCalls?: boolean
+    providerRetries?: boolean
+    providerRateLimitRetries?: boolean
+    providerRotations?: boolean
+    providerLastStatus?: boolean
+    effectiveModel?: boolean
+    modelsTried?: boolean
+    tokenBudget?: boolean
+    tokenBudgetExceeded?: boolean
+    deadlineMs?: boolean
+    deadlineRemainingMs?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -8480,6 +8600,17 @@ export namespace Prisma {
     currentPhase?: boolean
     currentPhaseStartedAt?: boolean
     currentTurn?: boolean
+    providerCalls?: boolean
+    providerRetries?: boolean
+    providerRateLimitRetries?: boolean
+    providerRotations?: boolean
+    providerLastStatus?: boolean
+    effectiveModel?: boolean
+    modelsTried?: boolean
+    tokenBudget?: boolean
+    tokenBudgetExceeded?: boolean
+    deadlineMs?: boolean
+    deadlineRemainingMs?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -8506,6 +8637,17 @@ export namespace Prisma {
     currentPhase?: boolean
     currentPhaseStartedAt?: boolean
     currentTurn?: boolean
+    providerCalls?: boolean
+    providerRetries?: boolean
+    providerRateLimitRetries?: boolean
+    providerRotations?: boolean
+    providerLastStatus?: boolean
+    effectiveModel?: boolean
+    modelsTried?: boolean
+    tokenBudget?: boolean
+    tokenBudgetExceeded?: boolean
+    deadlineMs?: boolean
+    deadlineRemainingMs?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -8545,6 +8687,17 @@ export namespace Prisma {
       currentPhase: string | null
       currentPhaseStartedAt: Date | null
       currentTurn: number | null
+      providerCalls: number
+      providerRetries: number
+      providerRateLimitRetries: number
+      providerRotations: number
+      providerLastStatus: number | null
+      effectiveModel: string | null
+      modelsTried: string | null
+      tokenBudget: number | null
+      tokenBudgetExceeded: boolean
+      deadlineMs: number | null
+      deadlineRemainingMs: number | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["agentRun"]>
@@ -8961,6 +9114,17 @@ export namespace Prisma {
     readonly currentPhase: FieldRef<"AgentRun", 'String'>
     readonly currentPhaseStartedAt: FieldRef<"AgentRun", 'DateTime'>
     readonly currentTurn: FieldRef<"AgentRun", 'Int'>
+    readonly providerCalls: FieldRef<"AgentRun", 'Int'>
+    readonly providerRetries: FieldRef<"AgentRun", 'Int'>
+    readonly providerRateLimitRetries: FieldRef<"AgentRun", 'Int'>
+    readonly providerRotations: FieldRef<"AgentRun", 'Int'>
+    readonly providerLastStatus: FieldRef<"AgentRun", 'Int'>
+    readonly effectiveModel: FieldRef<"AgentRun", 'String'>
+    readonly modelsTried: FieldRef<"AgentRun", 'String'>
+    readonly tokenBudget: FieldRef<"AgentRun", 'Int'>
+    readonly tokenBudgetExceeded: FieldRef<"AgentRun", 'Boolean'>
+    readonly deadlineMs: FieldRef<"AgentRun", 'Int'>
+    readonly deadlineRemainingMs: FieldRef<"AgentRun", 'Int'>
     readonly createdAt: FieldRef<"AgentRun", 'DateTime'>
     readonly updatedAt: FieldRef<"AgentRun", 'DateTime'>
   }
@@ -26166,6 +26330,17 @@ export namespace Prisma {
     currentPhase: 'currentPhase',
     currentPhaseStartedAt: 'currentPhaseStartedAt',
     currentTurn: 'currentTurn',
+    providerCalls: 'providerCalls',
+    providerRetries: 'providerRetries',
+    providerRateLimitRetries: 'providerRateLimitRetries',
+    providerRotations: 'providerRotations',
+    providerLastStatus: 'providerLastStatus',
+    effectiveModel: 'effectiveModel',
+    modelsTried: 'modelsTried',
+    tokenBudget: 'tokenBudget',
+    tokenBudgetExceeded: 'tokenBudgetExceeded',
+    deadlineMs: 'deadlineMs',
+    deadlineRemainingMs: 'deadlineRemainingMs',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -26980,6 +27155,17 @@ export namespace Prisma {
     currentPhase?: StringNullableFilter<"AgentRun"> | string | null
     currentPhaseStartedAt?: DateTimeNullableFilter<"AgentRun"> | Date | string | null
     currentTurn?: IntNullableFilter<"AgentRun"> | number | null
+    providerCalls?: IntFilter<"AgentRun"> | number
+    providerRetries?: IntFilter<"AgentRun"> | number
+    providerRateLimitRetries?: IntFilter<"AgentRun"> | number
+    providerRotations?: IntFilter<"AgentRun"> | number
+    providerLastStatus?: IntNullableFilter<"AgentRun"> | number | null
+    effectiveModel?: StringNullableFilter<"AgentRun"> | string | null
+    modelsTried?: StringNullableFilter<"AgentRun"> | string | null
+    tokenBudget?: IntNullableFilter<"AgentRun"> | number | null
+    tokenBudgetExceeded?: BoolFilter<"AgentRun"> | boolean
+    deadlineMs?: IntNullableFilter<"AgentRun"> | number | null
+    deadlineRemainingMs?: IntNullableFilter<"AgentRun"> | number | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -27006,6 +27192,17 @@ export namespace Prisma {
     currentPhase?: SortOrderInput | SortOrder
     currentPhaseStartedAt?: SortOrderInput | SortOrder
     currentTurn?: SortOrderInput | SortOrder
+    providerCalls?: SortOrder
+    providerRetries?: SortOrder
+    providerRateLimitRetries?: SortOrder
+    providerRotations?: SortOrder
+    providerLastStatus?: SortOrderInput | SortOrder
+    effectiveModel?: SortOrderInput | SortOrder
+    modelsTried?: SortOrderInput | SortOrder
+    tokenBudget?: SortOrderInput | SortOrder
+    tokenBudgetExceeded?: SortOrder
+    deadlineMs?: SortOrderInput | SortOrder
+    deadlineRemainingMs?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     task?: TaskOrderByWithRelationInput
@@ -27035,6 +27232,17 @@ export namespace Prisma {
     currentPhase?: StringNullableFilter<"AgentRun"> | string | null
     currentPhaseStartedAt?: DateTimeNullableFilter<"AgentRun"> | Date | string | null
     currentTurn?: IntNullableFilter<"AgentRun"> | number | null
+    providerCalls?: IntFilter<"AgentRun"> | number
+    providerRetries?: IntFilter<"AgentRun"> | number
+    providerRateLimitRetries?: IntFilter<"AgentRun"> | number
+    providerRotations?: IntFilter<"AgentRun"> | number
+    providerLastStatus?: IntNullableFilter<"AgentRun"> | number | null
+    effectiveModel?: StringNullableFilter<"AgentRun"> | string | null
+    modelsTried?: StringNullableFilter<"AgentRun"> | string | null
+    tokenBudget?: IntNullableFilter<"AgentRun"> | number | null
+    tokenBudgetExceeded?: BoolFilter<"AgentRun"> | boolean
+    deadlineMs?: IntNullableFilter<"AgentRun"> | number | null
+    deadlineRemainingMs?: IntNullableFilter<"AgentRun"> | number | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -27061,6 +27269,17 @@ export namespace Prisma {
     currentPhase?: SortOrderInput | SortOrder
     currentPhaseStartedAt?: SortOrderInput | SortOrder
     currentTurn?: SortOrderInput | SortOrder
+    providerCalls?: SortOrder
+    providerRetries?: SortOrder
+    providerRateLimitRetries?: SortOrder
+    providerRotations?: SortOrder
+    providerLastStatus?: SortOrderInput | SortOrder
+    effectiveModel?: SortOrderInput | SortOrder
+    modelsTried?: SortOrderInput | SortOrder
+    tokenBudget?: SortOrderInput | SortOrder
+    tokenBudgetExceeded?: SortOrder
+    deadlineMs?: SortOrderInput | SortOrder
+    deadlineRemainingMs?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: AgentRunCountOrderByAggregateInput
@@ -27093,6 +27312,17 @@ export namespace Prisma {
     currentPhase?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
     currentPhaseStartedAt?: DateTimeNullableWithAggregatesFilter<"AgentRun"> | Date | string | null
     currentTurn?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    providerCalls?: IntWithAggregatesFilter<"AgentRun"> | number
+    providerRetries?: IntWithAggregatesFilter<"AgentRun"> | number
+    providerRateLimitRetries?: IntWithAggregatesFilter<"AgentRun"> | number
+    providerRotations?: IntWithAggregatesFilter<"AgentRun"> | number
+    providerLastStatus?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    effectiveModel?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
+    modelsTried?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
+    tokenBudget?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    tokenBudgetExceeded?: BoolWithAggregatesFilter<"AgentRun"> | boolean
+    deadlineMs?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    deadlineRemainingMs?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
     createdAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
   }
@@ -29042,6 +29272,17 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    providerCalls?: number
+    providerRetries?: number
+    providerRateLimitRetries?: number
+    providerRotations?: number
+    providerLastStatus?: number | null
+    effectiveModel?: string | null
+    modelsTried?: string | null
+    tokenBudget?: number | null
+    tokenBudgetExceeded?: boolean
+    deadlineMs?: number | null
+    deadlineRemainingMs?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -29068,6 +29309,17 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    providerCalls?: number
+    providerRetries?: number
+    providerRateLimitRetries?: number
+    providerRotations?: number
+    providerLastStatus?: number | null
+    effectiveModel?: string | null
+    modelsTried?: string | null
+    tokenBudget?: number | null
+    tokenBudgetExceeded?: boolean
+    deadlineMs?: number | null
+    deadlineRemainingMs?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -29090,6 +29342,17 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    providerCalls?: IntFieldUpdateOperationsInput | number
+    providerRetries?: IntFieldUpdateOperationsInput | number
+    providerRateLimitRetries?: IntFieldUpdateOperationsInput | number
+    providerRotations?: IntFieldUpdateOperationsInput | number
+    providerLastStatus?: NullableIntFieldUpdateOperationsInput | number | null
+    effectiveModel?: NullableStringFieldUpdateOperationsInput | string | null
+    modelsTried?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenBudget?: NullableIntFieldUpdateOperationsInput | number | null
+    tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
+    deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
+    deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -29116,6 +29379,17 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    providerCalls?: IntFieldUpdateOperationsInput | number
+    providerRetries?: IntFieldUpdateOperationsInput | number
+    providerRateLimitRetries?: IntFieldUpdateOperationsInput | number
+    providerRotations?: IntFieldUpdateOperationsInput | number
+    providerLastStatus?: NullableIntFieldUpdateOperationsInput | number | null
+    effectiveModel?: NullableStringFieldUpdateOperationsInput | string | null
+    modelsTried?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenBudget?: NullableIntFieldUpdateOperationsInput | number | null
+    tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
+    deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
+    deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -29140,6 +29414,17 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    providerCalls?: number
+    providerRetries?: number
+    providerRateLimitRetries?: number
+    providerRotations?: number
+    providerLastStatus?: number | null
+    effectiveModel?: string | null
+    modelsTried?: string | null
+    tokenBudget?: number | null
+    tokenBudgetExceeded?: boolean
+    deadlineMs?: number | null
+    deadlineRemainingMs?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -29162,6 +29447,17 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    providerCalls?: IntFieldUpdateOperationsInput | number
+    providerRetries?: IntFieldUpdateOperationsInput | number
+    providerRateLimitRetries?: IntFieldUpdateOperationsInput | number
+    providerRotations?: IntFieldUpdateOperationsInput | number
+    providerLastStatus?: NullableIntFieldUpdateOperationsInput | number | null
+    effectiveModel?: NullableStringFieldUpdateOperationsInput | string | null
+    modelsTried?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenBudget?: NullableIntFieldUpdateOperationsInput | number | null
+    tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
+    deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
+    deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -29186,6 +29482,17 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    providerCalls?: IntFieldUpdateOperationsInput | number
+    providerRetries?: IntFieldUpdateOperationsInput | number
+    providerRateLimitRetries?: IntFieldUpdateOperationsInput | number
+    providerRotations?: IntFieldUpdateOperationsInput | number
+    providerLastStatus?: NullableIntFieldUpdateOperationsInput | number | null
+    effectiveModel?: NullableStringFieldUpdateOperationsInput | string | null
+    modelsTried?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenBudget?: NullableIntFieldUpdateOperationsInput | number | null
+    tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
+    deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
+    deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -31341,6 +31648,11 @@ export namespace Prisma {
     not?: NestedFloatNullableFilter<$PrismaModel> | number | null
   }
 
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type PromptVersionNullableRelationFilter = {
     is?: PromptVersionWhereInput | null
     isNot?: PromptVersionWhereInput | null
@@ -31366,6 +31678,17 @@ export namespace Prisma {
     currentPhase?: SortOrder
     currentPhaseStartedAt?: SortOrder
     currentTurn?: SortOrder
+    providerCalls?: SortOrder
+    providerRetries?: SortOrder
+    providerRateLimitRetries?: SortOrder
+    providerRotations?: SortOrder
+    providerLastStatus?: SortOrder
+    effectiveModel?: SortOrder
+    modelsTried?: SortOrder
+    tokenBudget?: SortOrder
+    tokenBudgetExceeded?: SortOrder
+    deadlineMs?: SortOrder
+    deadlineRemainingMs?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -31378,6 +31701,14 @@ export namespace Prisma {
     turnCount?: SortOrder
     turnDurationMs?: SortOrder
     currentTurn?: SortOrder
+    providerCalls?: SortOrder
+    providerRetries?: SortOrder
+    providerRateLimitRetries?: SortOrder
+    providerRotations?: SortOrder
+    providerLastStatus?: SortOrder
+    tokenBudget?: SortOrder
+    deadlineMs?: SortOrder
+    deadlineRemainingMs?: SortOrder
   }
 
   export type AgentRunMaxOrderByAggregateInput = {
@@ -31400,6 +31731,17 @@ export namespace Prisma {
     currentPhase?: SortOrder
     currentPhaseStartedAt?: SortOrder
     currentTurn?: SortOrder
+    providerCalls?: SortOrder
+    providerRetries?: SortOrder
+    providerRateLimitRetries?: SortOrder
+    providerRotations?: SortOrder
+    providerLastStatus?: SortOrder
+    effectiveModel?: SortOrder
+    modelsTried?: SortOrder
+    tokenBudget?: SortOrder
+    tokenBudgetExceeded?: SortOrder
+    deadlineMs?: SortOrder
+    deadlineRemainingMs?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -31424,6 +31766,17 @@ export namespace Prisma {
     currentPhase?: SortOrder
     currentPhaseStartedAt?: SortOrder
     currentTurn?: SortOrder
+    providerCalls?: SortOrder
+    providerRetries?: SortOrder
+    providerRateLimitRetries?: SortOrder
+    providerRotations?: SortOrder
+    providerLastStatus?: SortOrder
+    effectiveModel?: SortOrder
+    modelsTried?: SortOrder
+    tokenBudget?: SortOrder
+    tokenBudgetExceeded?: SortOrder
+    deadlineMs?: SortOrder
+    deadlineRemainingMs?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -31436,6 +31789,14 @@ export namespace Prisma {
     turnCount?: SortOrder
     turnDurationMs?: SortOrder
     currentTurn?: SortOrder
+    providerCalls?: SortOrder
+    providerRetries?: SortOrder
+    providerRateLimitRetries?: SortOrder
+    providerRotations?: SortOrder
+    providerLastStatus?: SortOrder
+    tokenBudget?: SortOrder
+    deadlineMs?: SortOrder
+    deadlineRemainingMs?: SortOrder
   }
 
   export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -31468,6 +31829,14 @@ export namespace Prisma {
     _sum?: NestedFloatNullableFilter<$PrismaModel>
     _min?: NestedFloatNullableFilter<$PrismaModel>
     _max?: NestedFloatNullableFilter<$PrismaModel>
+  }
+
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type TaskNullableRelationFilter = {
@@ -31517,11 +31886,6 @@ export namespace Prisma {
     events?: SortOrder
   }
 
-  export type BoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
-  }
-
   export type ProviderConfigCountOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
@@ -31562,14 +31926,6 @@ export namespace Prisma {
     capabilities?: SortOrder
     enabled?: SortOrder
     createdAt?: SortOrder
-  }
-
-  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type SkillArtifactCountOrderByAggregateInput = {
@@ -32883,6 +33239,10 @@ export namespace Prisma {
     divide?: number
   }
 
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
+  }
+
   export type TaskUpdateOneRequiredWithoutAgentRunsNestedInput = {
     create?: XOR<TaskCreateWithoutAgentRunsInput, TaskUncheckedCreateWithoutAgentRunsInput>
     connectOrCreate?: TaskCreateOrConnectWithoutAgentRunsInput
@@ -32915,10 +33275,6 @@ export namespace Prisma {
     delete?: TaskWhereInput | boolean
     connect?: TaskWhereUniqueInput
     update?: XOR<XOR<TaskUpdateToOneWithWhereWithoutTraceSpansInput, TaskUpdateWithoutTraceSpansInput>, TaskUncheckedUpdateWithoutTraceSpansInput>
-  }
-
-  export type BoolFieldUpdateOperationsInput = {
-    set?: boolean
   }
 
   export type AgentRunCreateNestedManyWithoutPromptVersionInput = {
@@ -33665,6 +34021,11 @@ export namespace Prisma {
     not?: NestedFloatNullableFilter<$PrismaModel> | number | null
   }
 
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel> | null
     in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
@@ -33695,11 +34056,6 @@ export namespace Prisma {
     _sum?: NestedFloatNullableFilter<$PrismaModel>
     _min?: NestedFloatNullableFilter<$PrismaModel>
     _max?: NestedFloatNullableFilter<$PrismaModel>
-  }
-
-  export type NestedBoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
   }
 
   export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
@@ -34027,6 +34383,17 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    providerCalls?: number
+    providerRetries?: number
+    providerRateLimitRetries?: number
+    providerRotations?: number
+    providerLastStatus?: number | null
+    effectiveModel?: string | null
+    modelsTried?: string | null
+    tokenBudget?: number | null
+    tokenBudgetExceeded?: boolean
+    deadlineMs?: number | null
+    deadlineRemainingMs?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     promptVersion?: PromptVersionCreateNestedOneWithoutAgentRunsInput
@@ -34051,6 +34418,17 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    providerCalls?: number
+    providerRetries?: number
+    providerRateLimitRetries?: number
+    providerRotations?: number
+    providerLastStatus?: number | null
+    effectiveModel?: string | null
+    modelsTried?: string | null
+    tokenBudget?: number | null
+    tokenBudgetExceeded?: boolean
+    deadlineMs?: number | null
+    deadlineRemainingMs?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -34262,6 +34640,17 @@ export namespace Prisma {
     currentPhase?: StringNullableFilter<"AgentRun"> | string | null
     currentPhaseStartedAt?: DateTimeNullableFilter<"AgentRun"> | Date | string | null
     currentTurn?: IntNullableFilter<"AgentRun"> | number | null
+    providerCalls?: IntFilter<"AgentRun"> | number
+    providerRetries?: IntFilter<"AgentRun"> | number
+    providerRateLimitRetries?: IntFilter<"AgentRun"> | number
+    providerRotations?: IntFilter<"AgentRun"> | number
+    providerLastStatus?: IntNullableFilter<"AgentRun"> | number | null
+    effectiveModel?: StringNullableFilter<"AgentRun"> | string | null
+    modelsTried?: StringNullableFilter<"AgentRun"> | string | null
+    tokenBudget?: IntNullableFilter<"AgentRun"> | number | null
+    tokenBudgetExceeded?: BoolFilter<"AgentRun"> | boolean
+    deadlineMs?: IntNullableFilter<"AgentRun"> | number | null
+    deadlineRemainingMs?: IntNullableFilter<"AgentRun"> | number | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
   }
@@ -34929,6 +35318,17 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    providerCalls?: number
+    providerRetries?: number
+    providerRateLimitRetries?: number
+    providerRotations?: number
+    providerLastStatus?: number | null
+    effectiveModel?: string | null
+    modelsTried?: string | null
+    tokenBudget?: number | null
+    tokenBudgetExceeded?: boolean
+    deadlineMs?: number | null
+    deadlineRemainingMs?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -34953,6 +35353,17 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    providerCalls?: number
+    providerRetries?: number
+    providerRateLimitRetries?: number
+    providerRotations?: number
+    providerLastStatus?: number | null
+    effectiveModel?: string | null
+    modelsTried?: string | null
+    tokenBudget?: number | null
+    tokenBudgetExceeded?: boolean
+    deadlineMs?: number | null
+    deadlineRemainingMs?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -36845,6 +37256,17 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    providerCalls?: number
+    providerRetries?: number
+    providerRateLimitRetries?: number
+    providerRotations?: number
+    providerLastStatus?: number | null
+    effectiveModel?: string | null
+    modelsTried?: string | null
+    tokenBudget?: number | null
+    tokenBudgetExceeded?: boolean
+    deadlineMs?: number | null
+    deadlineRemainingMs?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -36967,6 +37389,17 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    providerCalls?: IntFieldUpdateOperationsInput | number
+    providerRetries?: IntFieldUpdateOperationsInput | number
+    providerRateLimitRetries?: IntFieldUpdateOperationsInput | number
+    providerRotations?: IntFieldUpdateOperationsInput | number
+    providerLastStatus?: NullableIntFieldUpdateOperationsInput | number | null
+    effectiveModel?: NullableStringFieldUpdateOperationsInput | string | null
+    modelsTried?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenBudget?: NullableIntFieldUpdateOperationsInput | number | null
+    tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
+    deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
+    deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     promptVersion?: PromptVersionUpdateOneWithoutAgentRunsNestedInput
@@ -36991,6 +37424,17 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    providerCalls?: IntFieldUpdateOperationsInput | number
+    providerRetries?: IntFieldUpdateOperationsInput | number
+    providerRateLimitRetries?: IntFieldUpdateOperationsInput | number
+    providerRotations?: IntFieldUpdateOperationsInput | number
+    providerLastStatus?: NullableIntFieldUpdateOperationsInput | number | null
+    effectiveModel?: NullableStringFieldUpdateOperationsInput | string | null
+    modelsTried?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenBudget?: NullableIntFieldUpdateOperationsInput | number | null
+    tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
+    deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
+    deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -37014,6 +37458,17 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    providerCalls?: IntFieldUpdateOperationsInput | number
+    providerRetries?: IntFieldUpdateOperationsInput | number
+    providerRateLimitRetries?: IntFieldUpdateOperationsInput | number
+    providerRotations?: IntFieldUpdateOperationsInput | number
+    providerLastStatus?: NullableIntFieldUpdateOperationsInput | number | null
+    effectiveModel?: NullableStringFieldUpdateOperationsInput | string | null
+    modelsTried?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenBudget?: NullableIntFieldUpdateOperationsInput | number | null
+    tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
+    deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
+    deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -37076,6 +37531,17 @@ export namespace Prisma {
     currentPhase?: string | null
     currentPhaseStartedAt?: Date | string | null
     currentTurn?: number | null
+    providerCalls?: number
+    providerRetries?: number
+    providerRateLimitRetries?: number
+    providerRotations?: number
+    providerLastStatus?: number | null
+    effectiveModel?: string | null
+    modelsTried?: string | null
+    tokenBudget?: number | null
+    tokenBudgetExceeded?: boolean
+    deadlineMs?: number | null
+    deadlineRemainingMs?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -37098,6 +37564,17 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    providerCalls?: IntFieldUpdateOperationsInput | number
+    providerRetries?: IntFieldUpdateOperationsInput | number
+    providerRateLimitRetries?: IntFieldUpdateOperationsInput | number
+    providerRotations?: IntFieldUpdateOperationsInput | number
+    providerLastStatus?: NullableIntFieldUpdateOperationsInput | number | null
+    effectiveModel?: NullableStringFieldUpdateOperationsInput | string | null
+    modelsTried?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenBudget?: NullableIntFieldUpdateOperationsInput | number | null
+    tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
+    deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
+    deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -37122,6 +37599,17 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    providerCalls?: IntFieldUpdateOperationsInput | number
+    providerRetries?: IntFieldUpdateOperationsInput | number
+    providerRateLimitRetries?: IntFieldUpdateOperationsInput | number
+    providerRotations?: IntFieldUpdateOperationsInput | number
+    providerLastStatus?: NullableIntFieldUpdateOperationsInput | number | null
+    effectiveModel?: NullableStringFieldUpdateOperationsInput | string | null
+    modelsTried?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenBudget?: NullableIntFieldUpdateOperationsInput | number | null
+    tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
+    deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
+    deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -37145,6 +37633,17 @@ export namespace Prisma {
     currentPhase?: NullableStringFieldUpdateOperationsInput | string | null
     currentPhaseStartedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     currentTurn?: NullableIntFieldUpdateOperationsInput | number | null
+    providerCalls?: IntFieldUpdateOperationsInput | number
+    providerRetries?: IntFieldUpdateOperationsInput | number
+    providerRateLimitRetries?: IntFieldUpdateOperationsInput | number
+    providerRotations?: IntFieldUpdateOperationsInput | number
+    providerLastStatus?: NullableIntFieldUpdateOperationsInput | number | null
+    effectiveModel?: NullableStringFieldUpdateOperationsInput | string | null
+    modelsTried?: NullableStringFieldUpdateOperationsInput | string | null
+    tokenBudget?: NullableIntFieldUpdateOperationsInput | number | null
+    tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
+    deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
+    deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

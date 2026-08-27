@@ -54,6 +54,16 @@ export type ProviderEvent =
   | { type: 'response'; model: string; status: number }
   | { type: 'error'; model: string; status?: number };
 
+export interface ProviderTelemetry {
+  calls: number;
+  retries: number;
+  rateLimitRetries: number;
+  rotations: number;
+  modelsTried: string[];
+  effectiveModel?: string;
+  lastStatus?: number;
+}
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content?: string;

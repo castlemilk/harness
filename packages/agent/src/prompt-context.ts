@@ -86,13 +86,30 @@ export async function buildPromptContext(
     where: { task: { projectId } },
     orderBy: { createdAt: 'desc' },
     take: lookback,
-    include: { task: { select: { id: true, description: true, title: true } } },
+    include: { task: { select: { id: true, description: true, title: true, provider: true, model: true } } },
+  });
+
+  const globalTelemetryRuns = await prisma.agentRun.findMany({
+    where: { providerCalls: { gt: 0 } },
+    orderBy: { createdAt: 'desc' },
+    take: lookback,
+    include: { task: { select: { title: true, provider: true, model: true, project: { select: { name: true } } } } },
   });
 
   if (recentRuns.length === 0) {
     const hints = buildTaskSpecificHints(extractTaskKeywords(options.taskDescription));
+    const telemetry = globalTelemetryRuns.map((run) => {
+      const effective = run.effectiveModel ?? run.task.model ?? 'unknown';
+      return `- ${run.task.project.name}/${run.task.title}: ${String(run.providerCalls)} provider calls, ${String(run.providerRateLimitRetries)} rate-limit retries, ${String(run.providerRotations)} rotations, effective model ${effective}`;
+    });
+    const text = [
+      hints ? `Task-specific guidance:\n${hints}` : '',
+      telemetry.length > 0
+        ? `Recent global harness telemetry:\n${telemetry.join('\n')}\nPrefer healthy free-model alternatives when rate limits recur.`
+        : '',
+    ].filter(Boolean).join('\n\n');
     return {
-      text: hints ? `Task-specific guidance:\n${hints}` : '',
+      text,
       runsAnalysed: 0,
     };
   }
@@ -240,6 +257,40 @@ export async function buildPromptContext(
   if (toolLines.length > 0) {
     lines.push('- Tool usage:');
     lines.push(...toolLines);
+  }
+
+  const routingLines = recentRuns
+    .filter((run) => run.providerCalls > 0 || run.providerRotations > 0 || run.tokenBudgetExceeded)
+    .map((run) => {
+      let models: string[] = [];
+      if (run.modelsTried) {
+        try {
+          const parsed = JSON.parse(run.modelsTried) as unknown;
+          if (Array.isArray(parsed)) models = parsed.filter((model): model is string => typeof model === 'string');
+        } catch {
+          // Ignore malformed historical telemetry.
+        }
+      }
+      const effective = run.effectiveModel ?? run.task.model ?? 'unknown';
+      const budget = run.tokenBudgetExceeded ? ', token budget exceeded' : '';
+      return `- ${run.task.title}: ${String(run.providerCalls)} provider calls, ${String(run.providerRateLimitRetries)} rate-limit retries, ${String(run.providerRotations)} rotations, effective model ${effective}${models.length > 0 ? ` (tried ${models.join(', ')})` : ''}${budget}`;
+    });
+  if (routingLines.length > 0) {
+    lines.push('- Provider and budget health from recent runs:');
+    lines.push(...routingLines);
+    lines.push('Prefer healthy free-model alternatives when rate limits recur. Do not lower verification quality to fit a token budget.');
+  }
+
+  const localRunIds = new Set(recentRuns.map((run) => run.id));
+  const globalRoutingLines = globalTelemetryRuns
+    .filter((run) => !localRunIds.has(run.id))
+    .map((run) => {
+      const effective = run.effectiveModel ?? run.task.model ?? 'unknown';
+      return `- ${run.task.project.name}/${run.task.title}: ${String(run.providerCalls)} provider calls, ${String(run.providerRateLimitRetries)} rate-limit retries, ${String(run.providerRotations)} rotations, effective model ${effective}`;
+    });
+  if (globalRoutingLines.length > 0) {
+    lines.push('- Recent global harness telemetry (other projects):');
+    lines.push(...globalRoutingLines);
   }
 
   if (failurePatterns.length > 0) {

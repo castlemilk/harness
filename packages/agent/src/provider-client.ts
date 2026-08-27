@@ -1,4 +1,4 @@
-import type { Provider, ProviderEvent, ToolCall, ToolDefinition, SendOptions, UsageInfo } from '@omega/core';
+import type { Provider, ProviderEvent, ProviderTelemetry, ToolCall, ToolDefinition, SendOptions, UsageInfo } from '@omega/core';
 import type { IntelligentRouter } from '@omega/router';
 import { abortableSleep } from './retry.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
@@ -28,6 +28,8 @@ interface ProviderContext {
   rootSpan: Span;
   promptContext?: string;
   usage: UsageInfo;
+  providerTelemetry: ProviderTelemetry;
+  deadlineMs: number;
 }
 
 // --- Usage tracking ---
@@ -46,7 +48,7 @@ export function recordUsage(ctx: ProviderContext, usage: UsageInfo): void {
   }
 }
 
-export function trackProviderEvents(span: Span): (event: ProviderEvent) => void {
+export function trackProviderEvents(span: Span, telemetry?: ProviderTelemetry): (event: ProviderEvent) => void {
   const modelsTried = new Set<string>();
   let requestCount = 0;
   let retryCount = 0;
@@ -58,16 +60,27 @@ export function trackProviderEvents(span: Span): (event: ProviderEvent) => void 
     if (event.type === 'request') {
       requestCount++;
       modelsTried.add(event.model);
+      if (telemetry) telemetry.calls++;
     } else if (event.type === 'retry') {
       retryCount++;
       if (event.status === 429) rateLimitRetries++;
       modelsTried.add(event.model);
+      if (telemetry) {
+        telemetry.retries++;
+        if (event.status === 429) telemetry.rateLimitRetries++;
+      }
     } else if (event.type === 'rotation') {
       rotationCount++;
       modelsTried.add(event.model);
       modelsTried.add(event.nextModel);
+      if (telemetry) telemetry.rotations++;
     } else {
       modelsTried.add(event.model);
+    }
+    if (telemetry) {
+      telemetry.modelsTried = [...new Set([...telemetry.modelsTried, ...modelsTried])];
+      telemetry.effectiveModel = event.type === 'rotation' ? event.nextModel : event.model;
+      if (event.type === 'response' || event.type === 'error') telemetry.lastStatus = event.status;
     }
     span.setAttributes({
       effectiveModel: event.type === 'rotation' ? event.nextModel : event.model,
@@ -126,7 +139,7 @@ export async function sendToProvider(
 ): Promise<{ content?: string; toolCalls?: string; reasoningContent?: string }> {
   const span = ctx.tracer.startSpan('provider.send', ctx.rootSpan.toContext());
   span.setAttributes({ provider: ctx.provider.config.name, model: ctx.model });
-  const onEvent = trackProviderEvents(span);
+  const onEvent = trackProviderEvents(span, ctx.providerTelemetry);
 
   if (ctx.signal?.aborted) {
     const error = new DOMException('AbortError', 'AbortError');
@@ -158,63 +171,78 @@ export async function sendToProvider(
 
   const TURN_BACKOFFS_MS = [30_000, 60_000, 90_000];
   for (let attempt = 0; ; attempt++) {
-  try {
-    if (typeof provider.sendWithTools === 'function') {
+    if (Date.now() >= ctx.deadlineMs) {
+      const error = new Error('Agent deadline exceeded while waiting for provider');
+      span.recordError(error);
+      await span.end('error');
+      throw error;
+    }
+
+    const timeoutMs = Math.min(120_000, Math.max(1, ctx.deadlineMs - Date.now()));
+    try {
+      if (typeof provider.sendWithTools === 'function') {
+        const sendMessages = prompt ? [...baseMessages, { role: 'user' as const, content: prompt }] : baseMessages;
+        const raw = await provider.sendWithTools(prompt ?? 'Execute the next step.', AGENT_TOOLS, {
+          system: ctx.systemPrompt,
+          model: ctx.model,
+          temperature: 0.3,
+          timeoutMs,
+          onUsage,
+          messages: sendMessages,
+          onEvent,
+        });
+        span.addEvent('provider.response.received');
+        const parsed = parseProviderResponse(raw);
+        await span.end('ok');
+        return parsed;
+      }
+
       const sendMessages = prompt ? [...baseMessages, { role: 'user' as const, content: prompt }] : baseMessages;
-      const raw = await provider.sendWithTools(prompt ?? 'Execute the next step.', AGENT_TOOLS, {
-        system: ctx.systemPrompt,
+      const transcript = sendMessages
+        .map((m) => {
+          if (m.role === 'assistant' && m.tool_calls && m.tool_calls.length > 0) {
+            const calls = m.tool_calls
+              .map((tc) => `  - ${tc.function?.name ?? ''}(${tc.function?.arguments ?? ''})`)
+              .join('\n');
+            return `[assistant] ${m.content ?? ''}\nTool calls:\n${calls}`;
+          }
+          if (m.role === 'tool') {
+            return `[tool result for ${m.tool_call_id ?? ''}]\n${m.content ?? ''}`;
+          }
+          return `[${m.role}] ${m.content ?? ''}`;
+        })
+        .join('\n\n');
+      const raw = await provider.send(transcript, {
+        system: ctx.textToolsSystemPrompt,
         model: ctx.model,
-        temperature: 0.3,
+        timeoutMs,
         onUsage,
-        messages: sendMessages,
         onEvent,
       });
       span.addEvent('provider.response.received');
       const parsed = parseProviderResponse(raw);
       await span.end('ok');
       return parsed;
-    }
-
-    const sendMessages = prompt ? [...baseMessages, { role: 'user' as const, content: prompt }] : baseMessages;
-    const transcript = sendMessages
-      .map((m) => {
-        if (m.role === 'assistant' && m.tool_calls && m.tool_calls.length > 0) {
-          const calls = m.tool_calls
-            .map((tc) => `  - ${tc.function?.name ?? ''}(${tc.function?.arguments ?? ''})`)
-            .join('\n');
-          return `[assistant] ${m.content ?? ''}\nTool calls:\n${calls}`;
-        }
-        if (m.role === 'tool') {
-          return `[tool result for ${m.tool_call_id ?? ''}]\n${m.content ?? ''}`;
-        }
-        return `[${m.role}] ${m.content ?? ''}`;
-      })
-      .join('\n\n');
-    const raw = await provider.send(transcript, {
-      system: ctx.textToolsSystemPrompt,
-      model: ctx.model,
-      onUsage,
-      onEvent,
-    });
-    span.addEvent('provider.response.received');
-    const parsed = parseProviderResponse(raw);
-    await span.end('ok');
-    return parsed;
-  } catch (err) {
+    } catch (err) {
+      if (Date.now() >= ctx.deadlineMs) {
+        span.recordError(err);
+        await span.end('error');
+        throw err;
+      }
       if (attempt < TURN_BACKOFFS_MS.length) {
-      const waitMs = TURN_BACKOFFS_MS[attempt];
-      logger.warn('Provider call failed, retrying turn after backoff', {
-        attempt: attempt + 1,
-        waitMs,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      await abortableSleep(waitMs, ctx.signal);
-      continue;
+        const waitMs = Math.min(TURN_BACKOFFS_MS[attempt], Math.max(0, ctx.deadlineMs - Date.now()));
+        logger.warn('Provider call failed, retrying turn after backoff', {
+          attempt: attempt + 1,
+          waitMs,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        await abortableSleep(waitMs, ctx.signal);
+        continue;
+      }
+      span.recordError(err);
+      await span.end('error');
+      throw err;
     }
-    span.recordError(err);
-    await span.end('error');
-    throw err;
-  }
   }
 }
 

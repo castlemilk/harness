@@ -140,6 +140,15 @@ async function runTask(apiUrl, taskId) {
   return res.json();
 }
 
+async function pinTaskProvider(apiUrl, taskId, provider, model) {
+  const res = await fetch(`${apiUrl}/tasks/${taskId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, model }),
+  });
+  if (!res.ok) throw new Error(`pinTaskProvider failed: ${res.status}`);
+}
+
 async function waitForTask(apiUrl, taskId, maxMs = 60000) {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
@@ -205,11 +214,7 @@ async function main() {
   const httpCreateStart = Date.now();
   const httpTask = await createTask(apiUrl, project.id, 'HTTP benchmark task');
   results.measurements.httpCreateTaskMs = Date.now() - httpCreateStart;
-
-  // gRPC task submission + auto-run latency
-  const client = grpcClient(grpcPort);
-  const grpcResult = await grpcSubmit(client, project.id, 'gRPC benchmark task');
-  results.measurements.grpcSubmitTaskMs = grpcResult.latency;
+  await pinTaskProvider(apiUrl, httpTask.id, 'benchmark-kimi', 'moonshot-v1-8k');
 
   // Time to run a simple task through the mock LLM
   const runStart = Date.now();
@@ -218,9 +223,18 @@ async function main() {
   results.measurements.taskRunTotalMs = Date.now() - runStart;
   results.measurements.taskStatus = finishedTask.status;
 
+  // Submit the gRPC task only after the HTTP run completes so the two
+  // measurements do not contend for the task queue. The RPC includes
+  // auto-run scheduling; completion is measured separately below.
+  const client = grpcClient(grpcPort);
+  const grpcResult = await grpcSubmit(client, project.id, 'gRPC benchmark task');
+  results.measurements.grpcSubmitTaskMs = grpcResult.latency;
+
   // gRPC task completion time
   const grpcTaskId = grpcResult.response.id;
+  const grpcRunStart = Date.now();
   const grpcFinished = await waitForTask(apiUrl, grpcTaskId);
+  results.measurements.grpcTaskRunTotalMs = Date.now() - grpcRunStart;
   results.measurements.grpcTaskStatus = grpcFinished.status;
 
   await fs.writeFile(reportFile, JSON.stringify(results, null, 2), 'utf-8');

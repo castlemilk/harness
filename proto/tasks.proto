@@ -14,6 +14,8 @@ message TaskRequest {
   string complexity = 4;
   repeated string tags = 5;
   bool auto_run = 6;
+  string provider = 7;
+  string model = 8;
 }
 
 message TaskResponse {

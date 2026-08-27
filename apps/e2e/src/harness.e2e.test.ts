@@ -162,11 +162,17 @@ describe('harness e2e with Kimi', () => {
 
     const runRes = await fetch(`${API}/tasks/${task.id}/run`, { method: 'POST' });
     expect(runRes.status).toBe(202);
-    const ran = (await runRes.json()) as { status: string; result?: string; error?: string };
+    const accepted = (await runRes.json()) as { status: string; result?: string; error?: string };
+    expect(['in_progress', 'done']).toContain(accepted.status);
 
-    if (ran.status !== 'done') {
-      console.error('Task failed:', ran.error);
+    const deadline = Date.now() + 30000;
+    let ran: { status: string; result?: string; error?: string } = accepted;
+    while (ran.status !== 'done' && ran.status !== 'failed' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      const statusRes = await fetch(`${API}/tasks/${task.id}`);
+      ran = (await statusRes.json()) as typeof ran;
     }
+
     expect(ran.status).toBe('done');
     expect(ran.result).toBeTruthy();
     expect(ran.result?.length).toBeGreaterThan(10);

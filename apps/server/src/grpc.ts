@@ -47,6 +47,8 @@ interface SubmitTaskRequest {
   complexity?: string;
   tags?: string[];
   auto_run?: boolean;
+  provider?: string;
+  model?: string;
 }
 
 interface StreamTasksRequest {
@@ -66,6 +68,8 @@ function parseRequest(req: unknown): SubmitTaskRequest {
     complexity: typeof r.complexity === 'string' ? r.complexity : undefined,
     tags: Array.isArray(r.tags) ? r.tags.filter((t): t is string => typeof t === 'string') : undefined,
     auto_run: typeof r.auto_run === 'boolean' ? r.auto_run : undefined,
+    provider: typeof r.provider === 'string' && r.provider.length > 0 ? r.provider : undefined,
+    model: typeof r.model === 'string' && r.model.length > 0 ? r.model : undefined,
   };
 }
 
@@ -94,6 +98,8 @@ export function startGrpcServer(prisma: PrismaClient, port = 50051, host = '127.
               description: req.description ?? null,
               complexity,
               tags: JSON.stringify(req.tags ?? []),
+              provider: req.provider ?? null,
+              model: req.model ?? null,
             },
           });
 

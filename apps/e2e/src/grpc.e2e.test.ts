@@ -178,6 +178,8 @@ describe('harness gRPC task ingestion', () => {
           title: 'Auto-run via gRPC',
           complexity: 'complex',
           auto_run: true,
+          provider: 'grpc-mock',
+          model: 'moonshot-v1-8k',
         },
         (err, res) => {
           if (err) reject(err);

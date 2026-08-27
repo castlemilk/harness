@@ -29,7 +29,7 @@ A local-first, model-agnostic harness for scheduling work across projects, routi
 
 ```
 apps/
-  server/     Express API + SQLite (Prisma)
+  server/     Express API + PGlite (embedded Postgres, Prisma)
   web/        React + Vite + Tailwind UI
   cli/        harness CLI
 packages/
@@ -110,7 +110,7 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
-`pnpm install` runs `prepare`, which generates the Prisma client and builds all workspace packages.
+`pnpm install` runs a small `postinstall` fix-up for `node-pty`; generate the Prisma client and migrate with `pnpm db:generate && pnpm db:migrate` (or `task setup`, which does all of it).
 
 You can also download a release tarball from https://github.com/castlemilk/harness/releases/latest and run the same commands inside the extracted directory.
 
@@ -122,7 +122,7 @@ You can also download a release tarball from https://github.com/castlemilk/harne
 pnpm --filter @omega/server start
 ```
 
-The server runs on http://localhost:4000. It stores projects, tasks, and provider configs in a local SQLite database.
+The server runs on http://localhost:4000. It stores projects, tasks, and provider configs in a local PGlite database (embedded Postgres) under `pglite-data/`.
 
 ### 2. Start the web UI
 

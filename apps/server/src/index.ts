@@ -88,30 +88,75 @@ async function bootstrap(): Promise<void> {
     void checkThresholds(prisma, router);
   }, 5 * 60 * 1000);
 
+  // Graceful shutdown gets this long before the watchdog forces the exit.
+  // Tunable because a deployment with genuinely slow cleanup (large state
+  // persistence, long DB flush) may want more; the default only has to cover
+  // the steps above, not a drain of in-flight tasks (see below).
+  const FORCE_EXIT_MS = Number(process.env.OMEGA_SHUTDOWN_FORCE_MS ?? 10_000);
+
+  let shuttingDown = false;
+
   const shutdown = async (signal: string): Promise<void> => {
     console.log(`${signal} received, shutting down…`);
-    clearInterval(alertInterval);
-    foremanEngine?.stop();
+    const forceExit = setTimeout(() => {
+      console.error(`Graceful shutdown exceeded ${String(FORCE_EXIT_MS)}ms — forcing exit`);
+      process.exit(1);
+    }, FORCE_EXIT_MS);
+    forceExit.unref();
 
-    const status = queue.status();
-    console.log(`Queue: ${String(status.active)} active, ${String(status.queued)} queued`);
+    let exitCode = 0;
+    try {
+      clearInterval(alertInterval);
+      foremanEngine?.stop();
 
-    // Shutdown router (persists state, clears intervals)
-    await shutdownRouter();
+      const status = queue.status();
+      console.log(`Queue: ${String(status.active)} active, ${String(status.queued)} queued`);
 
-    // Close servers
-    server.close();
-    grpcServer.forceShutdown();
+      // Shutdown router (persists state, clears intervals)
+      await shutdownRouter();
 
-    await queue.drain();
+      // Close servers. closeAllConnections() matters as much as close():
+      // close() only stops new connections, so keep-alive sockets and live
+      // SSE streams (which hold their own poll intervals) would keep the
+      // event loop busy until their clients go away.
+      server.close();
+      server.closeAllConnections();
+      grpcServer.forceShutdown();
 
-    console.log('Queue drained, closing database');
-    await prisma.$disconnect();
-    process.exit(0);
+      // Drain what is running, within the watchdog's budget — NOT forever.
+      // An in-flight task can sit in 30/60/90s provider backoff retries for
+      // minutes; waiting for it meant SIGTERM was logged and process.exit
+      // was never reached, which is precisely the zombie server (port held,
+      // CPU pegged) that e2e timeout runs used to leave behind. Bootstrap's
+      // orphan recovery marks such tasks failed on the next start.
+      await queue.drain();
+    } catch (err) {
+      console.error('Shutdown step failed:', err);
+      exitCode = 1;
+    }
+
+    try {
+      console.log('Queue drained, closing database');
+      await prisma.$disconnect();
+    } catch (err) {
+      // The database is being torn down with the process; a failed
+      // disconnect must not stop the exit that is already overdue.
+      console.error('Database disconnect failed:', err);
+    }
+    process.exit(exitCode);
   };
 
-  process.on('SIGTERM', () => void shutdown('SIGTERM'));
-  process.on('SIGINT', () => void shutdown('SIGINT'));
+  const onSignal = (signal: string): void => {
+    // A second signal is someone insisting. Exit now, mid-cleanup.
+    if (shuttingDown) {
+      console.error(`${signal} during shutdown — forcing exit`);
+      process.exit(1);
+    }
+    shuttingDown = true;
+    void shutdown(signal);
+  };
+  process.on('SIGTERM', () => { onSignal('SIGTERM'); });
+  process.on('SIGINT', () => { onSignal('SIGINT'); });
 }
 bootstrap().catch((err: unknown) => {
   console.error(err);

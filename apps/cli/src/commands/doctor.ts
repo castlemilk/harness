@@ -234,7 +234,7 @@ export const doctorCmd = new Command('doctor')
  * the shell's own views say so honestly when it is absent.
  */
 async function pluginFindings(root: string): Promise<Finding[]> {
-  const { plugins, error } = await resolvePlugins(root);
+  const { plugins, skipped, error } = await resolvePlugins(root);
 
   if (error !== null) {
     return [
@@ -271,6 +271,20 @@ async function pluginFindings(root: string): Promise<Finding[]> {
       detail: `${lines.join('\n')}\nThe Plugins tab in the web app shows the same list, with live health.`,
     },
   ];
+
+  if (skipped.length > 0) {
+    // Optional entries pointing at a checkout this machine does not have.
+    // Not a problem by definition — that is what "optional" means — but an
+    // operator comparing this machine against one where the tabs DO appear
+    // should be able to see why without diffing foreman-plugins.json.
+    findings.push({
+      level: 'ok',
+      title: `${String(skipped.length)} optional plugin(s) not installed (skipped)`,
+      detail:
+        skipped.map((s) => `${s.spec}  (${s.reason})`).join('\n') +
+        `\nSet FOREMAN_PLUGINS or edit foreman-plugins.json to point at their checkout.`,
+    });
+  }
 
   for (const plugin of plugins) {
     const sources = pluginSourcesOnDisk(plugin.dir);

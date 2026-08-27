@@ -110,28 +110,42 @@ describe('against the real configuration', () => {
   it('resolves foreman-plugins.json the way the build does', async () => {
     const { plugins, error } = await resolvePlugins(root);
     expect(error).toBeNull();
-    expect(plugins.map((p) => p.id)).toEqual(['victoria', 'polymarket']);
-    for (const plugin of plugins) {
-      // The shells live in the omega repo; that is what doctor has to be able
-      // to say out loud when they are absent.
-      expect(isOutOfTree(plugin.dir, root)).toBe(true);
-      expect(pluginPackage(plugin.dir)?.version).toBeTruthy();
-    }
+    // prompt-lab is first-party and required — it resolves at every checkout.
+    expect(plugins.map((p) => p.id)).toContain('prompt-lab');
+    const lab = plugins.find((p) => p.id === 'prompt-lab');
+    expect(lab).toBeDefined();
+    expect(isOutOfTree(lab?.dir ?? '', root)).toBe(false);
+    expect(pluginPackage(lab?.dir ?? '')?.version).toBeTruthy();
   });
 
-  it('finds Victoria’s one backend, and Polymarket’s none', async () => {
-    const { plugins } = await resolvePlugins(root);
-    const victoria = plugins.find((p) => p.id === 'victoria');
-    const polymarket = plugins.find((p) => p.id === 'polymarket');
-    expect(pluginSourcesOnDisk(victoria?.dir ?? '')).toEqual([
-      {
-        id: 'omega-api',
-        label: 'Omega API',
-        baseUrl: 'http://localhost:8080',
-        envVar: 'VITE_UC_VICTORIA_URL',
-        probePath: '/api/v1/training/versions',
-      },
-    ]);
-    expect(pluginSourcesOnDisk(polymarket?.dir ?? '')).toEqual([]);
+  it('reports the omega shells as skipped when their checkout is absent', async () => {
+    const { plugins, skipped, error } = await resolvePlugins(root);
+    expect(error).toBeNull();
+    const installedIds = new Set(plugins.map((p) => p.id));
+    if (installedIds.has('victoria')) {
+      // The omega sibling exists on this machine: everything resolved, nothing
+      // was skipped, and the out-of-tree sources are still readable.
+      expect(skipped).toEqual([]);
+      const victoria = plugins.find((p) => p.id === 'victoria');
+      expect(isOutOfTree(victoria?.dir ?? '', root)).toBe(true);
+      expect(pluginSourcesOnDisk(victoria?.dir ?? '')).toEqual([
+        {
+          id: 'omega-api',
+          label: 'Omega API',
+          baseUrl: 'http://localhost:8080',
+          envVar: 'VITE_UC_VICTORIA_URL',
+          probePath: '/api/v1/training/versions',
+        },
+      ]);
+    } else {
+      // No sibling checkout here: the optional entries are reported, not fatal.
+      expect(skipped.map((s) => s.spec)).toEqual(
+        expect.arrayContaining(['../omega/foreman-plugins/victoria'])
+      );
+      for (const entry of skipped) {
+        expect(entry.reason).toBe('not installed');
+        expect(entry.source).toBe('foreman-plugins.json');
+      }
+    }
   });
 });

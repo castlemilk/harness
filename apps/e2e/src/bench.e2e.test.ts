@@ -40,6 +40,22 @@ function startMockLlmServer(): Promise<{ server: http.Server; port: number }> {
 
         if (req.url?.startsWith('/v1/chat/completions')) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
+          let parsedBody: { tools?: { function?: { name?: string } }[]; max_tokens?: number } = {};
+          try {
+            parsedBody = JSON.parse(body) as typeof parsedBody;
+          } catch {
+            parsedBody = {};
+          }
+          // Warmup connectivity probe (max_tokens=1, no tools): answer without
+          // consuming a scripted turn. POST /providers fires one at creation,
+          // and a probe that advanced `turn` would desync every scripted
+          // response after it — the planner would be handed the publish call
+          // and the whole run derails into retry backoffs.
+          const isWarmupProbe = parsedBody.max_tokens === 1 || (parsedBody.tools ?? []).length === 0;
+          if (isWarmupProbe) {
+            res.end(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }));
+            return;
+          }
           let response;
           if (turn === 0) {
             // Planning turn: return a simple plan.
@@ -51,6 +67,7 @@ function startMockLlmServer(): Promise<{ server: http.Server; port: number }> {
                       reasoning: 'noop benchmark task',
                       plan: [
                         { name: 'validate', tool: 'publish', input: {} },
+                        { name: 'test', tool: 'run_command', input: { command: 'node test.js' } },
                         { name: 'finish', tool: 'finish', input: { summary: 'done', success: true } },
                       ],
                     }),
@@ -69,6 +86,28 @@ function startMockLlmServer(): Promise<{ server: http.Server; port: number }> {
                         id: 'call-publish',
                         type: 'function',
                         function: { name: 'publish', arguments: JSON.stringify({}) },
+                      },
+                    ],
+                  },
+                },
+              ],
+            };
+          } else if (turn === 2) {
+            // Run the test command before finishing. The executor rejects a
+            // finish when the project carries a test script that no run_command
+            // ever invoked ("this task has a test suite but you have not run
+            // any test command") — a publish-then-finish script would be
+            // rejected on every turn until the step cap turned the run failed.
+            response = {
+              choices: [
+                {
+                  message: {
+                    content: '',
+                    tool_calls: [
+                      {
+                        id: 'call-test',
+                        type: 'function',
+                        function: { name: 'run_command', arguments: JSON.stringify({ command: 'node test.js' }) },
                       },
                     ],
                   },
@@ -194,6 +233,12 @@ describe('harness benchmark runner', () => {
       apiUrl: API,
       suiteName: 'e2e-synthetic',
       timeoutMs: 60000,
+      // Pin the mock explicitly. Without this the runner leaves the task
+      // unpinned and the router chooses among ALL enabled providers — on any
+      // machine with seeded defaults that is ollama-local/llama3, whose 404s
+      // retry on 30s/60s/90s backoffs and blow the test's deadline.
+      provider: 'bench-mock',
+      model: 'moonshot-v1-8k',
     });
 
     expect(report.total).toBe(1);
@@ -205,8 +250,15 @@ describe('harness benchmark runner', () => {
     expect(reportFile).toContain('benchmark-');
   }, 120000);
 
-  afterAll(() => {
-    server?.kill();
+  afterAll(async () => {
+    if (server) {
+      server.kill();
+      await new Promise((r) => setTimeout(r, 500));
+      // The server force-exits on SIGTERM within its watchdog budget, but a
+      // hung graceful path must not leak a process that holds port 4005 and
+      // poisons every later run against it.
+      if (!server.killed) server.kill('SIGKILL');
+    }
     mockLlm?.server.close();
   });
 });

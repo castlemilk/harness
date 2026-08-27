@@ -49,26 +49,48 @@ export interface DeclaredSource {
 }
 
 interface DiscoveryModule {
-  loadPlugins: (options?: { root?: string }) => ResolvedPlugin[];
+  loadPlugins: (options?: {
+    root?: string;
+    onSkipped?: (entry: { spec: string; source: string; reason: string }) => void;
+  }) => ResolvedPlugin[];
+}
+
+/** An optional entry that resolved to nothing — configured, absent, fine. */
+export interface SkippedPlugin {
+  /** The configured path, verbatim. */
+  spec: string;
+  /** Where the path came from: the config file or the env override. */
+  source: string;
+  /** Why it did not load, verbatim from discovery. */
+  reason: string;
 }
 
 /**
  * Resolve `foreman-plugins.json` exactly as the build does, or return the
  * error it would have failed with. Never throws: doctor's job is to report a
  * broken configuration, not to inherit it.
+ *
+ * Optional entries whose directory does not exist come back in `skipped`
+ * rather than as an error — they are configuration pointing at a checkout this
+ * machine does not have, which is worth saying out loud but not a problem.
  */
 export async function resolvePlugins(
   root: string,
-): Promise<{ plugins: ResolvedPlugin[]; error: string | null }> {
+): Promise<{ plugins: ResolvedPlugin[]; skipped: SkippedPlugin[]; error: string | null }> {
   const discovery = path.join(root, 'apps/web/plugin-discovery.mjs');
   if (!fs.existsSync(discovery)) {
-    return { plugins: [], error: `Plugin discovery is missing: ${discovery}` };
+    return { plugins: [], skipped: [], error: `Plugin discovery is missing: ${discovery}` };
   }
+  const skipped: SkippedPlugin[] = [];
   try {
     const mod = (await import(pathToFileURL(discovery).href)) as DiscoveryModule;
-    return { plugins: mod.loadPlugins({ root }), error: null };
+    const plugins = mod.loadPlugins({
+      root,
+      onSkipped: (entry) => skipped.push(entry),
+    });
+    return { plugins, skipped, error: null };
   } catch (err) {
-    return { plugins: [], error: err instanceof Error ? err.message : String(err) };
+    return { plugins: [], skipped, error: err instanceof Error ? err.message : String(err) };
   }
 }
 

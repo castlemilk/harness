@@ -56,6 +56,36 @@ describe('parsePluginSpecs', () => {
     expect(parsePluginSpecs({ configText: '{"plugins":[]}', env: {} }).specs).toEqual([]);
   });
 
+  it('reads the optional array alongside plugins', () => {
+    const { source, specs, optionalSpecs } = parsePluginSpecs({
+      configText: '{"plugins":["./a"],"optional":["../elsewhere/b","../elsewhere/c"]}',
+      env: {},
+    });
+    expect(source).toBe(CONFIG_FILE);
+    expect(specs).toEqual(['./a']);
+    expect(optionalSpecs).toEqual(['../elsewhere/b', '../elsewhere/c']);
+  });
+
+  it('defaults optionalSpecs to empty when the config names none', () => {
+    expect(parsePluginSpecs({ configText: '{"plugins":["./a"]}', env: {} }).optionalSpecs).toEqual([]);
+  });
+
+  it('rejects an optional that is not an array of strings', () => {
+    expect(() => parsePluginSpecs({ configText: '{"plugins":[],"optional":"./a"}', env: {} })).toThrow(
+      /"optional" must be an array of path strings, got "\.\/a"/
+    );
+  });
+
+  it('the FOREMAN_PLUGINS override carries no optionals — what you listed is everything', () => {
+    const { source, specs, optionalSpecs } = parsePluginSpecs({
+      configText: '{"plugins":["./from-file"],"optional":["./opt"]}',
+      env: { FOREMAN_PLUGINS: './only' },
+    });
+    expect(source).toBe('FOREMAN_PLUGINS');
+    expect(specs).toEqual(['./only']);
+    expect(optionalSpecs).toEqual([]);
+  });
+
   it('says what to write when the config file is absent', () => {
     expect(() => parsePluginSpecs({ configText: undefined, env: {} })).toThrow(
       /foreman-plugins\.json not found at the repo root[\s\S]*FOREMAN_PLUGINS/
@@ -161,11 +191,58 @@ describe('loadPlugins', () => {
     ).toThrow(/resolve to the same entry module \/repo\/a\/index\.ts/);
   });
 
-  it('reads the repo\'s real config, and every plugin in it is on disk', () => {
+  it('skips an optional entry whose directory is absent, and says so via onSkipped', () => {
+    // The live configuration: the omega repo's shells are optional, and a
+    // harness checked out without that sibling still builds.
+    const statPath = fakeStat(['/repo/foreman-plugins/prompt-lab'], ['/repo/foreman-plugins/prompt-lab/index.ts']);
+    const skipped = [];
+    const plugins = loadPlugins({
+      root: '/repo',
+      env: {},
+      readFile: () => '{"plugins":["./foreman-plugins/prompt-lab"],"optional":["../omega/foreman-plugins/victoria"]}',
+      statPath,
+      onSkipped: (entry) => skipped.push(entry),
+    });
+    expect(plugins.map((p) => p.id)).toEqual(['prompt-lab']);
+    expect(skipped).toEqual([{ spec: '../omega/foreman-plugins/victoria', source: 'foreman-plugins.json', reason: 'not installed' }]);
+  });
+
+  it('still fails an optional that exists but is broken', () => {
+    const statPath = fakeStat(['/repo/hollow'], []);
+    expect(() =>
+      loadPlugins({
+        root: '/repo',
+        env: {},
+        readFile: () => '{"plugins":[],"optional":["./hollow"]}',
+        statPath,
+      })
+    ).toThrow(/has no entry module/);
+  });
+
+  it('refuses an optional that duplicates a required entry', () => {
+    const statPath = fakeStat(['/repo/a'], ['/repo/a/index.ts']);
+    expect(() =>
+      loadPlugins({
+        root: '/repo',
+        env: {},
+        readFile: () => '{"plugins":["./a"],"optional":["/repo/a"]}',
+        statPath,
+      })
+    ).toThrow(/resolve to the same entry module \/repo\/a\/index\.ts/);
+  });
+
+  it('reads the repo\'s real config, and every required plugin in it is on disk', () => {
     // Not a fixture: this is the assertion that the checked-in
     // foreman-plugins.json is valid, which is the same call vite.config.ts makes.
+    // The prompt-lab shell is first-party (required, always first); the omega
+    // repo's shells are optional and appear only where that sibling checkout
+    // exists — `roster.test.ts` asserts whatever actually resolved.
     const plugins = pluginEntries();
-    expect(plugins.map((p) => p.id)).toEqual(['victoria', 'polymarket']);
+    const ids = plugins.map((p) => p.id);
+    expect(ids[0]).toBe('prompt-lab');
+    for (const extra of ids.slice(1)) {
+      expect(['victoria', 'polymarket']).toContain(extra);
+    }
     for (const plugin of plugins) {
       expect(plugin.entry.startsWith(plugin.dir + '/')).toBe(true);
     }

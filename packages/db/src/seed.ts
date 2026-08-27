@@ -13,6 +13,43 @@ export async function seedDefaults(): Promise<void> {
     },
   });
 
+  // OpenRouter — OpenAI-compatible aggregator. The policy for this harness is
+  // FREE AND DISCOUNTED MODELS ONLY: every capability listed here is a `:free`
+  // variant (or the Free Models Router, which routes within the free pool), so
+  // the router physically cannot pick a paid model through this provider.
+  // Curated from OpenRouter's /models list (tool-capable free variants only);
+  // re-check when rotating: a model losing its free variant makes agent runs
+  // 404 until it is removed here.
+  if (process.env.OPENROUTER_API_KEY) {
+    const freeModels = [
+      { name: 'z-ai/glm-5.2:free', level: 'advanced' },
+      { name: 'minimax/minimax-m3:free', level: 'advanced' },
+      { name: 'cohere/north-mini-code:free', level: 'advanced' },
+      { name: 'nvidia/nemotron-3-super-120b-a12b:free', level: 'capable' },
+      { name: 'nvidia/nemotron-3.5-lightning:free', level: 'capable' },
+      { name: 'openrouter/free', level: 'capable' },
+    ];
+    await prisma.providerConfig.upsert({
+      where: { name: 'openrouter' },
+      update: {
+        apiKey: process.env.OPENROUTER_API_KEY,
+        defaultModel: 'z-ai/glm-5.2:free',
+        enabled: true,
+        capabilities: JSON.stringify(freeModels.map((m) => ({ ...m, supportsTools: true }))),
+      },
+      create: {
+        name: 'openrouter',
+        kind: 'generic',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        apiKey: process.env.OPENROUTER_API_KEY,
+        defaultModel: 'z-ai/glm-5.2:free',
+        enabled: true,
+        capabilities: JSON.stringify(freeModels.map((m) => ({ ...m, supportsTools: true }))),
+      },
+    });
+    console.log('Seeded OpenRouter provider (free models only).');
+  }
+
   if (process.env.KIMI_API_KEY) {
     await prisma.providerConfig.upsert({
       where: { name: 'kimi' },

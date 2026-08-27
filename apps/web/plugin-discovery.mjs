@@ -6,9 +6,10 @@
  * Which directories those are is a **build-time configuration**, not a runtime
  * lookup: `foreman-plugins.json` at the repo root lists them, this module
  * resolves that list to absolute paths, and everything downstream is static
- * imports. So a plugin that is configured but not on disk fails the build with
- * the path in the message, and can never become a blank tab in front of an
- * operator.
+ * imports. So a required plugin that is configured but not on disk fails the
+ * build with the path in the message, and can never become a blank tab in front
+ * of an operator. Entries under `optional` are allowed to be absent — see
+ * `parsePluginSpecs`.
  *
  * Three tools read this, and they must agree or the failure is silent:
  *
@@ -40,10 +41,19 @@ const ENTRY_NAMES = ['index.ts', 'index.tsx', 'index.js', 'index.mjs'];
 /**
  * The configured plugin paths, before any of them touch the disk.
  *
+ * `plugins` are **required**: a configured path that is not on disk fails the
+ * build. `optional` entries resolve like any other but may be absent — a
+ * directory that does not exist skips with a note instead of failing, which is
+ * how the omega repo's shells (`../foreman-plugins/*`) stay configured here
+ * without demanding that checkout on every machine that builds this one. An
+ * optional path that EXISTS but is broken (no entry module, a duplicate entry)
+ * still fails: "absent" is a state of the world, "broken" is a bug.
+ *
  * `FOREMAN_PLUGINS` (comma-separated) replaces the file **entirely** rather
  * than adding to it — CI and one-off experiments want "exactly these", and an
  * override that merges gives you the file's plugins plus yours with no way to
- * ask for fewer. An empty override (`FOREMAN_PLUGINS=`) is treated as no
+ * ask for fewer. Under the override there are no optionals: what you listed is
+ * everything, required. An empty override (`FOREMAN_PLUGINS=`) is treated as no
  * override at all: an exported-but-empty variable is far more often a shell
  * accident than a request to ship an app with no domains. To ship none, say so
  * in the file — `{ "plugins": [] }`.
@@ -57,6 +67,7 @@ export function parsePluginSpecs({ configText, env = {} }) {
         .split(',')
         .map((s) => s.trim())
         .filter((s) => s !== ''),
+      optionalSpecs: [],
     };
   }
 
@@ -64,7 +75,7 @@ export function parsePluginSpecs({ configText, env = {} }) {
     throw new Error(
       `Foreman plugin discovery: ${CONFIG_FILE} not found at the repo root.\n` +
         `Create it with the plugins this build should ship, e.g.\n` +
-        `  { "plugins": ["../foreman-plugins/victoria"] }\n` +
+        `  { "plugins": ["./foreman-plugins/prompt-lab"] }\n` +
         `or set FOREMAN_PLUGINS=<comma-separated paths> to override it for this run.`
     );
   }
@@ -85,7 +96,22 @@ export function parsePluginSpecs({ configText, env = {} }) {
     );
   }
 
-  return { source: CONFIG_FILE, specs: plugins.map((p) => p.trim()).filter((p) => p !== '') };
+  const optional = parsed?.optional;
+  if (optional !== undefined && (!Array.isArray(optional) || optional.some((p) => typeof p !== 'string'))) {
+    throw new Error(
+      `Foreman plugin discovery: ${CONFIG_FILE}'s "optional" must be an array of path strings, got ${JSON.stringify(
+        optional
+      )}.`
+    );
+  }
+
+  return {
+    source: CONFIG_FILE,
+    specs: plugins.map((p) => p.trim()).filter((p) => p !== ''),
+    optionalSpecs: Array.isArray(optional)
+      ? optional.map((p) => p.trim()).filter((p) => p !== '')
+      : [],
+  };
 }
 
 /**
@@ -143,9 +169,20 @@ export function resolvePlugin(spec, { root = REPO_ROOT, source = CONFIG_FILE, st
 
 /**
  * Every configured plugin, resolved and validated. Throws on the first bad
- * entry: half a roster is not a useful thing to hand a build.
+ * *required* entry: half a roster is not a useful thing to hand a build.
+ *
+ * `optional` entries are resolved too, but one whose directory does not exist
+ * is skipped — reported through `onSkipped` when a caller wants the note (the
+ * doctor does), dropped silently otherwise, where "otherwise" is the build,
+ * which only cares that what it ships resolves.
  */
-export function loadPlugins({ root = REPO_ROOT, env = process.env, readFile = readFileSync, statPath = statSync } = {}) {
+export function loadPlugins({
+  root = REPO_ROOT,
+  env = process.env,
+  readFile = readFileSync,
+  statPath = statSync,
+  onSkipped,
+} = {}) {
   const configPath = join(root, CONFIG_FILE);
   let configText;
   try {
@@ -154,11 +191,11 @@ export function loadPlugins({ root = REPO_ROOT, env = process.env, readFile = re
     configText = undefined;
   }
 
-  const { source, specs } = parsePluginSpecs({ configText, env });
-  const plugins = specs.map((spec) => resolvePlugin(spec, { root, source, statPath }));
+  const { source, specs, optionalSpecs } = parsePluginSpecs({ configText, env });
 
+  const plugins = [];
   const seen = new Map();
-  for (const plugin of plugins) {
+  const claim = (plugin) => {
     const prior = seen.get(plugin.entry);
     if (prior !== undefined) {
       throw new Error(
@@ -166,6 +203,25 @@ export function loadPlugins({ root = REPO_ROOT, env = process.env, readFile = re
       );
     }
     seen.set(plugin.entry, plugin.spec);
+    plugins.push(plugin);
+  };
+
+  for (const spec of specs) claim(resolvePlugin(spec, { root, source, statPath }));
+
+  for (const spec of optionalSpecs) {
+    try {
+      claim(resolvePlugin(spec, { root, source, statPath }));
+    } catch (err) {
+      // Skip only true absence. A directory that exists but has no entry
+      // module, or an entry shared with another plugin, is a bug in something
+      // that IS installed — failing loudly beats a quietly missing tab.
+      const abs = isAbsolute(spec) ? spec : resolve(root, spec);
+      if (tryStat(abs, statPath) === null) {
+        onSkipped?.({ spec, source, reason: 'not installed' });
+        continue;
+      }
+      throw err;
+    }
   }
 
   return plugins;

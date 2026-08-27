@@ -38,6 +38,19 @@ function startMockLlmServer(): Promise<{ server: http.Server; port: number }> {
 
         if (req.url?.startsWith('/v1/chat/completions')) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
+          // Warmup connectivity probe (max_tokens=1): answer without consuming
+          // a scripted turn — POST /providers fires one at creation, and a
+          // probe that advanced `turn` desyncs every response after it.
+          let parsedBody: { max_tokens?: number } = {};
+          try {
+            parsedBody = JSON.parse(body) as typeof parsedBody;
+          } catch {
+            parsedBody = {};
+          }
+          if (parsedBody.max_tokens === 1) {
+            res.end(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }));
+            return;
+          }
           let response;
           if (turn === 0) {
             response = {
@@ -63,6 +76,24 @@ function startMockLlmServer(): Promise<{ server: http.Server; port: number }> {
                     content: JSON.stringify({
                       tool_calls: [
                         { id: 'call-publish', name: 'publish', arguments: {} },
+                      ],
+                    }),
+                  },
+                },
+              ],
+            };
+          } else if (turn === 2) {
+            // Run the test command before finishing: the executor rejects a
+            // finish when the project carries a test script that no run_command
+            // ever invoked, so publish-then-finish would be rejected until the
+            // step cap turned the run failed.
+            response = {
+              choices: [
+                {
+                  message: {
+                    content: JSON.stringify({
+                      tool_calls: [
+                        { id: 'call-test', name: 'run_command', arguments: { command: 'node test.js' } },
                       ],
                     }),
                   },
@@ -160,6 +191,14 @@ describe('harness bench CLI', () => {
       'noop-validation',
       '--timeout',
       '60000',
+      // Pin the mock provider: unpinned (or misnamed), the router falls back
+      // to seeded defaults like ollama-local, whose failures retry on 30/60/90s
+      // backoffs and blow any reasonable deadline. Must match the name the
+      // provider was registered with below.
+      '--provider',
+      'bench-cli-mock',
+      '--model',
+      'moonshot-v1-8k',
       '--output-dir',
       reportsDir,
     ], { cwd: root, env, stdio: 'pipe' });
@@ -191,8 +230,14 @@ describe('harness bench CLI', () => {
     expect(optStdout).toContain('Created self-improve task');
   }, 300000);
 
-  afterAll(() => {
-    server?.kill();
+  afterAll(async () => {
+    if (server) {
+      server.kill();
+      await new Promise((r) => setTimeout(r, 500));
+      // SIGKILL fallback: a leaked server holds port 4006 and silently
+      // answers every later run against it with a stale database.
+      if (!server.killed) server.kill('SIGKILL');
+    }
     mockLlm?.server.close();
   });
 });

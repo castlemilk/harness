@@ -1,6 +1,9 @@
 {
   "plugins": [
-    "../foreman-plugins/victoria",
-    "../foreman-plugins/polymarket"
+    "./foreman-plugins/prompt-lab"
+  ],
+  "optional": [
+    "../omega/foreman-plugins/victoria",
+    "../omega/foreman-plugins/polymarket"
   ]
 }

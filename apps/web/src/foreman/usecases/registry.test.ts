@@ -232,10 +232,17 @@ describe('registerRoster', () => {
     );
   });
 
-  it('registers the app roster in order, victoria first', () => {
+  it('registers the app roster in order, the required shell first', () => {
     // Order is registration order, and the roster is the only thing that
     // registers in the app — so this is the tab-independent record of who ships.
-    expect(appRoster.map((s) => s.id)).toEqual(['victoria', 'polymarket', 'demo']);
+    // prompt-lab is first-party (always present); the omega shells follow when
+    // their optional checkout exists; the dev-only demo is last.
+    const expected = ['prompt-lab'];
+    const ids = new Set(appRoster.map((s) => s.id));
+    if (ids.has('victoria')) expected.push('victoria');
+    if (ids.has('polymarket')) expected.push('polymarket');
+    expected.push('demo');
+    expect(appRoster.map((s) => s.id)).toEqual(expected);
   });
 });
 

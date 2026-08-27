@@ -72,10 +72,12 @@ export default ts.config(
     // `../../types.js` still compiles in-tree and is exactly what would fail
     // the day the shell moves to its own repository, so it is an error here.
     //
-    // Scoped to the shell files that are still in this repository, which since
-    // OT-3 is exactly one: `demo.tsx`, the host-owned proof shell. Victoria and
-    // Polymarket now live in the omega repo (`foreman-plugins/`), and this rule
-    // does not reach them — a plugin is linted by its own repository.
+    // Scoped to the shell files that live in this repository: `demo.tsx`, the
+    // host-owned proof shell, and `foreman-plugins/prompt-lab/`, the
+    // first-party self-improvement shell — which is wired in through the same
+    // seam as an out-of-tree plugin and is held to the same rule. Victoria and
+    // Polymarket live in the omega repo (`foreman-plugins/` there), and this
+    // rule does not reach them — a plugin is linted by its own repository.
     //
     // Do NOT read that as "the seam is enforced by physics over there". In the
     // layout we actually ship, the harness is a CHILD of the omega checkout
@@ -93,7 +95,7 @@ export default ts.config(
     // legitimately import these, so they are not listed. Test files are
     // excluded: they assert *about* the seam, and import the roster
     // (`./index.js`) to exercise the real registration path.
-    files: ['apps/web/src/foreman/usecases/demo.tsx'],
+    files: ['apps/web/src/foreman/usecases/demo.tsx', 'foreman-plugins/**/*.tsx', 'foreman-plugins/**/*.ts'],
     ignores: ['**/*.test.ts', '**/*.test.tsx'],
     rules: {
       'no-restricted-imports': ['error', {

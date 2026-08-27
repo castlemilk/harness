@@ -216,6 +216,14 @@ export class IntelligentRouter {
           reasoning: 'Explicit model pin on task',
         };
       }
+      // A pin that names nothing enabled is almost always a typo or a stale
+      // config. Ignoring it silently looks exactly like "the router picked
+      // badly" from the outside and costs minutes of misdirected retries
+      // before anyone thinks to check the pin itself.
+      console.warn(
+        `[router] task ${task.id} pinned to "${am.provider}/${am.model}", but no enabled provider ` +
+          `with that id or name exists — ignoring the pin and routing by score`,
+      );
     }
 
     const weights = STRATEGY_WEIGHTS[strategy];

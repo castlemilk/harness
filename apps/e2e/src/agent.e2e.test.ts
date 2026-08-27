@@ -250,9 +250,28 @@ describe('harness agent loop', () => {
 
     const agentRunRes = await fetch(`${API}/tasks/${task.id}/agent-run`);
     expect(agentRunRes.status).toBe(200);
-    const agentRun = (await agentRunRes.json()) as { resultStatus: string; branch: string };
+    const agentRun = (await agentRunRes.json()) as {
+      resultStatus: string;
+      branch: string;
+      promptVersionId?: string;
+    };
     expect(agentRun.resultStatus).toBe('done');
     expect(agentRun.branch).toContain(task.id);
+
+    // Self-improvement ledger: every run is stamped with the prompt version it
+    // ran under, and that version is fetchable with its content hash.
+    expect(agentRun.promptVersionId).toBeTruthy();
+    const pvRes = await fetch(`${API}/prompt-versions/${String(agentRun.promptVersionId)}`);
+    expect(pvRes.status).toBe(200);
+    const promptVersion = (await pvRes.json()) as {
+      hash: string;
+      systemPrompt: string;
+      textToolsPrompt: string;
+    };
+    expect(promptVersion.hash).toMatch(/^[0-9a-f]{16}$/);
+    // The recorded prompts are the evaluated texts, not raw template source.
+    expect(promptVersion.systemPrompt).toContain('You are Omega');
+    expect(promptVersion.textToolsPrompt).not.toContain('${AGENT_SYSTEM_PROMPT}');
 
     const traceFlowRes = await fetch(`${API}/tasks/${task.id}/trace-flow`);
     expect(traceFlowRes.status).toBe(200);
@@ -270,5 +289,37 @@ describe('harness agent loop', () => {
     expect(spanNames).toContain('provider.send');
     expect(spanNames).toContain('agent.tool.write_file');
     expect(traceFlow.spans.some((s) => s.status === 'ok')).toBe(true);
-  }, 120000);
+
+    // Dedupe: a second run under unchanged prompts must reuse the SAME
+    // PromptVersion row — one hash is one version, or the ledger fragments
+    // into per-run noise and per-hash scoring means nothing.
+    const task2Res = await fetch(`${API}/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        projectId: project.id,
+        title: 'Create agent-output.md again',
+        description: 'A second run to prove prompt-version dedupe.',
+        complexity: 'complex',
+        tags: ['agent'],
+      }),
+    });
+    expect(task2Res.status).toBe(201);
+    const task2 = (await task2Res.json()) as { id: string };
+    await fetch(`${API}/tasks/${task2.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider: 'agent-mock', model: 'moonshot-v1-8k' }),
+    });
+    const run2Res = await fetch(`${API}/tasks/${task2.id}/run`, { method: 'POST' });
+    expect(run2Res.status).toBe(202);
+    const ran2 = await waitForTask(task2.id);
+    expect(ran2.status).toBe('done');
+
+    const run2 = (await (
+      await fetch(`${API}/tasks/${task2.id}/agent-run`)
+    ).json()) as { resultStatus: string; promptVersionId?: string };
+    expect(run2.resultStatus).toBe('done');
+    expect(run2.promptVersionId).toBe(agentRun.promptVersionId);
+  }, 180000);
 });

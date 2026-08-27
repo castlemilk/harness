@@ -169,11 +169,28 @@ describe('PluginsView', () => {
     );
   }
 
-  it('shows Victoria with its name, version, source and every view label', () => {
+  it('shows Prompt Lab with its name, version, in-repo source and both view labels', () => {
+    const html = render(objectives);
+    expect(html).toContain('Prompt Lab — self-improvement');
+    expect(html).toContain('v0.1.0');
+    // First-party, and the path says so — no "another checkout" caveat.
+    expect(html).toContain('./foreman-plugins/prompt-lab');
+    expect(html).toContain('in-repo');
+    expect(html).toContain('2 views');
+    for (const label of ['Prompts', 'Benchmarks']) {
+      expect(html).toContain(`>${label}</span>`);
+    }
+    // Its one declared backend, with the URL the operator would curl.
+    expect(html).toContain('Harness API');
+    expect(html).toContain('http://localhost:4000');
+  });
+
+  const hasVictoria = registered.some((s) => s.id === 'victoria');
+  (hasVictoria ? it : it.skip)('shows Victoria with its name, version, source and every view label', () => {
     const html = render(objectives);
     expect(html).toContain('Victoria — market trading');
     expect(html).toContain('v0.1.0');
-    expect(html).toContain('../foreman-plugins/victoria');
+    expect(html).toContain('../omega/foreman-plugins/victoria');
     expect(html).toContain('out-of-tree');
     expect(html).toContain('10 views');
     for (const label of ['Overview', 'Runs', 'Live', 'Trades', 'Equity', 'Signals', 'Gates', 'Conviction', 'Forensics', 'Journal']) {

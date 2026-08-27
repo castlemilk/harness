@@ -680,27 +680,35 @@ the repo root lists plugin locations, and a location may be **outside this
 repository** — that is the point of the file: a domain team keeps its shell in
 its own repo, depending on nothing but `@omega-harness/usecase-kit`.
 
-This repository's own config is the cross-repo case, not an example of one:
+This repository's own config is both cases at once — a first-party in-tree
+shell, plus the omega repo's shells as **optional**:
 
 ```json
 {
   "plugins": [
-    "../foreman-plugins/victoria",
-    "../foreman-plugins/polymarket"
+    "./foreman-plugins/prompt-lab"
+  ],
+  "optional": [
+    "../omega/foreman-plugins/victoria",
+    "../omega/foreman-plugins/polymarket"
   ]
 }
 ```
 
-Both paths point into the **omega repo**, which on this layout is the directory
-the harness is checked out inside (`~/projects/omega/harness` → `..` is
-`~/projects/omega`). An in-tree plugin, an out-of-tree one and an absolute path
-are all equally valid:
+`plugins` are **required**: every entry must resolve or the build fails.
+`optional` entries resolve exactly the same way when their checkout exists on
+the building machine, and are skipped with a note (surfaced by `task doctor`)
+when it does not. An optional path that *exists but is broken* — no entry
+module, a duplicate entry — still fails: absence is a state of the world, a
+broken plugin is a bug. The omega paths above match the sibling layout
+(`~/projects/omega` beside `~/projects/harness`); under the nested layout
+(`omega/harness`) they simply do not resolve and the shells are skipped unless
+you override (see `FOREMAN_PLUGINS` below). Paths, required or optional:
 
 ```json
 {
   "plugins": [
-    "./apps/web/src/foreman/usecases/some-in-tree-shell",
-    "../foreman-plugins/victoria",
+    "./foreman-plugins/prompt-lab",
     "/abs/path/to/a/plugin"
   ]
 }
@@ -712,8 +720,9 @@ are all equally valid:
 - **`FOREMAN_PLUGINS`** (comma-separated) overrides the file *entirely*, for CI
   and experiments — `FOREMAN_PLUGINS=/tmp/my-plugin task dev`. It replaces
   rather than appends, because an override that merged would give you no way to
-  ask for *fewer* plugins. An empty value is treated as unset; to ship none, say
-  `{ "plugins": [] }` in the file.
+  ask for *fewer* plugins; under the override there are no optionals either —
+  what you listed is everything, required. An empty value is treated as unset;
+  to ship none, say `{ "plugins": [] }` in the file.
 - The **demo shell is deliberately not in the config**. It is host-owned dev
   tooling that proves the seam, gated on `import.meta.env.DEV` in the roster;
   putting it in the config would invite someone to ship it.
@@ -751,11 +760,11 @@ Fix the path in foreman-plugins.json, remove the entry if the plugin is gone, or
 
 The out-of-tree line only appears when the resolved path really is outside this
 repo, because for an in-tree plugin "clone the other repo" would be the wrong
-instruction. **A harness cloned on its own therefore does not build** until omega
-is checked out beside it — which is correct and deliberate: a build that
-silently dropped two domains would be worse. To work without them, say so in the
-config (`{ "plugins": [] }`) or override for the run
-(`FOREMAN_PLUGINS=./apps/web/src/foreman/usecases/demo.tsx`).
+instruction. Required plugins keep that loudness: configured-but-missing fails
+the build. What makes a standalone clone buildable is the **optional** tier —
+the omega shells are configured as optional, so a harness checked out on its own
+skips them (doctor says so, by path) instead of failing, and nothing silently
+disappears: an optional entry whose directory exists but is broken still throws.
 
 That is the whole guarantee restated: **configured-but-missing is a loud build
 failure, never a tab that quietly is not there.** The same applies to a

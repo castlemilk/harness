@@ -214,7 +214,7 @@ export async function runAgentTask(
     textToolsSystemPrompt = adapted.textToolsPrompt;
     promptFormat = adapted.format;
 
-    const currentPrompts = await loadCurrentPrompts(skillContext);
+    const currentPrompts = loadCurrentPrompts(skillContext);
     const promptHash = hashPrompts({
       systemPrompt: currentPrompts.systemPrompt,
       textToolsPrompt: currentPrompts.textToolsPrompt,

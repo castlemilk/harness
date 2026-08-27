@@ -49,7 +49,7 @@ function makeTask(cli: 'codex' | 'opencode', model: string) {
   };
 }
 
-function makePrisma(task: ReturnType<typeof makeTask>): PrismaClient {
+function makePrisma(task: { id: string; [key: string]: unknown }): PrismaClient {
   return {
     task: {
       findUnique: vi.fn().mockResolvedValue(task),

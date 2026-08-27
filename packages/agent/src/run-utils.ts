@@ -143,7 +143,11 @@ async function exists(filePath: string): Promise<boolean> {
   }
 }
 
-export async function runCommand(projectPath: string, command: string): Promise<ToolResult> {
+export async function runCommand(
+  projectPath: string,
+  command: string,
+  options: { timeoutMs?: number; signal?: AbortSignal } = {},
+): Promise<ToolResult> {
   const check = sanitizeCommand(command);
   if (!check.ok) {
     return { success: false, output: check.reason };
@@ -172,7 +176,8 @@ export async function runCommand(projectPath: string, command: string): Promise<
   try {
     const { stdout, stderr } = await execFileAsync(cmd, cmdArgs, {
       cwd: projectPath,
-      timeout: 300_000,
+      timeout: Math.max(1, Math.min(300_000, options.timeoutMs ?? 300_000)),
+      signal: options.signal,
       shell: false,
       env,
       maxBuffer: 8 * 1024 * 1024,

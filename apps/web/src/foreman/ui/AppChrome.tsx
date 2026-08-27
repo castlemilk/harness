@@ -22,6 +22,7 @@ export function AppChrome({
   objective,
   objectives,
   onObjectiveChange,
+  onOpenObjectiveSettings,
   pendingInterventions,
   onOpenPalette,
   onOpenInterventions,
@@ -35,6 +36,8 @@ export function AppChrome({
   objective: Objective | null;
   objectives: Objective[];
   onObjectiveChange: (id: string) => void;
+  /** Open the objective settings dialog. Absent hides the gear. */
+  onOpenObjectiveSettings?: () => void;
   pendingInterventions: number;
   onOpenPalette: () => void;
   onOpenInterventions: () => void;
@@ -97,6 +100,18 @@ export function AppChrome({
             ⌄
           </span>
         </label>
+      )}
+
+      {objective && onOpenObjectiveSettings && (
+        <button
+          type="button"
+          onClick={onOpenObjectiveSettings}
+          title="Objective settings"
+          aria-label="Objective settings"
+          className="flex-none rounded-md border border-transparent px-1 py-0.5 text-[12px] text-muted hover:border-line hover:text-ink2"
+        >
+          ⚙
+        </button>
       )}
 
       {/* `min-w-0` is what lets the strip actually clip: without it a flex item

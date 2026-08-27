@@ -13,8 +13,8 @@ import {
   generateAutoApiChecks,
   FORCE_ACTION_PROMPT,
 } from './prompts.js';
-import { hasChanges, stageAllChanges, commit, getDiff } from './git.js';
-import { validateProject } from './validator.js';
+import { hasChanges, stageAllChanges, commit, getGradedDiff } from './git.js';
+import { validateProject, type ValidationSummary } from './validator.js';
 import { publishOmega, type PublishResult } from './publisher.js';
 import {
   isTypeScriptProject,
@@ -22,8 +22,10 @@ import {
   taskMentionsPublicApi,
   taskLikelyHasTests,
   toCoreTask,
+  boundedProviderRequestTimeoutMs,
+  remainingDeadlineMs,
 } from './project-utils.js';
-import { withProviderRetry } from './retry.js';
+import { abortableOperation, withProviderRetry } from './retry.js';
 import { createPlan } from './planner.js';
 import { isReadOnlyShellCommand, isFileReadingShellCommand } from './shell-patterns.js';
 import { runTypeCheck } from './ts-runner.js';
@@ -37,8 +39,104 @@ import {
   applySkillPatches,
   runAutoApiChecks,
 } from './agent-helpers.js';
+import { validationSummaryWithPatchAudit } from './patch-audit.js';
+
+function compactWallClock(milliseconds: number): string {
+  const seconds = Math.max(0, Math.ceil(milliseconds / 1_000));
+  const hours = Math.floor(seconds / 3_600);
+  const minutes = Math.floor((seconds % 3_600) / 60);
+  const remainingSeconds = seconds % 60;
+  return [
+    hours > 0 ? `${String(hours)}h` : '',
+    minutes > 0 ? `${String(minutes)}m` : '',
+    remainingSeconds > 0 || (hours === 0 && minutes === 0) ? `${String(remainingSeconds)}s` : '',
+  ].filter(Boolean).join(' ');
+}
+
+export function formatBudgetNotice(
+  remainingSteps: number,
+  remainingMs: number,
+  experiments: { timeBudget: boolean; exactnessCheck: boolean } = {
+    timeBudget: true,
+    exactnessCheck: true,
+  },
+): string {
+  const remaining = experiments.timeBudget
+    ? `${String(remainingSteps)} steps remain; ${compactWallClock(remainingMs)} wall-clock remain.`
+    : `${String(remainingSteps)} steps remain.`;
+  const cleanup = experiments.exactnessCheck
+    ? 're-check exact strings and formats, clean scratch files'
+    : 'clean scratch files';
+  return `[budget notice] ${remaining} Focus: complete the core implementation, verify it compiles/tests, ${cleanup}, then finish. No new exploration.`;
+}
+
+export function budgetNoticeExperiments(description: string | null | undefined): {
+  timeBudget: boolean;
+  exactnessCheck: boolean;
+} {
+  return {
+    timeBudget: description?.includes('TIME BUDGET:') ?? false,
+    exactnessCheck: description?.includes('EXACTNESS CHECK:') ?? false,
+  };
+}
 
 export { failTask };
+
+export type AgentStopCondition =
+  | 'skill-patch'
+  | 'finish'
+  | 'step-limit'
+  | 'deadline'
+  | 'external-abort'
+  | 'token-budget'
+  | 'no-tool-calls'
+  | 'validation-failed'
+  | 'forced-edit-refusal'
+  | 'exception'
+  | 'stopped-without-finish';
+
+export interface AgentTerminalReasonInput {
+  success: boolean;
+  stopCondition: AgentStopCondition;
+  summary: string;
+  stepCount: number;
+  maxSteps: number;
+  turnCount: number;
+  lastToolError?: { name: string; output: string };
+}
+
+const STOP_LABELS: Record<AgentStopCondition, string> = {
+  'skill-patch': 'skill patch completion',
+  finish: 'finish tool',
+  'step-limit': 'step limit',
+  deadline: 'wall-clock deadline',
+  'external-abort': 'external abort',
+  'token-budget': 'token budget',
+  'no-tool-calls': 'no-tool-call limit',
+  'validation-failed': 'validation failure',
+  'forced-edit-refusal': 'forced-edit refusal',
+  exception: 'exception',
+  'stopped-without-finish': 'stopped without calling finish',
+};
+
+/**
+ * Build the canonical terminal narrative written to Task.result/error. Keeping
+ * this in one place makes a blank failed reason structurally impossible.
+ */
+export function formatAgentTerminalReason(input: AgentTerminalReasonInput): string {
+  const detail = input.summary.trim() || (input.success
+    ? 'The agent completed without providing a summary.'
+    : input.stopCondition === 'step-limit'
+      ? 'The agent ran out of tool steps without calling finish.'
+      : input.stopCondition === 'finish'
+        ? 'The agent called finish with success=false but provided no summary.'
+        : 'The agent stopped without providing a reason.');
+  const heading = `Agent ${input.success ? 'completed' : 'stopped'} at ${STOP_LABELS[input.stopCondition]} after ${String(input.turnCount)} model turn(s) and ${String(input.stepCount)}/${String(input.maxSteps)} tool step(s).`;
+  const lastError = input.lastToolError
+    ? `\nLast tool error (${input.lastToolError.name}): ${input.lastToolError.output.trim() || '(empty tool error)'}`
+    : '';
+  return `${heading}\nReason: ${detail}${lastError}`;
+}
 
 export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Promise<AgentResult> {
   await addTrace(ctx, 'system', ctx.systemPrompt);
@@ -54,6 +152,86 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
   let stuckTurnCount = 0;
   let forcedEditMode = false;
   let forcedEditModeSteps = 0;
+  let stopCondition: AgentStopCondition = 'stopped-without-finish';
+  const toolCallCounts: Record<string, number> = {};
+  ctx.turnCount = 0;
+  ctx.stepCount = 0;
+  ctx.lastToolError = undefined;
+
+  const stopForAbort = (error?: unknown): boolean => {
+    if (!ctx.signal?.aborted) return false;
+    const signalReason = ctx.signal.reason as unknown;
+    const deadlineReached = Date.now() >= ctx.deadlineMs
+      || (signalReason instanceof DOMException && signalReason.name === 'TimeoutError');
+    finished = true;
+    success = false;
+    stopCondition = deadlineReached ? 'deadline' : 'external-abort';
+    summary = deadlineReached
+      ? 'The enforced wall-clock deadline interrupted in-flight agent work.'
+      : 'Task externally aborted during in-flight agent work.';
+    const errorMessage = error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : signalReason instanceof Error
+          ? signalReason.message
+          : '';
+    ctx.rootSpan.addEvent(deadlineReached ? 'deadline.exceeded' : 'abort.external', {
+      stepIndex,
+      error: errorMessage,
+    });
+    return true;
+  };
+
+  const advanceStep = (): void => {
+    stepIndex++;
+    ctx.stepCount = stepIndex;
+  };
+  const deadlineOptions = (): { deadlineMs: number; signal?: AbortSignal } => ({
+    deadlineMs: ctx.deadlineMs,
+    signal: ctx.signal,
+  });
+  const runAgentOperation = async <T>(operation: () => Promise<T>): Promise<T | undefined> => {
+    try {
+      return await abortableOperation(operation, ctx.signal);
+    } catch (error) {
+      if (stopForAbort(error)) return undefined;
+      throw error;
+    }
+  };
+  const runValidation = async (): Promise<ValidationSummary | undefined> => {
+    try {
+      // Validation owns a small deadline grace period so a correct patch is
+      // not rejected merely because its existing suite runs past the agent
+      // turn budget. validateProject still forwards explicit cancellation.
+      return await validateProject(ctx.projectPath, deadlineOptions());
+    } catch (error) {
+      if (stopForAbort(error)) return undefined;
+      throw error;
+    }
+  };
+  const executeAgentTool = (
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<ToolResult> => {
+    if (stopForAbort()) {
+      return Promise.resolve({ success: false, output: summary });
+    }
+    const operation = () => executeTool(ctx.projectPath, name, args, {
+        timeoutMs: remainingDeadlineMs(ctx.deadlineMs),
+        signal: ctx.signal,
+      });
+    // validate_patch temporarily mutates the index. Its read-only checks still
+    // observe cancellation, but the outer loop must await index restoration
+    // instead of racing terminal stage/commit work against its finally block.
+    const pending = name === 'validate_patch'
+      ? operation()
+      : abortableOperation(operation, ctx.signal);
+    return pending.catch((error: unknown) => {
+      if (stopForAbort(error)) return { success: false, output: summary };
+      throw error;
+    });
+  };
 
   const messages: {
     role: 'system' | 'user' | 'assistant' | 'tool';
@@ -67,10 +245,18 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
   ];
 
   const skillVerify = process.env.OMEGA_SKILL_VERIFY === 'true';
-  const skillPatchResult = await applySkillPatches(ctx.projectPath, ctx.baseCommit, skills);
+  let skillPatchResult: Awaited<ReturnType<typeof applySkillPatches>> = { applied: [], patch: '' };
+  try {
+    skillPatchResult = await abortableOperation(
+      () => applySkillPatches(ctx.projectPath, ctx.baseCommit, skills),
+      ctx.signal,
+    );
+  } catch (error) {
+    if (!stopForAbort(error)) throw error;
+  }
   const appliedSkills = skillPatchResult.applied;
   const skillPatch = skillPatchResult.patch;
-  if (appliedSkills.length > 0) {
+  if (!ctx.signal?.aborted && appliedSkills.length > 0) {
     await addTrace(
       ctx,
       'system',
@@ -100,15 +286,19 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       if (skillPatch) {
         success = true;
         finished = true;
+        stopCondition = 'skill-patch';
         summary = `Finished via skill reference patch: ${appliedSkills.join(', ')}`;
         await checkpointCommit(ctx);
-        await ctx.prisma.taskDiff.create({
-          data: {
-            taskId: ctx.task.id,
-            branch: ctx.branch,
-            patch: skillPatch,
-          },
-        });
+        const gradedSkillDiff = await getGradedDiff(ctx.projectPath, ctx.baseCommit);
+        if (gradedSkillDiff.success && gradedSkillDiff.output) {
+          await ctx.prisma.taskDiff.create({
+            data: {
+              taskId: ctx.task.id,
+              branch: ctx.branch,
+              patch: gradedSkillDiff.output,
+            },
+          });
+        }
         ctx.rootSpan.addEvent('agent.skill_oracle.finish', { skills: appliedSkills.join(', ') });
       } else {
         logger.warn('Skill patch reported applied but produced empty diff; falling back to agent loop', {
@@ -125,9 +315,8 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
   if (!finished) {
     const planSpan = ctx.tracer.startSpan('agent.plan', ctx.rootSpan.toContext());
     const planEvents = trackProviderEvents(planSpan);
-    let plan: Awaited<ReturnType<typeof createPlan>>;
     try {
-      plan = await withProviderRetry('planner', () =>
+      const plan = await withProviderRetry('planner', () =>
         createPlan(
           ctx.provider,
           ctx.task.title,
@@ -136,7 +325,11 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           (usage) => {
             recordUsage(ctx, usage);
           },
-          planEvents
+          planEvents,
+          {
+            timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
+            signal: ctx.signal,
+          },
         ),
         ctx.signal,
         logger
@@ -144,13 +337,13 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       planSpan.setAttributes({ planSteps: plan.plan.length });
       planSpan.addEvent('plan.created');
       await planSpan.end('ok');
-    } catch (err) {
-      planSpan.recordError(err);
+      await addTrace(ctx, 'assistant', `Plan: ${JSON.stringify(plan)}`);
+      messages.push({ role: 'assistant', content: `Plan: ${JSON.stringify(plan)}` });
+    } catch (error) {
+      if (!stopForAbort(error)) throw error;
+      planSpan.recordError(error);
       await planSpan.end('error');
-      throw err;
     }
-    await addTrace(ctx, 'assistant', `Plan: ${JSON.stringify(plan)}`);
-    messages.push({ role: 'assistant', content: `Plan: ${JSON.stringify(plan)}` });
   }
 
   while (stepIndex < ctx.maxSteps && !finished) {
@@ -163,6 +356,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       });
       ctx.rootSpan.addEvent('deadline.exceeded', { stepIndex });
       summary = `Wall-clock deadline exceeded after ${String(stepIndex)} steps`;
+      stopCondition = 'deadline';
       finished = true;
       break;
     }
@@ -175,6 +369,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       });
       ctx.rootSpan.addEvent('abort.external', { stepIndex });
       summary = 'Task externally aborted (timeout or cancellation)';
+      stopCondition = 'external-abort';
       finished = true;
       break;
     }
@@ -199,6 +394,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         tokenBudgetUsed: ctx.usage.totalTokens,
       });
       summary = `Token budget exceeded: used ${String(ctx.usage.totalTokens)} of ${String(ctx.tokenBudget)}`;
+      stopCondition = 'token-budget';
       finished = true;
       break;
     }
@@ -209,12 +405,35 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       const remaining = ctx.maxSteps - stepIndex;
       messages.push({
         role: 'user',
-        content:
-          `[budget notice] ${String(remaining)} steps remain. Focus: complete the core implementation, verify it compiles/tests, clean scratch files, then finish. No new exploration.`,
+        content: formatBudgetNotice(
+          remaining,
+          ctx.deadlineMs - Date.now(),
+          budgetNoticeExperiments(ctx.task.description),
+        ),
       });
     }
 
-    const response = await sendToProvider(ctx, messages);
+    ctx.turnCount++;
+    try {
+      await ctx.prisma.agentRun.update({
+        where: { id: ctx.agentRunId },
+        data: { currentTurn: ctx.turnCount },
+      });
+    } catch (err) {
+      logger.warn('Failed to record current internal agent turn', {
+        taskId: ctx.task.id,
+        agentRunId: ctx.agentRunId,
+        turnCount: ctx.turnCount,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+    let response: Awaited<ReturnType<typeof sendToProvider>>;
+    try {
+      response = await sendToProvider(ctx, messages);
+    } catch (error) {
+      if (!stopForAbort(error)) throw error;
+      break;
+    }
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
       noActionCount++;
@@ -237,6 +456,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           noActionCount,
         });
         summary = 'Provider repeatedly returned no tool calls; agent loop ended.';
+        stopCondition = 'no-tool-calls';
         finished = true;
         break;
       }
@@ -279,6 +499,11 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     }
 
     for (const call of toolCalls) {
+      if (stopForAbort()) {
+        rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
+        break;
+      }
+      toolCallCounts[call.name] = (toolCallCounts[call.name] ?? 0) + 1;
       const input =
         call.name === 'run_command'
           ? (call.arguments.command as string | undefined)
@@ -315,14 +540,14 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           await rejectFinish(
             `finish rejected: you are declaring failure too early (step ${String(stepIndex)} of ${String(ctx.maxSteps)}). Continue diagnosing and fixing the issue instead of giving up.`,
           );
-          stepIndex++;
+          advanceStep();
           break;
         }
         if (!ctx.hasRunTestCommand && taskLikelyHasTests(ctx.task, ctx.promptContext) && ctx.projectHasTests) {
           await rejectFinish(
             'finish rejected: this task has a test suite but you have not run any test command. Run the project\'s test command (e.g. npm test, pnpm test, pytest, go test ./..., cargo test) and fix any failures before finishing.',
           );
-          stepIndex++;
+          advanceStep();
           break;
         }
         const requiresApiCheck = taskMentionsPublicApi(ctx.task);
@@ -333,24 +558,32 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           break;
         }
         if (ctx.modifiedFiles.size > 0 || (await hasChanges(ctx.projectPath))) {
-          const patchCheck = await validatePatch(ctx.projectPath, ctx.baseCommit);
+          const patchCheck = await validatePatch(ctx.projectPath, ctx.baseCommit, deadlineOptions());
+          if (stopForAbort()) {
+            rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
+            break;
+          }
           if (!patchCheck.success) {
             await rejectFinish(
               `finish rejected: the current changes do not form a clean patch. Run validate_patch to diagnose, then fix the diff before finishing. Details: ${patchCheck.output}`,
             );
-            stepIndex++;
+            advanceStep();
             break;
           }
         }
 
         const modifiedTsFiles = await getModifiedTsFiles(ctx);
         if (modifiedTsFiles.length > 0) {
-          const typeCheck = await runTypeCheck(ctx.projectPath);
+          const typeCheck = await runAgentOperation(() => runTypeCheck(ctx.projectPath, deadlineOptions()));
+          if (!typeCheck) {
+            rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
+            break;
+          }
           if (!typeCheck.success) {
             await rejectFinish(
               `finish rejected: TypeScript typecheck failed after editing ${String(modifiedTsFiles.length)} file(s). Fix the type errors before finishing.\n\n${typeCheck.output}`,
             );
-            stepIndex++;
+            advanceStep();
             break;
           }
         }
@@ -358,7 +591,11 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         const skipValidation = ctx.task.tags.includes('skip-validation');
         const validation = skipValidation
           ? { lint: { passed: true, output: '' }, test: { passed: true, output: '' }, build: { passed: true, output: '' }, allPassed: true }
-          : await validateProject(ctx.projectPath);
+          : await runValidation();
+        if (!validation) {
+          rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
+          break;
+        }
         const validationSpan = ctx.tracer.startSpan('agent.validate', ctx.rootSpan.toContext());
         await ctx.prisma.agentRun.update({
           where: { id: ctx.agentRunId },
@@ -380,13 +617,22 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
 
         const autoChecks = generateAutoApiChecks(ctx.task.description);
         if (autoChecks.length > 0) {
-          const checkResult = await runAutoApiChecks(ctx.projectPath, autoChecks);
+          const checkResult = await runAgentOperation(() => runAutoApiChecks(
+            ctx.projectPath,
+            autoChecks,
+            deadlineOptions(),
+          ));
+          if (!checkResult) {
+            rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
+            break;
+          }
           if (!checkResult.success) {
             await rejectFinish(`finish rejected: automatic API surface check failed. ${checkResult.output}`);
             break;
           }
         }
         finished = true;
+        stopCondition = 'finish';
         const successArg = call.arguments.success;
         success =
           typeof successArg === 'string'
@@ -416,7 +662,11 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         const skipValidation = ctx.task.tags.includes('skip-validation');
         const validation = skipValidation
           ? { lint: { passed: true, output: '' }, test: { passed: true, output: '' }, build: { passed: true, output: '' }, allPassed: true }
-          : await validateProject(ctx.projectPath);
+          : await runValidation();
+        if (!validation) {
+          rejectRemainingToolCalls('agent wall-clock deadline or cancellation reached');
+          break;
+        }
         await ctx.prisma.agentRun.update({
           where: { id: ctx.agentRunId },
           data: { validationSummary: sanitizeForDb(JSON.stringify(validation)) },
@@ -445,6 +695,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         if (!validation.allPassed) {
           finished = true;
           success = false;
+          stopCondition = 'validation-failed';
           summary = 'Validation failed';
         }
         rejectRemainingToolCalls('publish completed');
@@ -532,7 +783,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
             data: { status: 'done', output: sanitizeForDb(result.output) },
           });
           await toolSpan.end('ok');
-          stepIndex++;
+          advanceStep();
           continue;
         }
         // The stuck-solver could not produce an applyable draft. Escalate to
@@ -571,17 +822,17 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
             output: `Think rejected: you have already thought ${String(ctx.consecutiveThinks - 1)} times in a row. Stop planning and execute the next concrete step using read_file, run_command, or edit_file.`,
           };
         } else {
-          result = await executeTool(ctx.projectPath, call.name, call.arguments);
+          result = await executeAgentTool(call.name, call.arguments);
         }
       } else if (call.name === 'read_file' && typeof call.arguments.path === 'string') {
         ctx.consecutiveThinks = 0;
-        result = await executeTool(ctx.projectPath, call.name, call.arguments);
+        result = await executeAgentTool(call.name, call.arguments);
       } else if (call.name === 'run_command' && typeof call.arguments.command === 'string') {
         ctx.consecutiveThinks = 0;
-        result = await executeTool(ctx.projectPath, call.name, call.arguments);
+        result = await executeAgentTool(call.name, call.arguments);
       } else {
         ctx.consecutiveThinks = 0;
-        result = await executeTool(ctx.projectPath, call.name, call.arguments);
+        result = await executeAgentTool(call.name, call.arguments);
       }
 
       if (budgetAdvisory && result.success) {
@@ -643,8 +894,10 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         ctx.explorationSinceLastEdit = 0;
 
         if (await isTypeScriptProject(ctx.projectPath)) {
-          const typeCheck = await runTypeCheck(ctx.projectPath);
-          if (!typeCheck.success) {
+          const typeCheck = await runAgentOperation(() => runTypeCheck(ctx.projectPath, deadlineOptions()));
+          if (!typeCheck) {
+            result = { success: false, output: summary };
+          } else if (!typeCheck.success) {
             result = {
               success: false,
               output: `TypeScript typecheck failed after this edit. Fix the type errors before continuing.\n\n${typeCheck.output}`,
@@ -665,7 +918,12 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       toolResults.push({ toolCallId: call.id, name: call.name, output: displayOutput, success: result.success });
       messages.push({ role: 'tool', tool_call_id: call.id, content: displayOutput });
       processedToolCallIds.add(call.id);
-      stepIndex++;
+      advanceStep();
+
+      if (ctx.signal?.aborted) {
+        stopForAbort();
+        break;
+      }
 
       if (forcedEditMode) {
         forcedEditModeSteps++;
@@ -676,11 +934,20 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
             forcedEditModeSteps,
           });
           summary = 'Agent refused to make a concrete edit after repeated prompting.';
+          stopCondition = 'forced-edit-refusal';
           finished = true;
           success = false;
           break;
         }
       }
+    }
+
+    const lastFailedTool = [...toolResults].reverse().find((result) => !result.success);
+    if (lastFailedTool) {
+      ctx.lastToolError = {
+        name: lastFailedTool.name,
+        output: lastFailedTool.output.slice(0, 2_000),
+      };
     }
 
     const turnAllForced = turnToolCount > 0 && turnForcedCount === turnToolCount;
@@ -749,13 +1016,31 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       ctx.tokenBudget !== undefined && (ctx.usage.totalTokens ?? 0) > ctx.tokenBudget,
     deadlineRemainingMs: Math.max(0, ctx.deadlineMs - Date.now()),
   });
+  ctx.stepCount = stepIndex;
+  if (!finished && stepIndex >= ctx.maxSteps) {
+    stopCondition = 'step-limit';
+  }
+  summary = formatAgentTerminalReason({
+    success,
+    stopCondition,
+    summary,
+    stepCount: stepIndex,
+    maxSteps: ctx.maxSteps,
+    turnCount: ctx.turnCount,
+    lastToolError: ctx.lastToolError,
+  });
 
   if (ctx.modifiedFiles.size > 0 || (await hasChanges(ctx.projectPath))) {
     await stageAllChanges(ctx.projectPath);
     await commit(ctx.projectPath, `agent: ${ctx.task.title}`, true);
   }
-  const diff = await getDiff(ctx.projectPath, ctx.baseCommit);
-  if (diff.output) {
+  const diff = await getGradedDiff(ctx.projectPath, ctx.baseCommit);
+  const patchAuditValidation = await validationSummaryWithPatchAudit(ctx.prisma, ctx.agentRunId, diff);
+  ctx.rootSpan.setAttributes({
+    gradedPatchTestPaths: diff.gradedPatchTestPaths.length,
+    gradedPatchAddedTestPaths: diff.gradedPatchAddedTestPaths.length,
+  });
+  if (diff.success && diff.output) {
     await ctx.prisma.taskDiff.create({
       data: {
         taskId: ctx.task.id,
@@ -763,6 +1048,10 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         patch: diff.output,
       },
     });
+  } else if (!diff.success) {
+    // No TaskDiff row is written here, so without this the run is
+    // indistinguishable from one that simply made no changes.
+    logger.warn(`graded diff failed for task ${ctx.task.id}: ${diff.error ?? 'unknown error'}`);
   }
 
   const updatedTask = await ctx.prisma.task.update({
@@ -780,6 +1069,9 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     where: { id: ctx.agentRunId },
     data: {
       resultStatus: success ? 'done' : 'failed',
+      turnCount: ctx.turnCount,
+      currentTurn: ctx.turnCount,
+      toolCalls: JSON.stringify(toolCallCounts),
       promptTokens: ctx.usage.promptTokens,
       completionTokens: ctx.usage.completionTokens,
       totalTokens: ctx.usage.totalTokens,
@@ -795,6 +1087,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         ctx.tokenBudget !== undefined && (ctx.usage.totalTokens ?? 0) > ctx.tokenBudget,
       deadlineMs: ctx.deadlineMs - ctx.rootSpan.startTime.getTime(),
       deadlineRemainingMs: Math.max(0, ctx.deadlineMs - Date.now()),
+      ...(patchAuditValidation ? { validationSummary: patchAuditValidation } : {}),
     },
   });
 

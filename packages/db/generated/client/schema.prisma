@@ -36,7 +36,7 @@ model Task {
   error        String?
   retryCount   Int         @default(0)
   lastRetryAt  DateTime?
-  retryHistory String? // JSON: [{ strategy, provider, model, error, timestamp }]
+  retryHistory String? // JSON: [{ strategy, provider, model, cli, classification, category, decision, error, timestamp }]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   steps        TaskStep[]
@@ -124,6 +124,8 @@ model AgentRun {
   tokenBudgetExceeded      Boolean        @default(false)
   deadlineMs               Int?
   deadlineRemainingMs      Int?
+  sessionId                String?
+  sessionKind              String?
   createdAt                DateTime       @default(now())
   updatedAt                DateTime       @updatedAt
 
@@ -257,6 +259,10 @@ model Objective {
   /// Use-case shell id (a lowercase slug, e.g. "victoria"). Null means the
   /// objective renders with the core Foreman chrome only.
   useCase       String?
+  /// Standing instructions injected into the system prompt of EVERY pulse of
+  /// every harness under this objective. Project-level context the fleet
+  /// shares — conventions, constraints, what "done" means here. Free text.
+  instructions  String?
   targetDate    DateTime?
   spendCapUsd   Float?
   createdAt     DateTime         @default(now())
@@ -324,6 +330,16 @@ model Harness {
   contextTokens     Int           @default(0)
   contextWindow     Int           @default(200000)
   permissions       String        @default("[]")
+  /// JSON array of SkillArtifact names granted to this harness. Each named
+  /// skill's SKILL.md body is injected into the pulse system prompt (bounded).
+  /// Names that match no artifact are surfaced in the prompt as unresolved,
+  /// never silently dropped.
+  skills            String        @default("[]")
+  /// Rolling working memory the agent carries across pulses: the model may
+  /// return a bounded `memory` string each pulse, which replaces this whole
+  /// field and is injected into the next pulse's prompt. The one piece of
+  /// state that survives the otherwise-stateless heartbeat.
+  memory            String?
   dryRun            Boolean       @default(false)
   lastPulseSeq      Int           @default(0)
   idleSince         DateTime?
@@ -339,17 +355,27 @@ model Harness {
 }
 
 model Pulse {
-  id        String    @id @default(uuid())
-  harnessId String
-  harness   Harness   @relation(fields: [harnessId], references: [id], onDelete: Cascade)
-  seq       Int
-  startedAt DateTime
-  endedAt   DateTime?
-  outcome   String
-  summary   String?
-  costUsd   Float     @default(0)
-  tokens    Int       @default(0)
-  weight    Float     @default(0.5)
+  id           String    @id @default(uuid())
+  harnessId    String
+  harness      Harness   @relation(fields: [harnessId], references: [id], onDelete: Cascade)
+  seq          Int
+  startedAt    DateTime
+  endedAt      DateTime?
+  outcome      String
+  summary      String?
+  /// The model that ACTUALLY served this pulse — which may not be the model
+  /// the harness declares (provider substitution). Null on rows predating the
+  /// column; spend attribution falls back to the harness's current model then.
+  model        String?
+  /// The exact prompt sent and raw response received, bounded. The audit
+  /// trail for "what did this agent actually see and say" — without them a
+  /// pulse is unreviewable the moment it ends. Null for dry runs, external
+  /// CLI pulses (their transcript lives in TaskTrace), and pre-column rows.
+  promptText   String?
+  responseText String?
+  costUsd      Float     @default(0)
+  tokens       Int       @default(0)
+  weight       Float     @default(0.5)
 
   @@unique([harnessId, seq])
   @@index([harnessId, seq(sort: Desc)])

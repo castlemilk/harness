@@ -1,0 +1,760 @@
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { applyMigrations, prisma, type PrismaClient } from '@omega/db';
+import type { NextFunction, Request, RequestHandler, Response } from 'express';
+import { foremanRoutes } from './foreman.js';
+import {
+  buildSystemPrompt,
+  skillBody,
+  substituteRoutineVars,
+} from '../lib/pulse-engine.js';
+
+vi.hoisted(() => {
+  // Own PGlite directory: this suite migrates and must not race the others.
+  process.env.DATABASE_DIR = `/tmp/omega-foreman-projects-vitest-${String(process.pid)}-${process.env.VITEST_WORKER_ID ?? '0'}`;
+});
+
+/**
+ * The project-growth surface: objectives that can change after birth,
+ * workstreams and playbooks that can be authored through the API, skill
+ * grants, and the interject-releases-a-waiting-harness rule. Same
+ * invokeRoute technique as foreman.test.ts.
+ */
+
+interface RouterLayer {
+  route?: {
+    path: string;
+    methods: Record<string, boolean>;
+    stack?: { handle: RequestHandler }[];
+  };
+}
+
+interface RouteResult {
+  status: number;
+  body: unknown;
+}
+
+const router = foremanRoutes(prisma as unknown as PrismaClient);
+
+async function invoke(
+  method: string,
+  path: string,
+  input: { params?: Record<string, string>; query?: Record<string, string>; body?: unknown } = {},
+): Promise<RouteResult> {
+  const stack = (router as unknown as { stack: RouterLayer[] }).stack;
+  const layer = stack.find((candidate) =>
+    candidate.route?.path === path && candidate.route.methods[method.toLowerCase()] === true
+  );
+  const handler = layer?.route?.stack?.[0]?.handle;
+  if (!handler) throw new Error(`Route not registered: ${method.toUpperCase()} ${path}`);
+
+  return new Promise<RouteResult>((resolve, reject) => {
+    let status = 200;
+    let settled = false;
+    const finish = (body: unknown): void => {
+      if (settled) return;
+      settled = true;
+      resolve({ status, body });
+    };
+    const response = {
+      status(code: number) {
+        status = code;
+        return response;
+      },
+      json(body: unknown) {
+        finish(body);
+        return response;
+      },
+      send(body?: unknown) {
+        finish(body);
+        return response;
+      },
+    };
+    const request = {
+      params: input.params ?? {},
+      query: input.query ?? {},
+      body: input.body ?? {},
+      headers: {},
+    };
+    const next: NextFunction = (error?: unknown) => {
+      if (error) reject(error instanceof Error ? error : new Error(String(error)));
+      else reject(new Error('Route called next() without a response'));
+    };
+    handler(request as Request, response as unknown as Response, next);
+  });
+}
+
+let projectId = '';
+let objectiveId = '';
+
+beforeAll(async () => {
+  await applyMigrations();
+  const project = await prisma.project.create({
+    data: { name: 'growth-project', path: '/tmp/growth-project' },
+  });
+  projectId = project.id;
+  const objective = await prisma.objective.create({
+    data: { projectId, name: 'Grow the project' },
+  });
+  objectiveId = objective.id;
+  await prisma.skillArtifact.create({
+    data: {
+      name: 'regime-analysis',
+      sourcePath: '/tmp/does-not-exist/SKILL.md',
+      generatedPath: '/tmp/does-not-exist/skill.ts',
+      manifest: JSON.stringify({ name: 'regime-analysis', description: 'Read regime shifts.' }),
+    },
+  });
+}, 60_000);
+
+describe('PATCH /objectives/:id', () => {
+  it('renames, writes standing instructions, and archives after birth', async () => {
+    const renamed = await invoke('patch', '/objectives/:id', {
+      params: { id: objectiveId },
+      body: { name: 'Grow the project, renamed', instructions: 'Prefer boring technology.' },
+    });
+    expect(renamed.status).toBe(200);
+    expect((renamed.body as { name: string }).name).toBe('Grow the project, renamed');
+    expect((renamed.body as { instructions: string }).instructions).toBe('Prefer boring technology.');
+
+    const archived = await invoke('patch', '/objectives/:id', {
+      params: { id: objectiveId },
+      body: { status: 'archived' },
+    });
+    expect((archived.body as { status: string }).status).toBe('archived');
+
+    // Back to active so the rest of the suite runs against a live objective.
+    await invoke('patch', '/objectives/:id', {
+      params: { id: objectiveId },
+      body: { status: 'active', name: 'Grow the project' },
+    });
+  });
+
+  it('404s an unknown objective and rejects unknown fields', async () => {
+    const missing = await invoke('patch', '/objectives/:id', {
+      params: { id: '00000000-0000-4000-8000-000000000000' },
+      body: { name: 'x' },
+    });
+    expect(missing.status).toBe(404);
+
+    await expect(
+      invoke('patch', '/objectives/:id', {
+        params: { id: objectiveId },
+        body: { mission: 'objectives have no mission field' },
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe('workstream create + update', () => {
+  it('creates lanes with an auto-incrementing orderIdx', async () => {
+    const first = await invoke('post', '/workstreams', {
+      body: { objectiveId, name: 'Lane one' },
+    });
+    expect(first.status).toBe(201);
+    expect((first.body as { orderIdx: number }).orderIdx).toBe(0);
+
+    const second = await invoke('post', '/workstreams', {
+      body: { objectiveId, name: 'Lane two' },
+    });
+    expect((second.body as { orderIdx: number }).orderIdx).toBe(1);
+  });
+
+  it('renames a lane, and refuses a lead from another objective', async () => {
+    const lane = await prisma.workstream.findFirst({ where: { objectiveId, name: 'Lane one' } });
+    if (!lane) throw new Error('lane fixture missing');
+
+    const renamed = await invoke('patch', '/workstreams/:id', {
+      params: { id: lane.id },
+      body: { name: 'Lane one, renamed' },
+    });
+    expect((renamed.body as { name: string }).name).toBe('Lane one, renamed');
+
+    const otherObjective = await prisma.objective.create({
+      data: { projectId, name: 'Another objective' },
+    });
+    const foreign = await prisma.harness.create({
+      data: {
+        objectiveId: otherObjective.id,
+        name: 'foreign-lead',
+        mission: 'Belong elsewhere.',
+        model: 'test-model',
+      },
+    });
+    const bad = await invoke('patch', '/workstreams/:id', {
+      params: { id: lane.id },
+      body: { leadHarnessId: foreign.id },
+    });
+    expect(bad.status).toBe(400);
+  });
+
+  it('404s creating a lane on an unknown objective', async () => {
+    const missing = await invoke('post', '/workstreams', {
+      body: { objectiveId: '00000000-0000-4000-8000-000000000000', name: 'x' },
+    });
+    expect(missing.status).toBe(404);
+  });
+});
+
+describe('POST /playbooks', () => {
+  it('authors a brand-new v1 playbook', async () => {
+    const created = await invoke('post', '/playbooks', {
+      body: {
+        projectId,
+        name: 'Desk reviewer loop',
+        steps: [{ index: 1, text: 'Read the desk state.', condition: null }],
+        cadence: 'every 60m',
+      },
+    });
+    expect(created.status).toBe(201);
+    const body = created.body as { name: string; version: number; steps: { text: string }[] };
+    expect(body.name).toBe('Desk reviewer loop');
+    expect(body.version).toBe(1);
+    expect(body.steps[0].text).toBe('Read the desk state.');
+  });
+
+  it('409s a duplicate name — the name is the version chain identity', async () => {
+    const dupe = await invoke('post', '/playbooks', {
+      body: { name: 'Desk reviewer loop' },
+    });
+    expect(dupe.status).toBe(409);
+    expect((dupe.body as { error: string }).error).toContain('version it instead');
+  });
+});
+
+describe('harness skill grants', () => {
+  it('400s an unknown skill name, naming the stray', async () => {
+    const bad = await invoke('post', '/harnesses', {
+      body: {
+        objectiveId,
+        name: 'skilled-1',
+        mission: 'Use skills.',
+        model: 'test-model',
+        heartbeatMinutes: 30,
+        maxChildren: 0,
+        permissions: [],
+        skills: ['regime-analysis', 'no-such-skill'],
+      },
+    });
+    expect(bad.status).toBe(400);
+    expect((bad.body as { error: string }).error).toContain('no-such-skill');
+  });
+
+  it('stores registered grants and serves them back as an array', async () => {
+    const created = await invoke('post', '/harnesses', {
+      body: {
+        objectiveId,
+        name: 'skilled-2',
+        mission: 'Use skills.',
+        model: 'test-model',
+        heartbeatMinutes: 30,
+        maxChildren: 0,
+        permissions: [],
+        skills: ['regime-analysis'],
+      },
+    });
+    expect(created.status).toBe(201);
+    expect((created.body as { skills: string[] }).skills).toEqual(['regime-analysis']);
+
+    const id = (created.body as { id: string }).id;
+    const cleared = await invoke('patch', '/harnesses/:id', {
+      params: { id },
+      body: { skills: [] },
+    });
+    expect((cleared.body as { skills: string[] }).skills).toEqual([]);
+  });
+
+  it('lists the registry with the manifest description', async () => {
+    const listing = await invoke('get', '/skills');
+    expect(listing.status).toBe(200);
+    const rows = listing.body as { name: string; description: string }[];
+    expect(rows.some((r) => r.name === 'regime-analysis' && r.description === 'Read regime shifts.')).toBe(true);
+  });
+});
+
+describe('interject on a waiting harness', () => {
+  it('releases it — the interject IS the human input it was waiting for', async () => {
+    const task = await prisma.task.create({
+      data: { projectId, title: 'waiting-task' },
+    });
+    const harness = await prisma.harness.create({
+      data: {
+        objectiveId,
+        name: 'blocked-on-you',
+        mission: 'Wait for a decision.',
+        model: 'test-model',
+        status: 'waiting',
+        taskId: task.id,
+        nextPulseAt: null,
+      },
+    });
+
+    const before = Date.now();
+    const result = await invoke('post', '/harnesses/:id/interject', {
+      params: { id: harness.id },
+      body: { text: 'Ship the boring option.' },
+    });
+    expect(result.status).toBe(201);
+
+    const after = await prisma.harness.findUnique({ where: { id: harness.id } });
+    expect(after?.status).toBe('working');
+    expect(after?.nextPulseAt).not.toBeNull();
+    expect(after?.nextPulseAt?.getTime()).toBeGreaterThanOrEqual(before - 1_000);
+    expect(after?.nextPulseAt?.getTime()).toBeLessThanOrEqual(Date.now() + 1_000);
+  });
+
+  it('leaves a working harness\'s schedule alone', async () => {
+    const task = await prisma.task.create({ data: { projectId, title: 'working-task' } });
+    const later = new Date(Date.now() + 30 * 60_000);
+    const harness = await prisma.harness.create({
+      data: {
+        objectiveId,
+        name: 'already-working',
+        mission: 'Keep going.',
+        model: 'test-model',
+        status: 'working',
+        taskId: task.id,
+        nextPulseAt: later,
+      },
+    });
+    await invoke('post', '/harnesses/:id/interject', {
+      params: { id: harness.id },
+      body: { text: 'FYI only.' },
+    });
+    const after = await prisma.harness.findUnique({ where: { id: harness.id } });
+    expect(after?.status).toBe('working');
+    expect(after?.nextPulseAt?.getTime()).toBe(later.getTime());
+  });
+});
+
+describe('transcript pulse narration + emptiness', () => {
+  it('carries each pulse\'s summary/outcome and flags trace-less windows empty', async () => {
+    const task = await prisma.task.create({ data: { projectId, title: 'transcript-task' } });
+    const harness = await prisma.harness.create({
+      data: {
+        objectiveId,
+        name: 'narrator',
+        mission: 'Narrate.',
+        model: 'test-model',
+        taskId: task.id,
+      },
+    });
+    const t0 = new Date('2026-08-21T00:00:00Z');
+    const minutes = (n: number) => new Date(t0.getTime() + n * 60_000);
+    await prisma.pulse.createMany({
+      data: [
+        { harnessId: harness.id, seq: 1, startedAt: minutes(0), endedAt: minutes(1), outcome: 'ok', summary: 'Checked the board; nothing new.' },
+        { harnessId: harness.id, seq: 2, startedAt: minutes(30), endedAt: minutes(31), outcome: 'ok', summary: 'Still nothing.' },
+        { harnessId: harness.id, seq: 3, startedAt: minutes(60), endedAt: minutes(61), outcome: 'warn', summary: 'Spend is drifting.' },
+      ],
+    });
+    // One trace inside pulse 3's window makes it non-empty.
+    await prisma.taskTrace.create({
+      data: { taskId: task.id, role: 'user', content: 'Watch the spend.', createdAt: minutes(62) },
+    });
+
+    const result = await invoke('get', '/harnesses/:id/transcript', {
+      params: { id: harness.id },
+    });
+    const entries = result.body as ({ kind: string; seq?: number; summary?: string; outcome?: string; empty?: boolean })[];
+    const dividers = entries.filter((e) => e.kind === 'pulse-divider');
+    expect(dividers.map((d) => d.seq)).toEqual([1, 2, 3]);
+    expect(dividers[0]).toMatchObject({ summary: 'Checked the board; nothing new.', outcome: 'ok', empty: true });
+    expect(dividers[1]).toMatchObject({ empty: true });
+    expect(dividers[2]).toMatchObject({ outcome: 'warn', empty: false });
+  });
+
+  it('serves only the newest N pulses when asked', async () => {
+    const harness = await prisma.harness.findFirst({ where: { name: 'narrator' } });
+    if (!harness) throw new Error('narrator fixture missing');
+    const result = await invoke('get', '/harnesses/:id/transcript', {
+      params: { id: harness.id },
+      query: { limit: '2' },
+    });
+    const dividers = (result.body as { kind: string; seq?: number }[]).filter((e) => e.kind === 'pulse-divider');
+    expect(dividers.map((d) => d.seq)).toEqual([2, 3]);
+  });
+});
+
+describe('pulse prompt assembly', () => {
+  const harness = {
+    name: 'regime-watcher',
+    mission: 'Watch the regime classifier.',
+  } as Parameters<typeof buildSystemPrompt>[0];
+
+  it('injects objective instructions and skill bodies, and discloses an unloadable grant', () => {
+    const prompt = buildSystemPrompt(
+      harness,
+      { name: 'Run the desk', instructions: 'Prefer boring technology.' },
+      [
+        { name: 'regime-analysis', body: '# Regime analysis\nCompare labels to the manifest.' },
+        { name: 'gone-skill', body: null },
+      ],
+    );
+    expect(prompt).toContain('Standing instructions for every agent on this objective:');
+    expect(prompt).toContain('Prefer boring technology.');
+    expect(prompt).toContain('── Skill: regime-analysis ──');
+    expect(prompt).toContain('Compare labels to the manifest.');
+    expect(prompt).toContain('── Skill: gone-skill ──');
+    expect(prompt).toContain('treat it as unavailable');
+  });
+
+  it('prompts exactly as before when there are no instructions and no skills', () => {
+    const prompt = buildSystemPrompt(harness, { name: 'Run the desk' });
+    expect(prompt).not.toContain('Standing instructions');
+    expect(prompt).not.toContain('── Skill:');
+    expect(prompt).toContain('Watch the regime classifier.');
+  });
+
+  it('strips SKILL.md frontmatter and bounds the body', () => {
+    expect(skillBody('---\nname: x\ndescription: y\n---\n# Body\nText.')).toBe('# Body\nText.');
+    expect(skillBody('no frontmatter at all')).toBe('no frontmatter at all');
+    expect(skillBody(`---\nname: x\n---\n${'a'.repeat(20_000)}`).length).toBe(8_000);
+  });
+
+  it('substitutes routine $variables and leaves unresolvable tokens literal', () => {
+    const steps = substituteRoutineVars(
+      [
+        { index: 1, text: 'Work $ticket in $branch.', condition: 'when $objective is active' },
+        { index: 2, text: 'Hand off to $reviewer.' },
+      ],
+      { ticket: 'Fix the funnel', branch: 'fix/funnel', objective: 'Run the desk' },
+    );
+    expect(steps[0].text).toBe('Work Fix the funnel in fix/funnel.');
+    expect(steps[0].condition).toBe('when Run the desk is active');
+    // $reviewer has no binding: literal, never silently dropped.
+    expect(steps[1].text).toBe('Hand off to $reviewer.');
+  });
+});
+
+describe('pulse provenance', () => {
+  it('carries model, prompt, and response onto the transcript divider', async () => {
+    const harness = await prisma.harness.create({
+      data: {
+        objectiveId,
+        name: 'provenance',
+        mission: 'Be auditable.',
+        model: 'declared-model',
+      },
+    });
+    await prisma.pulse.create({
+      data: {
+        harnessId: harness.id,
+        seq: 1,
+        startedAt: new Date('2026-08-21T02:00:00Z'),
+        endedAt: new Date('2026-08-21T02:00:04Z'),
+        outcome: 'ok',
+        summary: 'Checked the desk.',
+        model: 'substituted-model',
+        promptText: 'SYSTEM…\n---\nYour every-pulse routine…',
+        responseText: '{"summary":"Checked the desk.","outcome":"ok"}',
+      },
+    });
+    const result = await invoke('get', '/harnesses/:id/transcript', {
+      params: { id: harness.id },
+    });
+    const divider = (result.body as { kind: string; model?: string; promptText?: string; responseText?: string }[])
+      .find((e) => e.kind === 'pulse-divider');
+    expect(divider).toMatchObject({
+      model: 'substituted-model',
+      promptText: 'SYSTEM…\n---\nYour every-pulse routine…',
+      responseText: '{"summary":"Checked the desk.","outcome":"ok"}',
+    });
+  });
+
+  it('attributes usage spend to the model the pulse RAN on, not the harness\'s current one', async () => {
+    const harness = await prisma.harness.create({
+      data: {
+        objectiveId,
+        name: 'spender',
+        mission: 'Spend measurably.',
+        model: 'current-model',
+      },
+    });
+    await prisma.pulse.create({
+      data: {
+        harnessId: harness.id,
+        seq: 1,
+        startedAt: new Date(),
+        endedAt: new Date(),
+        outcome: 'ok',
+        model: 'ran-model',
+        costUsd: 1.25,
+      },
+    });
+    const result = await invoke('get', '/objectives/:id/usage', {
+      params: { id: objectiveId },
+      query: { days: '7' },
+    });
+    const usage = result.body as { days: { byModel: Record<string, number> }[]; models: string[] };
+    const byModel: Record<string, number> = {};
+    for (const day of usage.days) {
+      for (const [model, spend] of Object.entries(day.byModel)) {
+        byModel[model] = (byModel[model] ?? 0) + spend;
+      }
+    }
+    expect(byModel['ran-model']).toBeCloseTo(1.25, 10);
+    expect(byModel['current-model']).toBeUndefined();
+  });
+});
+
+describe('GET /foreman/benchmarks', () => {
+  it('aggregates history per model and keeps unreported cost null, not free', async () => {
+    await prisma.benchmarkHistory.create({
+      data: { suite: 'fast', provider: 'kimi', model: 'moonshot-v1-8k', totalTasks: 10, passed: 8, failed: 2, timeouts: 0, passRate: 0.8, totalDurationMs: 60_000, totalCostUsd: 0.4 },
+    });
+    await prisma.benchmarkHistory.create({
+      data: { suite: 'fast', provider: 'kimi', model: 'moonshot-v1-8k', totalTasks: 10, passed: 6, failed: 4, timeouts: 0, passRate: 0.6, totalDurationMs: 55_000, totalCostUsd: 0.2 },
+    });
+    // Cost deliberately absent: an external CLI that reports none.
+    await prisma.benchmarkHistory.create({
+      data: { suite: 'deepswe', provider: 'external', model: 'codex', totalTasks: 5, passed: 3, failed: 2, timeouts: 0, passRate: 0.6, totalDurationMs: 90_000 },
+    });
+    const result = await invoke('get', '/benchmarks');
+    const body = result.body as {
+      models: { provider: string | null; model: string | null; runs: number; meanPassRate: number; costPerPass: number | null }[];
+      totalRuns: number;
+    };
+    const kimi = body.models.find((m) => m.model === 'moonshot-v1-8k');
+    expect(kimi).toBeDefined();
+    expect(kimi?.runs).toBe(2);
+    expect(kimi?.meanPassRate).toBeCloseTo(0.7, 10);
+    // $0.60 over 14 passes
+    expect(kimi?.costPerPass).toBeCloseTo(0.6 / 14, 10);
+    const codex = body.models.find((m) => m.model === 'codex');
+    // No run reported cost: unknown, never $0.00-per-pass.
+    expect(codex?.costPerPass).toBeNull();
+  });
+
+  it('keeps aggregate rows compact and exposes per-task evaluation only by run id', async () => {
+    const history = await prisma.benchmarkHistory.create({
+      data: {
+        suite: 'deepswe',
+        provider: 'external:codex',
+        model: 'detail-model',
+        totalTasks: 1,
+        passed: 0,
+        failed: 1,
+        timeouts: 0,
+        passRate: 0,
+        totalDurationMs: 90_000,
+        metadata: JSON.stringify({
+          results: [{
+            taskName: 'sqlfmt-create-table-ddl-formatting',
+            harnessTaskId: 'task-detail-1',
+            passed: false,
+            durationMs: 90_000,
+            evaluation: {
+              passed: false,
+              score: 0.981,
+              message: 'DeepSWE tests failed with partial progress',
+              metrics: {
+                partial: 0.981,
+                f2p_passed: 32,
+                f2p_total: 32,
+                p2p_passed: 1248,
+                p2p_total: 1273,
+                verifier_mode: 'docker',
+              },
+            },
+          }],
+        }),
+      },
+    });
+
+    const aggregate = await invoke('get', '/benchmarks');
+    const body = aggregate.body as {
+      recent: {
+        id: string;
+        model: string | null;
+        results?: { taskName: string; evaluation: { message?: string; metrics?: Record<string, number | string> } }[];
+      }[];
+    };
+    const run = body.recent.find((entry) => entry.model === 'detail-model');
+
+    expect(run).toBeDefined();
+    expect(Object.keys(run ?? {}).sort()).toEqual([
+      'createdAt',
+      'failed',
+      'id',
+      'model',
+      'passRate',
+      'passed',
+      'provider',
+      'suite',
+      'timeouts',
+      'totalCostUsd',
+      'totalTasks',
+      'totalTokens',
+    ]);
+    expect(run).not.toHaveProperty('metadata');
+    expect(run).not.toHaveProperty('results');
+    expect(run).not.toHaveProperty('reportPath');
+    expect(run).not.toHaveProperty('totalDurationMs');
+
+    const detail = await invoke('get', '/benchmarks/:id', {
+      params: { id: history.id },
+    });
+    expect(detail.status).toBe(200);
+    expect((detail.body as { results: unknown[] }).results).toHaveLength(1);
+    expect((detail.body as { results: unknown[] }).results[0]).toMatchObject({
+      taskName: 'sqlfmt-create-table-ddl-formatting',
+      evaluation: {
+        message: 'DeepSWE tests failed with partial progress',
+        metrics: {
+          partial: 0.981,
+          f2p_passed: 32,
+          f2p_total: 32,
+          p2p_passed: 1248,
+          p2p_total: 1273,
+          verifier_mode: 'docker',
+        },
+      },
+    });
+  });
+
+  it('normalizes legacy detail metadata and filters malformed task results', async () => {
+    const base = {
+      suite: 'deepswe',
+      provider: 'external:codex',
+      totalTasks: 1,
+      passed: 0,
+      failed: 1,
+      timeouts: 0,
+      passRate: 0,
+      totalDurationMs: 1,
+    };
+    const nullMetadata = await prisma.benchmarkHistory.create({
+      data: { ...base, model: 'legacy-null-metadata', metadata: 'null' },
+    });
+    const malformedResults = await prisma.benchmarkHistory.create({
+      data: {
+        ...base,
+        model: 'legacy-malformed-results',
+        metadata: JSON.stringify({
+          results: [
+            null,
+            'bad',
+            { evaluation: { score: 'bad' } },
+            { taskName: 'valid-result', passed: false },
+          ],
+        }),
+      },
+    });
+
+    const nullDetail = await invoke('get', '/benchmarks/:id', {
+      params: { id: nullMetadata.id },
+    });
+    const malformedDetail = await invoke('get', '/benchmarks/:id', {
+      params: { id: malformedResults.id },
+    });
+
+    expect((nullDetail.body as { results: unknown[] }).results).toEqual([]);
+    expect((malformedDetail.body as { results: unknown[] }).results).toEqual([
+      { taskName: 'valid-result', harnessTaskId: '', passed: false, durationMs: 0 },
+    ]);
+  });
+
+  it('returns 404 for unknown benchmark detail ids', async () => {
+    const result = await invoke('get', '/benchmarks/:id', {
+      params: { id: 'missing-benchmark-history' },
+    });
+
+    expect(result).toEqual({ status: 404, body: { error: 'Benchmark run not found' } });
+  });
+});
+
+describe('GET /foreman/providers/health', () => {
+  it('joins enabled providers with router health, null when never routed', async () => {
+    await prisma.providerConfig.upsert({
+      where: { name: 'test-provider-health' },
+      create: {
+        name: 'test-provider-health',
+        kind: 'generic',
+        defaultModel: 'test-model',
+        capabilities: '[]',
+        enabled: true,
+      },
+      update: { enabled: true },
+    });
+    const result = await invoke('get', '/providers/health');
+    expect(result.status).toBe(200);
+    const rows = result.body as { name: string; credentialed: boolean; health: unknown }[];
+    const row = rows.find((r) => r.name === 'test-provider-health');
+    expect(row).toBeDefined();
+    expect(row?.credentialed).toBe(false);
+    // The router has never routed to it: health must be null, not a score.
+    expect(row?.health).toBeNull();
+  });
+});
+
+describe('pulse retention', () => {
+  it('strips aged prompt/response text but keeps the pulse row, and deletes only aged ok-pulses', async () => {
+    const { prunePulses, TEXT_DECAY_DAYS, ROW_DECAY_DAYS } = await import('../lib/pulse-retention.js');
+    const harness = await prisma.harness.create({
+      data: { objectiveId, name: 'aging', mission: 'Age gracefully.', model: 'test-model' },
+    });
+    const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1_000);
+    await prisma.pulse.create({
+      data: {
+        harnessId: harness.id, seq: 1, startedAt: daysAgo(TEXT_DECAY_DAYS + 1), endedAt: daysAgo(TEXT_DECAY_DAYS + 1),
+        outcome: 'ok', summary: 'old but summarised', promptText: 'old prompt', responseText: 'old response', model: 'm',
+      },
+    });
+    await prisma.pulse.create({
+      data: {
+        harnessId: harness.id, seq: 2, startedAt: daysAgo(1), endedAt: daysAgo(1),
+        outcome: 'ok', summary: 'fresh', promptText: 'fresh prompt', responseText: 'fresh response',
+      },
+    });
+    await prisma.pulse.create({
+      data: {
+        harnessId: harness.id, seq: 3, startedAt: daysAgo(ROW_DECAY_DAYS + 1), endedAt: daysAgo(ROW_DECAY_DAYS + 1),
+        outcome: 'ok', summary: 'ancient ok — deletable',
+      },
+    });
+    await prisma.pulse.create({
+      data: {
+        harnessId: harness.id, seq: 4, startedAt: daysAgo(ROW_DECAY_DAYS + 1), endedAt: daysAgo(ROW_DECAY_DAYS + 1),
+        outcome: 'fail', summary: 'ancient failure — a finding, kept forever',
+      },
+    });
+
+    const result = await prunePulses(prisma);
+    expect(result.textStripped).toBeGreaterThanOrEqual(1);
+    expect(result.rowsDeleted).toBeGreaterThanOrEqual(1);
+
+    const remaining = await prisma.pulse.findMany({
+      where: { harnessId: harness.id },
+      orderBy: { seq: 'asc' },
+    });
+    expect(remaining.map((p) => p.seq)).toEqual([1, 2, 4]);
+    // Old row: text gone, narrative intact.
+    expect(remaining[0].promptText).toBeNull();
+    expect(remaining[0].summary).toBe('old but summarised');
+    // Fresh row untouched.
+    expect(remaining[1].promptText).toBe('fresh prompt');
+    // The ancient failure survived row decay.
+    expect(remaining[2].outcome).toBe('fail');
+  });
+});
+
+describe('auto model harnesses', () => {
+  it('a pulse never clobbers `auto` with the routed model', async () => {
+    const { runPulse } = await import('../lib/pulse-engine.js');
+    const harness = await prisma.harness.create({
+      data: {
+        objectiveId,
+        name: 'auto-pilot',
+        mission: 'Route thyself.',
+        model: 'auto',
+        status: 'ready',
+      },
+    });
+    // Simulate skips the provider call but still runs the persistence path —
+    // exactly where a naive `model: ranModel` write would pin the harness.
+    const result = await runPulse(prisma, harness.id, { simulate: true });
+    expect(result.ran).toBe(true);
+    const after = await prisma.harness.findUnique({ where: { id: harness.id } });
+    expect(after?.model).toBe('auto');
+  });
+});

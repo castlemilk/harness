@@ -75,8 +75,95 @@ export interface SpawnHarnessInput {
   spendCapUsd?: number | null;
   maxChildren: number;
   permissions: { id: string; label: string; granted: boolean; needsApproval: boolean }[];
+  /** SkillArtifact names granted to this harness; injected into its pulses. */
+  skills?: string[];
   dryRun?: boolean;
   taskId?: string | null;
+}
+
+export interface SkillListing {
+  name: string;
+  description: string;
+  sourcePath: string;
+}
+
+export interface ProviderHealth {
+  name: string;
+  kind: string;
+  defaultModel: string;
+  credentialed: boolean;
+  /** Null when the router has never seen this provider — not a perfect score. */
+  health: {
+    score: number;
+    errorRate: number;
+    latencyP50: number;
+    recentCalls: number;
+    circuitState: string;
+  } | null;
+}
+
+export interface BenchmarkModelRow {
+  provider: string | null;
+  model: string | null;
+  runs: number;
+  latestPassRate: number;
+  latestAt: string;
+  meanPassRate: number;
+  totalCostUsd: number;
+  /** Null when no run reported cost — unknown, not free. */
+  costPerPass: number | null;
+  suites: string[];
+}
+
+export interface BenchmarkTaskEvaluation {
+  passed: boolean;
+  score?: number;
+  message?: string;
+  metrics?: Record<string, number | string>;
+}
+
+export interface BenchmarkTaskResult {
+  taskName: string;
+  harnessTaskId: string;
+  passed: boolean;
+  durationMs: number;
+  /** Absent on task rows written before per-task evaluations were persisted. */
+  evaluation?: BenchmarkTaskEvaluation;
+  /** Per-task spend/usage; absent on history written before audit fields landed. */
+  costUsd?: number;
+  totalTokens?: number;
+  model?: string;
+  winnerModel?: string;
+  variancePassRate?: number;
+  error?: string;
+}
+
+export interface BenchmarkRunSummary {
+  id: string;
+  suite: string;
+  provider: string | null;
+  model: string | null;
+  totalTasks: number;
+  passed: number;
+  failed: number;
+  timeouts: number;
+  passRate: number;
+  totalCostUsd: number | null;
+  totalTokens: number | null;
+  createdAt: string;
+  /** Legacy aggregate responses included this field; current responses do not. */
+  results?: BenchmarkTaskResult[];
+}
+
+export interface BenchmarkRunDetail {
+  id: string;
+  results: BenchmarkTaskResult[];
+}
+
+export interface BenchmarkSummary {
+  models: BenchmarkModelRow[];
+  recent: BenchmarkRunSummary[];
+  totalRuns: number;
 }
 
 export type ResolveAction =
@@ -100,6 +187,34 @@ export const foremanApi = {
     targetDate?: string;
     spendCapUsd?: number;
   }) => request<Objective>('/foreman/objectives', { method: 'POST', body: JSON.stringify(body) }),
+
+  updateObjective: (
+    id: string,
+    body: {
+      name?: string;
+      description?: string | null;
+      instructions?: string | null;
+      useCase?: string | null;
+      targetDate?: string | null;
+      spendCapUsd?: number | null;
+      status?: 'active' | 'complete' | 'archived';
+    },
+  ) => request<Objective>(`/foreman/objectives/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  createWorkstream: (body: { objectiveId: string; name: string; orderIdx?: number }) =>
+    request<Workstream>('/foreman/workstreams', { method: 'POST', body: JSON.stringify(body) }),
+
+  updateWorkstream: (id: string, body: { name?: string; orderIdx?: number; leadHarnessId?: string | null }) =>
+    request<Workstream>(`/foreman/workstreams/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  listSkills: () => request<SkillListing[]>('/foreman/skills'),
+
+  getProvidersHealth: () => request<ProviderHealth[]>('/foreman/providers/health'),
+
+  getBenchmarks: () => request<BenchmarkSummary>('/foreman/benchmarks'),
+
+  getBenchmarkDetails: (id: string) =>
+    request<BenchmarkRunDetail>(`/foreman/benchmarks/${encodeURIComponent(id)}`),
 
   // Carries every pending intervention, and a tool approval's whole basis for
   // the decision is the command it wants to run.
@@ -186,6 +301,15 @@ export const foremanApi = {
         ? `/foreman/playbooks/${id}?objectiveId=${objectiveId}`
         : `/foreman/playbooks/${id}`,
     ),
+
+  createPlaybook: (body: {
+    projectId?: string | null;
+    name: string;
+    steps?: { index: number; text: string; condition: string | null }[];
+    variables?: string[];
+    cadence?: string;
+    retireWhen?: string | null;
+  }) => request<Playbook>('/foreman/playbooks', { method: 'POST', body: JSON.stringify(body) }),
 
   savePlaybookVersion: (
     id: string,

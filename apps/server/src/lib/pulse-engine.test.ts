@@ -62,6 +62,29 @@ describe('parsePulseReport', () => {
   });
 });
 
+describe('working memory in the report', () => {
+  it('keeps a returned memory string, clamped to the cap', () => {
+    const report = parsePulseReport(
+      '{"summary":"Advanced the slice.","outcome":"ok","memory":"Open thread: v253 gate pending. Check the ruler verdict next pulse."}',
+    );
+    expect(report.memory).toBe(
+      'Open thread: v253 gate pending. Check the ruler verdict next pulse.',
+    );
+    const long = parsePulseReport(
+      `{"summary":"x","outcome":"ok","memory":"${'a'.repeat(5000)}"}`,
+    );
+    expect(long.memory?.length).toBe(2000);
+  });
+
+  it('distinguishes "clear my memory" from "keep it"', () => {
+    // Empty string is a deliberate clear and must survive the parse…
+    expect(parsePulseReport('{"summary":"x","outcome":"ok","memory":""}').memory).toBe('');
+    // …absent means keep, and a non-string is not a memory.
+    expect(parsePulseReport('{"summary":"x","outcome":"ok"}').memory).toBeUndefined();
+    expect(parsePulseReport('{"summary":"x","outcome":"ok","memory":null}').memory).toBeUndefined();
+  });
+});
+
 describe('cost estimation', () => {
   it('prices a known model from its input and output tokens', () => {
     // gpt-5-mini: $0.25/1M in, $2/1M out.
@@ -106,5 +129,18 @@ describe('unpriced models', () => {
     for (const m of ['deepseek-chat', 'glm-5.2']) {
       expect(lookupModelPrice(m), `${m} should be priced`).not.toBeNull();
     }
+  });
+});
+
+describe('autoStrategyFor', () => {
+  it('maps auto and auto:<strategy>, leaves concrete models alone', async () => {
+    const { autoStrategyFor } = await import('./pulse-engine.js');
+    expect(autoStrategyFor('auto')).toBeUndefined(); // learner recommends
+    expect(autoStrategyFor('auto:cost-optimized')).toBe('cost-optimized');
+    expect(autoStrategyFor('auto:performance-optimized')).toBe('performance-optimized');
+    expect(autoStrategyFor('gpt-5')).toBeNull();
+    expect(autoStrategyFor('external:codex')).toBeNull();
+    // Unknown suffix routes as plain auto rather than inventing a strategy.
+    expect(autoStrategyFor('auto:vibes')).toBeUndefined();
   });
 });

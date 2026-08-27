@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { Harness, Playbook } from '../types.js';
-import type { SpawnHarnessInput } from '../data/api.js';
+import type { SkillListing, SpawnHarnessInput } from '../data/api.js';
 import { Field, Modal, Select, TextArea, TextInput, Toggle } from '../ui/Modal.js';
 import { Button, SectionLabel } from '../ui/primitives.js';
+import { SkillPicker } from './SkillPicker.js';
 
 /**
  * Surface 1d — Spawn a harness.
@@ -28,6 +29,13 @@ const DEFAULT_PERMISSIONS: Permission[] = [
 
 /** Fallback only — the real list comes from the server's providers. */
 const FALLBACK_MODELS = ['opus-4.6', 'sonnet-4.6', 'haiku-4'];
+
+/**
+ * Router-delegated model choice: the IntelligentRouter picks a provider/model
+ * every pulse from capability + benchmark + health evidence. Bare `auto` lets
+ * the strategy learner choose the strategy too.
+ */
+export const AUTO_MODELS = ['auto', 'auto:cost-optimized', 'auto:performance-optimized'];
 const HEARTBEATS = [15, 30, 60, 120];
 const BUDGETS = [5, 15, 40, 100];
 const MAX_CHILDREN = [0, 3, 6, 16];
@@ -40,6 +48,7 @@ export function SpawnHarness({
   parent,
   playbooks,
   models,
+  skills,
   onSpawn,
 }: {
   open: boolean;
@@ -50,6 +59,7 @@ export function SpawnHarness({
   playbooks: Playbook[];
   /** Models the server can serve; empty falls back to the static list. */
   models: string[];
+  skills: SkillListing[];
   onSpawn: (input: SpawnHarnessInput) => Promise<void>;
 }) {
   const [name, setName] = useState('');
@@ -60,9 +70,10 @@ export function SpawnHarness({
   const [budget, setBudget] = useState(15);
   const [maxChildren, setMaxChildren] = useState(3);
   const [permissions, setPermissions] = useState<Permission[]>(DEFAULT_PERMISSIONS);
+  const [granted, setGranted] = useState<string[]>([]);
   const [dryRun, setDryRun] = useState(false);
   const [busy, setBusy] = useState(false);
-  const available = models.length > 0 ? models : FALLBACK_MODELS;
+  const available = [...AUTO_MODELS, ...(models.length > 0 ? models : FALLBACK_MODELS)];
   const [error, setError] = useState<string | null>(null);
 
   // Reopening the dialog for a different parent starts from a clean form.
@@ -76,6 +87,7 @@ export function SpawnHarness({
     setBudget(15);
     setMaxChildren(3);
     setPermissions(DEFAULT_PERMISSIONS);
+    setGranted([]);
     setDryRun(false);
     setError(null);
     setBusy(false);
@@ -103,6 +115,7 @@ export function SpawnHarness({
         spendCapUsd: budget,
         maxChildren,
         permissions,
+        skills: granted,
         dryRun,
       });
       onClose();
@@ -217,6 +230,10 @@ export function SpawnHarness({
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="mt-4">
+          <SkillPicker skills={skills} selected={granted} onChange={setGranted} />
         </div>
 
         {error && (

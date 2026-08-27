@@ -210,9 +210,118 @@ task engine:pulse     -- <harnessId>   # one real pulse
 task dev:engine                        # scheduler on (FOREMAN_ENGINE=1)
 ```
 
-A pulse builds its prompt from the harness's mission, routine, recent pulses,
-children and any operator reply; calls the provider; then records tokens, cost,
-status and any escalation.
+A pulse builds its prompt from the harness's mission, the objective's standing
+instructions, any granted skills, the routine (with `$variables` resolved),
+recent pulses, children and any operator reply; calls the provider; then
+records tokens, cost, status and any escalation.
+
+### Configuring a project (2026-08-21)
+
+Objectives and harnesses are no longer birth-only:
+
+- **⚙ next to the objective switcher** opens Objective settings: rename,
+  description, spend cap, status (`active`/`complete`/`archived`), and
+  **standing instructions** — free text injected into the system prompt of
+  EVERY pulse of every harness under the objective. Project conventions live
+  there once, not copy-pasted into each mission. (`PATCH /foreman/objectives/:id`)
+- **Edit on the Console focus column** opens the harness editor: mission,
+  model, heartbeat, budget cap, max children, playbook, and **skills** — the
+  read-only slider lookalikes are gone. (`PATCH /foreman/harnesses/:id`,
+  which existed all along with no UI caller.)
+- **Skills** are `SkillArtifact` rows seeded from `.agents/skills/*/SKILL.md`
+  at server start (`GET /foreman/skills` lists them). A granted skill's
+  markdown body (frontmatter stripped, 8k cap per skill) rides the pulse
+  system prompt; a grant whose file stops resolving is disclosed to the agent
+  as unavailable, never silently dropped. Unknown names are rejected at write
+  time.
+- **`+ New workstream`** in the Console rail creates a lane
+  (`POST /foreman/workstreams`; `PATCH /foreman/workstreams/:id` renames);
+  **`+ New playbook`** in the Playbooks editor authors a v1 routine
+  (`POST /foreman/playbooks` — the version route only ever forked).
+- **Interjecting a `waiting` harness releases it**: the reply is the human
+  input it was blocked on, so it flips to `working` with an immediate pulse.
+  Before this, a reply to a waiting harness was written and never read.
+
+### Multi-model orchestration & session provenance (2026-08-21)
+
+- **Pulses record what actually happened**: `Pulse.model` is the model that
+  served the call (substitution-aware — Usage's per-model spend now keys off
+  it instead of retroactively re-attributing history to the harness's current
+  model), and `Pulse.promptText`/`responseText` capture the exact exchange
+  (24k cap each). A transcript divider with a captured exchange expands to
+  show it — the audit trail for "what did this agent actually see and say".
+- **Working memory**: the pulse JSON contract gained an optional `memory`
+  field (2k cap). A returned string replaces `Harness.memory` wholesale and
+  is injected into the next pulse's prompt — the one piece of state that
+  survives the stateless heartbeat. The Console focus column renders it.
+- **The router is in the loop**: pulse provider resolution now skips
+  providers whose circuit breaker is open (falling back to the primary when
+  ALL are broken, same policy as the task path), and every pulse records its
+  outcome into the router's health/performance state under the provider name
+  — so pulse failures open the same circuits pulse resolution respects.
+- **External-CLI spend caps are honest**: only `claude-code`'s parser reports
+  a dollar cost; a capped harness on any other CLI used to record $0 forever.
+  It now refuses to run (`unpriced-model` + one intervention), exactly like
+  the internal branch's unpriced-model guard.
+- **Benchmarks tab** (core chrome, every objective): pass rate and $/pass per
+  provider/model from `BenchmarkHistory` (which previously had NO HTTP
+  surface), joined with the router's live provider health/circuits
+  (`GET /foreman/benchmarks`, `GET /foreman/providers/health`). Read-only —
+  runs are launched via `omega bench run` or the legacy panel. A model whose
+  runs never reported cost reads "unreported", never $0/pass.
+- An interject the next pulse has not consumed yet is labelled
+  "queued for next pulse" in the transcript.
+
+### Auto model routing & the benchmark feedback loop (2026-08-21)
+
+- **`model: auto`** (and `auto:cost-optimized` / `auto:performance-optimized`)
+  delegates model choice to the IntelligentRouter EVERY pulse: candidates are
+  scored on capability (classified from the harness's name + mission),
+  historical performance (Wilson lower bound), cost, live health and budget;
+  circuit-broken providers are skipped when an alternative exists. Bare
+  `auto` also lets the strategy learner pick the strategy. The harness row
+  KEEPS `auto` — the pulse row records the model that actually ran. With the
+  router unavailable, auto degrades to the ordinary fallback and says so.
+- **Benchmarks now feed routing**: at router boot the last 200
+  `BenchmarkHistory` runs fold into the performance cache under the same
+  `provider/model` keys the scorer reads (age-decayed — a six-week-old
+  benchmark arrives at <5% recency weight, not fresh). Combined with `auto`,
+  this closes the loop: run a bench sweep, and the fleet's model choice
+  shifts toward what measured well. Pulse outcomes also record into the
+  cache, so live behaviour keeps updating what benchmarks seeded.
+- **Retention**: captured prompt/response text decays after 14 days (the
+  pulse row — seq, outcome, summary, model, cost — survives); ok-outcome
+  pulses older than 120 days are deleted; warn/fail pulses are findings and
+  are kept forever. Runs daily while the engine is on, or on demand via
+  `POST /foreman/engine/prune`.
+- **External CLI sessions land in the transcript**: the CLI's own output is
+  written as an assistant trace after each external pulse, so an
+  `external:codex` harness's transcript carries the session record, not just
+  dividers.
+
+#### Recipe: a benchmark sweep as an objective
+
+The pattern for "improve benchmarks" as ordinary fleet work, watched on the
+Board rather than a terminal:
+
+1. Create an objective **"Bench sweep — <suite>"** with standing instructions
+   naming the suite's rules (e.g. deep-swe's f2p/p2p contract — or grant the
+   matching skill from `.agents/skills`).
+2. One workstream lane per model under test; in each lane one harness on
+   `external:<cli>` (or a concrete model) with the relevant skill granted and
+   a real spend cap — external CLIs without cost reporting refuse a cap by
+   design, so use claude-code or uncapped+watched.
+3. Launch the runs with `omega bench run --suite <suite> …` per model; results
+   land in `BenchmarkHistory`, appear on the **Benchmarks** tab, and fold
+   into the router at next boot — closing the sweep back into `auto` routing.
+
+### Transcript noise (2026-08-21)
+
+Pulse dividers now carry the pulse's own summary/outcome (the engine's
+narration used to be invisible in the transcript), runs of 2+ idle ok pulses
+collapse into one expandable "N idle pulses" row, the filter chips drop
+dividers with no matching content instead of keeping the wall, and the route
+serves the newest 200 pulses by default (`?limit=`).
 
 Safety properties worth knowing, because they are load-bearing:
 

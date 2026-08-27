@@ -1,5 +1,6 @@
 import type { Provider, ToolDefinition, SendOptions } from '@omega/core';
 import { AGENT_TOOLS } from './tool-definitions.js';
+import { abortableOperation } from './retry.js';
 
 export interface PlanStep {
   name: string;
@@ -53,21 +54,32 @@ export async function createPlan(
   taskDescription?: string,
   context?: string,
   onUsage?: SendOptions['onUsage'],
-  onEvent?: SendOptions['onEvent']
+  onEventOrOptions?: SendOptions['onEvent'] | { timeoutMs?: number; signal?: AbortSignal },
+  options?: { timeoutMs?: number; signal?: AbortSignal },
 ): Promise<PlannerResult> {
   const contextBlock = context ? `\n\nProject context:\n${context}` : '';
   const prompt = `${PLAN_PROMPT}${contextBlock}\n\nTask: ${taskTitle}\n${taskDescription ? `Description: ${taskDescription}\n` : ''}`;
   // Try tool-aware path first, fall back to plain send.
   let raw: string;
-  if ('sendWithTools' in provider && typeof provider.sendWithTools === 'function') {
-    raw = await provider.sendWithTools(prompt, PLANNING_TOOLS, {
+  const onEvent = typeof onEventOrOptions === 'function' ? onEventOrOptions : undefined;
+  const requestOptions = typeof onEventOrOptions === 'object' ? onEventOrOptions : options;
+  const sendWithTools = provider.sendWithTools?.bind(provider);
+  if (typeof sendWithTools === 'function') {
+    raw = await abortableOperation(() => sendWithTools.call(provider, prompt, PLANNING_TOOLS, {
       system: PLAN_PROMPT,
       temperature: 0.2,
       onUsage,
       onEvent,
-    });
+      timeoutMs: requestOptions?.timeoutMs,
+    }), requestOptions?.signal);
   } else {
-    raw = await provider.send(prompt, { system: PLAN_PROMPT, temperature: 0.2, onUsage, onEvent });
+    raw = await abortableOperation(() => provider.send(prompt, {
+      system: PLAN_PROMPT,
+      temperature: 0.2,
+      onUsage,
+      onEvent,
+      timeoutMs: requestOptions?.timeoutMs,
+    }), requestOptions?.signal);
   }
 
   try {

@@ -8185,6 +8185,8 @@ export namespace Prisma {
     tokenBudgetExceeded: boolean | null
     deadlineMs: number | null
     deadlineRemainingMs: number | null
+    sessionId: string | null
+    sessionKind: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -8220,6 +8222,8 @@ export namespace Prisma {
     tokenBudgetExceeded: boolean | null
     deadlineMs: number | null
     deadlineRemainingMs: number | null
+    sessionId: string | null
+    sessionKind: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -8255,6 +8259,8 @@ export namespace Prisma {
     tokenBudgetExceeded: number
     deadlineMs: number
     deadlineRemainingMs: number
+    sessionId: number
+    sessionKind: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -8328,6 +8334,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: true
     deadlineMs?: true
     deadlineRemainingMs?: true
+    sessionId?: true
+    sessionKind?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -8363,6 +8371,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: true
     deadlineMs?: true
     deadlineRemainingMs?: true
+    sessionId?: true
+    sessionKind?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -8398,6 +8408,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: true
     deadlineMs?: true
     deadlineRemainingMs?: true
+    sessionId?: true
+    sessionKind?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -8520,6 +8532,8 @@ export namespace Prisma {
     tokenBudgetExceeded: boolean
     deadlineMs: number | null
     deadlineRemainingMs: number | null
+    sessionId: string | null
+    sessionKind: string | null
     createdAt: Date
     updatedAt: Date
     _count: AgentRunCountAggregateOutputType | null
@@ -8574,6 +8588,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: boolean
     deadlineMs?: boolean
     deadlineRemainingMs?: boolean
+    sessionId?: boolean
+    sessionKind?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -8611,6 +8627,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: boolean
     deadlineMs?: boolean
     deadlineRemainingMs?: boolean
+    sessionId?: boolean
+    sessionKind?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     task?: boolean | TaskDefaultArgs<ExtArgs>
@@ -8648,6 +8666,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: boolean
     deadlineMs?: boolean
     deadlineRemainingMs?: boolean
+    sessionId?: boolean
+    sessionKind?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -8698,6 +8718,8 @@ export namespace Prisma {
       tokenBudgetExceeded: boolean
       deadlineMs: number | null
       deadlineRemainingMs: number | null
+      sessionId: string | null
+      sessionKind: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["agentRun"]>
@@ -9125,6 +9147,8 @@ export namespace Prisma {
     readonly tokenBudgetExceeded: FieldRef<"AgentRun", 'Boolean'>
     readonly deadlineMs: FieldRef<"AgentRun", 'Int'>
     readonly deadlineRemainingMs: FieldRef<"AgentRun", 'Int'>
+    readonly sessionId: FieldRef<"AgentRun", 'String'>
+    readonly sessionKind: FieldRef<"AgentRun", 'String'>
     readonly createdAt: FieldRef<"AgentRun", 'DateTime'>
     readonly updatedAt: FieldRef<"AgentRun", 'DateTime'>
   }
@@ -16527,6 +16551,7 @@ export namespace Prisma {
     description: string | null
     status: string | null
     useCase: string | null
+    instructions: string | null
     targetDate: Date | null
     spendCapUsd: number | null
     createdAt: Date | null
@@ -16540,6 +16565,7 @@ export namespace Prisma {
     description: string | null
     status: string | null
     useCase: string | null
+    instructions: string | null
     targetDate: Date | null
     spendCapUsd: number | null
     createdAt: Date | null
@@ -16553,6 +16579,7 @@ export namespace Prisma {
     description: number
     status: number
     useCase: number
+    instructions: number
     targetDate: number
     spendCapUsd: number
     createdAt: number
@@ -16576,6 +16603,7 @@ export namespace Prisma {
     description?: true
     status?: true
     useCase?: true
+    instructions?: true
     targetDate?: true
     spendCapUsd?: true
     createdAt?: true
@@ -16589,6 +16617,7 @@ export namespace Prisma {
     description?: true
     status?: true
     useCase?: true
+    instructions?: true
     targetDate?: true
     spendCapUsd?: true
     createdAt?: true
@@ -16602,6 +16631,7 @@ export namespace Prisma {
     description?: true
     status?: true
     useCase?: true
+    instructions?: true
     targetDate?: true
     spendCapUsd?: true
     createdAt?: true
@@ -16702,6 +16732,7 @@ export namespace Prisma {
     description: string | null
     status: string
     useCase: string | null
+    instructions: string | null
     targetDate: Date | null
     spendCapUsd: number | null
     createdAt: Date
@@ -16734,6 +16765,7 @@ export namespace Prisma {
     description?: boolean
     status?: boolean
     useCase?: boolean
+    instructions?: boolean
     targetDate?: boolean
     spendCapUsd?: boolean
     createdAt?: boolean
@@ -16753,6 +16785,7 @@ export namespace Prisma {
     description?: boolean
     status?: boolean
     useCase?: boolean
+    instructions?: boolean
     targetDate?: boolean
     spendCapUsd?: boolean
     createdAt?: boolean
@@ -16767,6 +16800,7 @@ export namespace Prisma {
     description?: boolean
     status?: boolean
     useCase?: boolean
+    instructions?: boolean
     targetDate?: boolean
     spendCapUsd?: boolean
     createdAt?: boolean
@@ -16805,6 +16839,12 @@ export namespace Prisma {
        * objective renders with the core Foreman chrome only.
        */
       useCase: string | null
+      /**
+       * Standing instructions injected into the system prompt of EVERY pulse of
+       * every harness under this objective. Project-level context the fleet
+       * shares — conventions, constraints, what "done" means here. Free text.
+       */
+      instructions: string | null
       targetDate: Date | null
       spendCapUsd: number | null
       createdAt: Date
@@ -17213,6 +17253,7 @@ export namespace Prisma {
     readonly description: FieldRef<"Objective", 'String'>
     readonly status: FieldRef<"Objective", 'String'>
     readonly useCase: FieldRef<"Objective", 'String'>
+    readonly instructions: FieldRef<"Objective", 'String'>
     readonly targetDate: FieldRef<"Objective", 'DateTime'>
     readonly spendCapUsd: FieldRef<"Objective", 'Float'>
     readonly createdAt: FieldRef<"Objective", 'DateTime'>
@@ -19708,6 +19749,8 @@ export namespace Prisma {
     contextTokens: number | null
     contextWindow: number | null
     permissions: string | null
+    skills: string | null
+    memory: string | null
     dryRun: boolean | null
     lastPulseSeq: number | null
     idleSince: Date | null
@@ -19739,6 +19782,8 @@ export namespace Prisma {
     contextTokens: number | null
     contextWindow: number | null
     permissions: string | null
+    skills: string | null
+    memory: string | null
     dryRun: boolean | null
     lastPulseSeq: number | null
     idleSince: Date | null
@@ -19770,6 +19815,8 @@ export namespace Prisma {
     contextTokens: number
     contextWindow: number
     permissions: number
+    skills: number
+    memory: number
     dryRun: number
     lastPulseSeq: number
     idleSince: number
@@ -19823,6 +19870,8 @@ export namespace Prisma {
     contextTokens?: true
     contextWindow?: true
     permissions?: true
+    skills?: true
+    memory?: true
     dryRun?: true
     lastPulseSeq?: true
     idleSince?: true
@@ -19854,6 +19903,8 @@ export namespace Prisma {
     contextTokens?: true
     contextWindow?: true
     permissions?: true
+    skills?: true
+    memory?: true
     dryRun?: true
     lastPulseSeq?: true
     idleSince?: true
@@ -19885,6 +19936,8 @@ export namespace Prisma {
     contextTokens?: true
     contextWindow?: true
     permissions?: true
+    skills?: true
+    memory?: true
     dryRun?: true
     lastPulseSeq?: true
     idleSince?: true
@@ -20003,6 +20056,8 @@ export namespace Prisma {
     contextTokens: number
     contextWindow: number
     permissions: string
+    skills: string
+    memory: string | null
     dryRun: boolean
     lastPulseSeq: number
     idleSince: Date | null
@@ -20053,6 +20108,8 @@ export namespace Prisma {
     contextTokens?: boolean
     contextWindow?: boolean
     permissions?: boolean
+    skills?: boolean
+    memory?: boolean
     dryRun?: boolean
     lastPulseSeq?: boolean
     idleSince?: boolean
@@ -20091,6 +20148,8 @@ export namespace Prisma {
     contextTokens?: boolean
     contextWindow?: boolean
     permissions?: boolean
+    skills?: boolean
+    memory?: boolean
     dryRun?: boolean
     lastPulseSeq?: boolean
     idleSince?: boolean
@@ -20125,6 +20184,8 @@ export namespace Prisma {
     contextTokens?: boolean
     contextWindow?: boolean
     permissions?: boolean
+    skills?: boolean
+    memory?: boolean
     dryRun?: boolean
     lastPulseSeq?: boolean
     idleSince?: boolean
@@ -20181,6 +20242,20 @@ export namespace Prisma {
       contextTokens: number
       contextWindow: number
       permissions: string
+      /**
+       * JSON array of SkillArtifact names granted to this harness. Each named
+       * skill's SKILL.md body is injected into the pulse system prompt (bounded).
+       * Names that match no artifact are surfaced in the prompt as unresolved,
+       * never silently dropped.
+       */
+      skills: string
+      /**
+       * Rolling working memory the agent carries across pulses: the model may
+       * return a bounded `memory` string each pulse, which replaces this whole
+       * field and is injected into the next pulse's prompt. The one piece of
+       * state that survives the otherwise-stateless heartbeat.
+       */
+      memory: string | null
       dryRun: boolean
       lastPulseSeq: number
       idleSince: Date | null
@@ -20608,6 +20683,8 @@ export namespace Prisma {
     readonly contextTokens: FieldRef<"Harness", 'Int'>
     readonly contextWindow: FieldRef<"Harness", 'Int'>
     readonly permissions: FieldRef<"Harness", 'String'>
+    readonly skills: FieldRef<"Harness", 'String'>
+    readonly memory: FieldRef<"Harness", 'String'>
     readonly dryRun: FieldRef<"Harness", 'Boolean'>
     readonly lastPulseSeq: FieldRef<"Harness", 'Int'>
     readonly idleSince: FieldRef<"Harness", 'DateTime'>
@@ -21070,6 +21147,9 @@ export namespace Prisma {
     endedAt: Date | null
     outcome: string | null
     summary: string | null
+    model: string | null
+    promptText: string | null
+    responseText: string | null
     costUsd: number | null
     tokens: number | null
     weight: number | null
@@ -21083,6 +21163,9 @@ export namespace Prisma {
     endedAt: Date | null
     outcome: string | null
     summary: string | null
+    model: string | null
+    promptText: string | null
+    responseText: string | null
     costUsd: number | null
     tokens: number | null
     weight: number | null
@@ -21096,6 +21179,9 @@ export namespace Prisma {
     endedAt: number
     outcome: number
     summary: number
+    model: number
+    promptText: number
+    responseText: number
     costUsd: number
     tokens: number
     weight: number
@@ -21125,6 +21211,9 @@ export namespace Prisma {
     endedAt?: true
     outcome?: true
     summary?: true
+    model?: true
+    promptText?: true
+    responseText?: true
     costUsd?: true
     tokens?: true
     weight?: true
@@ -21138,6 +21227,9 @@ export namespace Prisma {
     endedAt?: true
     outcome?: true
     summary?: true
+    model?: true
+    promptText?: true
+    responseText?: true
     costUsd?: true
     tokens?: true
     weight?: true
@@ -21151,6 +21243,9 @@ export namespace Prisma {
     endedAt?: true
     outcome?: true
     summary?: true
+    model?: true
+    promptText?: true
+    responseText?: true
     costUsd?: true
     tokens?: true
     weight?: true
@@ -21251,6 +21346,9 @@ export namespace Prisma {
     endedAt: Date | null
     outcome: string
     summary: string | null
+    model: string | null
+    promptText: string | null
+    responseText: string | null
     costUsd: number
     tokens: number
     weight: number
@@ -21283,6 +21381,9 @@ export namespace Prisma {
     endedAt?: boolean
     outcome?: boolean
     summary?: boolean
+    model?: boolean
+    promptText?: boolean
+    responseText?: boolean
     costUsd?: boolean
     tokens?: boolean
     weight?: boolean
@@ -21297,6 +21398,9 @@ export namespace Prisma {
     endedAt?: boolean
     outcome?: boolean
     summary?: boolean
+    model?: boolean
+    promptText?: boolean
+    responseText?: boolean
     costUsd?: boolean
     tokens?: boolean
     weight?: boolean
@@ -21311,6 +21415,9 @@ export namespace Prisma {
     endedAt?: boolean
     outcome?: boolean
     summary?: boolean
+    model?: boolean
+    promptText?: boolean
+    responseText?: boolean
     costUsd?: boolean
     tokens?: boolean
     weight?: boolean
@@ -21336,6 +21443,20 @@ export namespace Prisma {
       endedAt: Date | null
       outcome: string
       summary: string | null
+      /**
+       * The model that ACTUALLY served this pulse — which may not be the model
+       * the harness declares (provider substitution). Null on rows predating the
+       * column; spend attribution falls back to the harness's current model then.
+       */
+      model: string | null
+      /**
+       * The exact prompt sent and raw response received, bounded. The audit
+       * trail for "what did this agent actually see and say" — without them a
+       * pulse is unreviewable the moment it ends. Null for dry runs, external
+       * CLI pulses (their transcript lives in TaskTrace), and pre-column rows.
+       */
+      promptText: string | null
+      responseText: string | null
       costUsd: number
       tokens: number
       weight: number
@@ -21740,6 +21861,9 @@ export namespace Prisma {
     readonly endedAt: FieldRef<"Pulse", 'DateTime'>
     readonly outcome: FieldRef<"Pulse", 'String'>
     readonly summary: FieldRef<"Pulse", 'String'>
+    readonly model: FieldRef<"Pulse", 'String'>
+    readonly promptText: FieldRef<"Pulse", 'String'>
+    readonly responseText: FieldRef<"Pulse", 'String'>
     readonly costUsd: FieldRef<"Pulse", 'Float'>
     readonly tokens: FieldRef<"Pulse", 'Int'>
     readonly weight: FieldRef<"Pulse", 'Float'>
@@ -26341,6 +26465,8 @@ export namespace Prisma {
     tokenBudgetExceeded: 'tokenBudgetExceeded',
     deadlineMs: 'deadlineMs',
     deadlineRemainingMs: 'deadlineRemainingMs',
+    sessionId: 'sessionId',
+    sessionKind: 'sessionKind',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -26478,6 +26604,7 @@ export namespace Prisma {
     description: 'description',
     status: 'status',
     useCase: 'useCase',
+    instructions: 'instructions',
     targetDate: 'targetDate',
     spendCapUsd: 'spendCapUsd',
     createdAt: 'createdAt',
@@ -26537,6 +26664,8 @@ export namespace Prisma {
     contextTokens: 'contextTokens',
     contextWindow: 'contextWindow',
     permissions: 'permissions',
+    skills: 'skills',
+    memory: 'memory',
     dryRun: 'dryRun',
     lastPulseSeq: 'lastPulseSeq',
     idleSince: 'idleSince',
@@ -26556,6 +26685,9 @@ export namespace Prisma {
     endedAt: 'endedAt',
     outcome: 'outcome',
     summary: 'summary',
+    model: 'model',
+    promptText: 'promptText',
+    responseText: 'responseText',
     costUsd: 'costUsd',
     tokens: 'tokens',
     weight: 'weight'
@@ -27166,6 +27298,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFilter<"AgentRun"> | boolean
     deadlineMs?: IntNullableFilter<"AgentRun"> | number | null
     deadlineRemainingMs?: IntNullableFilter<"AgentRun"> | number | null
+    sessionId?: StringNullableFilter<"AgentRun"> | string | null
+    sessionKind?: StringNullableFilter<"AgentRun"> | string | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -27203,6 +27337,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: SortOrder
     deadlineMs?: SortOrderInput | SortOrder
     deadlineRemainingMs?: SortOrderInput | SortOrder
+    sessionId?: SortOrderInput | SortOrder
+    sessionKind?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     task?: TaskOrderByWithRelationInput
@@ -27243,6 +27379,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFilter<"AgentRun"> | boolean
     deadlineMs?: IntNullableFilter<"AgentRun"> | number | null
     deadlineRemainingMs?: IntNullableFilter<"AgentRun"> | number | null
+    sessionId?: StringNullableFilter<"AgentRun"> | string | null
+    sessionKind?: StringNullableFilter<"AgentRun"> | string | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
     task?: XOR<TaskRelationFilter, TaskWhereInput>
@@ -27280,6 +27418,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: SortOrder
     deadlineMs?: SortOrderInput | SortOrder
     deadlineRemainingMs?: SortOrderInput | SortOrder
+    sessionId?: SortOrderInput | SortOrder
+    sessionKind?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: AgentRunCountOrderByAggregateInput
@@ -27323,6 +27463,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolWithAggregatesFilter<"AgentRun"> | boolean
     deadlineMs?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
     deadlineRemainingMs?: IntNullableWithAggregatesFilter<"AgentRun"> | number | null
+    sessionId?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
+    sessionKind?: StringNullableWithAggregatesFilter<"AgentRun"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"AgentRun"> | Date | string
   }
@@ -27945,6 +28087,7 @@ export namespace Prisma {
     description?: StringNullableFilter<"Objective"> | string | null
     status?: StringFilter<"Objective"> | string
     useCase?: StringNullableFilter<"Objective"> | string | null
+    instructions?: StringNullableFilter<"Objective"> | string | null
     targetDate?: DateTimeNullableFilter<"Objective"> | Date | string | null
     spendCapUsd?: FloatNullableFilter<"Objective"> | number | null
     createdAt?: DateTimeFilter<"Objective"> | Date | string
@@ -27963,6 +28106,7 @@ export namespace Prisma {
     description?: SortOrderInput | SortOrder
     status?: SortOrder
     useCase?: SortOrderInput | SortOrder
+    instructions?: SortOrderInput | SortOrder
     targetDate?: SortOrderInput | SortOrder
     spendCapUsd?: SortOrderInput | SortOrder
     createdAt?: SortOrder
@@ -27984,6 +28128,7 @@ export namespace Prisma {
     description?: StringNullableFilter<"Objective"> | string | null
     status?: StringFilter<"Objective"> | string
     useCase?: StringNullableFilter<"Objective"> | string | null
+    instructions?: StringNullableFilter<"Objective"> | string | null
     targetDate?: DateTimeNullableFilter<"Objective"> | Date | string | null
     spendCapUsd?: FloatNullableFilter<"Objective"> | number | null
     createdAt?: DateTimeFilter<"Objective"> | Date | string
@@ -28002,6 +28147,7 @@ export namespace Prisma {
     description?: SortOrderInput | SortOrder
     status?: SortOrder
     useCase?: SortOrderInput | SortOrder
+    instructions?: SortOrderInput | SortOrder
     targetDate?: SortOrderInput | SortOrder
     spendCapUsd?: SortOrderInput | SortOrder
     createdAt?: SortOrder
@@ -28023,6 +28169,7 @@ export namespace Prisma {
     description?: StringNullableWithAggregatesFilter<"Objective"> | string | null
     status?: StringWithAggregatesFilter<"Objective"> | string
     useCase?: StringNullableWithAggregatesFilter<"Objective"> | string | null
+    instructions?: StringNullableWithAggregatesFilter<"Objective"> | string | null
     targetDate?: DateTimeNullableWithAggregatesFilter<"Objective"> | Date | string | null
     spendCapUsd?: FloatNullableWithAggregatesFilter<"Objective"> | number | null
     createdAt?: DateTimeWithAggregatesFilter<"Objective"> | Date | string
@@ -28197,6 +28344,8 @@ export namespace Prisma {
     contextTokens?: IntFilter<"Harness"> | number
     contextWindow?: IntFilter<"Harness"> | number
     permissions?: StringFilter<"Harness"> | string
+    skills?: StringFilter<"Harness"> | string
+    memory?: StringNullableFilter<"Harness"> | string | null
     dryRun?: BoolFilter<"Harness"> | boolean
     lastPulseSeq?: IntFilter<"Harness"> | number
     idleSince?: DateTimeNullableFilter<"Harness"> | Date | string | null
@@ -28234,6 +28383,8 @@ export namespace Prisma {
     contextTokens?: SortOrder
     contextWindow?: SortOrder
     permissions?: SortOrder
+    skills?: SortOrder
+    memory?: SortOrderInput | SortOrder
     dryRun?: SortOrder
     lastPulseSeq?: SortOrder
     idleSince?: SortOrderInput | SortOrder
@@ -28274,6 +28425,8 @@ export namespace Prisma {
     contextTokens?: IntFilter<"Harness"> | number
     contextWindow?: IntFilter<"Harness"> | number
     permissions?: StringFilter<"Harness"> | string
+    skills?: StringFilter<"Harness"> | string
+    memory?: StringNullableFilter<"Harness"> | string | null
     dryRun?: BoolFilter<"Harness"> | boolean
     lastPulseSeq?: IntFilter<"Harness"> | number
     idleSince?: DateTimeNullableFilter<"Harness"> | Date | string | null
@@ -28311,6 +28464,8 @@ export namespace Prisma {
     contextTokens?: SortOrder
     contextWindow?: SortOrder
     permissions?: SortOrder
+    skills?: SortOrder
+    memory?: SortOrderInput | SortOrder
     dryRun?: SortOrder
     lastPulseSeq?: SortOrder
     idleSince?: SortOrderInput | SortOrder
@@ -28350,6 +28505,8 @@ export namespace Prisma {
     contextTokens?: IntWithAggregatesFilter<"Harness"> | number
     contextWindow?: IntWithAggregatesFilter<"Harness"> | number
     permissions?: StringWithAggregatesFilter<"Harness"> | string
+    skills?: StringWithAggregatesFilter<"Harness"> | string
+    memory?: StringNullableWithAggregatesFilter<"Harness"> | string | null
     dryRun?: BoolWithAggregatesFilter<"Harness"> | boolean
     lastPulseSeq?: IntWithAggregatesFilter<"Harness"> | number
     idleSince?: DateTimeNullableWithAggregatesFilter<"Harness"> | Date | string | null
@@ -28369,6 +28526,9 @@ export namespace Prisma {
     endedAt?: DateTimeNullableFilter<"Pulse"> | Date | string | null
     outcome?: StringFilter<"Pulse"> | string
     summary?: StringNullableFilter<"Pulse"> | string | null
+    model?: StringNullableFilter<"Pulse"> | string | null
+    promptText?: StringNullableFilter<"Pulse"> | string | null
+    responseText?: StringNullableFilter<"Pulse"> | string | null
     costUsd?: FloatFilter<"Pulse"> | number
     tokens?: IntFilter<"Pulse"> | number
     weight?: FloatFilter<"Pulse"> | number
@@ -28383,6 +28543,9 @@ export namespace Prisma {
     endedAt?: SortOrderInput | SortOrder
     outcome?: SortOrder
     summary?: SortOrderInput | SortOrder
+    model?: SortOrderInput | SortOrder
+    promptText?: SortOrderInput | SortOrder
+    responseText?: SortOrderInput | SortOrder
     costUsd?: SortOrder
     tokens?: SortOrder
     weight?: SortOrder
@@ -28401,6 +28564,9 @@ export namespace Prisma {
     endedAt?: DateTimeNullableFilter<"Pulse"> | Date | string | null
     outcome?: StringFilter<"Pulse"> | string
     summary?: StringNullableFilter<"Pulse"> | string | null
+    model?: StringNullableFilter<"Pulse"> | string | null
+    promptText?: StringNullableFilter<"Pulse"> | string | null
+    responseText?: StringNullableFilter<"Pulse"> | string | null
     costUsd?: FloatFilter<"Pulse"> | number
     tokens?: IntFilter<"Pulse"> | number
     weight?: FloatFilter<"Pulse"> | number
@@ -28415,6 +28581,9 @@ export namespace Prisma {
     endedAt?: SortOrderInput | SortOrder
     outcome?: SortOrder
     summary?: SortOrderInput | SortOrder
+    model?: SortOrderInput | SortOrder
+    promptText?: SortOrderInput | SortOrder
+    responseText?: SortOrderInput | SortOrder
     costUsd?: SortOrder
     tokens?: SortOrder
     weight?: SortOrder
@@ -28436,6 +28605,9 @@ export namespace Prisma {
     endedAt?: DateTimeNullableWithAggregatesFilter<"Pulse"> | Date | string | null
     outcome?: StringWithAggregatesFilter<"Pulse"> | string
     summary?: StringNullableWithAggregatesFilter<"Pulse"> | string | null
+    model?: StringNullableWithAggregatesFilter<"Pulse"> | string | null
+    promptText?: StringNullableWithAggregatesFilter<"Pulse"> | string | null
+    responseText?: StringNullableWithAggregatesFilter<"Pulse"> | string | null
     costUsd?: FloatWithAggregatesFilter<"Pulse"> | number
     tokens?: IntWithAggregatesFilter<"Pulse"> | number
     weight?: FloatWithAggregatesFilter<"Pulse"> | number
@@ -29283,6 +29455,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: boolean
     deadlineMs?: number | null
     deadlineRemainingMs?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -29320,6 +29494,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: boolean
     deadlineMs?: number | null
     deadlineRemainingMs?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -29353,6 +29529,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
     deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
     deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -29390,6 +29568,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
     deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
     deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -29425,6 +29605,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: boolean
     deadlineMs?: number | null
     deadlineRemainingMs?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -29458,6 +29640,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
     deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
     deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -29493,6 +29677,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
     deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
     deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -30220,6 +30406,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -30238,6 +30425,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -30254,6 +30442,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30272,6 +30461,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30289,6 +30479,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -30301,6 +30492,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30314,6 +30506,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30489,6 +30682,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -30526,6 +30721,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -30557,6 +30754,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30594,6 +30793,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30628,6 +30829,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -30656,6 +30859,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30687,6 +30892,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30702,6 +30909,9 @@ export namespace Prisma {
     endedAt?: Date | string | null
     outcome: string
     summary?: string | null
+    model?: string | null
+    promptText?: string | null
+    responseText?: string | null
     costUsd?: number
     tokens?: number
     weight?: number
@@ -30716,6 +30926,9 @@ export namespace Prisma {
     endedAt?: Date | string | null
     outcome: string
     summary?: string | null
+    model?: string | null
+    promptText?: string | null
+    responseText?: string | null
     costUsd?: number
     tokens?: number
     weight?: number
@@ -30728,6 +30941,9 @@ export namespace Prisma {
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     outcome?: StringFieldUpdateOperationsInput | string
     summary?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    promptText?: NullableStringFieldUpdateOperationsInput | string | null
+    responseText?: NullableStringFieldUpdateOperationsInput | string | null
     costUsd?: FloatFieldUpdateOperationsInput | number
     tokens?: IntFieldUpdateOperationsInput | number
     weight?: FloatFieldUpdateOperationsInput | number
@@ -30742,6 +30958,9 @@ export namespace Prisma {
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     outcome?: StringFieldUpdateOperationsInput | string
     summary?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    promptText?: NullableStringFieldUpdateOperationsInput | string | null
+    responseText?: NullableStringFieldUpdateOperationsInput | string | null
     costUsd?: FloatFieldUpdateOperationsInput | number
     tokens?: IntFieldUpdateOperationsInput | number
     weight?: FloatFieldUpdateOperationsInput | number
@@ -30755,6 +30974,9 @@ export namespace Prisma {
     endedAt?: Date | string | null
     outcome: string
     summary?: string | null
+    model?: string | null
+    promptText?: string | null
+    responseText?: string | null
     costUsd?: number
     tokens?: number
     weight?: number
@@ -30767,6 +30989,9 @@ export namespace Prisma {
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     outcome?: StringFieldUpdateOperationsInput | string
     summary?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    promptText?: NullableStringFieldUpdateOperationsInput | string | null
+    responseText?: NullableStringFieldUpdateOperationsInput | string | null
     costUsd?: FloatFieldUpdateOperationsInput | number
     tokens?: IntFieldUpdateOperationsInput | number
     weight?: FloatFieldUpdateOperationsInput | number
@@ -30780,6 +31005,9 @@ export namespace Prisma {
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     outcome?: StringFieldUpdateOperationsInput | string
     summary?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    promptText?: NullableStringFieldUpdateOperationsInput | string | null
+    responseText?: NullableStringFieldUpdateOperationsInput | string | null
     costUsd?: FloatFieldUpdateOperationsInput | number
     tokens?: IntFieldUpdateOperationsInput | number
     weight?: FloatFieldUpdateOperationsInput | number
@@ -31689,6 +31917,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: SortOrder
     deadlineMs?: SortOrder
     deadlineRemainingMs?: SortOrder
+    sessionId?: SortOrder
+    sessionKind?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -31742,6 +31972,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: SortOrder
     deadlineMs?: SortOrder
     deadlineRemainingMs?: SortOrder
+    sessionId?: SortOrder
+    sessionKind?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -31777,6 +32009,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: SortOrder
     deadlineMs?: SortOrder
     deadlineRemainingMs?: SortOrder
+    sessionId?: SortOrder
+    sessionKind?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -32282,6 +32516,7 @@ export namespace Prisma {
     description?: SortOrder
     status?: SortOrder
     useCase?: SortOrder
+    instructions?: SortOrder
     targetDate?: SortOrder
     spendCapUsd?: SortOrder
     createdAt?: SortOrder
@@ -32299,6 +32534,7 @@ export namespace Prisma {
     description?: SortOrder
     status?: SortOrder
     useCase?: SortOrder
+    instructions?: SortOrder
     targetDate?: SortOrder
     spendCapUsd?: SortOrder
     createdAt?: SortOrder
@@ -32312,6 +32548,7 @@ export namespace Prisma {
     description?: SortOrder
     status?: SortOrder
     useCase?: SortOrder
+    instructions?: SortOrder
     targetDate?: SortOrder
     spendCapUsd?: SortOrder
     createdAt?: SortOrder
@@ -32461,6 +32698,8 @@ export namespace Prisma {
     contextTokens?: SortOrder
     contextWindow?: SortOrder
     permissions?: SortOrder
+    skills?: SortOrder
+    memory?: SortOrder
     dryRun?: SortOrder
     lastPulseSeq?: SortOrder
     idleSince?: SortOrder
@@ -32502,6 +32741,8 @@ export namespace Prisma {
     contextTokens?: SortOrder
     contextWindow?: SortOrder
     permissions?: SortOrder
+    skills?: SortOrder
+    memory?: SortOrder
     dryRun?: SortOrder
     lastPulseSeq?: SortOrder
     idleSince?: SortOrder
@@ -32533,6 +32774,8 @@ export namespace Prisma {
     contextTokens?: SortOrder
     contextWindow?: SortOrder
     permissions?: SortOrder
+    skills?: SortOrder
+    memory?: SortOrder
     dryRun?: SortOrder
     lastPulseSeq?: SortOrder
     idleSince?: SortOrder
@@ -32569,6 +32812,9 @@ export namespace Prisma {
     endedAt?: SortOrder
     outcome?: SortOrder
     summary?: SortOrder
+    model?: SortOrder
+    promptText?: SortOrder
+    responseText?: SortOrder
     costUsd?: SortOrder
     tokens?: SortOrder
     weight?: SortOrder
@@ -32589,6 +32835,9 @@ export namespace Prisma {
     endedAt?: SortOrder
     outcome?: SortOrder
     summary?: SortOrder
+    model?: SortOrder
+    promptText?: SortOrder
+    responseText?: SortOrder
     costUsd?: SortOrder
     tokens?: SortOrder
     weight?: SortOrder
@@ -32602,6 +32851,9 @@ export namespace Prisma {
     endedAt?: SortOrder
     outcome?: SortOrder
     summary?: SortOrder
+    model?: SortOrder
+    promptText?: SortOrder
+    responseText?: SortOrder
     costUsd?: SortOrder
     tokens?: SortOrder
     weight?: SortOrder
@@ -34144,6 +34396,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -34160,6 +34413,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -34244,6 +34498,7 @@ export namespace Prisma {
     description?: StringNullableFilter<"Objective"> | string | null
     status?: StringFilter<"Objective"> | string
     useCase?: StringNullableFilter<"Objective"> | string | null
+    instructions?: StringNullableFilter<"Objective"> | string | null
     targetDate?: DateTimeNullableFilter<"Objective"> | Date | string | null
     spendCapUsd?: FloatNullableFilter<"Objective"> | number | null
     createdAt?: DateTimeFilter<"Objective"> | Date | string
@@ -34394,6 +34649,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: boolean
     deadlineMs?: number | null
     deadlineRemainingMs?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     promptVersion?: PromptVersionCreateNestedOneWithoutAgentRunsInput
@@ -34429,6 +34686,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: boolean
     deadlineMs?: number | null
     deadlineRemainingMs?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -34651,6 +34910,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFilter<"AgentRun"> | boolean
     deadlineMs?: IntNullableFilter<"AgentRun"> | number | null
     deadlineRemainingMs?: IntNullableFilter<"AgentRun"> | number | null
+    sessionId?: StringNullableFilter<"AgentRun"> | string | null
+    sessionKind?: StringNullableFilter<"AgentRun"> | string | null
     createdAt?: DateTimeFilter<"AgentRun"> | Date | string
     updatedAt?: DateTimeFilter<"AgentRun"> | Date | string
   }
@@ -35329,6 +35590,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: boolean
     deadlineMs?: number | null
     deadlineRemainingMs?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     task: TaskCreateNestedOneWithoutAgentRunsInput
@@ -35364,6 +35627,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: boolean
     deadlineMs?: number | null
     deadlineRemainingMs?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -35501,6 +35766,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -35536,6 +35803,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -35729,6 +35998,8 @@ export namespace Prisma {
     contextTokens?: IntFilter<"Harness"> | number
     contextWindow?: IntFilter<"Harness"> | number
     permissions?: StringFilter<"Harness"> | string
+    skills?: StringFilter<"Harness"> | string
+    memory?: StringNullableFilter<"Harness"> | string | null
     dryRun?: BoolFilter<"Harness"> | boolean
     lastPulseSeq?: IntFilter<"Harness"> | number
     idleSince?: DateTimeNullableFilter<"Harness"> | Date | string | null
@@ -35777,6 +36048,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -35794,6 +36066,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -35825,6 +36098,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -35842,6 +36116,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -35857,6 +36132,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -35874,6 +36150,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -35908,6 +36185,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -35943,6 +36222,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -35981,6 +36262,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -35998,6 +36280,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -36029,6 +36312,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -36046,6 +36330,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -36107,6 +36392,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -36143,6 +36430,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -36178,6 +36467,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -36213,6 +36504,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -36241,6 +36534,9 @@ export namespace Prisma {
     endedAt?: Date | string | null
     outcome: string
     summary?: string | null
+    model?: string | null
+    promptText?: string | null
+    responseText?: string | null
     costUsd?: number
     tokens?: number
     weight?: number
@@ -36253,6 +36549,9 @@ export namespace Prisma {
     endedAt?: Date | string | null
     outcome: string
     summary?: string | null
+    model?: string | null
+    promptText?: string | null
+    responseText?: string | null
     costUsd?: number
     tokens?: number
     weight?: number
@@ -36325,6 +36624,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -36342,6 +36642,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -36415,6 +36716,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -36451,6 +36754,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -36504,6 +36809,9 @@ export namespace Prisma {
     endedAt?: DateTimeNullableFilter<"Pulse"> | Date | string | null
     outcome?: StringFilter<"Pulse"> | string
     summary?: StringNullableFilter<"Pulse"> | string | null
+    model?: StringNullableFilter<"Pulse"> | string | null
+    promptText?: StringNullableFilter<"Pulse"> | string | null
+    responseText?: StringNullableFilter<"Pulse"> | string | null
     costUsd?: FloatFilter<"Pulse"> | number
     tokens?: IntFilter<"Pulse"> | number
     weight?: FloatFilter<"Pulse"> | number
@@ -36563,6 +36871,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -36599,6 +36909,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -36645,6 +36957,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -36681,6 +36995,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -36697,6 +37013,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -36714,6 +37031,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -36745,6 +37063,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -36762,6 +37081,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -36791,6 +37111,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -36827,6 +37149,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -36913,6 +37237,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -36949,6 +37275,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -37094,6 +37422,7 @@ export namespace Prisma {
     description?: string | null
     status?: string
     useCase?: string | null
+    instructions?: string | null
     targetDate?: Date | string | null
     spendCapUsd?: number | null
     createdAt?: Date | string
@@ -37170,6 +37499,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -37186,6 +37516,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -37202,6 +37533,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     status?: StringFieldUpdateOperationsInput | string
     useCase?: NullableStringFieldUpdateOperationsInput | string | null
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -37267,6 +37599,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: boolean
     deadlineMs?: number | null
     deadlineRemainingMs?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -37400,6 +37734,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
     deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
     deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     promptVersion?: PromptVersionUpdateOneWithoutAgentRunsNestedInput
@@ -37435,6 +37771,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
     deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
     deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -37469,6 +37807,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
     deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
     deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -37542,6 +37882,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: boolean
     deadlineMs?: number | null
     deadlineRemainingMs?: number | null
+    sessionId?: string | null
+    sessionKind?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -37575,6 +37917,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
     deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
     deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     task?: TaskUpdateOneRequiredWithoutAgentRunsNestedInput
@@ -37610,6 +37954,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
     deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
     deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -37644,6 +37990,8 @@ export namespace Prisma {
     tokenBudgetExceeded?: BoolFieldUpdateOperationsInput | boolean
     deadlineMs?: NullableIntFieldUpdateOperationsInput | number | null
     deadlineRemainingMs?: NullableIntFieldUpdateOperationsInput | number | null
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    sessionKind?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -37689,6 +38037,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -37790,6 +38140,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -37825,6 +38177,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -37858,6 +38212,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -37930,6 +38286,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -37958,6 +38316,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -37993,6 +38353,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -38026,6 +38388,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -38056,6 +38420,8 @@ export namespace Prisma {
     contextTokens?: number
     contextWindow?: number
     permissions?: string
+    skills?: string
+    memory?: string | null
     dryRun?: boolean
     lastPulseSeq?: number
     idleSince?: Date | string | null
@@ -38071,6 +38437,9 @@ export namespace Prisma {
     endedAt?: Date | string | null
     outcome: string
     summary?: string | null
+    model?: string | null
+    promptText?: string | null
+    responseText?: string | null
     costUsd?: number
     tokens?: number
     weight?: number
@@ -38110,6 +38479,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -38145,6 +38516,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -38178,6 +38551,8 @@ export namespace Prisma {
     contextTokens?: IntFieldUpdateOperationsInput | number
     contextWindow?: IntFieldUpdateOperationsInput | number
     permissions?: StringFieldUpdateOperationsInput | string
+    skills?: StringFieldUpdateOperationsInput | string
+    memory?: NullableStringFieldUpdateOperationsInput | string | null
     dryRun?: BoolFieldUpdateOperationsInput | boolean
     lastPulseSeq?: IntFieldUpdateOperationsInput | number
     idleSince?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -38193,6 +38568,9 @@ export namespace Prisma {
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     outcome?: StringFieldUpdateOperationsInput | string
     summary?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    promptText?: NullableStringFieldUpdateOperationsInput | string | null
+    responseText?: NullableStringFieldUpdateOperationsInput | string | null
     costUsd?: FloatFieldUpdateOperationsInput | number
     tokens?: IntFieldUpdateOperationsInput | number
     weight?: FloatFieldUpdateOperationsInput | number
@@ -38205,6 +38583,9 @@ export namespace Prisma {
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     outcome?: StringFieldUpdateOperationsInput | string
     summary?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    promptText?: NullableStringFieldUpdateOperationsInput | string | null
+    responseText?: NullableStringFieldUpdateOperationsInput | string | null
     costUsd?: FloatFieldUpdateOperationsInput | number
     tokens?: IntFieldUpdateOperationsInput | number
     weight?: FloatFieldUpdateOperationsInput | number
@@ -38217,6 +38598,9 @@ export namespace Prisma {
     endedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     outcome?: StringFieldUpdateOperationsInput | string
     summary?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    promptText?: NullableStringFieldUpdateOperationsInput | string | null
+    responseText?: NullableStringFieldUpdateOperationsInput | string | null
     costUsd?: FloatFieldUpdateOperationsInput | number
     tokens?: IntFieldUpdateOperationsInput | number
     weight?: FloatFieldUpdateOperationsInput | number

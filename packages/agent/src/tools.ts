@@ -24,7 +24,8 @@ function argString(value: unknown): string {
 export async function executeTool(
   projectPath: string,
   name: string,
-  arguments_: Record<string, unknown>
+  arguments_: Record<string, unknown>,
+  options: { timeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<ToolResult> {
   switch (name) {
     case 'read_file':
@@ -55,7 +56,7 @@ export async function executeTool(
     case 'apply_patch':
       return applyPatch(projectPath, argString(arguments_.patch));
     case 'run_command':
-      return runCommand(projectPath, argString(arguments_.command));
+      return runCommand(projectPath, argString(arguments_.command), options);
     case 'list_files':
       return listFiles(projectPath, argString(arguments_.path), Boolean(arguments_.recursive));
     case 'search':
@@ -82,7 +83,10 @@ export async function executeTool(
         Array.isArray(arguments_.checks) ? arguments_.checks.map((c) => argString(c)) : undefined
       );
     case 'validate_patch':
-      return validatePatch(projectPath);
+      return validatePatch(projectPath, undefined, {
+        deadlineMs: options.timeoutMs === undefined ? undefined : Date.now() + options.timeoutMs,
+        signal: options.signal,
+      });
     default:
       return { success: false, output: `Unknown tool: ${name}` };
   }

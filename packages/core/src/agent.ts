@@ -44,6 +44,8 @@ export interface AgentRun {
   resultStatus: AgentRunStatus;
   validationSummary?: string;
   publishedVersion?: string;
+  sessionId?: string;
+  sessionKind?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,5 +60,6 @@ export interface AgentOptions {
   tokenBudget?: number; // abort the agent loop if total tokens exceed this cap
   retainWorktree?: boolean; // keep isolated worktree after the run for debugging
   complexity?: string; // used for adaptive timeouts and resource limits
+  timeoutMs?: number; // total wall-clock budget for one agent attempt
   signal?: AbortSignal; // external abort signal for deadline enforcement
 }

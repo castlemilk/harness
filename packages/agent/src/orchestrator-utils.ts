@@ -168,6 +168,23 @@ export async function runPool<T>(items: T[], concurrency: number, worker: (item:
   await Promise.all(workers);
 }
 
+/**
+ * The model pin an orchestration must honour, if the operator set one.
+ *
+ * Both fields are required: a provider without a model (or vice versa) is an
+ * incomplete pin and must fall through to routing rather than half-applying.
+ * When this returns a value the orchestrator uses it for the planner AND
+ * every subtask — a pin is an instruction, not a preference.
+ */
+export function resolvePinnedModel(
+  task: { provider?: string | null; model?: string | null },
+): { provider: string; model: string } | undefined {
+  const provider = task.provider?.trim();
+  const model = task.model?.trim();
+  if (!provider || !model) return undefined;
+  return { provider, model };
+}
+
 export async function pickModel(
   prisma: PrismaClient,
   tier: 'high' | 'medium' | 'low',

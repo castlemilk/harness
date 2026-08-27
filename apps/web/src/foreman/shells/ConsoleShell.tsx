@@ -35,6 +35,7 @@ export function ConsoleShell({
   tools,
   onAction,
   onSpawn,
+  onCreateWorkstream,
 }: {
   state: ObjectiveState;
   focusId: string | null;
@@ -42,6 +43,7 @@ export function ConsoleShell({
   tools: Tool[];
   onAction: (action: ConsoleAction, harness: Harness) => void;
   onSpawn: (parentId: string | null) => void;
+  onCreateWorkstream?: (name: string) => void;
 }) {
   const { objective, harnesses, workstreams } = state;
   const focus = harnesses.find((h) => h.id === focusId) ?? harnesses.at(0) ?? null;
@@ -58,6 +60,7 @@ export function ConsoleShell({
         focusId={focus?.id ?? null}
         onFocus={onFocus}
         onSpawn={onSpawn}
+        onCreateWorkstream={onCreateWorkstream}
       />
       {focus ? (
         <FocusColumn
@@ -90,9 +93,14 @@ export type ConsoleAction =
   | 'reply'
   | 'rendezvous'
   | 'transcript'
+  | 'edit'
   | 'pause'
   | 'resume'
   | 'run-tool';
+
+/** Rows a stream shows before "… N more". High enough that a healthy team
+ *  fits; low enough that a runaway spawner cannot flood the rail. */
+const TREE_ROW_CAP = 12;
 
 /* ---------------------------------------------------------------- left rail */
 
@@ -103,6 +111,7 @@ function FleetTree({
   focusId,
   onFocus,
   onSpawn,
+  onCreateWorkstream,
 }: {
   objective: Objective;
   harnesses: Harness[];
@@ -110,15 +119,24 @@ function FleetTree({
   focusId: string | null;
   onFocus: (id: string) => void;
   onSpawn: (parentId: string | null) => void;
+  onCreateWorkstream?: (name: string) => void;
 }) {
   const [filter, setFilter] = useState('');
   const words = useVocabulary();
   // Collapsed-sets rather than expanded-sets: a harness or workstream that
-  // arrives over the stream after mount defaults to visible.
-  const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(() => new Set());
+  // arrives over the stream after mount defaults to visible. Sub-leads (a
+  // harness that both HAS a parent and OWNS children) start collapsed — deep
+  // subtrees all-expanded is what made a 20-agent fleet read as noise.
+  const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(
+    () => new Set(
+      harnesses.filter((h) => h.parentId !== null && h.childCount > 0).map((h) => h.id),
+    ),
+  );
   const [closedStreams, setClosedStreams] = useState<Set<string>>(
     () => new Set(workstreams.slice(1).map((w) => w.id)),
   );
+  // Streams whose row cap the operator has lifted ("… N more").
+  const [unclippedStreams, setUnclippedStreams] = useState<Set<string>>(() => new Set());
 
   const needle = filter.trim().toLowerCase();
   const fleet = useMemo(() => liveHarnesses(harnesses), [harnesses]);
@@ -170,7 +188,10 @@ function FleetTree({
         <div className="flex flex-col gap-px">
           {groups.map((group) => {
             const members = group.harnesses;
-            if (members.length === 0) return null;
+            // An empty REAL workstream renders (a lane you just created must be
+            // visible, or creating it looks like it did nothing); the synthetic
+            // Unassigned bucket only appears when something is actually in it.
+            if (members.length === 0 && !group.workstream) return null;
             const roots = buildTree(members);
             const open = !closedStreams.has(group.id) || Boolean(needle);
             const ws = group.workstream;
@@ -191,21 +212,42 @@ function FleetTree({
                     {members.length}
                   </span>
                 </button>
-                {open &&
-                  flattenTree(
+                {open && (() => {
+                  const rows = flattenTree(
                     roots,
                     new Set(members.filter((m) => !collapsedNodes.has(m.id)).map((m) => m.id)),
-                  ).map(({ node, hasChildren }) => (
-                    <TreeRow
-                      key={node.harness.id}
-                      node={node}
-                      hasChildren={hasChildren}
-                      expanded={!collapsedNodes.has(node.harness.id)}
-                      focused={node.harness.id === focusId}
-                      onToggle={() => { toggle(collapsedNodes, node.harness.id, setCollapsedNodes); }}
-                      onFocus={() => { onFocus(node.harness.id); }}
-                    />
-                  ))}
+                  );
+                  // Cap with a count, never silently truncate — and never
+                  // while filtering, when a hit past the cap is the point.
+                  const clip = !needle
+                    && !unclippedStreams.has(group.id)
+                    && rows.length > TREE_ROW_CAP;
+                  const shownRows = clip ? rows.slice(0, TREE_ROW_CAP) : rows;
+                  return (
+                    <>
+                      {shownRows.map(({ node, hasChildren }) => (
+                        <TreeRow
+                          key={node.harness.id}
+                          node={node}
+                          hasChildren={hasChildren}
+                          expanded={!collapsedNodes.has(node.harness.id)}
+                          focused={node.harness.id === focusId}
+                          onToggle={() => { toggle(collapsedNodes, node.harness.id, setCollapsedNodes); }}
+                          onFocus={() => { onFocus(node.harness.id); }}
+                        />
+                      ))}
+                      {clip && (
+                        <button
+                          type="button"
+                          onClick={() => { toggle(unclippedStreams, group.id, setUnclippedStreams); }}
+                          className="w-full rounded-[5px] px-1.5 py-1 text-left font-mono text-[10px] text-muted hover:bg-card hover:text-ink2"
+                        >
+                          … {rows.length - TREE_ROW_CAP} more
+                        </button>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             );
           })}
@@ -218,6 +260,20 @@ function FleetTree({
         >
           + New harness
         </button>
+        {onCreateWorkstream && (
+          <button
+            type="button"
+            onClick={() => {
+              // Same low-ceremony prompt the playbook editor uses for
+              // variables — a lane needs one field, not a modal.
+              const name = window.prompt('New workstream name');
+              if (name?.trim()) onCreateWorkstream(name.trim());
+            }}
+            className="w-full rounded-[5px] px-1.5 py-1.5 text-left text-[11px] text-muted hover:bg-card hover:text-ink2"
+          >
+            + New workstream
+          </button>
+        )}
       </div>
 
       <div className="flex items-center justify-between border-t border-hair px-3 py-2.5">
@@ -373,6 +429,7 @@ function FocusColumn({
               </Button>
               <Button onClick={() => { onAction('rendezvous', harness); }}>Rendezvous</Button>
               <Button onClick={() => { onAction('transcript', harness); }}>Transcript</Button>
+              <Button onClick={() => { onAction('edit', harness); }}>Edit</Button>
               <Button onClick={() => { onAction(paused ? 'resume' : 'pause', harness); }}>
                 {paused ? 'Resume fleet' : 'Pause fleet'}
               </Button>
@@ -383,9 +440,20 @@ function FocusColumn({
               {harness.mission}
             </p>
             <SectionLabel className="mb-2">Current job</SectionLabel>
-            <p className="m-0 text-[13px] leading-relaxed text-ink2 [text-wrap:pretty]">
+            <p className="m-0 mb-4 text-[13px] leading-relaxed text-ink2 [text-wrap:pretty]">
               {harness.currentJob || '—'}
             </p>
+            <SectionLabel className="mb-2">Working memory</SectionLabel>
+            {harness.memory != null && harness.memory !== '' ? (
+              <pre className="m-0 whitespace-pre-wrap rounded-[7px] bg-[#191920] px-3 py-2.5 font-mono text-[11px] leading-relaxed text-ink3">
+                {harness.memory}
+              </pre>
+            ) : (
+              <p className="m-0 text-[11px] text-muted">
+                Nothing carried over — the agent has not written a memory note on any
+                pulse yet. Memory is the one thing that survives between heartbeats.
+              </p>
+            )}
           </div>
         </Panel>
 

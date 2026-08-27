@@ -216,6 +216,77 @@ export function deadlineMsForComplexity(complexity: string | undefined): number 
   return Math.round(base * multiplier);
 }
 
+export function deadlineAtForTask(
+  complexity: string | undefined,
+  timeoutMs: number | undefined,
+  nowMs: number = Date.now(),
+): number {
+  const durationMs = timeoutMs !== undefined && Number.isFinite(timeoutMs) && timeoutMs > 0
+    ? timeoutMs
+    : deadlineMsForComplexity(complexity);
+  return nowMs + durationMs;
+}
+
+export interface DeadlineGuard {
+  signal: AbortSignal;
+  dispose: () => void;
+}
+
+export interface ExecutionDeadlineOptions {
+  deadlineMs?: number;
+  signal?: AbortSignal;
+}
+
+/** Combine caller cancellation with an absolute wall-clock deadline. */
+export function createDeadlineGuard(
+  deadlineMs: number,
+  externalSignal?: AbortSignal,
+): DeadlineGuard {
+  const controller = new AbortController();
+  const abortFromCaller = (): void => {
+    controller.abort(externalSignal?.reason ?? new DOMException('AbortError', 'AbortError'));
+  };
+
+  if (externalSignal?.aborted) {
+    abortFromCaller();
+  } else {
+    externalSignal?.addEventListener('abort', abortFromCaller, { once: true });
+  }
+
+  const timer = setTimeout(() => {
+    controller.abort(new DOMException('Agent wall-clock deadline exceeded', 'TimeoutError'));
+  }, Math.max(0, deadlineMs - Date.now()));
+
+  return {
+    signal: controller.signal,
+    dispose: () => {
+      clearTimeout(timer);
+      externalSignal?.removeEventListener('abort', abortFromCaller);
+    },
+  };
+}
+
+export function remainingDeadlineMs(deadlineMs: number, nowMs: number = Date.now()): number {
+  return Math.max(1, deadlineMs - nowMs);
+}
+
+/** Bound one provider transport request without defeating the outer deadline signal. */
+export function boundedProviderRequestTimeoutMs(
+  deadlineMs: number,
+  nowMs: number = Date.now(),
+): number {
+  return Math.min(120_000, Math.max(5_000, remainingDeadlineMs(deadlineMs, nowMs)));
+}
+
+export function boundedExecutionTimeoutMs(
+  maximumMs: number,
+  options: ExecutionDeadlineOptions = {},
+): number {
+  return options.deadlineMs === undefined
+    ? maximumMs
+    : Math.min(maximumMs, remainingDeadlineMs(options.deadlineMs));
+}
+
 export function explorationBudgetForComplexity(complexity: string | undefined): { beforeFirstEdit: number; betweenEdits: number } {
   switch (complexity) {
     case 'simple': return { beforeFirstEdit: 8, betweenEdits: 4 };

@@ -2,6 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import {
+  boundedExecutionTimeoutMs,
+  type ExecutionDeadlineOptions,
+} from './project-utils.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -58,7 +62,10 @@ export async function runTypeScriptScript(
   return { success: false, output: 'No TypeScript runner (tsx or ts-node) available.' };
 }
 
-export async function runTypeCheck(projectPath: string): Promise<{ success: boolean; output: string }> {
+export async function runTypeCheck(
+  projectPath: string,
+  options: ExecutionDeadlineOptions = {},
+): Promise<{ success: boolean; output: string }> {
   if (!(await hasTsConfig(projectPath))) {
     return { success: true, output: 'No tsconfig.json; skipping TypeScript typecheck.' };
   }
@@ -71,7 +78,8 @@ export async function runTypeCheck(projectPath: string): Promise<{ success: bool
     if (typeCheckScript) {
       const { stdout, stderr } = await execFileAsync('corepack', ['pnpm@10.18.0', 'run', 'typecheck'], {
         cwd: projectPath,
-        timeout: 300_000,
+        timeout: boundedExecutionTimeoutMs(300_000, options),
+        signal: options.signal,
         env: COREPACK_ENV,
       });
       return { success: true, output: stdout + stderr };
@@ -83,7 +91,8 @@ export async function runTypeCheck(projectPath: string): Promise<{ success: bool
   try {
     const { stdout, stderr } = await execFileAsync('npx', ['tsc', '--noEmit'], {
       cwd: projectPath,
-      timeout: 300_000,
+      timeout: boundedExecutionTimeoutMs(300_000, options),
+      signal: options.signal,
     });
     return { success: true, output: stdout + stderr };
   } catch (err) {

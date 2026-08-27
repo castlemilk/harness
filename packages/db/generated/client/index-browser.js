@@ -214,6 +214,8 @@ exports.Prisma.AgentRunScalarFieldEnum = {
   tokenBudgetExceeded: 'tokenBudgetExceeded',
   deadlineMs: 'deadlineMs',
   deadlineRemainingMs: 'deadlineRemainingMs',
+  sessionId: 'sessionId',
+  sessionKind: 'sessionKind',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -327,6 +329,7 @@ exports.Prisma.ObjectiveScalarFieldEnum = {
   description: 'description',
   status: 'status',
   useCase: 'useCase',
+  instructions: 'instructions',
   targetDate: 'targetDate',
   spendCapUsd: 'spendCapUsd',
   createdAt: 'createdAt',
@@ -377,6 +380,8 @@ exports.Prisma.HarnessScalarFieldEnum = {
   contextTokens: 'contextTokens',
   contextWindow: 'contextWindow',
   permissions: 'permissions',
+  skills: 'skills',
+  memory: 'memory',
   dryRun: 'dryRun',
   lastPulseSeq: 'lastPulseSeq',
   idleSince: 'idleSince',
@@ -393,6 +398,9 @@ exports.Prisma.PulseScalarFieldEnum = {
   endedAt: 'endedAt',
   outcome: 'outcome',
   summary: 'summary',
+  model: 'model',
+  promptText: 'promptText',
+  responseText: 'responseText',
   costUsd: 'costUsd',
   tokens: 'tokens',
   weight: 'weight'

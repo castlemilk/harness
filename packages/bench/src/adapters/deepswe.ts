@@ -2,9 +2,14 @@ import fs from 'node:fs/promises';
 import type { Dirent } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { omegaVerifierToolsDir, omegaWorkDir } from '@omega/core';
+import {
+  isTestishPath,
+  omegaVerifierToolsDir,
+  omegaWorkDir,
+} from '@omega/core';
 import type { BenchmarkTask, BenchmarkEvaluation, EvaluationContext } from '../types.js';
 
 const execFileAsync = promisify(execFile);
@@ -15,6 +20,79 @@ export interface DeepSWEOptions {
   sampleSeed?: number;
   taskIds?: string[];
   useDocker?: boolean;
+  /** Per-agent-attempt wall-clock limit advertised in the task prompt. */
+  timeoutMs?: number;
+}
+
+export function deepSwePatchAuditMetrics(
+  modelPatch: string,
+  validationSummary: string | undefined,
+): Record<
+  'graded_patch_test_paths' | 'graded_patch_added_test_paths',
+  number
+> & Record<'graded_patch_added_test_path_list', string> {
+  const paths = new Set<string>();
+  const addedPaths = new Set<string>();
+  let currentPath: string | undefined;
+  let currentPathAdded = false;
+  const finishCurrentPath = (): void => {
+    if (currentPath && isTestishPath(currentPath)) {
+      paths.add(currentPath);
+      if (currentPathAdded) addedPaths.add(currentPath);
+    }
+  };
+  for (const line of modelPatch.split('\n')) {
+    const match = /^diff --git a\/(.+) b\/(.+)$/.exec(line);
+    if (match?.[2]) {
+      finishCurrentPath();
+      currentPath = match[2];
+      currentPathAdded = false;
+    } else if (currentPath && (line.startsWith('new file mode ') || line === '--- /dev/null')) {
+      currentPathAdded = true;
+    }
+  }
+  finishCurrentPath();
+  let auditedTestPaths: number | undefined;
+  let auditedAddedTestPaths: number | undefined;
+  let auditedAddedTestPathList: string[] | undefined;
+  try {
+    const parsed = JSON.parse(validationSummary ?? '') as {
+      patchAudit?: {
+        gradedPatchTestPaths?: unknown;
+        gradedPatchAddedTestPaths?: unknown;
+        gradedPatchAddedTestPathList?: unknown;
+        gradedPatchSha256?: unknown;
+      };
+    };
+    const capturedPatchSha256 = parsed.patchAudit?.gradedPatchSha256;
+    const currentPatchSha256 = createHash('sha256').update(modelPatch).digest('hex');
+    // Retries can leave several TaskDiff rows but only one latest AgentRun.
+    // Trust its path audit only when it was captured from this exact patch.
+    if (capturedPatchSha256 === currentPatchSha256) {
+      const testPaths = parsed.patchAudit?.gradedPatchTestPaths;
+      if (typeof testPaths === 'number' && Number.isInteger(testPaths) && testPaths >= 0) {
+        auditedTestPaths = testPaths;
+      }
+      const addedTestPaths = parsed.patchAudit?.gradedPatchAddedTestPaths;
+      if (typeof addedTestPaths === 'number' && Number.isInteger(addedTestPaths) && addedTestPaths >= 0) {
+        auditedAddedTestPaths = addedTestPaths;
+      }
+      const addedTestPathList = parsed.patchAudit?.gradedPatchAddedTestPathList;
+      if (Array.isArray(addedTestPathList)) {
+        auditedAddedTestPathList = addedTestPathList.filter(
+          (item): item is string => typeof item === 'string',
+        );
+      }
+    }
+  } catch {
+    // Legacy or absent metadata falls back to the stored patch itself.
+  }
+  const addedPathList = auditedAddedTestPathList ?? [...addedPaths].sort();
+  return {
+    graded_patch_test_paths: auditedTestPaths ?? paths.size,
+    graded_patch_added_test_paths: auditedAddedTestPaths ?? addedPaths.size,
+    graded_patch_added_test_path_list: addedPathList.join('\n'),
+  };
 }
 
 interface DeepSWETaskToml {
@@ -32,7 +110,7 @@ interface DeepSWETaskToml {
   };
 }
 
-interface Reward {
+export interface DeepSWEReward {
   reward?: number;
   f2p?: number;
   f2p_total?: number;
@@ -44,10 +122,294 @@ interface Reward {
   apply_failed?: boolean;
 }
 
+type Reward = DeepSWEReward;
+
+export interface KnownP2PEnvironmentFailure {
+  testId: string;
+  reason: string;
+  /**
+   * The port whose occupancy is the ASSERTED cause. The exclusion only
+   * applies when that port is actually busy — otherwise the same failing
+   * test is a real regression and must fail the task. Without this the
+   * disclosure claimed a cause it had never checked, and a genuine break in
+   * the excluded test was indistinguishable from a busy port.
+   */
+  requiresBusyPort?: number;
+}
+
+export interface TaskEnvironmentOverride {
+  pip?: string[];
+  npm?: string[];
+  dependencyReason?: string;
+  knownP2PEnvironmentFailures?: KnownP2PEnvironmentFailure[];
+}
+
+export type AppliedTaskEnvironmentOverride =
+  | {
+      kind: 'dependency';
+      task: string;
+      requirements: string[];
+      reason: string;
+    }
+  | {
+      kind: 'known-p2p-environment-failure';
+      task: string;
+      testId: string;
+      reason: string;
+    };
+
+export interface DeepSWEVerifierResult {
+  reward: Reward;
+  logs: string;
+  /** Logs for the verifier invocation whose reward was selected for grading. */
+  gradingLogs: string;
+  verifierMode: 'docker' | 'local';
+  /**
+   * Set when Docker was requested but the graded result came from the local
+   * verifier — a different runtime with a different test collection, so the
+   * grade is not environment-comparable. Surfaced as verifier_fallback_reason.
+   */
+  fallbackReason?: 'docker-unavailable' | 'docker-invalid-result' | 'docker-error';
+  logFile: string;
+  exitCode: number;
+  timedOut: boolean;
+  appliedEnvironmentOverrides: AppliedTaskEnvironmentOverride[];
+  patchPathsCleanedCount: number;
+}
+
+export interface FlakeRerunGateInput {
+  reward: DeepSWEReward;
+  timedOut: boolean;
+  disabled?: boolean;
+  maxP2PFailures?: number;
+}
+
+export type FlakeRerunDecision =
+  | { shouldRerun: true }
+  | { shouldRerun: false; skippedReason: string };
+
+function isValidCount(value: number | undefined): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+function p2pShortfall(reward: DeepSWEReward): number | undefined {
+  if (!isValidCount(reward.p2p_total) || !isValidCount(reward.p2p_passed)) return undefined;
+  if (reward.p2p_passed > reward.p2p_total) return undefined;
+  return reward.p2p_total - reward.p2p_passed;
+}
+
+export function decideFlakeRerun(input: FlakeRerunGateInput): FlakeRerunDecision {
+  if (input.disabled) {
+    return { shouldRerun: false, skippedReason: 'disabled by OMEGA_DEEPSWE_DISABLE_FLAKE_RERUN=1' };
+  }
+  if (input.reward.reward === 1) {
+    return { shouldRerun: false, skippedReason: 'first verifier run passed' };
+  }
+  if (input.timedOut) {
+    return { shouldRerun: false, skippedReason: 'first verifier run timed out' };
+  }
+  if (input.reward.apply_failed) {
+    return { shouldRerun: false, skippedReason: 'model patch failed to apply in the first verifier run' };
+  }
+  if (
+    !isValidCount(input.reward.f2p_total) ||
+    !isValidCount(input.reward.f2p_passed) ||
+    input.reward.f2p_total === 0 ||
+    input.reward.f2p_passed !== input.reward.f2p_total
+  ) {
+    return { shouldRerun: false, skippedReason: 'f2p was not complete in the first verifier run' };
+  }
+
+  const shortfall = p2pShortfall(input.reward);
+  if (shortfall === undefined || !isValidCount(input.reward.p2p_total) || input.reward.p2p_total === 0) {
+    return { shouldRerun: false, skippedReason: 'first verifier run reported invalid p2p counts' };
+  }
+  if (shortfall === 0) {
+    return { shouldRerun: false, skippedReason: 'first verifier run had no p2p failures to confirm' };
+  }
+
+  const maxP2PFailures = input.maxP2PFailures ?? 3;
+  if (!Number.isInteger(maxP2PFailures) || maxP2PFailures < 0) {
+    return { shouldRerun: false, skippedReason: 'OMEGA_DEEPSWE_FLAKE_MAX_P2P_FAILURES is invalid' };
+  }
+  const percentageCap = Math.max(1, Math.floor(0.02 * input.reward.p2p_total));
+  const effectiveCap = Math.min(maxP2PFailures, percentageCap);
+  if (shortfall > effectiveCap) {
+    return {
+      shouldRerun: false,
+      skippedReason: `p2p shortfall ${String(shortfall)} exceeds effective flake cap ${String(effectiveCap)}`,
+    };
+  }
+  return { shouldRerun: true };
+}
+
+export function parseFailingP2PTestIds(logs: string): string[] {
+  const failures = new Set<string>();
+  for (const line of logs.split('\n')) {
+    const match = /^\[verifier\] ✗ \[p2p\] (.+)\r?$/.exec(line);
+    const testId = match?.[1]?.trim();
+    if (testId) failures.add(testId);
+  }
+  return [...failures];
+}
+
+/**
+ * P2P failures the grader could not match to any reported test — "missing
+ * from report" rather than an assertion failure. This class is NOT model
+ * damage: it fires when a patch renumbers positional pytest ids (vulture's
+ * `list(DEFAULTS.items())` parametrization) or when a report loses entries.
+ * Counted separately so a phantom penalty is visible as such in metrics.
+ */
+export function parseMissingFromReportP2PTestIds(logs: string): string[] {
+  const missing = new Set<string>();
+  const lines = logs.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const match = /^\[verifier\] ✗ \[p2p\] (.+)\r?$/.exec(lines[i] ?? '');
+    const testId = match?.[1]?.trim();
+    if (!testId) continue;
+    // The reason sits on indented continuation lines below the ✗ entry,
+    // before the next `[verifier]` line.
+    for (let j = i + 1; j < lines.length; j++) {
+      const line = lines[j] ?? '';
+      if (line.startsWith('[verifier]')) break;
+      if (line.includes('missing from report')) {
+        missing.add(testId);
+        break;
+      }
+    }
+  }
+  return [...missing];
+}
+
+export interface FlakeVerifierRun {
+  reward?: DeepSWEReward;
+  timedOut?: boolean;
+  verifierMode?: DeepSWEVerifierResult['verifierMode'];
+  failingP2PTests: readonly string[];
+  error?: string;
+}
+
+export interface FlakeAwareVerdict {
+  passed: boolean;
+  flakyTests: string[];
+  confirmedFailingTests: string[];
+  p2pRerunFailureDisjoint: boolean;
+  originalVerdictRetained: boolean;
+  reason?: string;
+}
+
+export interface FlakeAwareVerdictInput {
+  originalPassed: boolean;
+  firstRun: FlakeVerifierRun;
+  rerun?: FlakeVerifierRun;
+}
+
+function uniqueSorted(values: readonly string[]): string[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
+
+function validRewardCounts(reward: DeepSWEReward | undefined): reward is Required<
+  Pick<DeepSWEReward, 'reward' | 'f2p_total' | 'f2p_passed' | 'p2p_total' | 'p2p_passed'>
+> & DeepSWEReward {
+  return (
+    typeof reward?.reward === 'number' &&
+    isValidCount(reward.f2p_total) &&
+    isValidCount(reward.f2p_passed) &&
+    reward.f2p_passed <= reward.f2p_total &&
+    isValidCount(reward.p2p_total) &&
+    isValidCount(reward.p2p_passed) &&
+    reward.p2p_passed <= reward.p2p_total
+  );
+}
+
+export function synthesizeFlakeAwareVerdict(input: FlakeAwareVerdictInput): FlakeAwareVerdict {
+  const preserveOriginal = (reason: string): FlakeAwareVerdict => ({
+    passed: input.originalPassed,
+    flakyTests: [],
+    confirmedFailingTests: [],
+    p2pRerunFailureDisjoint: false,
+    originalVerdictRetained: true,
+    reason,
+  });
+
+  if (input.originalPassed) return preserveOriginal('original verifier verdict already passed');
+  if (input.firstRun.error) return preserveOriginal(`first verifier run failed: ${input.firstRun.error}`);
+  if (input.firstRun.timedOut) return preserveOriginal('first verifier run timed out');
+  if (input.firstRun.reward?.apply_failed) return preserveOriginal('model patch failed to apply in run 1');
+  if (!validRewardCounts(input.firstRun.reward)) return preserveOriginal('run 1 did not produce a usable reward');
+
+  const firstFailures = uniqueSorted(input.firstRun.failingP2PTests);
+  const firstShortfall = input.firstRun.reward.p2p_total - input.firstRun.reward.p2p_passed;
+  if (firstShortfall === 0) {
+    return preserveOriginal('run 1 reward was zero with no p2p shortfall to confirm');
+  }
+  if (firstFailures.length !== firstShortfall) {
+    return preserveOriginal(
+      `run 1 p2p parser/count mismatch: reward shortfall=${String(firstShortfall)}, parsed=${String(firstFailures.length)}`,
+    );
+  }
+
+  const rerun = input.rerun;
+  if (!rerun) return preserveOriginal('flake re-run did not return a result');
+  if (
+    input.firstRun.verifierMode !== undefined &&
+    rerun.verifierMode !== undefined &&
+    input.firstRun.verifierMode !== rerun.verifierMode
+  ) {
+    return preserveOriginal('first run and flake re-run used different verifier environments');
+  }
+  if (rerun.error) return preserveOriginal(`flake re-run crashed: ${rerun.error}`);
+  if (rerun.timedOut) return preserveOriginal('flake re-run timed out');
+  if (rerun.reward?.apply_failed) return preserveOriginal('model patch failed to apply in the flake re-run');
+  if (!validRewardCounts(rerun.reward)) return preserveOriginal('flake re-run did not produce a usable reward');
+
+  const rerunFailures = uniqueSorted(rerun.failingP2PTests);
+  if (rerun.reward.reward !== 1 && rerunFailures.length === 0) {
+    return preserveOriginal('flake re-run failed without parseable p2p failure lines');
+  }
+  const rerunShortfall = rerun.reward.p2p_total - rerun.reward.p2p_passed;
+  if (rerunFailures.length !== rerunShortfall) {
+    return preserveOriginal(
+      `re-run p2p parser/count mismatch: reward shortfall=${String(rerunShortfall)}, parsed=${String(rerunFailures.length)}`,
+    );
+  }
+  if (
+    input.firstRun.reward.f2p_total !== rerun.reward.f2p_total ||
+    input.firstRun.reward.p2p_total !== rerun.reward.p2p_total
+  ) {
+    return preserveOriginal('first run and flake re-run reported different test totals');
+  }
+  if (
+    input.firstRun.reward.f2p_total === 0 ||
+    input.firstRun.reward.f2p_passed !== input.firstRun.reward.f2p_total ||
+    rerun.reward.f2p_total === 0 ||
+    rerun.reward.f2p_passed !== rerun.reward.f2p_total
+  ) {
+    return preserveOriginal('f2p was not complete in both verifier runs');
+  }
+
+  const firstSet = new Set(firstFailures);
+  const rerunSet = new Set(rerunFailures);
+  const confirmedFailingTests = firstFailures.filter((testId) => rerunSet.has(testId));
+  const flakyTests = uniqueSorted([
+    ...firstFailures.filter((testId) => !rerunSet.has(testId)),
+    ...rerunFailures.filter((testId) => !firstSet.has(testId)),
+  ]);
+  const passed = confirmedFailingTests.length === 0;
+  const p2pRerunFailureDisjoint = rerunFailures.length > 0 && confirmedFailingTests.length === 0;
+  return {
+    passed,
+    flakyTests,
+    confirmedFailingTests,
+    p2pRerunFailureDisjoint,
+    originalVerdictRetained: passed === input.originalPassed,
+  };
+}
+
 // Per-task dependency/environment overrides. These cover test-only or
 // environment-drift packages that are not declared in the project's own
 // install metadata but are required for the DeepSWE verifier to pass.
-const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
+const EXTRA_TASK_DEPS: Record<string, TaskEnvironmentOverride> = {
   'gql-incremental-graphql-delivery': {
     pip: [
       'graphql-core==3.3.0a7',
@@ -63,6 +425,21 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
   },
   'mobly-grouped-test-barriers': { pip: ['pytz'] },
   'dateutil-rfc5545-timezone-interop': { pip: ['pytest<8'] },
+  'narwhals-rolling-window-suite': {
+    pip: ['pyarrow>=23,<25'],
+    dependencyReason:
+      'Narwhals allows pyarrow>=13 with no lockfile, while PyArrow 25 emits a SortOptions FutureWarning that filterwarnings=error promotes to p2p failures.',
+  },
+  'anko-default-function-arguments': {
+    knownP2PEnvironmentFailures: [
+      {
+        testId: 'github.com/mattn/anko/vm.Example_vmHttp',
+        requiresBusyPort: 8080,
+        reason:
+          'The upstream example hard-codes TCP :8080; the local verifier shares the host network namespace, where an unrelated process can own that port.',
+      },
+    ],
+  },
   'bandit-incremental-cache-control': { pip: ['GitPython', 'sarif-om', 'jschema_to_python'] },
   'bandit-structured-nosec-directives': { pip: ['setuptools', 'wheel', 'GitPython', 'sarif-om', 'jschema_to_python'] },
   'httpx-deterministic-cookie-store': {
@@ -137,6 +514,98 @@ const EXTRA_TASK_DEPS: Record<string, { pip?: string[]; npm?: string[] }> = {
     ],
   },
 };
+
+/** Every override entry, so tests can assert the table's SCOPE, not just its contents. */
+export const ALL_TASK_ENVIRONMENT_OVERRIDES: readonly (readonly [string, TaskEnvironmentOverride])[] =
+  Object.entries(EXTRA_TASK_DEPS);
+
+export function getTaskEnvironmentOverride(taskName: string): TaskEnvironmentOverride | undefined {
+  return EXTRA_TASK_DEPS[taskName];
+}
+
+/**
+ * Is something listening on this port right now?
+ *
+ * Used to verify the asserted cause of a known-environment-failure exclusion
+ * before honouring it. Connect-succeeds => occupied. Any error (refused,
+ * timeout) => treated as free, which is the SAFE direction: the exclusion is
+ * withheld and the test grades normally.
+ */
+export async function isPortBusy(port: number, host = '127.0.0.1'): Promise<boolean> {
+  const { createConnection } = await import('node:net');
+  return new Promise<boolean>((resolve) => {
+    const socket = createConnection({ port, host });
+    const settle = (busy: boolean): void => {
+      socket.destroy();
+      resolve(busy);
+    };
+    socket.setTimeout(1_000);
+    socket.once('connect', () => { settle(true); });
+    socket.once('timeout', () => { settle(false); });
+    socket.once('error', () => { settle(false); });
+  });
+}
+
+export function applyKnownEnvironmentFailures(
+  taskName: string,
+  config: Record<string, unknown>,
+  /** Ports observed occupied right now. An exclusion that asserts a port
+   *  collision applies only when its port is in here. */
+  busyPorts: ReadonlySet<number> = new Set<number>()
+): { config: Record<string, unknown>; applied: AppliedTaskEnvironmentOverride[] } {
+  const failures = getTaskEnvironmentOverride(taskName)?.knownP2PEnvironmentFailures;
+  const p2pNodeIds = config.p2p_node_ids;
+  if (!failures || failures.length === 0 || !Array.isArray(p2pNodeIds)) {
+    return { config, applied: [] };
+  }
+
+  const applied: AppliedTaskEnvironmentOverride[] = failures
+    .filter((failure) => p2pNodeIds.includes(failure.testId))
+    // An exclusion whose asserted cause does not hold is NOT applied: the
+    // same failing test is then a real regression and must fail the task.
+    .filter(
+      (failure) =>
+        failure.requiresBusyPort === undefined || busyPorts.has(failure.requiresBusyPort),
+    )
+    .map((failure) => ({
+      kind: 'known-p2p-environment-failure',
+      task: taskName,
+      testId: failure.testId,
+      reason: failure.reason,
+    }));
+  if (applied.length === 0) {
+    return { config, applied };
+  }
+
+  const excludedIds = new Set(
+    applied.map((override) =>
+      override.kind === 'known-p2p-environment-failure' ? override.testId : ''
+    )
+  );
+  return {
+    config: {
+      ...config,
+      p2p_node_ids: p2pNodeIds.filter((nodeId) => typeof nodeId !== 'string' || !excludedIds.has(nodeId)),
+      omega_known_environment_failures: [
+        ...applied.map((override) => ({
+          bucket: 'p2p',
+          task: override.task,
+          test_id: override.kind === 'known-p2p-environment-failure' ? override.testId : '',
+          reason: override.reason,
+          observed: 'asserted precondition verified at grading time',
+        })),
+      ],
+    },
+    applied,
+  };
+}
+
+function formatAppliedEnvironmentOverride(override: AppliedTaskEnvironmentOverride): string {
+  if (override.kind === 'dependency') {
+    return `[environment override applied] task=${override.task} dependencies=${override.requirements.join(' ')} reason=${override.reason}`;
+  }
+  return `[environment override applied] task=${override.task} excluded_p2p=${override.testId} test_still_executed=true reason=${override.reason}`;
+}
 
 function parseToml(raw: string): DeepSWETaskToml {
   const result: DeepSWETaskToml = { task: {}, metadata: {} };
@@ -218,7 +687,60 @@ function languageGuidance(language: string | undefined): string {
   return cmds;
 }
 
-function buildDeepSweDescription(instruction: string, language: string | undefined): string {
+const BASELINE_SPEC_EXHORTATION = 'Implement precisely to the spec below - the hidden test suite checks exact behaviour (error message text, formatting, attribute names, signatures).';
+const BUILD_GATE = `BUILD GATE (critical): the verifier scores you zero if the project does not compile or the existing test suite breaks. Before calling finish you MUST:
+   1. Run the build/compile command above and confirm zero errors.
+   2. Run the existing test command above and confirm the pre-existing tests still pass.
+   3. If either fails, fix it before finishing. Do NOT finish while the build is broken.`;
+const SCOPE_CONSTRAINT = 'SCOPE CONSTRAINT: Only edit source files directly related to the task. Do NOT modify CI/CD configs (.github/, .coderabbit.yaml, .codesandbox/), documentation (README.md, AUTHORS, CONTRIBUTING.md), meta files (.release-it.json, .prettierignore), build configs (package.json, rollup.config.js, webpack.config.js, tsconfig.json), or project scaffolding. Do NOT delete existing files. Do NOT create new files unless necessary for the implementation. Every extraneous change wastes steps and risks breaking the verifier.';
+const DEEPSWE_VERIFICATION_START_FRACTION = 0.6;
+const DISABLED_PROMPT_SWITCH_VALUES = new Set(['0', 'false', 'off', 'no']);
+
+function promptExperimentEnabled(value: string | undefined): boolean {
+  return !DISABLED_PROMPT_SWITCH_VALUES.has(value?.trim().toLowerCase() ?? '');
+}
+
+function formatWallClock(milliseconds: number): string {
+  const totalMilliseconds = Math.max(0.001, milliseconds);
+  const hours = Math.floor(totalMilliseconds / 3_600_000);
+  const minutes = Math.floor((totalMilliseconds % 3_600_000) / 60_000);
+  const seconds = Math.floor((totalMilliseconds % 60_000) / 1_000);
+  const remainingMilliseconds = totalMilliseconds % 1_000;
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${String(hours)} hour${hours === 1 ? '' : 's'}`);
+  if (minutes > 0) parts.push(`${String(minutes)} minute${minutes === 1 ? '' : 's'}`);
+  if (seconds > 0) parts.push(`${String(seconds)} second${seconds === 1 ? '' : 's'}`);
+  if (remainingMilliseconds > 0) {
+    const displayedMilliseconds = Math.round(remainingMilliseconds * 1_000) / 1_000;
+    parts.push(`${String(displayedMilliseconds)} millisecond${displayedMilliseconds === 1 ? '' : 's'}`);
+  }
+  return parts.join(' ');
+}
+
+function timeBudgetGuidance(timeoutMs: number | undefined): string {
+  if (timeoutMs === undefined || !Number.isFinite(timeoutMs) || timeoutMs <= 0) return '';
+  const verifyAtMs = timeoutMs * DEEPSWE_VERIFICATION_START_FRACTION;
+  const startPercent = Math.round(DEEPSWE_VERIFICATION_START_FRACTION * 100);
+  const reservePercent = 100 - startPercent;
+  return `TIME BUDGET: This agent attempt has an enforced total of ${formatWallClock(timeoutMs)}. Internal runs report both steps and wall-clock remaining in budget notices; external CLI runs receive their launch time and absolute UTC deadline.
+Prioritisation: get the new behaviour working, then reserve time to run the existing suite and fix every regression you caused; a broken existing test scores zero no matter how good the feature is.
+By ${String(startPercent)}% of the budget (${formatWallClock(verifyAtMs)} elapsed), stop exploring and start verifying. Reserve the final ${String(reservePercent)}% for regression fixes.`;
+}
+
+function legacyDeepSweDescription(guidance: string, cleanedInstruction: string): string {
+  return `${guidance}
+
+${BUILD_GATE}
+
+${SCOPE_CONSTRAINT}
+
+${BASELINE_SPEC_EXHORTATION}
+
+---
+${cleanedInstruction}`;
+}
+
+function buildDeepSweDescription(instruction: string, language: string | undefined, timeoutMs?: number): string {
   const guidance = languageGuidance(language);
   // Strip branch-management instructions that conflict with the harness's
   // isolated worktree branch; the agent must stay on its assigned branch.
@@ -226,16 +748,24 @@ function buildDeepSweDescription(instruction: string, language: string | undefin
     .replace(/IMPORTANT:[\s\S]*?new branch from main[\s\S]*?(?=\n\n|\n*$)/gi, '')
     .replace(/work on this in a new branch from main[\s\S]*?(?=\n\n|\n*$)/gi, '')
     .trim();
+  const specGateEnabled = promptExperimentEnabled(process.env.OMEGA_DEEPSWE_SPEC_GATE);
+  const timeBudgetEnabled = promptExperimentEnabled(process.env.OMEGA_DEEPSWE_TIME_BUDGET);
+  const budgetGuidance = timeBudgetEnabled ? timeBudgetGuidance(timeoutMs) : '';
+  if (!specGateEnabled && !budgetGuidance) {
+    return legacyDeepSweDescription(guidance, cleanedInstruction);
+  }
+
+  const specCheck = specGateEnabled
+    ? 'EXACTNESS CHECK: Before editing, make a checklist of the public specification below. Verify exact string/message text with character-for-character equality (not substring matching) and output/file formats exactly; cover names, signatures, defaults, boundaries, and invalid inputs.'
+    : BASELINE_SPEC_EXHORTATION;
+
   return `${guidance}
 
-BUILD GATE (critical): the verifier scores you zero if the project does not compile or the existing test suite breaks. Before calling finish you MUST:
-   1. Run the build/compile command above and confirm zero errors.
-   2. Run the existing test command above and confirm the pre-existing tests still pass.
-   3. If either fails, fix it before finishing. Do NOT finish while the build is broken.
+${BUILD_GATE}
 
-SCOPE CONSTRAINT: Only edit source files directly related to the task. Do NOT modify CI/CD configs (.github/, .coderabbit.yaml, .codesandbox/), documentation (README.md, AUTHORS, CONTRIBUTING.md), meta files (.release-it.json, .prettierignore), build configs (package.json, rollup.config.js, webpack.config.js, tsconfig.json), or project scaffolding. Do NOT delete existing files. Do NOT create new files unless necessary for the implementation. Every extraneous change wastes steps and risks breaking the verifier.
+${SCOPE_CONSTRAINT}
 
-Implement precisely to the spec below - the hidden test suite checks exact behaviour (error message text, formatting, attribute names, signatures).
+${budgetGuidance ? `${budgetGuidance}\n\n` : ''}${specCheck}
 
 ---
 ${cleanedInstruction}`;
@@ -250,13 +780,675 @@ async function commandExists(cmd: string): Promise<boolean> {
   }
 }
 
-async function cloneRepo(repoUrl: string, commit: string, targetPath: string): Promise<void> {
+export interface RetryWithBackoffOptions {
+  maxAttempts?: number;
+  sleep?: (milliseconds: number) => Promise<void>;
+  delayMs?: (failedAttempt: number) => number;
+  shouldRetry?: (error: unknown, failedAttempt: number) => boolean;
+  signal?: AbortSignal;
+}
+
+function abortReason(signal: AbortSignal): Error {
+  return signal.reason instanceof Error ? signal.reason : new Error('Operation aborted');
+}
+
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) throw abortReason(signal);
+}
+
+async function sleepWithAbort(milliseconds: number, signal: AbortSignal | undefined): Promise<void> {
+  throwIfAborted(signal);
+  if (!signal) {
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, milliseconds);
+    });
+    return;
+  }
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, milliseconds);
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      reject(abortReason(signal));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    if (signal.aborted) onAbort();
+  });
+}
+
+export async function retryWithBackoff<T>(
+  operation: (attempt: number) => Promise<T>,
+  options: RetryWithBackoffOptions = {},
+): Promise<T> {
+  const maxAttempts = options.maxAttempts ?? 3;
+  if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
+    throw new RangeError('maxAttempts must be a positive integer');
+  }
+  const sleep = options.sleep ?? (async (milliseconds: number) => sleepWithAbort(milliseconds, options.signal));
+  const delayMs = options.delayMs ?? ((failedAttempt: number) => 2_000 * (4 ** (failedAttempt - 1)));
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    throwIfAborted(options.signal);
+    try {
+      return await operation(attempt);
+    } catch (error) {
+      if (attempt === maxAttempts || options.shouldRetry?.(error, attempt) === false) throw error;
+      await sleep(Math.max(0, delayMs(attempt)));
+      throwIfAborted(options.signal);
+    }
+  }
+
+  throw new Error('retryWithBackoff exhausted without returning or throwing');
+}
+
+function stripRepoAliasSuffix(value: string): string {
+  return value.replace(/[\\/]+$/, '').replace(/\.git$/i, '');
+}
+
+export function normaliseRepoUrl(repoUrl: string): string {
+  if (/^[A-Za-z]:[\\/]/.test(repoUrl)) return stripRepoAliasSuffix(repoUrl);
+  try {
+    const parsed = new URL(repoUrl);
+    parsed.protocol = parsed.protocol.toLowerCase();
+    parsed.hostname = parsed.hostname.toLowerCase();
+    parsed.pathname = stripRepoAliasSuffix(parsed.pathname);
+    return parsed.toString();
+  } catch {
+    const scpStyle = /^(?:([^@/\s]+)@)?([^:/\s]+):(.+)$/.exec(repoUrl);
+    if (scpStyle) {
+      const user = scpStyle[1] ? `${scpStyle[1]}@` : '';
+      return `${user}${scpStyle[2].toLowerCase()}:${stripRepoAliasSuffix(scpStyle[3])}`;
+    }
+    return stripRepoAliasSuffix(repoUrl);
+  }
+}
+
+function repoLabel(repoUrl: string): string {
+  try {
+    const parsed = new URL(repoUrl);
+    return `${parsed.hostname}${parsed.port ? `-${parsed.port}` : ''}${parsed.pathname}`;
+  } catch {
+    const scpStyle = /^(?:[^@/\s]+@)?([^:/\s]+):(.+)$/.exec(repoUrl);
+    if (scpStyle) return `${scpStyle[1]}-${scpStyle[2]}`;
+    return path.basename(repoUrl.replace(/[\\/]+$/, ''));
+  }
+}
+
+/** A stable, filesystem-safe name whose normalised full-URL hash prevents distinct URLs colliding. */
+export function repoMirrorDirectoryName(repoUrl: string): string {
+  const normalisedRepoUrl = normaliseRepoUrl(repoUrl);
+  const readable = repoLabel(normalisedRepoUrl)
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^[._-]+|[._-]+$/g, '')
+    .slice(0, 80) || 'repository';
+  const digest = createHash('sha256').update(normalisedRepoUrl).digest('hex');
+  return `repo-${readable}-${digest}.git`;
+}
+
+const mirrorOperations = new Map<string, Promise<unknown>>();
+const GIT_MAX_BUFFER = 32 * 1024 * 1024;
+const GIT_PROBE_TIMEOUT_MS = 60_000;
+const DEFAULT_REPO_CACHE_MIN_FREE_GB = 15;
+const DEFAULT_CLONE_DEADLINE_MS = 45 * 60_000;
+
+class TerminalRepoCloneError extends Error {
+  override name = 'TerminalRepoCloneError';
+}
+
+class RepoCloneDeadlineError extends Error {
+  override name = 'RepoCloneDeadlineError';
+}
+
+class RepoCacheFreeSpaceFloorError extends Error {
+  override name = 'RepoCacheFreeSpaceFloorError';
+}
+
+interface RepoCloneContext {
+  signal: AbortSignal;
+  deadlineAt: number;
+  deadlineError: RepoCloneDeadlineError;
+}
+
+function errorDetail(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const commandError = error as Error & { stderr?: unknown; stdout?: unknown };
+  const outputText = [commandError.stderr, commandError.stdout]
+    .map((output) => (
+      typeof output === 'string'
+        ? output.trim()
+        : Buffer.isBuffer(output)
+          ? output.toString('utf-8').trim()
+          : ''
+    ))
+    .filter((output) => output.length > 0 && !error.message.includes(output));
+  return [error.message, ...outputText].join(': ');
+}
+
+export function isTerminalCheckoutFailure(
+  error: unknown,
+  source: 'mirror' | 'direct',
+): boolean {
+  const detail = errorDetail(error);
+  if (source === 'direct') {
+    return /(?:pathspec ['"].+['"] did not match|unknown revision or path not in the working tree)/i
+      .test(detail);
+  }
+  return /(?:pathspec .* did not match|reference is not a tree|not a tree object|unable to read tree|unknown revision|invalid reference|bad revision|not a valid object name)/i
+    .test(detail);
+}
+
+export function localCloneFailureShowsMirrorCorruption(error: unknown): boolean {
+  const detail = errorDetail(error);
+  const definitiveCorruptionEvidence = /(?:is corrupt|loose object|did not send all necessary objects|pack .* (?:invalid|corrupt)|object file .* is empty)/i;
+  if (definitiveCorruptionEvidence.test(detail)) return true;
+
+  // Git's generic read/checkout wording can accompany target-side resource
+  // failures. Preserve A1 for those explicit target causes; otherwise either
+  // shape is evidence that the mirror's object graph could not be checked out.
+  const targetFailureEvidence = /(?:no space left|ENOSPC|permission denied|operation not permitted|EACCES|EPERM|ETIMEDOUT|timed out|timeout|read-only file system|could not create work tree dir)/i;
+  const ambiguousCorruptionEvidence = /(?:unable to read|Clone succeeded, but checkout failed)/i;
+  return ambiguousCorruptionEvidence.test(detail) && !targetFailureEvidence.test(detail);
+}
+
+function isTerminalRepoCloneError(error: unknown): error is TerminalRepoCloneError {
+  return error instanceof TerminalRepoCloneError;
+}
+
+function readNonNegativeNumber(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined) return fallback;
+  const value = Number(raw);
+  if (Number.isFinite(value) && value >= 0) return value;
+  console.warn(`[deepswe] ignoring invalid ${name}=${raw}; using ${String(fallback)}`);
+  return fallback;
+}
+
+function readPositiveNumber(name: string, fallback: number): number {
+  const value = readNonNegativeNumber(name, fallback);
+  if (value > 0) return value;
+  console.warn(`[deepswe] ignoring non-positive ${name}; using ${String(fallback)}`);
+  return fallback;
+}
+
+async function execCloneGit(
+  args: string[],
+  timeoutMs: number,
+  context: RepoCloneContext,
+): Promise<{ stdout: string; stderr: string }> {
+  throwIfAborted(context.signal);
+  const remainingMs = context.deadlineAt - Date.now();
+  if (remainingMs <= 0) throw context.deadlineError;
+  return execFileAsync('git', args, {
+    encoding: 'utf-8',
+    timeout: Math.max(1, Math.min(timeoutMs, remainingMs)),
+    maxBuffer: GIT_MAX_BUFFER,
+    signal: context.signal,
+  });
+}
+
+async function checkoutCloneCommit(
+  targetPath: string,
+  commit: string,
+  source: 'mirror' | 'direct',
+  context: RepoCloneContext,
+): Promise<void> {
+  try {
+    await execCloneGit(['-C', targetPath, 'checkout', commit], 300_000, context);
+  } catch (error) {
+    if (isTerminalCheckoutFailure(error, source)) {
+      throw new TerminalRepoCloneError(
+        `DeepSWE repository checkout cannot resolve commit ${commit}: ${errorDetail(error)}`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+}
+
+async function withMirrorLock<T>(mirrorPath: string, operation: () => Promise<T>): Promise<T> {
+  const previous = mirrorOperations.get(mirrorPath) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(operation);
+  mirrorOperations.set(mirrorPath, current);
+  try {
+    return await current;
+  } finally {
+    if (mirrorOperations.get(mirrorPath) === current) {
+      mirrorOperations.delete(mirrorPath);
+    }
+  }
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  return fs.access(filePath).then(() => true, () => false);
+}
+
+async function mirrorHasCommit(
+  mirrorPath: string,
+  commit: string,
+  context: RepoCloneContext,
+): Promise<boolean> {
+  try {
+    await execCloneGit(['-C', mirrorPath, 'cat-file', '-e', `${commit}^{commit}`], GIT_PROBE_TIMEOUT_MS, context);
+    return true;
+  } catch {
+    throwIfAborted(context.signal);
+    return false;
+  }
+}
+
+async function mirrorHasTree(
+  mirrorPath: string,
+  commit: string,
+  context: RepoCloneContext,
+): Promise<boolean> {
+  try {
+    await execCloneGit(['-C', mirrorPath, 'cat-file', '-e', `${commit}^{tree}`], GIT_PROBE_TIMEOUT_MS, context);
+    return true;
+  } catch {
+    throwIfAborted(context.signal);
+    return false;
+  }
+}
+
+async function ensureRepoCacheFreeSpace(
+  cacheRoot: string,
+  phase: 'create' | 'fetch',
+  repoUrl: string,
+  mirrorPath: string,
+  context: RepoCloneContext,
+): Promise<void> {
+  const minimumFreeGb = readNonNegativeNumber(
+    'OMEGA_DEEPSWE_REPO_CACHE_MIN_FREE_GB',
+    DEFAULT_REPO_CACHE_MIN_FREE_GB,
+  );
+  if (typeof fs.statfs !== 'function') {
+    console.warn(
+      `[deepswe] repo cache free-space check unavailable; proceeding with mirror ` +
+      `phase=${phase} repo=${repoUrl} mirror=${mirrorPath} reason=fs.statfs unavailable`,
+    );
+    return;
+  }
+
+  let fileSystem: Awaited<ReturnType<typeof fs.statfs>>;
+  try {
+    fileSystem = await fs.statfs(cacheRoot);
+  } catch (error) {
+    throwIfAborted(context.signal);
+    console.warn(
+      `[deepswe] repo cache free-space check unavailable; proceeding with mirror ` +
+      `phase=${phase} repo=${repoUrl} mirror=${mirrorPath} reason=${errorDetail(error)}`,
+    );
+    return;
+  }
+
+  const freeGb = (fileSystem.bavail * fileSystem.bsize) / (1024 ** 3);
+  if (freeGb >= minimumFreeGb) return;
+  console.warn(
+    `[deepswe] repo cache free-space floor stopped mirror; using direct fallback ` +
+    `phase=${phase} repo=${repoUrl} mirror=${mirrorPath} ` +
+    `free_gib=${freeGb.toFixed(2)} floor_gib=${String(minimumFreeGb)}`,
+  );
+  throw new RepoCacheFreeSpaceFloorError(
+    `repo cache free-space floor stopped mirror ${phase}`,
+  );
+}
+
+async function isBareGitRepository(mirrorPath: string, context: RepoCloneContext): Promise<boolean> {
+  try {
+    const { stdout } = await execCloneGit(
+      ['-C', mirrorPath, 'rev-parse', '--is-bare-repository'],
+      GIT_PROBE_TIMEOUT_MS,
+      context,
+    );
+    return stdout.trim() === 'true';
+  } catch {
+    throwIfAborted(context.signal);
+    return false;
+  }
+}
+
+async function createBareMirror(
+  repoUrl: string,
+  cacheRoot: string,
+  mirrorPath: string,
+  attemptStats: RepoCloneAttemptStats,
+  context: RepoCloneContext,
+): Promise<void> {
+  let completedTempPath: string | undefined;
+  await retryWithBackoff(async (attempt) => {
+    attemptStats.mirrorClone = attempt;
+    const tempPath = await fs.mkdtemp(path.join(cacheRoot, '.mirror-tmp-'));
+    try {
+      await execCloneGit(['clone', '--bare', repoUrl, tempPath], 600_000, context);
+      completedTempPath = tempPath;
+    } catch (error) {
+      await fs.rm(tempPath, { recursive: true, force: true });
+      throw error;
+    }
+  }, {
+    signal: context.signal,
+    shouldRetry: (error) => !isTerminalRepoCloneError(error),
+  });
+
+  if (!completedTempPath) {
+    throw new Error('Bare mirror clone completed without a temporary directory');
+  }
+
+  try {
+    await fs.rename(completedTempPath, mirrorPath);
+    completedTempPath = undefined;
+  } catch (error) {
+    // Another process may have won the same atomic publish race. Its complete
+    // mirror is safe to use; any other rename failure falls back to direct.
+    const code = (error as NodeJS.ErrnoException).code;
+    const destinationCollision =
+      code === 'EEXIST' ||
+      code === 'ENOTEMPTY' ||
+      code === 'EISDIR' ||
+      (process.platform === 'win32' && code === 'EPERM');
+    if (!destinationCollision || !(await isBareGitRepository(mirrorPath, context))) throw error;
+  } finally {
+    if (completedTempPath) {
+      await fs.rm(completedTempPath, { recursive: true, force: true });
+    }
+  }
+}
+
+interface MirrorCheckoutResult {
+  source: 'cache' | 'fresh-mirror';
+}
+
+interface RepoCloneAttemptStats {
+  mirrorClone: number;
+  mirrorFetch: number;
+  localClone: number;
+  directClone: number;
+}
+
+interface MirrorIdentity {
+  dev: number;
+  ino: number;
+}
+
+function formatRepoCloneAttempts(attempts: RepoCloneAttemptStats): string {
+  const parts = [
+    attempts.mirrorClone > 0 ? `mirror-clone:${String(attempts.mirrorClone)}` : undefined,
+    attempts.mirrorFetch > 0 ? `mirror-fetch:${String(attempts.mirrorFetch)}` : undefined,
+    attempts.localClone > 0 ? `local-clone:${String(attempts.localClone)}` : undefined,
+    attempts.directClone > 0 ? `direct-clone:${String(attempts.directClone)}` : undefined,
+  ].filter((part): part is string => part !== undefined);
+  return parts.join(',') || 'none';
+}
+
+async function discardSuspectMirror(
+  mirrorPath: string,
+  expectedIdentity: MirrorIdentity,
+): Promise<void> {
+  const quarantinePath = `${mirrorPath}.suspect-${String(process.pid)}-${String(Date.now())}`;
+  try {
+    await fs.rename(mirrorPath, quarantinePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw error;
+  }
+
+  const quarantinedIdentity = await fs.lstat(quarantinePath).catch(() => undefined);
+  const quarantinedGenerationMatches =
+    quarantinedIdentity?.dev === expectedIdentity.dev &&
+    quarantinedIdentity.ino === expectedIdentity.ino;
+  if (!quarantinedGenerationMatches) {
+    // Another process replaced the failed generation before our atomic
+    // quarantine. Restore that newer mirror when possible and never delete it.
+    await fs.rename(quarantinePath, mirrorPath).catch(() => {
+      console.warn(`[deepswe] preserved newer repo mirror at ${quarantinePath} after invalidation race`);
+    });
+    return;
+  }
+  await fs.rm(quarantinePath, { recursive: true, force: true });
+}
+
+async function cloneFromMirror(
+  repoUrl: string,
+  commit: string,
+  targetPath: string,
+  cacheRoot: string,
+  mirrorPath: string,
+  attemptStats: RepoCloneAttemptStats,
+  context: RepoCloneContext,
+): Promise<MirrorCheckoutResult> {
+  return withMirrorLock(mirrorPath, async () => {
+    throwIfAborted(context.signal);
+    await fs.mkdir(cacheRoot, { recursive: true });
+    let source: MirrorCheckoutResult['source'] = 'cache';
+
+    if (await pathExists(mirrorPath)) {
+      const mirrorIdentity = await fs.lstat(mirrorPath).then(
+        (stat): MirrorIdentity => ({ dev: stat.dev, ino: stat.ino }),
+      );
+      if (!(await isBareGitRepository(mirrorPath, context))) {
+        console.warn(
+          `[deepswe] repo mirror is non-bare; quarantining and rebuilding repo=${repoUrl} mirror=${mirrorPath}`,
+        );
+        await discardSuspectMirror(mirrorPath, mirrorIdentity);
+        if (
+          await pathExists(mirrorPath) &&
+          !(await isBareGitRepository(mirrorPath, context))
+        ) {
+          throw new Error(`replacement repo mirror is also non-bare: ${mirrorPath}`);
+        }
+      }
+    }
+
+    if (!(await pathExists(mirrorPath))) {
+      await ensureRepoCacheFreeSpace(cacheRoot, 'create', repoUrl, mirrorPath, context);
+      await createBareMirror(repoUrl, cacheRoot, mirrorPath, attemptStats, context);
+      source = 'fresh-mirror';
+    }
+
+    if (!(await mirrorHasCommit(mirrorPath, commit, context))) {
+      await ensureRepoCacheFreeSpace(cacheRoot, 'fetch', repoUrl, mirrorPath, context);
+      await retryWithBackoff(async (attempt) => {
+        attemptStats.mirrorFetch = attempt;
+        await execCloneGit(
+          ['-C', mirrorPath, 'fetch', '--prune', 'origin', '+refs/heads/*:refs/heads/*', '--tags'],
+          300_000,
+          context,
+        );
+      }, { signal: context.signal });
+      if (!(await mirrorHasCommit(mirrorPath, commit, context))) {
+        throw new TerminalRepoCloneError(
+          `DeepSWE repository mirror does not contain requested commit ${commit} after fetch`,
+        );
+      }
+    }
+
+    const mirrorIdentity = await fs.lstat(mirrorPath).then(
+      (stat): MirrorIdentity => ({ dev: stat.dev, ino: stat.ino }),
+    );
+    attemptStats.localClone = 1;
+    try {
+      await execCloneGit(['clone', mirrorPath, targetPath], 300_000, context);
+    } catch (error) {
+      await fs.rm(targetPath, { recursive: true, force: true });
+      const corruptionEvidence = localCloneFailureShowsMirrorCorruption(error);
+      const mirrorIsBare = await isBareGitRepository(mirrorPath, context);
+      const mirrorContainsCommit = mirrorIsBare && await mirrorHasCommit(mirrorPath, commit, context);
+      const mirrorContainsTree = mirrorContainsCommit && await mirrorHasTree(mirrorPath, commit, context);
+      if (!corruptionEvidence && mirrorIsBare && mirrorContainsCommit && mirrorContainsTree) {
+        console.warn(
+          `[deepswe] local mirror clone failed but mirror probes are healthy; retaining mirror ` +
+          `repo=${repoUrl} mirror=${mirrorPath} reason=${errorDetail(error)}`,
+        );
+      } else {
+        console.warn(
+          `[deepswe] local mirror clone failed and mirror probe failed; invalidating mirror ` +
+          `repo=${repoUrl} mirror=${mirrorPath} bare=${String(mirrorIsBare)} ` +
+          `hasCommit=${String(mirrorContainsCommit)} hasTree=${String(mirrorContainsTree)} ` +
+          `corruptionEvidence=${String(corruptionEvidence)} reason=${errorDetail(error)}`,
+        );
+        await discardSuspectMirror(mirrorPath, mirrorIdentity);
+      }
+      throw error;
+    }
+
+    try {
+      await checkoutCloneCommit(targetPath, commit, 'mirror', context);
+      await execCloneGit(['-C', targetPath, 'remote', 'set-url', 'origin', repoUrl], 60_000, context);
+    } catch (error) {
+      await fs.rm(targetPath, { recursive: true, force: true });
+      throw error;
+    }
+
+    return { source };
+  });
+}
+
+async function directClone(
+  repoUrl: string,
+  commit: string,
+  targetPath: string,
+  onAttempt: (attempt: number) => void,
+  context: RepoCloneContext,
+): Promise<void> {
+  try {
+    await retryWithBackoff(async (attempt) => {
+      onAttempt(attempt);
+      await fs.rm(targetPath, { recursive: true, force: true });
+      await execCloneGit(['clone', '--filter=blob:none', repoUrl, targetPath], 600_000, context);
+      // A blobless checkout can hydrate promised objects from upstream, so on
+      // this direct path clone + checkout form one retryable network attempt.
+      await checkoutCloneCommit(targetPath, commit, 'direct', context);
+    }, {
+      signal: context.signal,
+      shouldRetry: (error) => !isTerminalRepoCloneError(error),
+    });
+  } catch (error) {
+    await fs.rm(targetPath, { recursive: true, force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
+async function raceWithAbort<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  throwIfAborted(signal);
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const onAbort = (): void => {
+      if (settled) return;
+      settled = true;
+      reject(abortReason(signal));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    if (signal.aborted) onAbort();
+    operation.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        signal.removeEventListener('abort', onAbort);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
+}
+
+async function cloneRepoBeforeDeadline(
+  repoUrl: string,
+  commit: string,
+  targetPath: string,
+  context: RepoCloneContext,
+): Promise<void> {
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  throwIfAborted(context.signal);
   // Ensure a clean clone so leftover state from previous runs cannot pollute
   // the worktree or branch list.
   await fs.rm(targetPath, { recursive: true, force: true });
-  await execFileAsync('git', ['clone', repoUrl, targetPath], { timeout: 120000 });
-  await execFileAsync('git', ['-C', targetPath, 'checkout', commit], { timeout: 60000 });
+  throwIfAborted(context.signal);
+  const attemptStats: RepoCloneAttemptStats = {
+    mirrorClone: 0,
+    mirrorFetch: 0,
+    localClone: 0,
+    directClone: 0,
+  };
+
+  if (process.env.OMEGA_DEEPSWE_DISABLE_REPO_CACHE !== '1') {
+    const cacheRoot = process.env.OMEGA_DEEPSWE_REPO_CACHE_DIR ?? path.join(omegaWorkDir(), 'deepswe-repo-cache');
+    const mirrorPath = path.join(cacheRoot, repoMirrorDirectoryName(repoUrl));
+    try {
+      const result = await cloneFromMirror(
+        repoUrl,
+        commit,
+        targetPath,
+        cacheRoot,
+        mirrorPath,
+        attemptStats,
+        context,
+      );
+      console.log(
+        `[deepswe] repo checkout source=${result.source} attempts=${formatRepoCloneAttempts(attemptStats)}`,
+      );
+      return;
+    } catch (error) {
+      if (isTerminalRepoCloneError(error)) throw error;
+      throwIfAborted(context.signal);
+      // The cache is strictly an optimisation. Any cache error—including a
+      // suspect local clone—must retain the direct network path below.
+      if (!(error instanceof RepoCacheFreeSpaceFloorError)) {
+        console.warn(
+          `[deepswe] repo cache unavailable; using direct fallback repo=${repoUrl} ` +
+          `mirror=${mirrorPath} reason=${errorDetail(error)}`,
+        );
+      }
+    }
+  }
+
+  try {
+    await directClone(
+      repoUrl,
+      commit,
+      targetPath,
+      (attempt) => { attemptStats.directClone = attempt; },
+      context,
+    );
+    console.log(
+      `[deepswe] repo checkout source=direct-fallback attempts=${formatRepoCloneAttempts(attemptStats)}`,
+    );
+  } catch (error) {
+    console.log(
+      `[deepswe] repo checkout source=direct-fallback ` +
+      `attempts=${formatRepoCloneAttempts(attemptStats)} failed=true`,
+    );
+    throwIfAborted(context.signal);
+    throw error;
+  }
+}
+
+export async function cloneRepo(repoUrl: string, commit: string, targetPath: string): Promise<void> {
+  const deadlineMs = readPositiveNumber(
+    'OMEGA_DEEPSWE_CLONE_DEADLINE_MS',
+    DEFAULT_CLONE_DEADLINE_MS,
+  );
+  const controller = new AbortController();
+  const deadlineError = new RepoCloneDeadlineError(
+    `DeepSWE repository clone deadline exceeded after ${String(deadlineMs)}ms for ${repoUrl}`,
+  );
+  const timer = setTimeout(() => { controller.abort(deadlineError); }, deadlineMs);
+  const context: RepoCloneContext = {
+    signal: controller.signal,
+    deadlineAt: Date.now() + deadlineMs,
+    deadlineError,
+  };
+  try {
+    await raceWithAbort(cloneRepoBeforeDeadline(repoUrl, commit, targetPath, context), controller.signal);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function findNodePackageDir(projectPath: string): Promise<string | undefined> {
@@ -612,7 +1804,7 @@ async function installProjectDependencies(
         }
       }
 
-      const extraDeps = taskName ? EXTRA_TASK_DEPS[taskName] : undefined;
+      const extraDeps = taskName ? getTaskEnvironmentOverride(taskName) : undefined;
       if (!failed && extraDeps?.pip) {
         const extras = extraDeps.pip;
         console.log(`[deepswe] Installing extra deps for ${String(taskName)}: ${extras.join(' ')}`);
@@ -682,6 +1874,86 @@ function normalisePatch(patch: string): string {
   return patch.endsWith('\n') ? patch : `${patch}\n`;
 }
 
+function parseGitNumstatDestinationPaths(output: string): string[] {
+  const fields = output.split('\0');
+  const paths: string[] = [];
+  for (let index = 0; index < fields.length;) {
+    const header = fields[index++];
+    if (!header) continue;
+    const firstTab = header.indexOf('\t');
+    const secondTab = firstTab < 0 ? -1 : header.indexOf('\t', firstTab + 1);
+    if (secondTab < 0) continue;
+    const inlinePath = header.slice(secondTab + 1);
+    if (inlinePath) {
+      paths.push(inlinePath);
+      continue;
+    }
+    // With -z, rename/copy entries put the old and new paths in the next two
+    // NUL-delimited fields. Only the destination can block reapplication.
+    index += 1;
+    const destination = fields[index++];
+    if (destination) paths.push(destination);
+  }
+  return [...new Set(paths)];
+}
+
+async function hasSymlinkParent(projectPath: string, relativePath: string): Promise<boolean> {
+  const parentParts = path.dirname(relativePath).split(path.sep).filter((part) => part && part !== '.');
+  let current = projectPath;
+  for (const part of parentParts) {
+    current = path.join(current, part);
+    try {
+      if ((await fs.lstat(current)).isSymbolicLink()) return true;
+    } catch {
+      // A missing parent means the destination itself cannot currently exist.
+      return false;
+    }
+  }
+  return false;
+}
+
+/**
+ * Remove only model-patch destinations that have no preimage at base.
+ * `git checkout -f` resets tracked files but leaves additions from a previous
+ * verifier invocation untracked; those additions otherwise make the same
+ * stored patch fail to apply on the same-tree confirmation run.
+ */
+export async function removePatchPathsMissingFromBase(
+  projectPath: string,
+  baseCommit: string,
+  patchFile: string,
+): Promise<number> {
+  const { stdout } = await execFileAsync(
+    'git',
+    ['-C', projectPath, 'apply', '--numstat', '-z', patchFile],
+    { timeout: 60_000, maxBuffer: 32 * 1024 * 1024 },
+  );
+  const resolvedProjectPath = path.resolve(projectPath);
+  let cleanedCount = 0;
+  for (const relativePath of parseGitNumstatDestinationPaths(stdout)) {
+    if (path.isAbsolute(relativePath)) continue;
+    const resolvedPath = path.resolve(resolvedProjectPath, relativePath);
+    const pathWithinProject = path.relative(resolvedProjectPath, resolvedPath);
+    if (!pathWithinProject || pathWithinProject === '..' || pathWithinProject.startsWith(`..${path.sep}`)) {
+      continue;
+    }
+    try {
+      await execFileAsync('git', ['-C', resolvedProjectPath, 'cat-file', '-e', `${baseCommit}:${relativePath}`], {
+        timeout: 60_000,
+        maxBuffer: 32 * 1024 * 1024,
+      });
+      continue;
+    } catch {
+      // No base preimage: this is a patch-created path, not persisted state.
+    }
+    if (await hasSymlinkParent(resolvedProjectPath, relativePath)) continue;
+    if (!(await fs.lstat(resolvedPath).then(() => true, () => false))) continue;
+    await fs.rm(resolvedPath, { recursive: true, force: true });
+    cleanedCount++;
+  }
+  return cleanedCount;
+}
+
 async function patchMoblyForDarwin(projectPath: string): Promise<void> {
   if (os.platform() !== 'darwin') return;
 
@@ -722,15 +1994,30 @@ async function patchMoblyForDarwin(projectPath: string): Promise<void> {
   }
 }
 
-async function forceCheckout(projectPath: string, baseCommit: string): Promise<void> {
-  const lockFile = path.join(projectPath, '.git', 'index.lock');
+async function forceCheckout(
+  projectPath: string,
+  baseCommit: string,
+): Promise<void> {
+  let lockFile = path.join(projectPath, '.git', 'index.lock');
+  try {
+    const { stdout } = await execFileAsync('git', ['-C', projectPath, 'rev-parse', '--git-path', 'index.lock'], {
+      timeout: 60_000,
+      maxBuffer: 32 * 1024 * 1024,
+    });
+    lockFile = path.resolve(projectPath, stdout.trim());
+  } catch {
+    // Keep the ordinary-repository path as a conservative fallback.
+  }
   const startedAt = Date.now();
   const maxWaitMs = 60_000;
   let attempt = 0;
   while (Date.now() - startedAt < maxWaitMs) {
     attempt++;
     try {
-      await execFileAsync('git', ['-C', projectPath, 'checkout', '-f', baseCommit], { timeout: 60000 });
+      await execFileAsync('git', ['-C', projectPath, 'checkout', '-f', baseCommit], {
+        timeout: 60000,
+        maxBuffer: 32 * 1024 * 1024,
+      });
       return;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -757,9 +2044,15 @@ async function forceCheckout(projectPath: string, baseCommit: string): Promise<v
   throw new Error(`Timed out waiting for .git/index.lock in ${projectPath}`);
 }
 
-async function ensureTaskDepsInstalled(projectPath: string, taskName: string): Promise<void> {
-  const extraDeps = EXTRA_TASK_DEPS[taskName] as { pip?: string[]; npm?: string[] } | undefined;
-  if (!extraDeps) return;
+async function ensureTaskDepsInstalled(
+  projectPath: string,
+  taskName: string
+): Promise<AppliedTaskEnvironmentOverride[]> {
+  const extraDeps = getTaskEnvironmentOverride(taskName);
+  if (!extraDeps) return [];
+
+  const appliedRequirements: string[] = [];
+  const failedRequirements: string[] = [];
 
   const venvBin = path.join(projectPath, '.venv', 'bin');
   const pipBin = path.join(venvBin, 'pip');
@@ -774,7 +2067,13 @@ async function ensureTaskDepsInstalled(projectPath: string, taskName: string): P
       timeout: 300_000,
     });
     if (result.exitCode !== 0) {
+      // A failed repair that is only a console line manufactures an
+      // unexplained wall of p2p failures that reads like a model regression.
+      // Record it so the verdict carries the reason.
       console.warn(`[deepswe] Verifier dep install failed for ${taskName}: ${result.stderr}`);
+      failedRequirements.push(...extraDeps.pip);
+    } else {
+      appliedRequirements.push(...extraDeps.pip);
     }
   }
 
@@ -788,30 +2087,55 @@ async function ensureTaskDepsInstalled(projectPath: string, taskName: string): P
       });
       if (result.exitCode !== 0) {
         console.warn(`[deepswe] Verifier npm dep install failed for ${taskName}: ${result.stderr}`);
+      } else {
+        appliedRequirements.push(...extraDeps.npm);
       }
     }
   }
+
+  const records: AppliedTaskEnvironmentOverride[] = [];
+  if (appliedRequirements.length > 0) {
+    records.push({
+      kind: 'dependency',
+      task: taskName,
+      requirements: appliedRequirements,
+      // Every pin changes behaviour, so every pin is disclosed. Gating this
+      // on an author-supplied reason meant most of the override table
+      // installed silently and an absent disclosure implied "no override".
+      reason: extraDeps.dependencyReason ?? 'undeclared verifier dependency required by the local environment',
+    });
+  }
+  if (failedRequirements.length > 0) {
+    records.push({
+      kind: 'dependency',
+      task: taskName,
+      requirements: failedRequirements,
+      reason: 'environment repair FAILED to install; results below may reflect the broken environment, not the patch',
+    });
+  }
+  return records;
 }
 
 async function rewriteConfig(
   taskDir: string,
+  taskName: string,
   copiedTestsDir: string,
   appDir: string,
   verifierDir: string,
   artifactsDir: string
-): Promise<Record<string, unknown>> {
+): Promise<{ config: Record<string, unknown>; applied: AppliedTaskEnvironmentOverride[] }> {
   const configPath = path.join(taskDir, 'tests', 'config.json');
   const raw = await fs.readFile(configPath, 'utf-8');
   const config = JSON.parse(raw) as Record<string, unknown>;
 
   const replacer = (value: unknown): unknown => {
     if (typeof value === 'string') {
-      return value
-        .replace(/\/logs\/verifier/g, verifierDir)
-        .replace(/\/logs\/artifacts/g, artifactsDir)
-        .replace(/\/tests/g, copiedTestsDir)
-        .replace(/\/app\b/g, appDir)
-        .replace(/\/app\//g, `${appDir}/`);
+      return rewriteContainerPaths(value, {
+        '/logs/verifier': verifierDir,
+        '/logs/artifacts': artifactsDir,
+        '/tests': copiedTestsDir,
+        '/app': appDir,
+      });
     }
     if (Array.isArray(value)) {
       return value.map(replacer);
@@ -827,8 +2151,62 @@ async function rewriteConfig(
   };
 
   const rewritten = replacer(config) as Record<string, unknown>;
-  await writeFile(path.join(copiedTestsDir, 'config.json'), JSON.stringify(rewritten, null, 2));
-  return rewritten;
+  // Verify the asserted cause of each port-based exclusion before honouring
+  // it — an unchecked exclusion forgives real regressions.
+  const declaredPorts = [
+    ...new Set(
+      (getTaskEnvironmentOverride(taskName)?.knownP2PEnvironmentFailures ?? [])
+        .map((failure) => failure.requiresBusyPort)
+        .filter((port): port is number => typeof port === 'number'),
+    ),
+  ];
+  const busyPorts = new Set<number>();
+  for (const port of declaredPorts) {
+    if (await isPortBusy(port)) busyPorts.add(port);
+  }
+  const overrideResult = applyKnownEnvironmentFailures(taskName, rewritten, busyPorts);
+  await writeFile(path.join(copiedTestsDir, 'config.json'), JSON.stringify(overrideResult.config, null, 2));
+  return overrideResult;
+}
+
+/**
+ * Rewrite the container-rooted paths (/app, /tests, /logs/…) a task config
+ * uses into their host equivalents.
+ *
+ * ORDER-SENSITIVE, and the naive chained-replace this replaces had a bug that
+ * silently zeroed whole tasks: `/tests` was rewritten BEFORE `/app`, so a
+ * parametrized test id like `test_read[/app/tests/psd_files/0layers.psb]`
+ * became `<appDir>/<testsDir>/psd_files/…` — an id pytest can never emit.
+ * On psd-tools that made 428 of 979 p2p ids structurally unmatchable for
+ * every model on every run.
+ *
+ * `/app` paths are therefore protected as whole tokens FIRST. The `\b` is
+ * load-bearing in both patterns: without it, `/app` matches inside ordinary
+ * words and re-creates the same class of corruption elsewhere — an adversarial
+ * review caught this mangling 20 ids across four other tasks (e.g. tomlkit's
+ * `invalid/table/append-with-dotted-keys-01`, pebble's `TestBatchGet/apply,…`),
+ * which the tests below pin.
+ */
+export function rewriteContainerPaths(
+  value: string,
+  targets: { '/logs/verifier': string; '/logs/artifacts': string; '/tests': string; '/app': string },
+): string {
+  // Private-use codepoint as the sentinel: it cannot appear in a real test id
+  // or shell line, and unlike NUL it is not a control character. A stray one
+  // in the input would otherwise be resolved against our table on the way
+  // out, so strip it before minting any of our own.
+  const SENTINEL = '\uE000';
+  const source = value.includes(SENTINEL) ? value.split(SENTINEL).join('') : value;
+  const protectedPaths: string[] = [];
+  let out = source.replace(/\/app\b(?:\/[^\s"'\])},:]*)?/g, (match) => {
+    protectedPaths.push(match.replace(/^\/app/, targets['/app']));
+    return `${SENTINEL}${String(protectedPaths.length - 1)}${SENTINEL}`;
+  });
+  out = out
+    .replace(/\/logs\/verifier/g, targets['/logs/verifier'])
+    .replace(/\/logs\/artifacts/g, targets['/logs/artifacts'])
+    .replace(/\/tests\b/g, targets['/tests']);
+  return out.replace(/\uE000(\d+)\uE000/g, (_m, i: string) => protectedPaths[Number(i)]);
 }
 
 const PATH_TO_ENV: Record<string, string> = {
@@ -839,12 +2217,12 @@ const PATH_TO_ENV: Record<string, string> = {
 };
 
 function applyShellReplacements(line: string): string {
-  let replaced = line
-    .replace(/\/logs\/verifier/g, '${VERIFIER_DIR}')
-    .replace(/\/logs\/artifacts/g, '${ARTIFACTS_DIR}')
-    .replace(/\/tests/g, '${TESTS_DIR}')
-    .replace(/\/app\b/g, '${APP_DIR}')
-    .replace(/\/app\//g, '${APP_DIR}/');
+  let replaced = rewriteContainerPaths(line, {
+    '/logs/verifier': '${VERIFIER_DIR}',
+    '/logs/artifacts': '${ARTIFACTS_DIR}',
+    '/tests': '${TESTS_DIR}',
+    '/app': '${APP_DIR}',
+  });
   // Single-quoted shell strings do not expand variables; convert any that now
   // contain rewritten harness paths to double-quoted so the env vars resolve.
   replaced = replaced.replace(
@@ -1211,13 +2589,38 @@ module.exports = async function * (source) {
   return reporterPath;
 }
 
-async function dockerAvailable(): Promise<boolean> {
+export const DOCKER_AVAILABILITY_PROBE_ATTEMPTS = 3;
+export const DOCKER_AVAILABILITY_RETRY_DELAY_MS = 3000;
+
+const sleepMs = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function probeDockerOnce(): Promise<boolean> {
   try {
-    const { exitCode } = await runCommand('docker', ['info'], { timeout: 10000 });
+    const { exitCode } = await runCommand('docker', ['info'], { timeout: 10_000 });
     return exitCode === 0;
   } catch {
     return false;
   }
+}
+
+/**
+ * A single `docker info` probe answers false when the daemon is merely slow
+ * under host load — exactly the conditions a sweep runs in — and silently
+ * degrading to the local verifier changes both the runtime and the test
+ * collection being graded. Probe with short retries before concluding
+ * Docker is genuinely unavailable.
+ */
+export async function dockerAvailable(
+  probe: () => Promise<boolean> = probeDockerOnce,
+  delay: (ms: number) => Promise<void> = sleepMs,
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= DOCKER_AVAILABILITY_PROBE_ATTEMPTS; attempt++) {
+    if (await probe()) return true;
+    if (attempt < DOCKER_AVAILABILITY_PROBE_ATTEMPTS) {
+      await delay(DOCKER_AVAILABILITY_RETRY_DELAY_MS);
+    }
+  }
+  return false;
 }
 
 async function imageExists(tag: string): Promise<boolean> {
@@ -1252,7 +2655,7 @@ async function runDeepSWEVerifierDocker(
   baseCommit: string,
   taskName: string,
   modelPatchArg?: string
-): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }> {
+): Promise<DeepSWEVerifierResult> {
   const absoluteTaskDir = path.resolve(taskDir);
   const testsDir = path.join(absoluteTaskDir, 'tests');
   const workDir = path.join(omegaWorkDir(), 'deepswe', `${path.basename(taskDir)}-${String(Date.now())}`);
@@ -1277,6 +2680,38 @@ async function runDeepSWEVerifierDocker(
   }
   log(`Using Docker image ${image}`);
 
+  // Per-task pip pins are NOT local-path-only. Turning Docker on silently
+  // dropped them and narwhals paid for it: the image ships pyarrow 25.0.1,
+  // whose SortOptions FutureWarning `filterwarnings=error` promotes to
+  // failures, so 341 p2p tests failed on a PRISTINE tree — measured with an
+  // empty patch as p2p 9752/10093, the identical 341 ids the graded run
+  // reported. reward=1 needs every p2p test, so the task was unwinnable for
+  // every model on every Docker run.
+  //
+  // The install is deliberately gated with `&&`: grading with the wrong pin is
+  // what produced the false zeros, so a failed pin must not silently grade
+  // anyway. The container's stdout/stderr is captured into verifier.log, so the
+  // reason stays legible.
+  const dockerOverride = getTaskEnvironmentOverride(taskName);
+  const dockerPip = dockerOverride?.pip ?? [];
+  const appliedDockerOverrides: AppliedTaskEnvironmentOverride[] = dockerPip.length > 0
+    ? [{
+        kind: 'dependency',
+        task: taskName,
+        requirements: dockerPip,
+        reason: dockerOverride?.dependencyReason
+          ?? 'Task-specific verifier dependency pin applied inside the container.',
+      }]
+    : [];
+  const containerCommand = dockerPip.length > 0
+    ? `python3 -m pip install --disable-pip-version-check ${dockerPip
+        .map((requirement) => `'${requirement}'`)
+        .join(' ')} && bash /tests/test.sh`
+    : 'bash /tests/test.sh';
+  if (appliedDockerOverrides.length > 0) {
+    log(`Applying container dependency pin before grading: ${dockerPip.join(' ')}`);
+  }
+
   const args = [
     'run',
     '--rm',
@@ -1288,7 +2723,8 @@ async function runDeepSWEVerifierDocker(
     `${verifierDir}:/logs/verifier`,
     image,
     'bash',
-    '/tests/test.sh',
+    '-lc',
+    containerCommand,
   ];
 
   const testRun = await runCommand('docker', args, { timeout: 1_800_000 });
@@ -1308,7 +2744,17 @@ async function runDeepSWEVerifierDocker(
     // ignore write errors
   });
 
-  return { reward, logs, logFile, exitCode: testRun.exitCode, timedOut: testRun.timedOut };
+  return {
+    reward,
+    logs,
+    gradingLogs: logs,
+    verifierMode: 'docker',
+    logFile,
+    exitCode: testRun.exitCode,
+    timedOut: testRun.timedOut,
+    appliedEnvironmentOverrides: appliedDockerOverrides,
+    patchPathsCleanedCount: 0,
+  };
 }
 
 async function runDeepSWEVerifier(
@@ -1317,8 +2763,8 @@ async function runDeepSWEVerifier(
   baseCommit: string,
   useDocker: boolean,
   taskName: string,
-  modelPatchArg?: string
-): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }> {
+  modelPatchArg?: string,
+): Promise<DeepSWEVerifierResult> {
   if (useDocker && (await dockerAvailable())) {
     try {
       const dockerResult = await runDeepSWEVerifierDocker(
@@ -1340,20 +2786,42 @@ async function runDeepSWEVerifier(
       // fall back to a fresh local run (verifier_timed_out only surfaces on the
       // local path). Preserve the docker-side evidence so the timeout is diagnosable.
       const fallbackLogs = `[Docker verifier ${dockerResult.timedOut ? 'timed out' : 'failed'}, falling back to local]\n${dockerResult.logs}\n\n`;
-      const fallback = await runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, taskName, modelPatchArg);
-      return { ...fallback, logs: fallbackLogs + fallback.logs };
+      const fallback = await runDeepSWEVerifierLocal(
+        projectPath,
+        taskDir,
+        baseCommit,
+        taskName,
+        modelPatchArg,
+      );
+      return { ...fallback, logs: fallbackLogs + fallback.logs, fallbackReason: 'docker-invalid-result' };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       // Docker build or runtime failure: try local verifier as fallback.
-      const fallback = await runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, taskName, modelPatchArg);
+      const fallback = await runDeepSWEVerifierLocal(
+        projectPath,
+        taskDir,
+        baseCommit,
+        taskName,
+        modelPatchArg,
+      );
       return {
         ...fallback,
         logs: `[Docker verifier failed, falling back to local]\n${message}\n\n${fallback.logs}`,
+        fallbackReason: 'docker-error',
       };
     }
   }
 
-  return runDeepSWEVerifierLocal(projectPath, taskDir, baseCommit, taskName, modelPatchArg);
+  const local = await runDeepSWEVerifierLocal(
+    projectPath,
+    taskDir,
+    baseCommit,
+    taskName,
+    modelPatchArg,
+  );
+  return useDocker
+    ? { ...local, fallbackReason: 'docker-unavailable' }
+    : local;
 }
 
 async function runDeepSWEVerifierLocal(
@@ -1361,8 +2829,8 @@ async function runDeepSWEVerifierLocal(
   taskDir: string,
   baseCommit: string,
   taskName: string,
-  modelPatchArg?: string
-): Promise<{ reward: Reward; logs: string; logFile: string; exitCode: number; timedOut: boolean }> {
+  modelPatchArg?: string,
+): Promise<DeepSWEVerifierResult> {
   const testsDir = path.join(taskDir, 'tests');
   const workDir = path.join(omegaWorkDir(), 'deepswe', `${path.basename(taskDir)}-${String(Date.now())}`);
   const verifierDir = path.join(workDir, 'logs', 'verifier');
@@ -1374,15 +2842,33 @@ async function runDeepSWEVerifierLocal(
   await fs.mkdir(artifactsDir, { recursive: true });
 
   await execFileAsync('cp', ['-R', testsDir, copiedTestsDir], { timeout: 60000 });
-  await rewriteConfig(taskDir, copiedTestsDir, projectPath, verifierDir, artifactsDir);
+  const configOverrideResult = await rewriteConfig(
+    taskDir,
+    taskName,
+    copiedTestsDir,
+    projectPath,
+    verifierDir,
+    artifactsDir
+  );
 
   const modelPatch = normalisePatch(modelPatchArg ?? (await generateModelPatch(projectPath, baseCommit)));
-  await writeFile(path.join(artifactsDir, 'model.patch'), modelPatch);
+  const modelPatchPath = path.join(artifactsDir, 'model.patch');
+  await writeFile(modelPatchPath, modelPatch);
   await forceCheckout(projectPath, baseCommit);
+  const patchPathsCleanedCount = await removePatchPathsMissingFromBase(
+    projectPath,
+    baseCommit,
+    modelPatchPath,
+  ).catch(() => {
+    // A malformed patch will be reported by the grader as apply_failed. This
+    // targeted rerun preparation must never become a new grading failure.
+    return 0;
+  });
 
   // Re-install any task-specific verifier dependencies that may be missing from
   // a cached or reused project worktree.
-  await ensureTaskDepsInstalled(projectPath, taskName);
+  const dependencyOverrides = await ensureTaskDepsInstalled(projectPath, taskName);
+  const appliedEnvironmentOverrides = [...configOverrideResult.applied, ...dependencyOverrides];
 
   // Re-apply per-task environment fixups after the force-checkout, which
   // discards any uncommitted changes made during initial setup.
@@ -1491,6 +2977,11 @@ async function runDeepSWEVerifierLocal(
   });
   log(`=== test.sh stdout ===\n${testRun.stdout}`);
   log(`=== test.sh stderr ===\n${testRun.stderr}`);
+  if (appliedEnvironmentOverrides.length > 0) {
+    log(
+      `=== environment overrides applied ===\n${appliedEnvironmentOverrides.map(formatAppliedEnvironmentOverride).join('\n')}`
+    );
+  }
 
   let reward: Reward = {};
   try {
@@ -1505,7 +2996,261 @@ async function runDeepSWEVerifierLocal(
     // ignore write errors
   });
 
-  return { reward, logs, logFile, exitCode: testRun.exitCode, timedOut: testRun.timedOut };
+  return {
+    reward,
+    logs,
+    gradingLogs: logs,
+    verifierMode: 'local',
+    logFile,
+    exitCode: testRun.exitCode,
+    timedOut: testRun.timedOut,
+    appliedEnvironmentOverrides,
+    patchPathsCleanedCount,
+  };
+}
+
+export interface DeepSWEVerifierInvocation {
+  projectPath: string;
+  taskDir: string;
+  baseCommit: string;
+  useDocker: boolean;
+  taskName: string;
+  modelPatch: string;
+}
+
+export type DeepSWEVerifierRunner = (
+  invocation: DeepSWEVerifierInvocation,
+) => Promise<DeepSWEVerifierResult>;
+
+export type FlakeRerunBudgetDecision =
+  | { acquired: true }
+  | { acquired: false; skippedReason: string };
+
+export interface FlakeRerunBudget {
+  acquire: () => FlakeRerunBudgetDecision;
+}
+
+export function createFlakeRerunBudget(
+  environment: NodeJS.ProcessEnv = process.env,
+): FlakeRerunBudget {
+  const raw = environment.OMEGA_DEEPSWE_FLAKE_MAX_RERUNS;
+  const parsed = raw === undefined || raw.trim() === '' ? 1_024 : Number(raw);
+  const valid = Number.isInteger(parsed) && parsed >= 0;
+  let used = 0;
+
+  return {
+    acquire: (): FlakeRerunBudgetDecision => {
+      if (!valid) {
+        return {
+          acquired: false,
+          skippedReason: 'OMEGA_DEEPSWE_FLAKE_MAX_RERUNS is invalid',
+        };
+      }
+      if (used >= parsed) {
+        return {
+          acquired: false,
+          skippedReason: `sweep-level flake re-run budget exhausted (${String(used)}/${String(parsed)})`,
+        };
+      }
+      used++;
+      return { acquired: true };
+    },
+  };
+}
+
+export interface DeepSWEFlakeEvaluationInput {
+  invocation: DeepSWEVerifierInvocation;
+  environment?: NodeJS.ProcessEnv;
+  rerunBudget: FlakeRerunBudget;
+}
+
+export async function evaluateDeepSWEWithFlakeRerun(
+  input: DeepSWEFlakeEvaluationInput,
+  runVerifier: DeepSWEVerifierRunner,
+): Promise<BenchmarkEvaluation> {
+  const environment = input.environment ?? process.env;
+  const firstResult = await runVerifier(input.invocation);
+  const { reward, logs, logFile, exitCode, timedOut, appliedEnvironmentOverrides } = firstResult;
+  const originalPassed = reward.reward === 1;
+  const configuredMaxRaw = environment.OMEGA_DEEPSWE_FLAKE_MAX_P2P_FAILURES;
+  const configuredMax = configuredMaxRaw === undefined || configuredMaxRaw.trim() === ''
+    ? undefined
+    : Number(configuredMaxRaw);
+  const gate = decideFlakeRerun({
+    reward,
+    timedOut,
+    disabled: environment.OMEGA_DEEPSWE_DISABLE_FLAKE_RERUN === '1',
+    maxP2PFailures: configuredMax,
+  });
+  const firstRun: FlakeVerifierRun = {
+    reward,
+    timedOut,
+    verifierMode: firstResult.verifierMode,
+    failingP2PTests: parseFailingP2PTestIds(firstResult.gradingLogs),
+  };
+  let rerunAttempted = false;
+  let rerunResult: DeepSWEVerifierResult | undefined;
+  let flakeVerdict: FlakeAwareVerdict | undefined;
+  let flakeRerunSkippedReason: string | undefined;
+
+  if (!gate.shouldRerun) {
+    flakeRerunSkippedReason = gate.skippedReason;
+  } else {
+    const budgetDecision = input.rerunBudget.acquire();
+    if (!budgetDecision.acquired) {
+      flakeRerunSkippedReason = budgetDecision.skippedReason;
+    } else {
+      // Reserve the sweep budget synchronously above, then run one complete
+      // confirmation pass in the same project tree. forceCheckout plus the
+      // targeted patch-path cleanup make the stored patch re-applicable while
+      // preserving the first run's installed dependency/runtime environment.
+      // No test invokes runDeepSWEVerifierLocal twice: the first production
+      // confirmation re-run is the first end-to-end exercise of same-tree
+      // stored-patch reapplication, so its first-sweep evidence needs review.
+      rerunAttempted = true;
+      try {
+        rerunResult = await runVerifier(input.invocation);
+        flakeVerdict = synthesizeFlakeAwareVerdict({
+          originalPassed,
+          firstRun,
+          rerun: {
+            reward: rerunResult.reward,
+            timedOut: rerunResult.timedOut,
+            verifierMode: rerunResult.verifierMode,
+            failingP2PTests: parseFailingP2PTestIds(rerunResult.gradingLogs),
+          },
+        });
+      } catch (error) {
+        flakeVerdict = synthesizeFlakeAwareVerdict({
+          originalPassed,
+          firstRun,
+          rerun: {
+            failingP2PTests: [],
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+      flakeRerunSkippedReason = flakeVerdict.reason;
+    }
+  }
+
+  const passed = flakeVerdict?.passed ?? originalPassed;
+  const flakyTests = flakeVerdict?.flakyTests ?? [];
+  const confirmedFailingTests = flakeVerdict?.confirmedFailingTests ?? [];
+  // Phantom penalties: p2p failures with no reported test behind them (id
+  // renumbering, report loss) — not model damage, so counted separately.
+  const missingFromReportTests = uniqueSorted(
+    parseMissingFromReportP2PTestIds(firstResult.gradingLogs),
+  );
+  const environmentOverrideDisclosure = appliedEnvironmentOverrides
+    .map(formatAppliedEnvironmentOverride)
+    .join('; ');
+  const environmentOverrideSuffix = environmentOverrideDisclosure
+    ? `; ${environmentOverrideDisclosure}`
+    : '';
+  const metrics: Record<string, number | string> = {
+    f2p_passed: reward.f2p_passed ?? 0,
+    f2p_total: reward.f2p_total ?? 0,
+    p2p_passed: reward.p2p_passed ?? 0,
+    p2p_total: reward.p2p_total ?? 0,
+    partial: reward.partial ?? 0,
+    verifier_exit_code: exitCode,
+    verifier_log_file: logFile,
+    verifier_mode: firstResult.verifierMode,
+    ...(firstResult.fallbackReason
+      ? { verifier_fallback_reason: firstResult.fallbackReason }
+      : {}),
+    ...(timedOut ? { verifier_timed_out: 1 } : {}),
+    flake_rerun: rerunAttempted ? 1 : 0,
+    p2p_flaky_count: flakyTests.length,
+    p2p_flaky_tests: flakyTests.join('\n'),
+    p2p_confirmed_failing_count: confirmedFailingTests.length,
+    p2p_confirmed_failing_tests: confirmedFailingTests.join('\n'),
+    p2p_missing_from_report_count: missingFromReportTests.length,
+    p2p_missing_from_report_tests: missingFromReportTests.join('\n'),
+    ...(flakeRerunSkippedReason ? { flake_rerun_skipped_reason: flakeRerunSkippedReason } : {}),
+    ...(
+      !originalPassed &&
+      flakeVerdict?.passed === true &&
+      !flakeVerdict.originalVerdictRetained
+        ? { flake_forgiven_pass: 1 }
+        : {}
+    ),
+    ...(flakeVerdict?.p2pRerunFailureDisjoint
+      ? { p2p_rerun_failure_disjoint: 1 }
+      : {}),
+    ...(firstResult.patchPathsCleanedCount > 0
+      ? { patch_paths_cleaned_count: firstResult.patchPathsCleanedCount }
+      : {}),
+  };
+  if (reward.apply_failed) metrics.apply_failed = 1;
+  if (appliedEnvironmentOverrides.length > 0) {
+    metrics.environment_override_count = appliedEnvironmentOverrides.length;
+    metrics.known_environment_p2p_exclusion_count = appliedEnvironmentOverrides.filter(
+      (override) => override.kind === 'known-p2p-environment-failure',
+    ).length;
+    metrics.environment_overrides = appliedEnvironmentOverrides
+      .map(formatAppliedEnvironmentOverride)
+      .join('\n');
+  }
+  // Persisted evidence stays bounded, but all grading decisions above parse
+  // gradingLogs in full so an early failure line can never be truncated away.
+  metrics.verifier_logs = logs.slice(-4096);
+  if (rerunResult) {
+    metrics.f2p_passed_rerun = rerunResult.reward.f2p_passed ?? 0;
+    metrics.f2p_total_rerun = rerunResult.reward.f2p_total ?? 0;
+    metrics.p2p_passed_rerun = rerunResult.reward.p2p_passed ?? 0;
+    metrics.p2p_total_rerun = rerunResult.reward.p2p_total ?? 0;
+    metrics.partial_rerun = rerunResult.reward.partial ?? 0;
+    metrics.verifier_exit_code_rerun = rerunResult.exitCode;
+    metrics.verifier_log_file_rerun = rerunResult.logFile;
+    metrics.verifier_mode_rerun = rerunResult.verifierMode;
+    if (rerunResult.fallbackReason) metrics.verifier_fallback_reason_rerun = rerunResult.fallbackReason;
+    metrics.verifier_logs_rerun = rerunResult.logs.slice(-4096);
+    if (rerunResult.timedOut) metrics.verifier_timed_out_rerun = 1;
+    if (rerunResult.reward.apply_failed) metrics.apply_failed_rerun = 1;
+    if (rerunResult.patchPathsCleanedCount > 0) {
+      metrics.patch_paths_cleaned_count_rerun = rerunResult.patchPathsCleanedCount;
+    }
+    if (rerunResult.appliedEnvironmentOverrides.length > 0) {
+      metrics.environment_override_count_rerun = rerunResult.appliedEnvironmentOverrides.length;
+      metrics.known_environment_p2p_exclusion_count_rerun = rerunResult.appliedEnvironmentOverrides.filter(
+        (override) => override.kind === 'known-p2p-environment-failure',
+      ).length;
+      metrics.environment_overrides_rerun = rerunResult.appliedEnvironmentOverrides
+        .map(formatAppliedEnvironmentOverride)
+        .join('\n');
+    }
+  }
+
+  const primaryMessage = timedOut
+    ? `DeepSWE verifier timeout (reward=${String(reward.reward ?? 'missing')})`
+    : originalPassed
+      ? `DeepSWE verifier passed (f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`
+      : `DeepSWE tests failed (reward=${String(reward.reward ?? 'missing')}, f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`;
+  let message: string;
+  if (!rerunAttempted) {
+    message = `${primaryMessage}; flake re-run skipped (see flake_rerun_skipped_reason)`;
+  } else if (flakeVerdict?.reason) {
+    message = `${primaryMessage}; flake re-run inconclusive (see flake_rerun_skipped_reason)`;
+  } else if (passed) {
+    const disjointDisclosure = flakeVerdict?.p2pRerunFailureDisjoint
+      ? '; p2p_rerun_failure_disjoint=1'
+      : '';
+    message = `DeepSWE verifier passed after flake re-run (${String(flakyTests.length)} flaky p2p: ${flakyTests.join(', ')}${disjointDisclosure})`;
+  } else {
+    const confirmed = `${String(confirmedFailingTests.length)} confirmed failing p2p: ${confirmedFailingTests.join(', ')}`;
+    const flaky = flakyTests.length > 0
+      ? `; ${String(flakyTests.length)} flaky p2p: ${flakyTests.join(', ')}`
+      : '';
+    message = `DeepSWE tests failed after flake re-run (${confirmed}${flaky})`;
+  }
+  return {
+    passed,
+    score: reward.partial,
+    message: message + environmentOverrideSuffix,
+    metrics,
+  };
 }
 
 export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<BenchmarkTask[]> {
@@ -1539,6 +3284,9 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
       .map((x) => x.t);
   }
 
+  // One synchronously acquired budget is shared by every task produced by
+  // this suite load, even when evaluations execute concurrently.
+  const flakeRerunBudget = createFlakeRerunBudget(process.env);
   const tasks: BenchmarkTask[] = [];
   for (const { dir, toml, instruction } of loaded) {
     const id = toml.metadata?.task_id ?? path.basename(dir);
@@ -1551,7 +3299,7 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
       id: `deepswe-${id}`,
       name: id,
       title,
-      description: buildDeepSweDescription(instruction, language),
+      description: buildDeepSweDescription(instruction, language, options.timeoutMs),
       complexity: (process.env.OMEGA_DEEPSWE_COMPLEXITY as 'simple' | 'medium' | 'complex' | undefined) ?? 'medium',
       tags: [id],
       setup: async (projectPath: string) => {
@@ -1563,12 +3311,27 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
       },
       evaluate: async (ctx: EvaluationContext): Promise<BenchmarkEvaluation> => {
         if (!commit) {
-          return { passed: false, message: 'Missing base_commit_hash' };
+          return {
+            passed: false,
+            message: 'Missing base_commit_hash; flake re-run skipped: no commit to verify',
+            metrics: {
+              flake_rerun: 0,
+              p2p_flaky_count: 0,
+              p2p_flaky_tests: '',
+              p2p_confirmed_failing_count: 0,
+              p2p_confirmed_failing_tests: '',
+              flake_rerun_skipped_reason: 'no base commit to verify',
+            },
+          };
         }
         const storedPatch = ctx.diffs
           .slice()
           .reverse()
-          .find((d) => typeof d.patch === 'string' && d.patch.length > 0)?.patch;
+          .find((d) => typeof d.patch === 'string' && d.patch.trim().length > 0)?.patch;
+        const patchAuditMetrics = deepSwePatchAuditMetrics(
+          storedPatch ?? '',
+          ctx.agentRun?.validationSummary,
+        );
         if (!storedPatch) {
           // No agent patch → the task already failed. Running the full
           // verifier with an empty patch burns up to 30 min per no-patch
@@ -1577,49 +3340,59 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
           return {
             passed: false,
             score: 0,
-            message: 'DeepSWE verifier skipped (no patch produced by agent)',
+            message: 'DeepSWE verifier skipped (no patch produced by agent); flake re-run skipped: no patch to verify',
             metrics: {
               f2p_passed: 0,
               f2p_total: 0,
               p2p_passed: 0,
               p2p_total: 0,
               partial: 0,
+              ...patchAuditMetrics,
               verifier_skipped: 1,
+              flake_rerun: 0,
+              p2p_flaky_count: 0,
+              p2p_flaky_tests: '',
+              p2p_confirmed_failing_count: 0,
+              p2p_confirmed_failing_tests: '',
+              flake_rerun_skipped_reason: 'no model patch to verify',
             },
           };
         }
-        const { reward, logs, logFile, exitCode, timedOut } = await runDeepSWEVerifier(
-          ctx.projectPath,
-          dir,
-          commit,
-          options.useDocker ?? false,
-          id,
-          storedPatch
+        const evaluation = await evaluateDeepSWEWithFlakeRerun(
+          {
+            invocation: {
+              projectPath: ctx.projectPath,
+              taskDir: dir,
+              baseCommit: commit,
+              useDocker: options.useDocker ?? false,
+              taskName: id,
+              modelPatch: storedPatch,
+            },
+            environment: process.env,
+            rerunBudget: flakeRerunBudget,
+          },
+          async (invocation) => runDeepSWEVerifier(
+            invocation.projectPath,
+            invocation.taskDir,
+            invocation.baseCommit,
+            invocation.useDocker,
+            invocation.taskName,
+            invocation.modelPatch,
+          ),
         );
-        const passed = reward.reward === 1;
-        const metrics: Record<string, number | string> = {
-          f2p_passed: reward.f2p_passed ?? 0,
-          f2p_total: reward.f2p_total ?? 0,
-          p2p_passed: reward.p2p_passed ?? 0,
-          p2p_total: reward.p2p_total ?? 0,
-          partial: reward.partial ?? 0,
-          verifier_exit_code: exitCode,
-          verifier_log_file: logFile,
-          ...(timedOut ? { verifier_timed_out: 1 } : {}),
-        };
-        if (reward.apply_failed) {
-          metrics.apply_failed = 1;
-        }
-        metrics.verifier_logs = logs.slice(-4096);
+        const addedTestCount = patchAuditMetrics.graded_patch_added_test_paths;
+        const addedTestPaths = patchAuditMetrics.graded_patch_added_test_path_list;
+        const addedTestDisclosure = addedTestCount > 0
+          ? `Graded patch adds ${String(addedTestCount)} test-like path${addedTestCount === 1 ? '' : 's'} absent from the base commit` +
+            `${addedTestPaths ? `: ${addedTestPaths.slice(0, 512)}` : ''}. `
+          : '';
         return {
-          passed,
-          score: reward.partial,
-          message: timedOut
-            ? `DeepSWE verifier timeout (reward=${String(reward.reward ?? 'missing')})`
-            : passed
-              ? `DeepSWE verifier passed (f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`
-              : `DeepSWE verifier failed (reward=${String(reward.reward ?? 'missing')}, f2p ${String(reward.f2p_passed ?? 0)}/${String(reward.f2p_total ?? 0)}, p2p ${String(reward.p2p_passed ?? 0)}/${String(reward.p2p_total ?? 0)})`,
-          metrics,
+          ...evaluation,
+          message: `${addedTestDisclosure}${evaluation.message ?? ''}`.trim(),
+          metrics: {
+            ...evaluation.metrics,
+            ...patchAuditMetrics,
+          },
         };
       },
     });

@@ -1,0 +1,10 @@
+# DeepSWE task corpus (36 MB, 117 tasks). Pinned at a commit that carries one
+# local fix over upstream (httpx task language). The pin is deliberate: the
+# harness's golden fixtures, Docker image tags, and scoring history are all
+# keyed to this corpus state. Do not bump it casually — upstream main has since
+# switched verifier grading to [[verifier.collect]], which changes what the
+# adapter parses. Upstream: https://github.com/datacurve-ai/deep-swe
+[submodule "deep-swe"]
+	path = deep-swe
+	url = https://github.com/castlemilk/deep-swe.git
+	branch = harness-pin

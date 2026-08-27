@@ -33,6 +33,8 @@ import {
   parseModelList,
   loadSuiteTasks,
   runVarianceEval,
+  runDeepSWEGoldenCorpus,
+  formatDeepSWEGoldenSummary,
   printVarianceSummary,
   saveBenchmarkHistory,
   getCostPerPassRate,
@@ -666,6 +668,31 @@ const trendCmd = new Command('trend')
     console.log(text);
   });
 
+const goldenCmd = new Command('golden')
+  .description(
+    'Re-grade the stored golden patches through the verifier and diff against expected outcomes. ' +
+      'No model runs: this pins GRADING, not capability, and takes minutes rather than hours.'
+  )
+  .option('--tasks-dir <dir>', 'deep-swe tasks directory', path.join(process.cwd(), 'deep-swe', 'tasks'))
+  .option(
+    '--manifest <file>',
+    'golden manifest path',
+    path.join(process.cwd(), 'packages', 'bench', 'fixtures', 'deepswe-golden', 't1-shakedown', 'manifest.json')
+  )
+  .option('--task <id>', 'only replay this task (repeatable)', collectTaskIds, [])
+  .option('--no-docker', 'grade with the local verifier instead of Docker')
+  .action(async (opts: { tasksDir: string; manifest: string; task: string[]; docker: boolean }) => {
+    const result = await runDeepSWEGoldenCorpus({
+      manifestPath: opts.manifest,
+      tasksDir: opts.tasksDir,
+      taskIds: opts.task.length > 0 ? opts.task : undefined,
+      useDocker: opts.docker,
+    });
+    console.log(formatDeepSWEGoldenSummary(result));
+    // Drift in a grading corpus is a failure signal, not information.
+    if (result.matched !== result.total) process.exitCode = 1;
+  });
+
 const consensusCmd = new Command('consensus')
   .description(
     'Run multiple agents in parallel on each task and pick the first passing patch (best-of-N by eval). ' +
@@ -993,7 +1020,7 @@ const serverRunCmd = new Command('server-run')
   .requiredOption('--suite <name>', 'suite name: synthetic | fast | harder | harder-v2 | hard-targeting | swebench-lite | deepswe')
   .option('--models <list>', 'comma-separated models as provider/model (e.g. "deepseek/deepseek-v4-pro,kimi/kimi-k3")')
   .option('--strategy <name>', 'strategy: single | consensus | variance', 'single')
-  .option('--variance-runs <n>', 'number of runs per task (for variance strategy)', '5')
+  .option('--variance-runs <n>', 'number of runs per task (for variance strategy)', '1')
   .option('--concurrency <n>', 'max concurrent tasks', '3')
   .option('--timeout <ms>', 'per-task timeout in ms', '600000')
   .option('--token-budget <n>', 'per-task token cap', parseInt)
@@ -1166,6 +1193,7 @@ export const benchCmd = new Command('bench')
   .addCommand(optimiseCmd)
   .addCommand(compareCmd)
   .addCommand(trendCmd)
+  .addCommand(goldenCmd)
   .addCommand(consensusCmd)
   .addCommand(strategyCmd)
   .addCommand(adversarialCmd)

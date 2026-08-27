@@ -41,10 +41,42 @@ const createObjectiveSchema = z.object({
   projectId: z.string().uuid(),
   name: z.string().min(1).max(500),
   description: z.string().max(100_000).optional(),
+  instructions: z.string().max(100_000).optional(),
   useCase: useCaseSchema.optional(),
   targetDate: z.coerce.date().optional(),
   spendCapUsd: z.number().finite().nonnegative().optional(),
 });
+
+/**
+ * Everything an objective can change after birth. `useCase` and `targetDate`
+ * accept null to CLEAR them; `status` is the objective's own lifecycle, not a
+ * harness status — archiving is how a project stops appearing without its
+ * history being deleted.
+ */
+const updateObjectiveSchema = z.object({
+  name: z.string().min(1).max(500).optional(),
+  description: z.string().max(100_000).nullable().optional(),
+  instructions: z.string().max(100_000).nullable().optional(),
+  useCase: useCaseSchema.nullable().optional(),
+  targetDate: z.coerce.date().nullable().optional(),
+  spendCapUsd: z.number().finite().nonnegative().nullable().optional(),
+  status: z.enum(['active', 'complete', 'archived']).optional(),
+}).strict();
+
+/** Skill grants are SkillArtifact names — validated against the registry at write time. */
+const skillsSchema = z.array(z.string().min(1).max(200)).max(50);
+
+const createWorkstreamSchema = z.object({
+  objectiveId: z.string().uuid(),
+  name: z.string().min(1).max(500),
+  orderIdx: z.number().int().min(0).max(10_000).optional(),
+});
+
+const updateWorkstreamSchema = z.object({
+  name: z.string().min(1).max(500).optional(),
+  orderIdx: z.number().int().min(0).max(10_000).optional(),
+  leadHarnessId: z.string().uuid().nullable().optional(),
+}).strict();
 
 const createHarnessSchema = z.object({
   objectiveId: z.string().uuid(),
@@ -58,6 +90,7 @@ const createHarnessSchema = z.object({
   spendCapUsd: z.number().finite().nonnegative().nullable().optional(),
   maxChildren: z.number().int().min(0).max(100),
   permissions: z.array(permissionSchema).max(100),
+  skills: skillsSchema.default([]),
   dryRun: z.boolean().default(false),
   taskId: z.string().uuid().nullable().optional(),
 });
@@ -83,6 +116,7 @@ const updateHarnessSchema = z.object({
   spendCapUsd: z.number().finite().nonnegative().nullable().optional(),
   maxChildren: z.number().int().min(0).max(100).optional(),
   permissions: z.array(permissionSchema).max(100).optional(),
+  skills: skillsSchema.optional(),
   dryRun: z.boolean().optional(),
   status: harnessStatusSchema.optional(),
 }).strict();
@@ -126,6 +160,20 @@ const versionPlaybookSchema = z.object({
   variables: z.array(z.string().min(1).max(200)).max(100),
   cadence: z.string().min(1).max(500),
   retireWhen: z.string().max(10_000).nullable(),
+});
+
+/**
+ * A brand-new playbook, version 1. Until this route existed the only write was
+ * `POST /playbooks/:id/version` — a fork — so a routine that didn't descend
+ * from a seed could never be authored through the API at all.
+ */
+const createPlaybookSchema = z.object({
+  projectId: z.string().uuid().nullable().optional(),
+  name: z.string().min(1).max(500),
+  steps: playbookStepsSchema.default([]),
+  variables: z.array(z.string().min(1).max(200)).max(100).default([]),
+  cadence: z.string().min(1).max(500).default('every 30m'),
+  retireWhen: z.string().max(10_000).nullable().default(null),
 });
 
 const permissions = parsePermissions;
@@ -246,6 +294,7 @@ function pulseDto(pulse: Pulse): Record<string, unknown> {
     endedAt: pulse.endedAt,
     outcome: pulse.outcome,
     summary: pulse.summary,
+    model: pulse.model,
     costUsd: pulse.costUsd,
     tokens: pulse.tokens,
     weight: pulse.weight,
@@ -317,6 +366,8 @@ function harnessDto(harness: Harness, derived: HarnessDerivedFields): Record<str
     contextTokens: harness.contextTokens,
     contextWindow: effectiveContextWindow,
     permissions: permissions(harness.permissions),
+    skills: safeJsonParse<string[]>(harness.skills, []),
+    memory: harness.memory,
     dryRun: harness.dryRun,
     lastPulseSeq: harness.lastPulseSeq,
     idleSince: harness.idleSince,
@@ -540,6 +591,21 @@ class ForemanMutationError extends Error {
   }
 }
 
+/**
+ * Which of `names` match no SkillArtifact. Validated at write time so the
+ * picker UI gets an immediate 400 naming the strays; the pulse engine still
+ * discloses (rather than drops) any name that stops resolving later.
+ */
+async function unknownSkillNames(prisma: PrismaClient, names: string[]): Promise<string[]> {
+  if (names.length === 0) return [];
+  const found = await prisma.skillArtifact.findMany({
+    where: { name: { in: names } },
+    select: { name: true },
+  });
+  const have = new Set(found.map((skill) => skill.name));
+  return names.filter((name) => !have.has(name));
+}
+
 export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): void {
   r.post('/objectives', asyncHandler(async (req, res) => {
     const body = createObjectiveSchema.parse(req.body);
@@ -552,8 +618,67 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
     res.status(201).json(objective);
   }));
 
+  r.patch('/objectives/:id', asyncHandler(async (req, res) => {
+    const body = updateObjectiveSchema.parse(req.body);
+    const existing = await prisma.objective.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    if (!existing) {
+      res.status(404).json({ error: 'Objective not found' });
+      return;
+    }
+    const objective = await prisma.objective.update({ where: { id: req.params.id }, data: body });
+    res.json(objective);
+  }));
+
+  r.post('/workstreams', asyncHandler(async (req, res) => {
+    const body = createWorkstreamSchema.parse(req.body);
+    const objective = await prisma.objective.findUnique({
+      where: { id: body.objectiveId },
+      select: { id: true },
+    });
+    if (!objective) {
+      res.status(404).json({ error: 'Objective not found' });
+      return;
+    }
+    const orderIdx = body.orderIdx ?? (
+      ((await prisma.workstream.aggregate({
+        where: { objectiveId: body.objectiveId },
+        _max: { orderIdx: true },
+      }))._max.orderIdx ?? -1) + 1
+    );
+    const workstream = await prisma.workstream.create({
+      data: { objectiveId: body.objectiveId, name: body.name, orderIdx },
+    });
+    res.status(201).json(workstream);
+  }));
+
+  r.patch('/workstreams/:id', asyncHandler(async (req, res) => {
+    const body = updateWorkstreamSchema.parse(req.body);
+    const existing = await prisma.workstream.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      res.status(404).json({ error: 'Workstream not found' });
+      return;
+    }
+    if (body.leadHarnessId) {
+      const lead = await prisma.harness.findUnique({
+        where: { id: body.leadHarnessId },
+        select: { objectiveId: true },
+      });
+      if (lead?.objectiveId !== existing.objectiveId) {
+        res.status(400).json({ error: 'Lead harness must belong to the same objective' });
+        return;
+      }
+    }
+    const workstream = await prisma.workstream.update({ where: { id: req.params.id }, data: body });
+    res.json(workstream);
+  }));
+
   r.post('/harnesses', asyncHandler(async (req, res) => {
     const body = createHarnessSchema.parse(req.body);
+    const strays = await unknownSkillNames(prisma, body.skills);
+    if (strays.length > 0) {
+      res.status(400).json({ error: `Unknown skills: ${strays.join(', ')}` });
+      return;
+    }
     const parentId = body.parentId ?? null;
     const workstreamId = body.workstreamId ?? null;
     const playbookId = body.playbookId ?? null;
@@ -637,6 +762,7 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
         spendCapUsd: body.spendCapUsd ?? null,
         maxChildren: body.maxChildren,
         permissions: JSON.stringify(body.permissions),
+        skills: JSON.stringify(body.skills),
         dryRun: body.dryRun,
         status: startsPaused ? 'paused' : 'ready',
         statusBeforePause: startsPaused ? workstreamPauseStatus('ready') : null,
@@ -658,6 +784,13 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
 
   r.patch('/harnesses/:id', asyncHandler(async (req, res) => {
     const body = updateHarnessSchema.parse(req.body);
+    if (body.skills !== undefined) {
+      const strays = await unknownSkillNames(prisma, body.skills);
+      if (strays.length > 0) {
+        res.status(400).json({ error: `Unknown skills: ${strays.join(', ')}` });
+        return;
+      }
+    }
     const result = await prisma.$transaction(async (tx) => {
       const objectiveId = await lockObjectiveForHarness(tx, req.params.id);
       if (!objectiveId) return { kind: 'missing' } as const;
@@ -721,6 +854,7 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
         dryRun: body.dryRun,
         status: body.status,
         permissions: body.permissions !== undefined ? JSON.stringify(body.permissions) : undefined,
+        skills: body.skills !== undefined ? JSON.stringify(body.skills) : undefined,
       };
 
       const now = new Date();
@@ -977,6 +1111,17 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
     const trace = await prisma.taskTrace.create({
       data: { taskId: task.id, role: 'user', content: body.text },
     });
+    // A `waiting` harness is skipped by the engine (it must not keep burning
+    // budget restating its question) — which used to mean an interject to one
+    // was written and NEVER read. The interject IS the human input it was
+    // waiting for: release it and pulse promptly so the reply is consumed.
+    // Any still-pending intervention stays in the queue for a formal resolve.
+    if (harness.status === 'waiting') {
+      await prisma.harness.update({
+        where: { id: harness.id },
+        data: { status: 'working', nextPulseAt: new Date() },
+      });
+    }
     res.status(201).json({ kind: 'human', id: trace.id, at: trace.createdAt, text: body.text });
   }));
 
@@ -1167,6 +1312,37 @@ export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): 
       return;
     }
     res.json(interventionDto(result));
+  }));
+
+  r.post('/playbooks', asyncHandler(async (req, res) => {
+    const body = createPlaybookSchema.parse(req.body);
+    if (body.projectId) {
+      const project = await prisma.project.findUnique({ where: { id: body.projectId }, select: { id: true } });
+      if (!project) {
+        res.status(404).json({ error: 'Project not found' });
+        return;
+      }
+    }
+    // The name is the version chain's identity — a duplicate would fork the
+    // chain at v1 and break the "latest by name" resolution the version route
+    // relies on.
+    const collision = await prisma.playbook.findFirst({ where: { name: body.name }, select: { id: true } });
+    if (collision) {
+      res.status(409).json({ error: `A playbook named "${body.name}" already exists — version it instead` });
+      return;
+    }
+    const created = await prisma.playbook.create({
+      data: {
+        projectId: body.projectId ?? null,
+        name: body.name,
+        version: 1,
+        variables: JSON.stringify(body.variables),
+        cadence: body.cadence,
+        retireWhen: body.retireWhen,
+        steps: JSON.stringify(body.steps.map((step) => ({ ...step, condition: step.condition ?? null }))),
+      },
+    });
+    res.status(201).json(playbookDto(created));
   }));
 
   r.post('/playbooks/:id/version', asyncHandler(async (req, res) => {

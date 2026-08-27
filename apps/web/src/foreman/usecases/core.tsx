@@ -14,6 +14,7 @@ import { GraphShell } from '../shells/GraphShell.js';
 import { WorkBoard } from '../surfaces/WorkBoard.js';
 import { Usage } from '../surfaces/Usage.js';
 import { PlaybookEditor } from '../surfaces/PlaybookEditor.js';
+import { Benchmarks } from '../surfaces/Benchmarks.js';
 import type { ViewDescriptor } from './registry.js';
 import { getUseCases } from './registry.js';
 import { PluginsView, sourceMap } from './plugins.js';
@@ -93,6 +94,12 @@ export interface CoreViewContext {
   onCreateObjective: (input: { name: string; useCase?: string }) => Promise<void>;
   /** Whether a project is connected — `POST /objectives` requires one. */
   canCreateObjective: boolean;
+  /** Open the edit dialog for a harness. */
+  onEditHarness: (harness: Harness) => void;
+  /** Create a workstream lane on the current objective. */
+  onCreateWorkstream: (name: string) => void;
+  /** Author a brand-new (empty, v1) playbook and select it. */
+  onCreatePlaybook: (name: string) => Promise<void>;
 }
 
 export interface CoreView extends ViewDescriptor {
@@ -122,6 +129,9 @@ function ConsoleView(ctx: CoreViewContext) {
             ctx.onFocus(harness.id);
             ctx.onOpenView('graph');
             break;
+          case 'edit':
+            ctx.onEditHarness(harness);
+            break;
           case 'run-tool':
             ctx.onOpenToolkit();
             break;
@@ -130,6 +140,7 @@ function ConsoleView(ctx: CoreViewContext) {
       onSpawn={(parentId) => {
         ctx.onSpawnUnder(ctx.harnesses.find((h) => h.id === parentId) ?? null);
       }}
+      onCreateWorkstream={ctx.onCreateWorkstream}
     />
   );
 }
@@ -224,6 +235,7 @@ function PlaybooksView(ctx: CoreViewContext) {
       onSelect={ctx.onSelectPlaybook}
       harnesses={ctx.harnesses}
       onSave={ctx.onSavePlaybook}
+      onCreate={ctx.onCreatePlaybook}
     />
   );
 }
@@ -251,6 +263,10 @@ function PluginsCoreView(ctx: CoreViewContext) {
   );
 }
 
+function BenchmarksView(_ctx: CoreViewContext) {
+  return <Benchmarks />;
+}
+
 export const CORE_VIEWS: CoreView[] = [
   { id: 'console', label: 'Console', order: 10, component: ConsoleView },
   { id: 'board', label: 'Board', order: 20, component: BoardView },
@@ -258,6 +274,9 @@ export const CORE_VIEWS: CoreView[] = [
   { id: 'work', label: 'Work', order: 40, component: WorkView },
   { id: 'usage', label: 'Usage', order: 50, component: UsageView },
   { id: 'playbooks', label: 'Playbooks', order: 60, component: PlaybooksView },
+  // Fleet-wide like Plugins: which model earns its cost is a question about
+  // the whole rig, not one objective, so it renders for every objective.
+  { id: 'benchmarks', label: 'Benchmarks', order: 65, component: BenchmarksView },
   // Chrome, not a domain tab: it is about what the *build* installed, so it is
   // there for every objective including one with no use case at all.
   { id: 'plugins', label: 'Plugins', order: 70, component: PluginsCoreView },

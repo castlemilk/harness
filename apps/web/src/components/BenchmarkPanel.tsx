@@ -731,36 +731,9 @@ function BaselineComparisonView({ comparison }: { comparison: BenchmarkBaselineC
   );
 }
 
-interface ServerBenchRun {
-  id: string;
-  suite: string;
-  status: string;
-  totalTasks: number;
-  passed: number;
-  failed: number;
-  timeouts: number;
-  totalDurationMs: number;
-  totalCostUsd: number | null;
-  error: string | null;
-  startedAt: string | null;
-  completedAt: string | null;
-  createdAt: string;
-}
-
-interface ServerBenchRunDetail extends ServerBenchRun {
-  config: Record<string, unknown>;
-  totalTokens: number;
-  results: {
-    taskName: string;
-    harnessTaskId: string;
-    passed: boolean;
-    durationMs: number;
-    model?: string;
-    winnerModel?: string;
-    variancePassRate?: number;
-    error?: string;
-  }[] | null;
-}
+type ServerBenchRun = Awaited<ReturnType<typeof api.listBenchRuns>>[number];
+type ServerBenchRunDetail = Awaited<ReturnType<typeof api.getBenchRun>>;
+export type ServerBenchRunResult = NonNullable<ServerBenchRunDetail['results']>[number];
 
 function statusBadge(status: string): { label: string; cls: string } {
   switch (status) {
@@ -773,6 +746,43 @@ function statusBadge(status: string): { label: string; cls: string } {
   }
 }
 
+export function ServerBenchRunResultRow({ result }: { result: ServerBenchRunResult }) {
+  const f2p = f2pBadge(result.evaluation?.metrics);
+  const message = result.evaluation?.message ?? result.error;
+  const usage = [
+    result.costUsd !== undefined ? `$${result.costUsd.toFixed(4)}` : undefined,
+    result.totalTokens !== undefined ? `${result.totalTokens.toLocaleString()} tokens` : undefined,
+  ].filter((value): value is string => value !== undefined);
+
+  return (
+    <div className="px-2 py-1.5 rounded bg-gray-50 space-y-0.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={result.passed ? 'text-green-600' : 'text-red-600'}>
+            {result.passed ? '✓' : '✗'}
+          </span>
+          <span className="truncate" title={result.taskName}>{result.taskName}</span>
+          {result.winnerModel && <span className="text-[10px] text-blue-600">{result.winnerModel}</span>}
+          {result.variancePassRate != null && (
+            <span className="text-[10px] text-gray-400">{Math.round(result.variancePassRate * 100)}%</span>
+          )}
+        </div>
+        <div className="shrink-0 text-right text-gray-400">
+          <div>{formatDuration(result.durationMs)}</div>
+          {usage.length > 0 && <div className="text-[10px]">{usage.join(' · ')}</div>}
+        </div>
+      </div>
+      {(result.evaluation?.score !== undefined || f2p) && (
+        <div className="flex gap-2 pl-5 text-[10px] text-gray-500">
+          {result.evaluation?.score !== undefined && <span>score {result.evaluation.score}</span>}
+          {f2p && <span>{f2p}</span>}
+        </div>
+      )}
+      {message && <div className="pl-5 text-[10px] text-gray-500">{message}</div>}
+    </div>
+  );
+}
+
 function ServerBenchRuns({ onError }: { onError: (msg: string) => void }) {
   const [runs, setRuns] = useState<ServerBenchRun[]>([]);
   const [selectedRun, setSelectedRun] = useState<ServerBenchRunDetail | null>(null);
@@ -781,7 +791,7 @@ function ServerBenchRuns({ onError }: { onError: (msg: string) => void }) {
     models: 'deepseek/deepseek-v4-pro',
     strategy: 'single' as 'single' | 'consensus' | 'variance',
     concurrency: 3,
-    varianceRuns: 5,
+    varianceRuns: 1,
   });
   const [starting, setStarting] = useState(false);
   const evtRef = useRef<EventSource | null>(null);
@@ -1017,27 +1027,17 @@ function ServerBenchRuns({ onError }: { onError: (msg: string) => void }) {
               <div className="font-medium">{formatDuration(selectedRun.totalDurationMs)}</div>
             </div>
           </div>
-          {selectedRun.totalCostUsd != null && (
+          {(selectedRun.totalCostUsd != null || selectedRun.totalTokens != null) && (
             <div className="text-gray-500">
-              Cost: ${selectedRun.totalCostUsd.toFixed(4)} · Tokens: {selectedRun.totalTokens}
+              {selectedRun.totalCostUsd != null && `Cost: $${selectedRun.totalCostUsd.toFixed(4)}`}
+              {selectedRun.totalCostUsd != null && selectedRun.totalTokens != null && ' · '}
+              {selectedRun.totalTokens != null && `Tokens: ${selectedRun.totalTokens.toLocaleString()}`}
             </div>
           )}
           {selectedRun.results && selectedRun.results.length > 0 && (
             <div className="space-y-1 max-h-60 overflow-auto">
-              {selectedRun.results.map((r) => (
-                <div key={r.harnessTaskId} className="flex items-center justify-between px-2 py-1 rounded bg-gray-50">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className={r.passed ? 'text-green-600' : 'text-red-600'}>
-                      {r.passed ? '✓' : '✗'}
-                    </span>
-                    <span className="truncate" title={r.taskName}>{r.taskName}</span>
-                    {r.winnerModel && <span className="text-[10px] text-blue-600">{r.winnerModel}</span>}
-                    {r.variancePassRate != null && (
-                      <span className="text-[10px] text-gray-400">{Math.round(r.variancePassRate * 100)}%</span>
-                    )}
-                  </div>
-                  <span className="text-gray-400">{formatDuration(r.durationMs)}</span>
-                </div>
+              {selectedRun.results.map((result) => (
+                <ServerBenchRunResultRow key={result.harnessTaskId} result={result} />
               ))}
             </div>
           )}

@@ -100,6 +100,7 @@ describe('the shells, as the host sees them', () => {
       'work',
       'usage',
       'playbooks',
+      'benchmarks',
       'plugins',
       'victoria-overview',
       'victoria-runs',
@@ -137,6 +138,7 @@ describe('the shells, as the host sees them', () => {
       'work',
       'usage',
       'playbooks',
+      'benchmarks',
       'plugins',
       'polymarket-pipeline',
     ]);

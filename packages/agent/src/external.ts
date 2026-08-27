@@ -3,14 +3,15 @@ import { promisify } from 'node:util';
 import type { PrismaClient } from '@omega/db';
 import type { AgentOptions } from '@omega/core';
 import { Tracer } from './tracer.js';
-import { getCurrentCommit, getDiff, getCurrentBranch, hasChanges, stageAllChanges, commit } from './git.js';
+import { getCurrentCommit, getGradedDiff, getCurrentBranch, hasChanges, stageAllChanges, commit } from './git.js';
 import { logger } from './logger.js';
 import { spawnWithPty } from './pty-spawn.js';
-import { extractOpencodeResult, parseOpencodeMetrics } from './opencode-output.js';
+import { extractOpencodeResult, extractOpencodeSessionId, opencodeRunLooksAborted, parseOpencodeMetrics } from './opencode-output.js';
 import { parseClaudeCodeStreamJson } from './claude-code-output.js';
 import { parseAgyMetrics } from './agy-output.js';
 import { runCodexTurn, getCodexAvailability, type CodexTurnResult } from './codex-driver.js';
 import { buildCodexTaskPrompt } from './codex-prompt.js';
+import { validationSummaryWithPatchAudit } from './patch-audit.js';
 import { deriveVerificationCommand } from './project-utils.js';
 import { sanitizeForDb } from './utils.js';
 
@@ -71,13 +72,24 @@ function finishCodexTiming(tracker: CodexTimingTracker, turnEndedAt: number): Co
 function spawnWithStdinClosed(
   command: string,
   args: string[],
-  options: { cwd: string; env?: NodeJS.ProcessEnv; timeoutMs: number },
-): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  options: { cwd: string; env?: NodeJS.ProcessEnv; timeoutMs: number; signal?: AbortSignal },
+): Promise<{ stdout: string; stderr: string; exitCode: number; timedOut: boolean; aborted: boolean }> {
+  if (options.signal?.aborted) {
+    return Promise.reject(
+      options.signal.reason instanceof Error
+        ? options.signal.reason
+        : new DOMException('External agent process cancelled', 'AbortError'),
+    );
+  }
+
   return new Promise((resolve, reject) => {
     const child: ChildProcess = spawn(command, args, {
       cwd: options.cwd,
       env: { ...process.env, ...options.env },
       stdio: ['ignore', 'pipe', 'pipe'],
+      // A separate process group lets cancellation terminate helper/server
+      // children launched by the CLI instead of orphaning them.
+      detached: process.platform !== 'win32',
     });
 
     const outChunks: Buffer[] = [];
@@ -86,38 +98,69 @@ function spawnWithStdinClosed(
     child.stderr?.on('data', (d: Buffer) => errChunks.push(d));
 
     let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
+    let timedOut = false;
+    let aborted = false;
+    let terminationRequested = false;
+    let forceKillTimer: NodeJS.Timeout | undefined;
+    const cleanup = (): void => {
+      clearTimeout(timer);
+      if (forceKillTimer) clearTimeout(forceKillTimer);
+      options.signal?.removeEventListener('abort', onAbort);
+    };
+    const killChild = (signal: NodeJS.Signals): void => {
       try {
-        child.kill('SIGTERM');
+        if (process.platform !== 'win32' && child.pid !== undefined) {
+          process.kill(-child.pid, signal);
+        } else {
+          child.kill(signal);
+        }
       } catch {
-        /* ignore */
-      }
-      setTimeout(() => {
-        if (settled) return;
         try {
-          child.kill('SIGKILL');
+          child.kill(signal);
         } catch {
           /* ignore */
         }
-      }, 5_000);
+      }
+    };
+    const terminate = (reason: 'timeout' | 'abort'): void => {
+      if (settled || terminationRequested) return;
+      terminationRequested = true;
+      timedOut = reason === 'timeout';
+      aborted = reason === 'abort';
+      killChild('SIGTERM');
+      forceKillTimer = setTimeout(() => {
+        if (!settled) killChild('SIGKILL');
+      }, reason === 'abort' ? 1_000 : 5_000);
+    };
+    const timer = setTimeout(() => {
+      terminate('timeout');
     }, options.timeoutMs);
+    const onAbort = (): void => {
+      terminate('abort');
+    };
+    if (options.signal?.aborted) {
+      onAbort();
+    } else {
+      options.signal?.addEventListener('abort', onAbort, { once: true });
+    }
 
     child.on('error', (err) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      cleanup();
       reject(err);
     });
 
     child.on('close', (code) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      cleanup();
       resolve({
         stdout: Buffer.concat(outChunks).toString('utf8'),
         stderr: Buffer.concat(errChunks).toString('utf8'),
         exitCode: code ?? 1,
+        timedOut,
+        aborted,
       });
     });
   });
@@ -157,6 +200,26 @@ function buildAgentRunMetricsUpdate(
   }
 }
 
+/**
+ * Best-effort trace write: the narrative is diagnostics, and diagnostics must
+ * never fail the run they describe (including under partial prisma mocks).
+ */
+async function tryTrace(
+  prisma: PrismaClient,
+  taskId: string,
+  role: 'assistant' | 'system',
+  content: string,
+): Promise<void> {
+  try {
+    await prisma.taskTrace.create({ data: { taskId, role, content } });
+  } catch (err) {
+    logger.warn('Could not record external agent trace', {
+      taskId,
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 export interface ExternalAgentOptions extends AgentOptions {
   /** Which external agent CLI to drive. */
   cli: ExternalCli;
@@ -166,6 +229,8 @@ export interface ExternalAgentOptions extends AgentOptions {
   model?: string | null;
   /** Reasoning effort for the codex app-server driver. */
   effort?: string | null;
+  /** Exact compatible session to resume for a retry of the same task/CLI. */
+  resumeSession?: ExternalSessionRef;
 }
 
 function timeoutForComplexity(complexity: string | undefined): number {
@@ -177,6 +242,26 @@ function timeoutForComplexity(complexity: string | undefined): number {
   }
 }
 
+export function remainingExternalRunMs(deadlineMs: number, nowMs: number = Date.now()): number {
+  return Math.max(0, deadlineMs - nowMs);
+}
+
+export function formatExternalDeadlineNotice(startedAtMs: number, deadlineMs: number): string {
+  return [
+    `Wall-clock budget started (UTC): ${new Date(startedAtMs).toISOString()}.`,
+    `Absolute wall-clock deadline (UTC): ${new Date(deadlineMs).toISOString()}.`,
+    'Check the current clock against that deadline while working; leave enough time to build, test, and remove scratch files.',
+  ].join(' ');
+}
+
+function remainingExternalSpawnTimeout(deadlineMs: number, totalTimeoutMs: number): number {
+  const remainingMs = remainingExternalRunMs(deadlineMs);
+  if (remainingMs <= 0) {
+    throw new Error(`External agent total wall-clock budget of ${String(totalTimeoutMs)}ms was exhausted.`);
+  }
+  return remainingMs;
+}
+
 export type ExternalCli =
   | 'codex'
   | 'claude-code'
@@ -186,9 +271,52 @@ export type ExternalCli =
   | 'aider'
   | 'gemini-cli'; // @deprecated — use 'agy'
 
+export type ExternalSessionKind = 'codex-thread' | 'opencode-session';
+
+export interface ExternalSessionRef {
+  sessionId: string;
+  sessionKind: ExternalSessionKind;
+}
+
+export interface ExternalAgentResult {
+  status: 'done' | 'failed';
+  diff: string;
+  output: string;
+  /** Whether the CLI/provider interaction completed, independent of patch quality. */
+  executionSucceeded: boolean;
+}
+
+export function effectiveExternalModel(cli: ExternalCli, model?: string | null): string {
+  const configured = model?.trim();
+  if (configured !== undefined && configured.length > 0) return configured;
+  // OpenCode has an explicit harness default; the other CLIs defer to their
+  // local configuration, so the CLI identity is the only truthful key.
+  return cli === 'opencode' ? 'opencode/big-pickle' : cli;
+}
+
+export function externalSessionKind(cli: ExternalCli): ExternalSessionKind | undefined {
+  if (cli === 'codex') return 'codex-thread';
+  if (cli === 'opencode') return 'opencode-session';
+  return undefined;
+}
+
+function validatedSession(cli: ExternalCli, session?: ExternalSessionRef): ExternalSessionRef | undefined {
+  if (!session) return undefined;
+  const expected = externalSessionKind(cli);
+  if (!expected || session.sessionKind !== expected) {
+    throw new Error(
+      `Cannot resume ${session.sessionKind} session with external CLI ${cli}; expected ${expected ?? 'no resumable session kind'}.`,
+    );
+  }
+  if (!session.sessionId.trim()) {
+    throw new Error(`Cannot resume external CLI ${cli} with an empty session id.`);
+  }
+  return { ...session, sessionId: session.sessionId.trim() };
+}
+
 interface CliSpec {
   command: string;
-  args: (prompt: string, cwd?: string) => string[];
+  args: (prompt: string, cwd?: string, resumeSession?: ExternalSessionRef) => string[];
   env?: NodeJS.ProcessEnv;
   /** Spawn via PTY instead of execFile. Required for CLIs that gate stdout on isatty(). */
   pty?: boolean;
@@ -235,18 +363,76 @@ function parseCodexMetrics(raw: string): ExtractedMetrics {
   };
 }
 
-function cliSpec(cli: ExternalCli): CliSpec {
+/** Build the exact installed-CLI invocation, including an explicit session. */
+export function buildExternalCliArgs(
+  cli: ExternalCli,
+  prompt: string,
+  cwd?: string,
+  model?: string,
+  resumeSession?: ExternalSessionRef,
+): string[] {
+  const session = validatedSession(cli, resumeSession);
+  switch (cli) {
+    case 'codex': {
+      const prefix = ['exec', '--sandbox', 'workspace-write', '--skip-git-repo-check'];
+      // codex-cli 0.144.5 requires parent exec options before the resume
+      // subcommand; the session id is positional (never use --last).
+      // `--json` on BOTH paths: making the output shape depend on whether a
+      // run resumed means the metrics parser sees a different format on a
+      // retry than on the first attempt.
+      return session
+        ? [...prefix, '--json', 'resume', session.sessionId, prompt]
+        : [...prefix, '--json', prompt];
+    }
+    case 'claude-code':
+      return [
+        '-p', prompt,
+        '--output-format', 'stream-json',
+        '--verbose',
+        ...(model ? ['--model', model] : []),
+      ];
+    case 'agy':
+    case 'gemini-cli':
+      return [
+        '-p', prompt,
+        '--output-format', 'json',
+        '--dangerously-skip-permissions',
+        ...(cwd ? ['--add-dir', cwd] : []),
+      ];
+    case 'opencode':
+      return [
+        'run',
+        '--format', 'json',
+        '--model', effectiveExternalModel(cli, model),
+        '--auto',
+        '--port', String(4096 + Math.floor(Math.random() * 1000)),
+        ...(cwd ? ['--dir', cwd] : []),
+        ...(session ? ['--session', session.sessionId] : []),
+        prompt,
+      ];
+    case 'cursor-cli':
+      return ['-p', prompt];
+    case 'aider':
+      return ['--message', prompt, '--yes'];
+    default:
+      throw new Error(`Unsupported external cli: ${String(cli)}`);
+  }
+}
+
+function cliSpec(cli: ExternalCli, model?: string): CliSpec {
   switch (cli) {
     case 'codex':
       return {
         command: 'codex',
-        args: (prompt) => ['exec', '--sandbox', 'workspace-write', '--skip-git-repo-check', prompt],
+        args: (prompt, cwd, session) => buildExternalCliArgs(cli, prompt, cwd, model, session),
         metricsParser: parseCodexMetrics,
       };
     case 'claude-code':
       return {
         command: 'claude',
-        args: (prompt) => ['-p', prompt, '--output-format', 'stream-json', '--verbose'],
+        // Model is caller-selectable (Task.model / options.model); absent
+        // keeps the CLI's own default, exactly as before.
+        args: (prompt, cwd, session) => buildExternalCliArgs(cli, prompt, cwd, model, session),
         pty: true,
         metricsParser: parseClaudeCodeStreamJson,
       };
@@ -255,12 +441,7 @@ function cliSpec(cli: ExternalCli): CliSpec {
         command: 'agy',
         // JSON print mode so the run's token usage comes back with it; without
         // it agy prints prose only and the run records no usage at all.
-        args: (prompt, cwd) => [
-          '-p', prompt,
-          '--output-format', 'json',
-          '--dangerously-skip-permissions',
-          ...(cwd ? ['--add-dir', cwd] : []),
-        ],
+        args: (prompt, cwd, session) => buildExternalCliArgs(cli, prompt, cwd, model, session),
         pty: true,
         metricsParser: parseAgyMetrics,
       };
@@ -269,12 +450,7 @@ function cliSpec(cli: ExternalCli): CliSpec {
       logger.warn('gemini-cli is deprecated, use agy instead');
       return {
         command: 'agy',
-        args: (prompt, cwd) => [
-          '-p', prompt,
-          '--output-format', 'json',
-          '--dangerously-skip-permissions',
-          ...(cwd ? ['--add-dir', cwd] : []),
-        ],
+        args: (prompt, cwd, session) => buildExternalCliArgs(cli, prompt, cwd, model, session),
         metricsParser: parseAgyMetrics,
         pty: true,
       };
@@ -284,28 +460,30 @@ function cliSpec(cli: ExternalCli): CliSpec {
       // runner's poll-based timeout will eventually catch and report this.
       return {
         command: 'opencode',
-        args: (prompt, cwd) => ['run', prompt, '--format', 'json', '--model', 'opencode/big-pickle', '--auto', '--port', String(4096 + Math.floor(Math.random() * 1000)), ...(cwd ? ['--dir', cwd] : [])],
+        // Model is caller-selectable (Task.model / options.model); big-pickle
+        // stays the default so existing runs keep their behaviour.
+        args: (prompt, cwd, session) => buildExternalCliArgs(cli, prompt, cwd, model, session),
         outputTransform: extractOpencodeResult,
         metricsParser: parseOpencodeMetrics,
       };
     case 'cursor-cli':
       return {
         command: 'cursor-agent',
-        args: (prompt) => ['-p', prompt],
+        args: (prompt, cwd, session) => buildExternalCliArgs(cli, prompt, cwd, model, session),
       };
     case 'aider':
       return {
         command: 'aider',
-        args: (prompt) => ['--message', prompt, '--yes'],
+        args: (prompt, cwd, session) => buildExternalCliArgs(cli, prompt, cwd, model, session),
       };
     default:
       throw new Error(`Unsupported external cli: ${String(cli)}`);
   }
 }
 
-async function commandExists(cmd: string): Promise<boolean> {
+async function commandExists(cmd: string, signal?: AbortSignal): Promise<boolean> {
   try {
-    await execFileAsync('command', ['-v', cmd], { timeout: 10_000 });
+    await execFileAsync('command', ['-v', cmd], { timeout: 10_000, signal });
     return true;
   } catch {
     return false;
@@ -322,9 +500,13 @@ export async function runExternalAgentTask(
   prisma: PrismaClient,
   taskId: string,
   options: ExternalAgentOptions,
-): Promise<{ status: 'done' | 'failed'; diff: string; output: string }> {
+): Promise<ExternalAgentResult> {
   const task = await prisma.task.findUnique({ where: { id: taskId } });
   if (!task) throw new Error('Task not found');
+  // Reassignable: a stale session is downgraded to a fresh one mid-loop.
+  let resumeSession = validatedSession(options.cli, options.resumeSession);
+  const providerIdentity = `external:${options.cli}`;
+  const effectiveModel = effectiveExternalModel(options.cli, options.model);
 
   const tracer = new Tracer(prisma, taskId);
   const rootSpan = tracer.startSpan('external.task');
@@ -344,25 +526,76 @@ export async function runExternalAgentTask(
       baseCommit: baseCommitSha,
       resultStatus: 'running',
       currentTurn: 1,
+      sessionId: resumeSession?.sessionId,
+      sessionKind: resumeSession?.sessionKind,
     },
   });
 
-  const spec = cliSpec(options.cli);
-  const available = await commandExists(spec.command);
+  if (resumeSession) {
+    logger.info('Resuming external agent session', {
+      taskId,
+      cli: options.cli,
+      sessionKind: resumeSession.sessionKind,
+      sessionId: resumeSession.sessionId,
+    });
+    await tryTrace(
+      prisma,
+      taskId,
+      'system',
+      `Resuming ${resumeSession.sessionKind} ${resumeSession.sessionId} with external CLI ${options.cli}.`,
+    );
+  }
+
+  const configuredModel = options.model?.trim();
+  const spec = cliSpec(
+    options.cli,
+    configuredModel !== undefined && configuredModel.length > 0 ? configuredModel : undefined,
+  );
+  const available = await commandExists(spec.command, options.signal);
   if (!available) {
-    const message = `External agent CLI '${spec.command}' not found in PATH`;
-    await prisma.task.update({ where: { id: taskId }, data: { status: 'failed', error: message } });
+    const message = options.signal?.aborted
+      ? options.signal.reason instanceof Error
+        ? options.signal.reason.message
+        : 'External agent run cancelled'
+      : `External agent CLI '${spec.command}' not found in PATH`;
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        status: 'failed',
+        error: message,
+        result: message,
+        provider: providerIdentity,
+        model: effectiveModel,
+      },
+    });
     await prisma.agentRun.update({ where: { id: agentRun.id }, data: { resultStatus: 'failed' } });
     rootSpan.recordError(new Error(message));
     await rootSpan.end('error');
-    return { status: 'failed', diff: '', output: message };
+    return { status: 'failed', diff: '', output: message, executionSucceeded: false };
   }
 
-  const codexDriverAvailable = options.cli === 'codex' ? (await getCodexAvailability()).available : false;
+  const codexDriverAvailable = options.cli === 'codex'
+    ? (await getCodexAvailability(options.signal)).available
+    : false;
+
+  const totalTimeoutMs = options.timeoutMs !== undefined
+    && Number.isFinite(options.timeoutMs)
+    && options.timeoutMs > 0
+    ? options.timeoutMs
+    : timeoutForComplexity(options.complexity);
+  const runStartedAtMs = Date.now();
+  const runDeadlineMs = runStartedAtMs + totalTimeoutMs;
+  // DeepSWE's independently switchable time experiment advertises itself in
+  // the description. Do not perturb baseline prompts when that switch is off.
+  const deadlineNotice = task.description?.includes('TIME BUDGET:')
+    ? formatExternalDeadlineNotice(runStartedAtMs, runDeadlineMs)
+    : '';
 
   const prompt = [
     `Task: ${task.title}`,
     task.description ? `Description:\n${task.description}` : '',
+    '',
+    deadlineNotice,
     '',
     'Implement the task in the current repository. Make the code changes, run the project build/test command, and ensure it passes before finishing.',
   ]
@@ -374,7 +607,7 @@ export async function runExternalAgentTask(
     const verificationCommand = await deriveVerificationCommand(options.projectPath);
     codexPrompt = buildCodexTaskPrompt({
       title: task.title,
-      description: task.description ?? undefined,
+      description: [task.description, deadlineNotice].filter(Boolean).join('\n\n'),
       verificationCommand,
     });
   }
@@ -383,8 +616,15 @@ export async function runExternalAgentTask(
   let success = false;
   let rawOutput = '';
   let codexTiming: CodexTimingMetrics | undefined;
+  let activeSession = resumeSession;
   try {
     const runSpan = tracer.startSpan(`external.${options.cli}`, rootSpan.toContext());
+    if (resumeSession) {
+      runSpan.addEvent('external.session.resume', {
+        sessionKind: resumeSession.sessionKind,
+        sessionId: resumeSession.sessionId,
+      });
+    }
     try {
       if (options.cli === 'codex' && codexDriverAvailable) {
         const timingTracker: CodexTimingTracker = {
@@ -394,10 +634,33 @@ export async function runExternalAgentTask(
         let result: CodexTurnResult;
         try {
           result = await runCodexTurn(options.projectPath, codexPrompt, {
-            timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
+            timeoutMs: remainingExternalSpawnTimeout(runDeadlineMs, totalTimeoutMs),
+            signal: options.signal,
             threadName: `task:${taskId} ${task.title}`.slice(0, 96),
             model: options.model,
             effort: options.effort,
+            resumeThreadId: resumeSession?.sessionKind === 'codex-thread'
+              ? resumeSession.sessionId
+              : undefined,
+            // Only persist the thread when a retry could actually resume it.
+            // With auto-retry off, persistence is pure litter — one permanent
+            // rollout per task, never pruned.
+            persistThread: (process.env.OMEGA_AUTO_RETRY ?? 'true').toLowerCase() !== 'false',
+            onSession: async (threadId) => {
+              activeSession = { sessionId: threadId, sessionKind: 'codex-thread' };
+              await prisma.agentRun.update({
+                where: { id: agentRun.id },
+                data: { sessionId: threadId, sessionKind: 'codex-thread' },
+              });
+              runSpan.addEvent(
+                resumeSession ? 'external.session.resumed' : 'external.session.captured',
+                { sessionKind: 'codex-thread', sessionId: threadId },
+              );
+              logger.info(resumeSession ? 'Resumed Codex thread' : 'Captured Codex thread', {
+                taskId,
+                sessionId: threadId,
+              });
+            },
             onProgress: (message, phase) => {
               runSpan.addEvent('codex.progress', { message, phase: phase ?? undefined });
               const prev = timingTracker.activePhase?.name;
@@ -421,8 +684,39 @@ export async function runExternalAgentTask(
           codexTiming = finishCodexTiming(timingTracker, Date.now());
           runSpan.setAttributes({ ...codexTiming });
         }
+        if (result.threadId.trim() && activeSession?.sessionId !== result.threadId) {
+          activeSession = { sessionId: result.threadId, sessionKind: 'codex-thread' };
+          await prisma.agentRun.update({
+            where: { id: agentRun.id },
+            data: { sessionId: result.threadId, sessionKind: 'codex-thread' },
+          });
+          runSpan.addEvent('external.session.captured', {
+            sessionKind: 'codex-thread',
+            sessionId: result.threadId,
+          });
+          logger.info('Captured Codex thread from turn result', {
+            taskId,
+            sessionId: result.threadId,
+          });
+        }
         success = result.status === 'completed';
-        output = result.finalMessage;
+        if (success) {
+          output = result.finalMessage;
+        } else {
+          const statusReason = result.status === 'timed-out'
+            ? `Codex turn reached the external agent's ${String(totalTimeoutMs)}ms total wall-clock budget.`
+            : result.status === 'interrupted'
+              ? 'Codex stream was interrupted before the turn completed.'
+              : `Codex turn ended with status ${result.status}.`;
+          const driverError = result.error instanceof Error
+            ? result.error.message
+            : typeof result.error === 'string'
+              ? result.error
+              : '';
+          output = [statusReason, result.finalMessage, result.stderr, driverError]
+            .filter((part) => part.trim().length > 0)
+            .join('\n');
+        }
         rawOutput = JSON.stringify({
           model: options.model ?? null,
           effort: options.effort ?? null,
@@ -436,46 +730,174 @@ export async function runExternalAgentTask(
           ...codexTiming,
         });
       } else {
-        let stdout: string;
-        let stderr: string;
+        // Bounded retry for a specific, observed failure mode: the free-tier
+        // gateway drops the stream mid-session, `opencode run` exits 0 with a
+        // half-finished transcript, and the run used to be recorded as "the
+        // model produced no patch". One retry resumes the exact captured
+        // session when OpenCode emitted one; a clean session is never retried.
+        const maxAttempts = options.cli === 'opencode' ? 2 : 1;
+        const attemptOutputs: string[] = [];
+        let openCodeStreamAborted = false;
+        let attemptsRun = 0;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          const spawnTimeoutMs = remainingExternalSpawnTimeout(runDeadlineMs, totalTimeoutMs);
+          attemptsRun = attempt;
+          const attemptStartedAt = Date.now();
+          let stdout: string;
+          let stderr: string;
+          let exitCode: number;
+          let timedOut: boolean;
+          let aborted: boolean;
 
-        if (spec.pty) {
-          // PTY path — required for CLIs that gate stdout on isatty()
-          const timeoutMs = options.timeoutMs ?? timeoutForComplexity(options.complexity);
-          const result = await spawnWithPty(spec.command, spec.args(prompt, options.projectPath), {
-            cwd: options.projectPath,
-            env: spec.env,
-            timeoutMs,
-          });
-          stdout = result.stdout;
-          stderr = result.stderr;
-        } else {
-          const result = await spawnWithStdinClosed(
-            spec.command,
-            spec.args(prompt, options.projectPath),
-            {
+          if (spec.pty) {
+            // PTY path — required for CLIs that gate stdout on isatty()
+            const result = await spawnWithPty(spec.command, spec.args(prompt, options.projectPath, activeSession), {
               cwd: options.projectPath,
               env: spec.env,
-              timeoutMs: options.timeoutMs ?? timeoutForComplexity(options.complexity),
-            },
-          );
-          stdout = result.stdout;
-          stderr = result.stderr;
+              timeoutMs: spawnTimeoutMs,
+              signal: options.signal,
+            });
+            stdout = result.stdout;
+            stderr = result.stderr;
+            exitCode = result.exitCode;
+            timedOut = result.timedOut;
+            aborted = result.aborted;
+          } else {
+            const result = await spawnWithStdinClosed(
+              spec.command,
+              spec.args(prompt, options.projectPath, activeSession),
+              {
+                cwd: options.projectPath,
+                env: spec.env,
+                timeoutMs: spawnTimeoutMs,
+                signal: options.signal,
+              },
+            );
+            stdout = result.stdout;
+            stderr = result.stderr;
+            exitCode = result.exitCode;
+            timedOut = result.timedOut;
+            aborted = result.aborted;
+          }
+
+          // Keep the raw stdout around for metrics parsing — the outputTransform
+          // strips it down to plain text and the metricsParser needs the JSONL.
+          const attemptOutput = `${stdout}\n${stderr}`.trim();
+          attemptOutputs.push(attemptOutput);
+          rawOutput = attemptOutputs.join('\n');
+
+          if (options.cli === 'opencode') {
+            const sessionId = extractOpencodeSessionId(stdout);
+            if (sessionId) {
+              activeSession = { sessionId, sessionKind: 'opencode-session' };
+              await prisma.agentRun.update({
+                where: { id: agentRun.id },
+                data: { sessionId, sessionKind: 'opencode-session' },
+              });
+              runSpan.addEvent('external.session.captured', {
+                sessionKind: 'opencode-session',
+                sessionId,
+                attempt,
+              });
+              logger.info('Captured OpenCode session', { taskId, sessionId, attempt });
+            }
+          }
+
+          if (aborted) {
+            const cancellation = options.signal?.reason instanceof Error
+              ? options.signal.reason
+              : new DOMException('External agent process cancelled', 'AbortError');
+            throw Object.assign(cancellation, { stdout, stderr });
+          }
+          if (timedOut) {
+            throw Object.assign(
+              new Error(`${spec.command} timed out after ${String(spawnTimeoutMs)}ms`),
+              { stdout, stderr },
+            );
+          }
+          if (exitCode !== 0) {
+            // A resumed session the CLI no longer knows about (pruned or
+            // expired) exits non-zero immediately. That is recoverable, but
+            // it classifies as terminal, so without this the resume feature
+            // would turn a transient condition into a permanent failure.
+            const staleCandidate = resumeSession;
+            const staleSession =
+              staleCandidate !== undefined
+              && /session not found|no such session|unknown session|thread not found/i.test(
+                `${stdout}\n${stderr}`,
+              );
+            if (staleCandidate && staleSession && attempt < maxAttempts) {
+              logger.warn('Resumed session is stale; retrying with a fresh session', {
+                taskId,
+                sessionId: staleCandidate.sessionId,
+                attempt,
+              });
+              await tryTrace(
+                prisma,
+                taskId,
+                'system',
+                `Session ${staleCandidate.sessionId} could not be resumed (${spec.command} exit ${String(exitCode)}); retrying with a fresh session.`,
+              );
+              resumeSession = undefined;
+              continue;
+            }
+            throw Object.assign(
+              new Error(`${spec.command} exited with code ${String(exitCode)}`),
+              { stdout, stderr },
+            );
+          }
+
+          // Apply output transform if present (e.g. opencode JSONL → clean text)
+          output = spec.outputTransform ? spec.outputTransform(attemptOutput) : attemptOutput;
+          openCodeStreamAborted = options.cli === 'opencode' && opencodeRunLooksAborted(rawOutput);
+
+          if (
+            options.cli === 'opencode'
+            && attempt < maxAttempts
+            && openCodeStreamAborted
+            && !(await hasChanges(options.projectPath))
+            // A near-timeout attempt was killed, not dropped — retrying would
+            // double the wall-clock for a session that was probably working.
+            && Date.now() - attemptStartedAt < spawnTimeoutMs * 0.8
+          ) {
+            logger.warn('opencode session aborted mid-stream with no changes; retrying', {
+              taskId,
+              attempt,
+              sessionId: activeSession?.sessionId,
+            });
+            const continuation = activeSession
+              ? `resuming session ${activeSession.sessionId}`
+              : 'no session id was emitted; starting a fresh session';
+            await tryTrace(
+              prisma,
+              taskId,
+              'system',
+              `OpenCode stream aborted mid-session (attempt ${String(attempt)}); ${continuation}.`,
+            );
+            continue;
+          }
+          break;
         }
 
-        // Keep the raw stdout around for metrics parsing — the outputTransform
-        // strips it down to plain text and the metricsParser needs the JSONL.
-        rawOutput = `${stdout}\n${stderr}`.trim();
-
-        // Apply output transform if present (e.g. opencode JSONL → clean text)
-        output = spec.outputTransform ? spec.outputTransform(rawOutput) : rawOutput;
-
-        success = true;
+        success = !openCodeStreamAborted;
+        if (openCodeStreamAborted) {
+          const session = activeSession
+            ? ` Captured resumable session ${activeSession.sessionId}.`
+            : ' No resumable session id was emitted.';
+          output = `OpenCode stream aborted before a normal stop after ${String(attemptsRun)} bounded attempt(s).${session}\n${output}`.trim();
+        }
       }
-      await runSpan.end('ok');
+      runSpan.setAttributes({ executionSucceeded: success });
+      if (!success) {
+        runSpan.addEvent('external.run.failed', { output: output.slice(0, 500) });
+      }
+      await runSpan.end(success ? 'ok' : 'error');
     } catch (err) {
       const e = err as { stdout?: string; stderr?: string; message?: string };
-      output = `${e.stdout ?? ''}\n${e.stderr ?? e.message ?? String(err)}`.trim();
+      output = [e.stdout, e.stderr, e.message ?? String(err)]
+        .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+        .join('\n')
+        .trim();
 
       // Apply output transform even on error (partial output may be useful)
       if (spec.outputTransform) {
@@ -501,20 +923,32 @@ export async function runExternalAgentTask(
       await runSpan.end('error');
     }
 
+    // The session narrative is the ONLY reviewable record of what the CLI
+    // agent did — without this trace, a failed run's task row held a
+    // 300-char excerpt and every "no patch produced" was undiagnosable
+    // (the first full-suite review had to reverse-engineer failures from
+    // opencode's own log files). Bounded; best-effort.
+    if (output.trim()) {
+      await tryTrace(prisma, taskId, 'assistant', sanitizeForDb(output.trim().slice(0, 24_000)) ?? '');
+    }
+
     // Commit any changes the external agent left uncommitted so the diff is stable.
     if (await hasChanges(options.projectPath)) {
       await stageAllChanges(options.projectPath);
       await commit(options.projectPath, `external(${options.cli}): ${task.title}`, true);
     }
 
-    const diff = await getDiff(options.projectPath, baseCommitSha);
+    const diff = await getGradedDiff(options.projectPath, baseCommitSha);
     const patch = diff.output;
-    const hasPatch = patch.trim().length > 0;
+    const hasPatch = diff.success && patch.trim().length > 0;
+    const patchAuditValidation = await validationSummaryWithPatchAudit(prisma, agentRun.id, diff);
 
-    if (patch) {
+    if (diff.success && patch) {
       await prisma.taskDiff.create({
         data: { taskId, branch, patch: sanitizeForDb(patch) ?? '' },
       });
+    } else if (!diff.success) {
+      logger.warn(`graded diff failed for task ${taskId}: ${diff.error ?? 'unknown error'}`);
     }
 
     // Benchmark tasks are evaluated by re-applying the stored patch to a clean
@@ -544,27 +978,52 @@ export async function runExternalAgentTask(
         status: passed ? 'done' : 'failed',
         result: sanitizeForDb(summary),
         error: passed ? null : sanitizeForDb(summary),
-        provider: options.cli,
-        model: options.cli === 'codex' && options.model ? options.model : options.cli,
+        provider: providerIdentity,
+        model: effectiveModel,
       },
     });
     await prisma.agentRun.update({
       where: { id: agentRun.id },
       data: {
         resultStatus: passed ? 'done' : 'failed',
+        sessionId: activeSession?.sessionId,
+        sessionKind: activeSession?.sessionKind,
         ...buildAgentRunMetricsUpdate(spec, rawOutput),
+        ...(patchAuditValidation ? { validationSummary: patchAuditValidation } : {}),
       },
     });
-    rootSpan.setAttributes({ passed, diffBytes: patch.length });
+    rootSpan.setAttributes({
+      passed,
+      diffBytes: patch.length,
+      gradedPatchTestPaths: diff.gradedPatchTestPaths.length,
+      gradedPatchAddedTestPaths: diff.gradedPatchAddedTestPaths.length,
+    });
     await rootSpan.end(passed ? 'ok' : 'error');
     logger.info('External agent task finished', { taskId, cli: options.cli, passed });
-    return { status: passed ? 'done' : 'failed', diff: patch, output };
+    return { status: passed ? 'done' : 'failed', diff: patch, output, executionSucceeded: success };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     rootSpan.recordError(err);
     await rootSpan.end('error');
-    await prisma.task.update({ where: { id: taskId }, data: { status: 'failed', error: sanitizeForDb(message) } });
-    await prisma.agentRun.update({ where: { id: agentRun.id }, data: { resultStatus: 'failed' } });
-    return { status: 'failed', diff: '', output: message };
+    const reason = message.trim() || `External agent (${options.cli}) failed without an error message.`;
+    await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        status: 'failed',
+        error: sanitizeForDb(reason),
+        result: sanitizeForDb(reason),
+        provider: providerIdentity,
+        model: effectiveModel,
+      },
+    });
+    await prisma.agentRun.update({
+      where: { id: agentRun.id },
+      data: {
+        resultStatus: 'failed',
+        sessionId: activeSession?.sessionId,
+        sessionKind: activeSession?.sessionKind,
+      },
+    });
+    return { status: 'failed', diff: '', output: reason, executionSucceeded: false };
   }
 }

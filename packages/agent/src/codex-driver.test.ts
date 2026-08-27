@@ -38,9 +38,15 @@ describe('getCodexAvailability', () => {
 describe('runCodexTurn', () => {
   it('runs a thread/turn against the app-server and captures the completed turn', async () => {
     const progress: { message: string; phase: string | null }[] = [];
+    const sessions: string[] = [];
     const result = await runCodexTurn(fs.mkdtempSync(path.join(import.meta.dirname, 'tmp-')), 'Implement the feature.', {
+      // Threads are ephemeral by default (a persisted rollout per task is
+      // litter unless a retry will resume it); this case covers the opt-in
+      // persisted path, which is the one that yields a resumable id.
+      persistThread: true,
       timeoutMs: 10_000,
       threadName: 'task:abc123 Implement the feature',
+      onSession: (threadId) => { sessions.push(threadId); },
       onProgress: (message, phase) => {
         progress.push({ message, phase: phase ?? null });
       },
@@ -56,7 +62,21 @@ describe('runCodexTurn', () => {
     expect(result.commandExecutions[0].command).toBe('pnpm test');
     expect(result.reasoningSummary).toEqual(['Analyzed the code']);
     expect(result.timedOut).toBe(false);
+    expect(sessions).toEqual(['thread-test-1']);
     expect(progress.some((p) => p.phase === 'finalizing')).toBe(true);
+  });
+
+  it('resumes the exact persistent thread instead of starting a new one', async () => {
+    const sessions: string[] = [];
+    const result = await runCodexTurn(fs.mkdtempSync(path.join(import.meta.dirname, 'tmp-')), 'Continue the same task.', {
+      timeoutMs: 2_000,
+      resumeThreadId: 'thread-resume-7',
+      onSession: (threadId) => { sessions.push(threadId); },
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.threadId).toBe('thread-resume-7');
+    expect(sessions).toEqual(['thread-resume-7']);
   });
 
   it('waits for a subagent turn to drain before completing a final answer', async () => {
@@ -95,6 +115,31 @@ describe('runCodexTurn', () => {
     expect(result.status).toBe('timed-out');
     expect(result.timedOut).toBe(true);
     expect(result.turnId).toBe('turn-test-1');
+  });
+
+  it('interrupts an active turn promptly when the caller aborts', async () => {
+    process.env.FAKE_CODEX_MODE = 'hang';
+    const controller = new AbortController();
+    const startedAt = Date.now();
+    const resultPromise = runCodexTurn(
+      fs.mkdtempSync(path.join(import.meta.dirname, 'tmp-')),
+      'Implement the feature.',
+      {
+        timeoutMs: 5_000,
+        signal: controller.signal,
+        onProgress: (_message, phase) => {
+          if (phase === 'starting') {
+            controller.abort(new DOMException('Benchmark cancelled', 'AbortError'));
+          }
+        },
+      },
+    );
+
+    const result = await resultPromise;
+    expect(result.status).toBe('interrupted');
+    expect(result.timedOut).toBe(false);
+    expect(result.error).toEqual(expect.objectContaining({ message: 'Benchmark cancelled' }));
+    expect(Date.now() - startedAt).toBeLessThan(1_500);
   });
 
   it('rejects empty prompts', async () => {

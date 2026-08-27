@@ -46,6 +46,38 @@ export async function getRouter(prisma: PrismaClient): Promise<IntelligentRouter
       // Historical data not available yet — router will use capability-only scoring
     }
 
+    // Benchmark evidence closes the loop that was always missing: the router
+    // learned only from live AgentRun outcomes, while the deliberate,
+    // controlled measurements in BenchmarkHistory sat unread. Each run folds
+    // in as an aggregate under the same provider/model key the scorer reads.
+    try {
+      const benches = await prisma.benchmarkHistory.findMany({
+        take: 200,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          provider: true,
+          model: true,
+          totalTasks: true,
+          passed: true,
+          totalCostUsd: true,
+          totalDurationMs: true,
+          createdAt: true,
+        },
+      });
+      for (const bench of benches) {
+        if (!bench.provider || !bench.model) continue;
+        r.performance.loadAggregate(`${bench.provider}/${bench.model}`, {
+          passes: bench.passed,
+          total: bench.totalTasks,
+          costUsd: bench.totalCostUsd ?? 0,
+          durationMs: bench.totalDurationMs,
+          at: bench.createdAt,
+        });
+      }
+    } catch {
+      // No benchmark history yet — nothing to fold in.
+    }
+
     router = r;
 
     // Periodically persist state (every 5 minutes)

@@ -63,6 +63,10 @@ function currentProject(apiUrl: string): Promise<{ id: string }> {
   return ensureProject(apiUrl, `bench-${name}`, cwd);
 }
 
+function isFreeOpenRouterModel(provider?: string, model?: string): boolean {
+  return provider === 'openrouter' && !!model && (model.endsWith(':free') || model === 'openrouter/free');
+}
+
 /** Run the consensus path (best-of-N across models) + persist. Shared by runCmd --strategy consensus and consensusCmd. */
 async function runConsensusCli(opts: {
   apiUrl: string;
@@ -282,7 +286,7 @@ const runCmd = new Command('run')
   .option('--provider <name>', 'provider to use for benchmark tasks')
   .option('--model <model>', 'model to use for benchmark tasks')
   .option('--docker', 'run DeepSWE verifiers in Docker (required for most Node.js tasks)')
-  .option('--token-budget <n>', 'per-task token cap; abort agent loop if exceeded', parseInt)
+  .option('--token-budget <n>', 'per-task token cap; free models commonly need 50k+', parseInt)
   .option('--agent <name>', 'Pier agent to use (e.g. mini-swe-agent)', 'mini-swe-agent')
   .option('--env-file <file>', 'Pier env file with API credentials')
   .option('--jobs-dir <dir>', 'Pier jobs directory')
@@ -332,6 +336,10 @@ const runCmd = new Command('run')
 
     const timeoutMs = Number(opts.timeout);
     const outputDir = opts.outputDir ?? omegaReportsDir();
+
+    if (isFreeOpenRouterModel(opts.provider, opts.model) && opts.tokenBudget !== undefined && opts.tokenBudget < 50_000) {
+      console.warn('OpenRouter free models commonly need 50k+ tokens because prompt tokens accumulate across turns; this cap may stop a correct patch before finish.');
+    }
 
     if (opts.suite === 'pier') {
       if (!opts.path) {
@@ -423,7 +431,10 @@ const runCmd = new Command('run')
       tokenBudget: opts.tokenBudget,
       onProgress: (result) => {
         const symbol = result.evaluation.passed ? '✓' : '✗';
-        console.log(`${symbol} ${result.task.name} [${result.status}] ${String(result.durationMs)}ms`);
+        const status = result.evaluation.passed && result.status !== 'done'
+          ? `${result.status}; evaluation passed`
+          : result.status;
+        console.log(`${symbol} ${result.task.name} [${status}] ${String(result.durationMs)}ms`);
       },
     });
 

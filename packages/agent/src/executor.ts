@@ -273,6 +273,8 @@ export async function runAgentTask(
     promptContextUsed: combinedContext.length > 0,
     runsAnalysed: promptContext.runsAnalysed,
     skillsInjected: skills.map((s) => s.name),
+    tokenBudget: options.tokenBudget,
+    deadlineMs: deadlineMsForComplexity(task.complexity),
   });
 
   const ctx: AgentContext = {

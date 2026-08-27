@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { omegaReportsDir } from '@omega/core';
 import { asyncHandler } from '../lib/async-handler.js';
+import { safeJsonParse } from '../lib/utils.js';
 
 // Inline BenchmarkReport type to avoid adding @omega/bench as a server dep
 // (the bundle deploy can't resolve workspace deps from npm).
@@ -79,6 +80,7 @@ export function metricsRoutes(prisma: PrismaClient): Router {
     const [
       tasks,
       agentRuns,
+      traceSpans,
     ] = await Promise.all([
       prisma.task.findMany({
         select: { status: true, provider: true, model: true, createdAt: true, updatedAt: true },
@@ -86,7 +88,13 @@ export function metricsRoutes(prisma: PrismaClient): Router {
       prisma.agentRun.findMany({
         take: 10,
         orderBy: { createdAt: 'desc' },
-        include: { task: { select: { title: true } } },
+        include: { task: { select: { title: true, provider: true, model: true } } },
+      }),
+      prisma.traceSpan.findMany({
+        where: { name: { in: ['provider.send', 'agent.task'] } },
+        take: 1000,
+        orderBy: { startTime: 'desc' },
+        select: { name: true, status: true, attributes: true, startTime: true, endTime: true },
       }),
     ]);
 
@@ -98,6 +106,16 @@ export function metricsRoutes(prisma: PrismaClient): Router {
     };
     const providerUsage: Record<string, number> = {};
     const modelUsage: Record<string, number> = {};
+    const providerRouting: Record<string, {
+      calls: number;
+      errors: number;
+      retries: number;
+      rateLimitRetries: number;
+      rotations: number;
+      durationMs: number;
+      models: Set<string>;
+    }> = {};
+    let tokenBudgetExceededRuns = 0;
 
     for (const task of tasks) {
       taskCounts[task.status as keyof typeof taskCounts]++;
@@ -109,6 +127,45 @@ export function metricsRoutes(prisma: PrismaClient): Router {
         modelUsage[task.model] = (modelUsage[task.model] ?? 0) + 1;
       }
     }
+
+    for (const span of traceSpans) {
+      const attrs = span.attributes ? safeJsonParse<Record<string, unknown>>(span.attributes, {}) : {};
+      if (span.name === 'agent.task') {
+        if (attrs.tokenBudgetExceeded === true) tokenBudgetExceededRuns++;
+        continue;
+      }
+      const provider = typeof attrs.provider === 'string' ? attrs.provider : 'unknown';
+      const stats = providerRouting[provider] ?? {
+        calls: 0,
+        errors: 0,
+        retries: 0,
+        rateLimitRetries: 0,
+        rotations: 0,
+        durationMs: 0,
+        models: new Set<string>(),
+      };
+      stats.calls++;
+      if (span.status === 'error') stats.errors++;
+      if (typeof attrs.providerRetryCount === 'number') stats.retries += attrs.providerRetryCount;
+      if (typeof attrs.providerRateLimitRetries === 'number') stats.rateLimitRetries += attrs.providerRateLimitRetries;
+      if (typeof attrs.providerRotationCount === 'number') stats.rotations += attrs.providerRotationCount;
+      if (typeof attrs.model === 'string') stats.models.add(attrs.model);
+      if (Array.isArray(attrs.modelsTried)) {
+        for (const model of attrs.modelsTried) {
+          if (typeof model === 'string') stats.models.add(model);
+        }
+      }
+      stats.durationMs += durationMs(span.startTime, span.endTime) ?? 0;
+      providerRouting[provider] = stats;
+    }
+
+    const providerRoutingJson = Object.fromEntries(
+      Object.entries(providerRouting).map(([provider, stats]) => [provider, {
+        ...stats,
+        models: [...stats.models],
+        avgDurationMs: stats.calls > 0 ? Math.round(stats.durationMs / stats.calls) : 0,
+      }]),
+    );
 
     const completedRuns = agentRuns.filter((r) => r.resultStatus !== 'running');
     const avgDurationMs =
@@ -128,6 +185,12 @@ export function metricsRoutes(prisma: PrismaClient): Router {
       baseCommit: r.baseCommit,
       validationSummary: r.validationSummary,
       publishedVersion: r.publishedVersion,
+      provider: r.task.provider,
+      model: r.task.model,
+      promptTokens: r.promptTokens,
+      completionTokens: r.completionTokens,
+      totalTokens: r.totalTokens,
+      currentPhase: r.currentPhase,
       durationMs: durationMs(r.createdAt, r.updatedAt),
       createdAt: r.createdAt,
     }));
@@ -179,6 +242,11 @@ export function metricsRoutes(prisma: PrismaClient): Router {
       totalTasks: tasks.length,
       providerUsage,
       modelUsage,
+      providerRouting: providerRoutingJson,
+      agentHealth: {
+        tokenBudgetExceededRuns,
+        traceSpanSampleSize: traceSpans.length,
+      },
       avgDurationMs,
       recentRuns,
       latestReports: {

@@ -1,4 +1,4 @@
-import type { Provider, ToolCall, ToolDefinition, SendOptions, UsageInfo } from '@omega/core';
+import type { Provider, ProviderEvent, ToolCall, ToolDefinition, SendOptions, UsageInfo } from '@omega/core';
 import type { IntelligentRouter } from '@omega/router';
 import { abortableSleep } from './retry.js';
 import { AGENT_TOOLS } from './tool-definitions.js';
@@ -46,6 +46,41 @@ export function recordUsage(ctx: ProviderContext, usage: UsageInfo): void {
   }
 }
 
+export function trackProviderEvents(span: Span): (event: ProviderEvent) => void {
+  const modelsTried = new Set<string>();
+  let requestCount = 0;
+  let retryCount = 0;
+  let rateLimitRetries = 0;
+  let rotationCount = 0;
+  return (event) => {
+    const { type, ...attributes } = event;
+    span.addEvent(`provider.${type}`, attributes);
+    if (event.type === 'request') {
+      requestCount++;
+      modelsTried.add(event.model);
+    } else if (event.type === 'retry') {
+      retryCount++;
+      if (event.status === 429) rateLimitRetries++;
+      modelsTried.add(event.model);
+    } else if (event.type === 'rotation') {
+      rotationCount++;
+      modelsTried.add(event.model);
+      modelsTried.add(event.nextModel);
+    } else {
+      modelsTried.add(event.model);
+    }
+    span.setAttributes({
+      effectiveModel: event.type === 'rotation' ? event.nextModel : event.model,
+      modelsTried: [...modelsTried],
+      providerRequestCount: requestCount,
+      providerRetryCount: retryCount,
+      providerRateLimitRetries: rateLimitRetries,
+      providerRotationCount: rotationCount,
+      ...(event.type === 'response' || event.type === 'error' ? { providerLastStatus: event.status } : {}),
+    });
+  };
+}
+
 // --- Message truncation ---
 
 function truncateMessages(
@@ -91,9 +126,13 @@ export async function sendToProvider(
 ): Promise<{ content?: string; toolCalls?: string; reasoningContent?: string }> {
   const span = ctx.tracer.startSpan('provider.send', ctx.rootSpan.toContext());
   span.setAttributes({ provider: ctx.provider.config.name, model: ctx.model });
+  const onEvent = trackProviderEvents(span);
 
   if (ctx.signal?.aborted) {
-    throw new DOMException('AbortError', 'AbortError');
+    const error = new DOMException('AbortError', 'AbortError');
+    span.recordError(error);
+    await span.end('error');
+    throw error;
   }
 
   if (ctx.router?.health) {
@@ -128,6 +167,7 @@ export async function sendToProvider(
         temperature: 0.3,
         onUsage,
         messages: sendMessages,
+        onEvent,
       });
       span.addEvent('provider.response.received');
       const parsed = parseProviderResponse(raw);
@@ -154,6 +194,7 @@ export async function sendToProvider(
       system: ctx.textToolsSystemPrompt,
       model: ctx.model,
       onUsage,
+      onEvent,
     });
     span.addEvent('provider.response.received');
     const parsed = parseProviderResponse(raw);

@@ -11,6 +11,10 @@ interface Run {
   taskId: string;
   title: string;
   resultStatus: string;
+  provider?: string | null;
+  model?: string | null;
+  totalTokens?: number | null;
+  currentPhase?: string | null;
   durationMs?: number;
   createdAt: string;
 }
@@ -23,6 +27,19 @@ interface Metrics {
   avgDurationMs: number;
   recentRuns: Run[];
   latestReports: { e2e?: ReportRef; benchmark?: ReportRef };
+  providerRouting: Record<string, {
+    calls: number;
+    errors: number;
+    retries: number;
+    rateLimitRetries: number;
+    rotations: number;
+    avgDurationMs: number;
+    models: string[];
+  }>;
+  agentHealth: {
+    tokenBudgetExceededRuns: number;
+    traceSpanSampleSize: number;
+  };
 }
 
 export function MetricsPanel() {
@@ -56,7 +73,7 @@ export function MetricsPanel() {
     return <div className="p-4 text-xs text-gray-400">Loading metrics…</div>;
   }
 
-  const { taskCounts, totalTasks, providerUsage, avgDurationMs, recentRuns, latestReports } = metrics;
+  const { taskCounts, totalTasks, providerUsage, providerRouting, agentHealth, avgDurationMs, recentRuns, latestReports } = metrics;
 
   return (
     <div className="p-4 space-y-6 text-sm">
@@ -86,6 +103,38 @@ export function MetricsPanel() {
         </div>
       )}
 
+      {Object.keys(providerRouting).length > 0 && (
+        <div>
+          <h3 className="font-semibold mb-2">Provider routing telemetry</h3>
+          <div className="space-y-2 text-xs">
+            {Object.entries(providerRouting).map(([provider, stats]) => (
+              <div key={provider} className="bg-gray-50 p-2 rounded">
+                <div className="font-medium truncate" title={stats.models.join(', ')}>{provider}</div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-gray-500 mt-1">
+                  <span>Calls: {stats.calls}</span>
+                  <span>Errors: {stats.errors}</span>
+                  <span>Retries: {stats.retries}</span>
+                  <span>429 retries: {stats.rateLimitRetries}</span>
+                  <span>Rotations: {stats.rotations}</span>
+                  <span>Avg: {stats.avgDurationMs}ms</span>
+                </div>
+                <div className="text-gray-400 truncate mt-1" title={stats.models.join(', ')}>
+                  Models: {stats.models.join(', ') || '-'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h3 className="font-semibold mb-2">Run health</h3>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="bg-gray-50 p-2 rounded">Budget overruns: <span className="font-medium">{agentHealth.tokenBudgetExceededRuns}</span></div>
+          <div className="bg-gray-50 p-2 rounded">Trace sample: <span className="font-medium">{agentHealth.traceSpanSampleSize}</span></div>
+        </div>
+      </div>
+
       {recentRuns.length > 0 && (
         <div>
           <h3 className="font-semibold mb-2">Recent agent runs</h3>
@@ -93,11 +142,16 @@ export function MetricsPanel() {
             {recentRuns.map((run) => (
               <div key={run.id} className="bg-gray-50 p-2 rounded">
                 <div className="font-medium truncate" title={run.title}>{run.title}</div>
+                {(run.provider || run.model || run.currentPhase) && (
+                  <div className="text-gray-400 truncate mt-1" title={run.model ?? undefined}>
+                    {run.provider ?? 'unknown'}{run.model ? ` / ${run.model}` : ''}{run.currentPhase ? ` · ${run.currentPhase}` : ''}
+                  </div>
+                )}
                 <div className="flex justify-between text-gray-500 mt-1">
                   <span className={`capitalize ${run.resultStatus === 'done' ? 'text-green-600' : run.resultStatus === 'failed' ? 'text-red-600' : 'text-yellow-600'}`}>
                     {run.resultStatus}
                   </span>
-                  <span>{run.durationMs !== undefined ? `${String(run.durationMs)}ms` : '-'}</span>
+                  <span>{run.durationMs !== undefined ? `${String(run.durationMs)}ms` : '-'}{run.totalTokens ? ` · ${String(run.totalTokens)} tok` : ''}</span>
                 </div>
               </div>
             ))}

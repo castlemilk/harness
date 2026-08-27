@@ -152,7 +152,9 @@ export class OpenAIProvider implements Provider {
     if (this.isOAuth) {
       return this.sendCodex(prompt, opts);
     }
-    const thinking = this.thinkingFor(opts?.model);
+    const model = opts?.model ?? this.config.defaultModel;
+    opts?.onEvent?.({ type: 'request', model, attempt: 1 });
+    const thinking = this.thinkingFor(model);
     const res = await fetchWithRetry(
       `${this.baseUrl}/chat/completions`,
       {
@@ -162,7 +164,7 @@ export class OpenAIProvider implements Provider {
           ...this.authHeaders(),
         },
         body: JSON.stringify({
-          model: opts?.model ?? this.config.defaultModel,
+          model,
           messages: this.buildMessages(prompt, opts),
           ...(thinking
             ? { thinking: { type: 'enabled' }, reasoning_effort: thinking.effort }
@@ -172,9 +174,14 @@ export class OpenAIProvider implements Provider {
         }),
       },
       'OpenAI',
-      { timeoutMs: opts?.timeoutMs, maxRetries: opts?.maxRetries },
+      {
+        timeoutMs: opts?.timeoutMs,
+        maxRetries: opts?.maxRetries,
+        onRetry: (event) => opts?.onEvent?.({ type: 'retry', model, retryAttempt: event.attempt, ...event }),
+      },
     );
     if (!res.ok) {
+      opts?.onEvent?.({ type: 'error', model, status: res.status });
       const body = await res.text().catch(() => '');
       const prefix = res.status === 401 || res.status === 403
         ? 'CREDENTIAL_ERROR: '
@@ -185,6 +192,7 @@ export class OpenAIProvider implements Provider {
       choices?: { message?: { content?: string; tool_calls?: unknown[] } }[];
       usage?: Record<string, unknown>;
     };
+    opts?.onEvent?.({ type: 'response', model, status: res.status });
     opts?.onUsage?.(extractUsage(data) ?? {});
     return data.choices?.[0]?.message?.content ?? '';
   }
@@ -220,6 +228,7 @@ export class OpenAIProvider implements Provider {
 
     for (let i = 0; i < candidates.length; i++) {
       const model = candidates[i];
+      opts?.onEvent?.({ type: 'request', model, attempt: i + 1 });
       if (i > 0) {
         console.warn(
           `OpenAI tools: model "${primary}" is rate-limited — rotating to "${model}" (${String(i)}/${String(candidates.length - 1)})`,
@@ -252,6 +261,11 @@ export class OpenAIProvider implements Provider {
           body: requestBody,
         },
         'OpenAI tools',
+        {
+          timeoutMs: opts?.timeoutMs,
+          maxRetries: opts?.maxRetries,
+          onRetry: (event) => opts?.onEvent?.({ type: 'retry', model, retryAttempt: event.attempt, ...event }),
+        },
       );
       if (res.ok) {
         const data = (await res.json()) as {
@@ -267,6 +281,7 @@ export class OpenAIProvider implements Provider {
           }[];
           usage?: Record<string, unknown>;
         };
+        opts?.onEvent?.({ type: 'response', model, status: res.status });
         opts?.onUsage?.(extractUsage(data) ?? {});
         const message = data.choices?.[0]?.message;
         // A rotation is invisible to the caller's telemetry — the run says it
@@ -303,6 +318,9 @@ export class OpenAIProvider implements Provider {
       const body = await res.text().catch(() => '');
       const canRotate = res.status === 429 && i < candidates.length - 1;
       if (!canRotate) {
+        opts?.onEvent?.({ type: 'error', model, status: res.status });
+      }
+      if (!canRotate) {
         let parsedBody: { messages?: { role?: string; content?: string; tool_calls?: { id?: string }[]; tool_call_id?: string }[] } = {};
         try {
           parsedBody = JSON.parse(body) as typeof parsedBody;
@@ -323,6 +341,12 @@ export class OpenAIProvider implements Provider {
           : 'OpenAI tools request failed: ';
         throw new Error(`${prefix}${res.status.toString()} ${res.statusText} — ${body.slice(0, 500)}`);
       }
+      opts?.onEvent?.({
+        type: 'rotation',
+        model,
+        nextModel: candidates[i + 1] ?? model,
+        rotation: i + 1,
+      });
       // 429 with another candidate: loop rotates. The retry loop inside
       // fetchWithRetry already honored Retry-After; a model that is still
       // rate-limited after 8 spread attempts is pool-saturated, and waiting

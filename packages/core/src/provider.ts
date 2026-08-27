@@ -47,6 +47,13 @@ export interface UsageInfo {
   totalTokens?: number;
 }
 
+export type ProviderEvent =
+  | { type: 'request'; model: string; attempt: number }
+  | { type: 'retry'; model: string; retryAttempt: number; status?: number; waitMs: number; error?: string }
+  | { type: 'rotation'; model: string; nextModel: string; rotation: number }
+  | { type: 'response'; model: string; status: number }
+  | { type: 'error'; model: string; status?: number };
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content?: string;
@@ -64,6 +71,7 @@ export interface SendOptions {
   messages?: ChatMessage[];
   timeoutMs?: number;
   maxRetries?: number;
+  onEvent?: (event: ProviderEvent) => void;
 }
 
 export interface ToolDefinition {

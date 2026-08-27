@@ -52,7 +52,8 @@ export async function createPlan(
   taskTitle: string,
   taskDescription?: string,
   context?: string,
-  onUsage?: SendOptions['onUsage']
+  onUsage?: SendOptions['onUsage'],
+  onEvent?: SendOptions['onEvent']
 ): Promise<PlannerResult> {
   const contextBlock = context ? `\n\nProject context:\n${context}` : '';
   const prompt = `${PLAN_PROMPT}${contextBlock}\n\nTask: ${taskTitle}\n${taskDescription ? `Description: ${taskDescription}\n` : ''}`;
@@ -63,9 +64,10 @@ export async function createPlan(
       system: PLAN_PROMPT,
       temperature: 0.2,
       onUsage,
+      onEvent,
     });
   } else {
-    raw = await provider.send(prompt, { system: PLAN_PROMPT, temperature: 0.2, onUsage });
+    raw = await provider.send(prompt, { system: PLAN_PROMPT, temperature: 0.2, onUsage, onEvent });
   }
 
   try {

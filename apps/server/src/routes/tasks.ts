@@ -502,6 +502,11 @@ export function taskRoutes(prisma: PrismaClient): Router {
     });
 
     const toolSpans = spans.filter((s) => s.name === 'agent.tool' || s.name.startsWith('agent.tool.'));
+    const providerSpans = spans.filter((s) => s.name === 'provider.send');
+    const rootSpan = spans.find((s) => s.name === 'agent.task');
+    const rootAttributes = rootSpan?.attributes
+      ? safeJsonParse<Record<string, unknown>>(rootSpan.attributes, {})
+      : {};
     const toolCounts: Record<string, { total: number; success: number; errors: string[] }> = {};
     const errors: { tool?: string; message: string; time: string }[] = [];
 
@@ -528,6 +533,27 @@ export function taskRoutes(prisma: PrismaClient): Router {
         errors.push({ tool: toolName, message, time: span.startTime.toISOString() });
       }
       toolCounts[toolName] = entry;
+    }
+
+    const providerModels = new Set<string>();
+    const effectiveModels = new Set<string>();
+    let providerRetries = 0;
+    let providerRateLimitRetries = 0;
+    let providerRotations = 0;
+    let providerDurationMs = 0;
+    for (const span of providerSpans) {
+      const attrs = span.attributes ? safeJsonParse<Record<string, unknown>>(span.attributes, {}) : {};
+      if (typeof attrs.model === 'string') providerModels.add(attrs.model);
+      if (Array.isArray(attrs.modelsTried)) {
+        for (const model of attrs.modelsTried) {
+          if (typeof model === 'string') providerModels.add(model);
+        }
+      }
+      if (typeof attrs.effectiveModel === 'string') effectiveModels.add(attrs.effectiveModel);
+      providerRetries += typeof attrs.providerRetryCount === 'number' ? attrs.providerRetryCount : 0;
+      providerRateLimitRetries += typeof attrs.providerRateLimitRetries === 'number' ? attrs.providerRateLimitRetries : 0;
+      providerRotations += typeof attrs.providerRotationCount === 'number' ? attrs.providerRotationCount : 0;
+      providerDurationMs += (span.endTime ?? span.startTime).getTime() - span.startTime.getTime();
     }
 
     const firstSpan = spans.at(0);
@@ -567,6 +593,23 @@ export function taskRoutes(prisma: PrismaClient): Router {
       })),
       topErrors: errors.slice(0, 10),
       phaseDurations,
+      providerSummary: {
+        calls: providerSpans.length,
+        errors: providerSpans.filter((span) => span.status === 'error').length,
+        retries: providerRetries,
+        rateLimitRetries: providerRateLimitRetries,
+        rotations: providerRotations,
+        durationMs: providerDurationMs,
+        requestedModels: [...providerModels],
+        effectiveModels: [...effectiveModels],
+      },
+      budget: {
+        tokenBudget: rootAttributes.tokenBudget,
+        tokenBudgetUsed: rootAttributes.tokenBudgetUsed ?? run?.totalTokens,
+        exceeded: rootAttributes.tokenBudgetExceeded === true,
+        deadlineMs: rootAttributes.deadlineMs,
+        deadlineRemainingMs: rootAttributes.deadlineRemainingMs,
+      },
     });
   }));
 

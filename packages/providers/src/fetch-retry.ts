@@ -28,6 +28,7 @@ function isTransientStatus(status: number): boolean {
 export interface FetchRetryOptions {
   maxRetries?: number;
   timeoutMs?: number;
+  onRetry?: (event: { attempt: number; status?: number; waitMs: number; error?: string }) => void;
 }
 
 /**
@@ -54,6 +55,11 @@ export async function fetchWithRetry(
       clearTimeout(timeoutId);
       if (attempt >= maxRetries) throw err;
       const wait = backoffMs(attempt);
+      options?.onRetry?.({
+        attempt: attempt + 1,
+        waitMs: wait,
+        error: err instanceof Error ? err.message : String(err),
+      });
       console.warn(
         `${label}: network error, retry ${String(attempt + 1)}/${String(maxRetries)} in ${String(wait)}ms`,
       );
@@ -65,6 +71,7 @@ export async function fetchWithRetry(
       await res.text().catch(() => undefined);
       const retryAfter = parseRetryAfter(res.headers.get('retry-after'));
       const wait = retryAfter ?? backoffMs(attempt);
+      options?.onRetry?.({ attempt: attempt + 1, status: res.status, waitMs: wait });
       console.warn(
         `${label}: ${String(res.status)} transient, retry ${String(attempt + 1)}/${String(maxRetries)} in ${String(wait)}ms`,
       );

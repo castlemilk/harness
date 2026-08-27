@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createProvider } from './index.js';
-import type { ProviderConfig, Provider } from '@omega/core';
+import type { ProviderConfig, Provider, ProviderEvent } from '@omega/core';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -405,14 +405,18 @@ describe('free-tier model rotation (sendWithTools)', () => {
   it('rotates to a sibling model when the primary is persistently rate-limited', async () => {
     const mock = recordingMock((model) => (model === 'a:free' ? rateLimited() : toolResponse(model)));
     vi.stubGlobal('fetch', mock.fetch);
+    const events: ProviderEvent[] = [];
 
-    const out = await toolSender(freeConfig)('go', tools, { model: 'a:free' });
+    const out = await toolSender(freeConfig)('go', tools, { model: 'a:free', onEvent: (event) => events.push(event) });
 
     // The caller's contract is unchanged: normalized tool_calls, arguments parsed.
     expect(out).toContain('"name":"finish"');
     expect(mock.requestedModels.slice(0, 1)).toEqual(['a:free']);
     expect(mock.requestedModels.some((m) => m === 'b:free')).toBe(true);
     expect(mock.requestedModels.every((m) => ['a:free', 'b:free', 'c:free'].includes(m))).toBe(true);
+    expect(events.some((event) => event.type === 'retry' && event.status === 429)).toBe(true);
+    expect(events).toContainEqual({ type: 'rotation', model: 'a:free', nextModel: 'b:free', rotation: 1 });
+    expect(events).toContainEqual({ type: 'response', model: 'b:free', status: 200 });
   });
 
   it('gives up after the declared alternatives, with the upstream status in the error', async () => {

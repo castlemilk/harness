@@ -5,7 +5,7 @@ import { logger } from './logger.js';
 import { sanitizeForDb } from './utils.js';
 import { executeTool } from './tools.js';
 import { validatePatch } from './patch-utils.js';
-import { sendToProvider, parseToolCalls, recordUsage } from './provider-client.js';
+import { sendToProvider, parseToolCalls, recordUsage, trackProviderEvents } from './provider-client.js';
 import {
   buildTaskPrompt,
   buildToolResultPrompt,
@@ -124,22 +124,31 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
 
   if (!finished) {
     const planSpan = ctx.tracer.startSpan('agent.plan', ctx.rootSpan.toContext());
-    const plan = await withProviderRetry('planner', () =>
-      createPlan(
-        ctx.provider,
-        ctx.task.title,
-        ctx.task.description ?? undefined,
-        ctx.promptContext,
-        (usage) => {
-          recordUsage(ctx, usage);
-        }
-      ),
-      ctx.signal,
-      logger
-    );
-    planSpan.setAttributes({ planSteps: plan.plan.length });
-    planSpan.addEvent('plan.created');
-    await planSpan.end('ok');
+    const planEvents = trackProviderEvents(planSpan);
+    let plan: Awaited<ReturnType<typeof createPlan>>;
+    try {
+      plan = await withProviderRetry('planner', () =>
+        createPlan(
+          ctx.provider,
+          ctx.task.title,
+          ctx.task.description ?? undefined,
+          ctx.promptContext,
+          (usage) => {
+            recordUsage(ctx, usage);
+          },
+          planEvents
+        ),
+        ctx.signal,
+        logger
+      );
+      planSpan.setAttributes({ planSteps: plan.plan.length });
+      planSpan.addEvent('plan.created');
+      await planSpan.end('ok');
+    } catch (err) {
+      planSpan.recordError(err);
+      await planSpan.end('error');
+      throw err;
+    }
     await addTrace(ctx, 'assistant', `Plan: ${JSON.stringify(plan)}`);
     messages.push({ role: 'assistant', content: `Plan: ${JSON.stringify(plan)}` });
   }
@@ -183,6 +192,11 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       ctx.rootSpan.addEvent('token_budget.exceeded', {
         budget: ctx.tokenBudget,
         used: ctx.usage.totalTokens,
+      });
+      ctx.rootSpan.setAttributes({
+        tokenBudget: ctx.tokenBudget,
+        tokenBudgetExceeded: true,
+        tokenBudgetUsed: ctx.usage.totalTokens,
       });
       summary = `Token budget exceeded: used ${String(ctx.usage.totalTokens)} of ${String(ctx.tokenBudget)}`;
       finished = true;
@@ -725,6 +739,16 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       messages.push({ role: 'user', content: nextPrompt });
     }
   }
+
+  ctx.rootSpan.setAttributes({
+    promptTokens: ctx.usage.promptTokens,
+    completionTokens: ctx.usage.completionTokens,
+    totalTokens: ctx.usage.totalTokens,
+    tokenBudget: ctx.tokenBudget,
+    tokenBudgetExceeded:
+      ctx.tokenBudget !== undefined && (ctx.usage.totalTokens ?? 0) > ctx.tokenBudget,
+    deadlineRemainingMs: Math.max(0, ctx.deadlineMs - Date.now()),
+  });
 
   if (ctx.modifiedFiles.size > 0 || (await hasChanges(ctx.projectPath))) {
     await stageAllChanges(ctx.projectPath);

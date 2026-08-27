@@ -186,8 +186,18 @@ describe('harness gRPC task ingestion', () => {
       );
     });
 
-    expect(response.status).toBe('done');
-    expect(response.error).toBeFalsy();
+    expect(['in_progress', 'done']).toContain(response.status);
+
+    const deadline = Date.now() + 30000;
+    let completed: { status: string; error?: string } | undefined;
+    while (Date.now() < deadline) {
+      const taskRes = await fetch(`${API}/tasks/${String(response.id)}`);
+      completed = (await taskRes.json()) as { status: string; error?: string };
+      if (completed.status === 'done' || completed.status === 'failed') break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    expect(completed?.status).toBe('done');
+    expect(completed?.error).toBeFalsy();
 
     mockLlm.server.close();
   });

@@ -472,6 +472,7 @@ export async function runTask(
     }
   }
 
+  const runGenericTask = async () => {
   const configs = await prisma.providerConfig.findMany();
   const coreConfigs = configs.map(toCoreConfig);
 
@@ -654,4 +655,20 @@ export async function runTask(
     void tryAutoRetry(prisma, taskId).catch(console.error);
   }
   return updated;
+  };
+
+  if (options.detached) {
+    const result = queue.enqueue(taskId, undefined, async () => {
+      try {
+        await runGenericTask();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        await ensureFailedTaskReason(prisma, taskId, message);
+        console.error(`Detached generic task ${taskId} failed:`, message);
+      }
+    });
+    return { status: 'in_progress', taskId, ...result };
+  }
+
+  return runGenericTask();
 }

@@ -458,8 +458,8 @@ export async function runOrchestratedTask(
             data: {
               status: 'failed',
               error: subtask.notes,
-              provider: result.task.provider,
-              model: result.task.model,
+              provider: pick?.provider ?? null,
+              model: pick?.model ?? null,
             },
           });
           await persistCheckpoint('executing', plannerPick);

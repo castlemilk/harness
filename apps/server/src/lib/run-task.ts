@@ -291,10 +291,12 @@ export async function runTask(
     const tokenBudget = options.tokenBudget ?? (process.env.OMEGA_TOKEN_BUDGET
       ? Number(process.env.OMEGA_TOKEN_BUDGET)
       : undefined);
+    const orchestrate = tags.includes('orchestrate');
 
-    // Use intelligent router to pick the model, then pin it on the task row
-    // so the executor's selectProvider honors the assignment.
-    if (!task.provider || !task.model) {
+    // Normal agent tasks need a provider pinned before the executor starts.
+    // Orchestrated tasks select the planner and each sub-agent independently
+    // by tier, so pre-pinning the parent would collapse all tiers to one model.
+    if (!orchestrate && (!task.provider || !task.model)) {
       try {
         const configs = await prisma.providerConfig.findMany();
         const coreConfigs = configs.map(toCoreConfig);
@@ -330,7 +332,6 @@ export async function runTask(
     // Tasks tagged 'orchestrate' go through the multi-agent orchestrator
     // (high-tier planner/reviewer + smaller sub-agent models); the
     // orchestrator runs its sub-agents non-isolated in the project path.
-    const orchestrate = tags.includes('orchestrate');
     let router: Awaited<ReturnType<typeof getRouter>>;
     try {
       router = await getRouter(prisma);

@@ -37,6 +37,69 @@ function throwIfCancelled(signal?: AbortSignal): void {
     : new DOMException('Orchestrated task cancelled', 'AbortError');
 }
 
+interface OrchestrationModel {
+  provider: string;
+  model: string;
+}
+
+interface OrchestrationCheckpoint {
+  version: 1;
+  phase: 'starting' | 'planned' | 'executing' | 'reviewing' | 'completed' | 'failed';
+  baseBranch: string;
+  baseCommit: string;
+  agentRunId: string;
+  planner?: OrchestrationModel;
+  subtasks: SubtaskState[];
+  iterations: number;
+  finished: boolean;
+  summary: string;
+}
+
+function parseCheckpoint(raw: string | null): OrchestrationCheckpoint | undefined {
+  if (!raw) return undefined;
+  try {
+    const value = JSON.parse(raw) as Partial<OrchestrationCheckpoint>;
+    if (
+      value.version !== 1 ||
+      typeof value.baseCommit !== 'string' ||
+      typeof value.baseBranch !== 'string' ||
+      typeof value.agentRunId !== 'string' ||
+      !Array.isArray(value.subtasks) ||
+      typeof value.iterations !== 'number'
+    ) return undefined;
+    return {
+      version: 1,
+      phase: value.phase ?? 'starting',
+      baseBranch: value.baseBranch,
+      baseCommit: value.baseCommit,
+      agentRunId: value.agentRunId,
+      planner: value.planner,
+      subtasks: value.subtasks,
+      iterations: value.iterations,
+      finished: value.finished === true,
+      summary: typeof value.summary === 'string' ? value.summary : '',
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+function checkpointData(
+  checkpoint: OrchestrationCheckpoint,
+  phase: OrchestrationCheckpoint['phase'],
+): string {
+  const bounded = {
+    ...checkpoint,
+    phase,
+    summary: checkpoint.summary.slice(-4_000),
+    subtasks: checkpoint.subtasks.map((subtask) => ({
+      ...subtask,
+      notes: subtask.notes?.slice(-4_000),
+    })),
+  };
+  return JSON.stringify(bounded);
+}
+
 export async function runOrchestratedTask(
   prisma: PrismaClient,
   taskId: string,
@@ -50,9 +113,54 @@ export async function runOrchestratedTask(
   const task = await prisma.task.findUnique({ where: { id: taskId } });
   if (!task) throw new Error('Task not found');
 
+  const savedCheckpoint = parseCheckpoint(task.orchestratorState);
+  const resumeCheckpoint = savedCheckpoint && !savedCheckpoint.finished && savedCheckpoint.phase !== 'completed'
+    ? savedCheckpoint
+    : undefined;
+  const isResume = resumeCheckpoint !== undefined;
+  const [currentBranch, currentCommit] = isResume
+    ? [{ success: true, output: resumeCheckpoint.baseBranch }, { success: true, output: resumeCheckpoint.baseCommit }]
+    : await Promise.all([
+        getCurrentBranch(options.projectPath),
+        getCurrentCommit(options.projectPath),
+      ]);
+  const branch = currentBranch.success ? currentBranch.output : `orchestrator/${taskId}`;
+  const baseCommitSha = currentCommit.success ? currentCommit.output : '';
+
+  let agentRun = isResume
+    ? await prisma.agentRun.findUnique({ where: { id: resumeCheckpoint.agentRunId } })
+    : null;
+  if (!agentRun) {
+    agentRun = await prisma.agentRun.create({
+      data: {
+        taskId,
+        branch,
+        baseCommit: baseCommitSha,
+        resultStatus: 'running',
+      },
+    });
+  }
+
+  const initialCheckpoint: OrchestrationCheckpoint = resumeCheckpoint ?? {
+    version: 1,
+    phase: 'starting',
+    baseBranch: branch,
+    baseCommit: baseCommitSha,
+    agentRunId: agentRun.id,
+    subtasks: [],
+    iterations: 0,
+    finished: false,
+    summary: '',
+  };
+  initialCheckpoint.agentRunId = agentRun.id;
   await prisma.task.update({
     where: { id: taskId },
-    data: { status: 'in_progress', error: null, result: null },
+    data: {
+      status: 'in_progress',
+      error: null,
+      result: null,
+      orchestratorState: checkpointData(initialCheckpoint, isResume ? 'executing' : 'starting'),
+    },
   });
 
   const tracer = new Tracer(prisma, taskId);
@@ -64,22 +172,6 @@ export async function runOrchestratedTask(
     concurrency,
   });
 
-  const [baseBranch, baseCommit] = await Promise.all([
-    getCurrentBranch(options.projectPath),
-    getCurrentCommit(options.projectPath),
-  ]);
-  const branch = baseBranch.success ? baseBranch.output : `orchestrator/${taskId}`;
-  const baseCommitSha = baseCommit.success ? baseCommit.output : '';
-
-  const agentRun = await prisma.agentRun.create({
-    data: {
-      taskId,
-      branch,
-      baseCommit: baseCommitSha,
-      resultStatus: 'running',
-    },
-  });
-
   const usage: UsageInfo = {};
   const recordUsage = (u: UsageInfo): void => {
     usage.promptTokens = (usage.promptTokens ?? 0) + (u.promptTokens ?? 0);
@@ -87,11 +179,38 @@ export async function runOrchestratedTask(
     usage.totalTokens = (usage.totalTokens ?? 0) + (u.totalTokens ?? 0);
   };
 
-  const subtasks: SubtaskState[] = [];
-  let iterations = 0;
-  let finished = false;
-  let summary = '';
+  const subtasks: SubtaskState[] = (resumeCheckpoint?.subtasks ?? []).map((subtask) => ({
+    ...subtask,
+    status: subtask.status === 'done' ? 'done' : 'pending',
+  }));
+  let iterations = resumeCheckpoint?.iterations ?? 0;
+  let finished = resumeCheckpoint?.finished ?? false;
+  let summary = resumeCheckpoint?.summary ?? '';
   let parentPatchCaptured = false;
+  let checkpointWrite: Promise<void> = Promise.resolve();
+
+  const persistCheckpoint = async (
+    phase: OrchestrationCheckpoint['phase'],
+    planner?: OrchestrationModel,
+  ): Promise<void> => {
+    const write = checkpointWrite.then(async () => {
+      const next: OrchestrationCheckpoint = {
+        ...initialCheckpoint,
+        phase,
+        planner: planner ?? initialCheckpoint.planner,
+        subtasks,
+        iterations,
+        finished,
+        summary,
+      };
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { orchestratorState: checkpointData(next, phase) },
+      });
+    });
+    checkpointWrite = write.catch(() => undefined);
+    await write;
+  };
 
   try {
     // An explicit pin on the parent is an operator instruction, not a hint:
@@ -111,64 +230,70 @@ export async function runOrchestratedTask(
 
     // --- Planning (high tier) ---
     const plannerPick =
-      pinned ?? (await pickModel(prisma, 'high', options.intelligentRouter, task.title, task.complexity));
+      resumeCheckpoint?.planner
+      ?? pinned
+      ?? (await pickModel(prisma, 'high'));
     if (!plannerPick) throw new Error('No provider available for orchestration planning');
+    initialCheckpoint.planner ??= plannerPick;
     const planner = await loadProviderByName(prisma, plannerPick.provider);
     if (!planner) throw new Error(`Planner provider '${plannerPick.provider}' is not available`);
     const plannerModel = plannerPick.model;
     rootSpan.setAttributes({ plannerProvider: plannerPick.provider, plannerModel });
 
-    const planSpan = tracer.startSpan('orchestrator.plan', rootSpan.toContext());
-    let planned: OrchestratedSubtask[] = [];
-    try {
-      const recalled = await recallRelevantSkills(prisma, task.description, 3);
-      const memory = recalled.length > 0
-        ? recalled.map((s) => `- ${s.name}: ${s.description}`).join('\n')
-        : '';
-      planSpan.setAttributes({ recalledSkills: recalled.length });
-      const raw = await abortableOperation(
-        () => planner.send(buildPlanPrompt(task.title, task.description ?? '', maxSubtasks, memory), {
-          system: 'You are a meticulous staff engineer producing execution plans as strict JSON.',
-          model: plannerModel,
-          temperature: 0.2,
-          onUsage: recordUsage,
-        }),
-        options.signal,
-      );
-      const parsed = extractJson(raw);
-      if (Array.isArray(parsed)) {
-        planned = parsed
-          .slice(0, maxSubtasks)
-          .map((item, i) => normalizeSubtask(item, `Subtask ${String(i + 1)}`))
-          .filter((s): s is OrchestratedSubtask => s !== undefined);
+    if (subtasks.length === 0) {
+      const planSpan = tracer.startSpan('orchestrator.plan', rootSpan.toContext());
+      let planned: OrchestratedSubtask[] = [];
+      try {
+        const recalled = await recallRelevantSkills(prisma, task.description, 3);
+        const memory = recalled.length > 0
+          ? recalled.map((s) => `- ${s.name}: ${s.description}`).join('\n')
+          : '';
+        planSpan.setAttributes({ recalledSkills: recalled.length });
+        const raw = await abortableOperation(
+          () => planner.send(buildPlanPrompt(task.title, task.description ?? '', maxSubtasks, memory), {
+            system: 'You are a meticulous staff engineer producing execution plans as strict JSON.',
+            model: plannerModel,
+            temperature: 0.2,
+            onUsage: recordUsage,
+          }),
+          options.signal,
+        );
+        const parsed = extractJson(raw);
+        if (Array.isArray(parsed)) {
+          planned = parsed
+            .slice(0, maxSubtasks)
+            .map((item, i) => normalizeSubtask(item, `Subtask ${String(i + 1)}`))
+            .filter((s): s is OrchestratedSubtask => s !== undefined);
+        }
+        planSpan.setAttributes({ plannedSubtasks: planned.length });
+        await planSpan.end('ok');
+      } catch (err) {
+        planSpan.recordError(err);
+        await planSpan.end('error');
+        throwIfCancelled(options.signal);
+        logger.warn('Orchestrator planning call failed; falling back to a single subtask', {
+          taskId,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
-      planSpan.setAttributes({ plannedSubtasks: planned.length });
-      await planSpan.end('ok');
-    } catch (err) {
-      planSpan.recordError(err);
-      await planSpan.end('error');
-      throwIfCancelled(options.signal);
-      logger.warn('Orchestrator planning call failed; falling back to a single subtask', {
-        taskId,
-        error: err instanceof Error ? err.message : String(err),
+      if (planned.length === 0) {
+        // Graceful fallback: run the whole task as one subtask.
+        planned = [
+          {
+            title: task.title,
+            description: task.description ?? '',
+            complexity: COMPLEXITIES.has(task.complexity)
+              ? (task.complexity as OrchestratedSubtask['complexity'])
+              : 'medium',
+            tier: 'medium',
+          },
+        ];
+      }
+      planned.forEach((s, index) => {
+        subtasks.push({ ...s, index, status: 'pending' });
       });
+      await persistCheckpoint('planned', plannerPick);
     }
-    if (planned.length === 0) {
-      // Graceful fallback: run the whole task as one subtask.
-      planned = [
-        {
-          title: task.title,
-          description: task.description ?? '',
-          complexity: COMPLEXITIES.has(task.complexity)
-            ? (task.complexity as OrchestratedSubtask['complexity'])
-            : 'medium',
-          tier: 'medium',
-        },
-      ];
-    }
-    planned.forEach((s, index) => {
-      subtasks.push({ ...s, index, status: 'pending' });
-    });
 
     const currentDiff = async (): Promise<string> => {
       const diff = await getDiff(options.projectPath, baseCommitSha);
@@ -259,20 +384,29 @@ export async function runOrchestratedTask(
       let tierIndex = Math.max(0, tierOrder.indexOf(subtask.tier));
       for (let attempt = 0; attempt <= maxEscalations; attempt++) {
         const tier = tierOrder[Math.min(tierIndex, tierOrder.length - 1)];
-        const pick =
-          pinned
-          ?? (await pickModel(prisma, tier, options.intelligentRouter, subtask.title, subtask.complexity));
-        const subtaskRow = await prisma.task.create({
-          data: {
-            projectId: task.projectId,
-            title: subtask.title,
-            description: subtask.description,
-            complexity: subtask.complexity,
-            tags: JSON.stringify(['subtask', `parent:${taskId}`]),
-            provider: pick?.provider ?? null,
-            model: pick?.model ?? null,
-          },
-        });
+        const pick = pinned ?? (await pickModel(prisma, tier));
+        const subtaskRow = subtask.taskId
+          ? await prisma.task.update({
+              where: { id: subtask.taskId },
+              data: {
+                status: 'in_progress',
+                error: null,
+                result: null,
+                provider: pick?.provider ?? null,
+                model: pick?.model ?? null,
+              },
+            })
+          : await prisma.task.create({
+              data: {
+                projectId: task.projectId,
+                title: subtask.title,
+                description: subtask.description,
+                complexity: subtask.complexity,
+                tags: JSON.stringify(['subtask', `parent:${taskId}`]),
+                provider: pick?.provider ?? null,
+                model: pick?.model ?? null,
+              },
+            });
         subtask.taskId = subtaskRow.id;
 
         const subtaskSpan = tracer.startSpan(`orchestrator.subtask.${String(subtask.index)}.attempt${String(attempt + 1)}`, rootSpan.toContext());
@@ -314,14 +448,36 @@ export async function runOrchestratedTask(
           if (result.task.status === 'done') {
             subtask.status = 'done';
             subtask.notes = result.task.result ?? undefined;
+            await persistCheckpoint('executing', plannerPick);
             await subtaskSpan.end('ok');
             return;
           }
           subtask.notes = result.task.error ?? undefined;
+          await prisma.task.update({
+            where: { id: subtaskRow.id },
+            data: {
+              status: 'failed',
+              error: subtask.notes,
+              provider: result.task.provider,
+              model: result.task.model,
+            },
+          });
+          await persistCheckpoint('executing', plannerPick);
           await subtaskSpan.end('error');
         } catch (err) {
           subtask.notes = err instanceof Error ? err.message : String(err);
+          subtask.status = 'failed';
           subtaskSpan.recordError(err);
+          await prisma.task.update({
+            where: { id: subtaskRow.id },
+            data: {
+              status: 'failed',
+              error: subtask.notes,
+              provider: pick?.provider ?? null,
+              model: pick?.model ?? null,
+            },
+          });
+          await persistCheckpoint('executing', plannerPick);
           await subtaskSpan.end('error');
           logger.error('Orchestrated subtask failed', {
             taskId,
@@ -343,9 +499,12 @@ export async function runOrchestratedTask(
     };
 
     // Every path that sets `finished = true` also breaks out of the loop.
-    while (iterations < maxIterations) {
+    let resumeCurrentIteration = isResume && !finished && subtasks.some((subtask) => subtask.status !== 'done');
+    while (iterations < maxIterations || resumeCurrentIteration) {
       throwIfCancelled(options.signal);
-      iterations++;
+      if (resumeCurrentIteration) resumeCurrentIteration = false;
+      else iterations++;
+      await persistCheckpoint('executing', plannerPick);
       const completedIndexes = new Set(
         subtasks.filter((s) => s.status === 'done').map((s) => s.index)
       );
@@ -367,6 +526,7 @@ export async function runOrchestratedTask(
             for (const s of finalReview.nextSubtasks) {
               subtasks.push({ ...s, index: subtasks.length, status: 'pending' });
             }
+            await persistCheckpoint('reviewing', plannerPick);
           } else {
             finished = true;
             summary = finalReview.notes ?? 'All subtasks completed.';
@@ -402,6 +562,7 @@ export async function runOrchestratedTask(
         for (const s of reviewResult.nextSubtasks) {
           subtasks.push({ ...s, index: subtasks.length, status: 'pending' });
         }
+        await persistCheckpoint('reviewing', plannerPick);
       }
       // If every subtask failed and the review added nothing, stop early.
       if (
@@ -430,6 +591,7 @@ export async function runOrchestratedTask(
     const success =
       subtasks.some((s) => s.status === 'done') &&
       (finished || subtasks.every((s) => s.status !== 'pending'));
+    await persistCheckpoint(success ? 'completed' : 'failed', plannerPick);
     if (gradedDiff.success && finalDiff) {
       await prisma.taskDiff.create({
         data: {
@@ -505,6 +667,14 @@ export async function runOrchestratedTask(
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    try {
+      await persistCheckpoint('failed');
+    } catch (checkpointErr) {
+      logger.warn('Failed to persist orchestrator failure checkpoint', {
+        taskId,
+        error: checkpointErr instanceof Error ? checkpointErr.message : String(checkpointErr),
+      });
+    }
     rootSpan.recordError(err);
     logger.error('Orchestrated task failed', { taskId, agentRunId: agentRun.id, error: message });
 

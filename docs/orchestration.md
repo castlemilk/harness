@@ -50,7 +50,7 @@ inspectable.
 
 | Table | What it remembers |
 |---|---|
-| `Task` | The orchestrator task and every subtask row (title, description, complexity, provider/model, status, tags such as `subtask` and `parent:<taskId>`). |
+| `Task` | The orchestrator task and every subtask row (title, description, complexity, provider/model, status, tags such as `subtask` and `parent:<taskId>`). Parent tasks also store the resumable `orchestratorState` checkpoint. |
 | `AgentRun` | One row per agent/orchestrator run: branch, baseCommit, resultStatus, token usage, promptVersionId. |
 | `TaskDiff` | The final integrated patch for the orchestrator task, plus each sub-agent’s diff. |
 | `TaskStep` | Every tool call made by a sub-agent (input/output/error). |
@@ -291,11 +291,15 @@ existing task board, trace views, and SSE streams work for them too.
 - **Token cost** — planning + review on a high-tier model plus N sub-agents is
   more expensive than a single agent; use `maxSubtasks`/`maxIterations`/
   `tokenBudget` to control it.
+- **Session recovery** — interrupted orchestrations resume from the persisted
+  plan and unfinished subtask frontier, but an in-flight subtask is restarted
+  from its existing task row rather than resuming the provider conversation.
 
 Possible next steps:
 
 - Expose `maxSubtasks`/`maxIterations`/`concurrency` in the CLI and web UI.
 - Optional isolated sub-agents with a merge step for safer parallelism.
-- Persist the planner’s JSON plan as a first-class artifact for audit.
-- Let the review step run the project’s build/test command before deciding
-  `done`.
+- Persist planner/reviewer decisions as first-class trace events for easier
+  audit and replay.
+- Add a bounded task cancellation endpoint so shutdown and operator stops can
+  abort active provider calls instead of waiting for the shutdown watchdog.

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ProviderConfig, Task } from '@omega/core';
 import type { RoutingRule} from './rules.js';
 import { rankCapabilityForTask, selectProvider } from './rules.js';
+import { pickModelFromConfigs } from './tiers.js';
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
@@ -128,6 +129,35 @@ describe('selectProvider', () => {
     const result = selectProvider(configs, [], task);
 
     expect(result).toBeUndefined();
+  });
+});
+
+describe('pickModelFromConfigs', () => {
+  const configs = [
+    makeProvider({
+      name: 'tiered',
+      defaultModel: 'moonshot-v1-8k',
+      capabilities: [
+        { name: 'moonshot-v1-128k', level: 'advanced' },
+        { name: 'moonshot-v1-32k', level: 'advanced' },
+        { name: 'moonshot-v1-8k', level: 'capable' },
+      ],
+    }),
+  ];
+
+  it('keeps high, medium, and low orchestration tiers distinct', () => {
+    expect(pickModelFromConfigs(configs, 'high')).toEqual({
+      provider: 'tiered',
+      model: 'moonshot-v1-128k',
+    });
+    expect(pickModelFromConfigs(configs, 'medium')).toEqual({
+      provider: 'tiered',
+      model: 'moonshot-v1-32k',
+    });
+    expect(pickModelFromConfigs(configs, 'low')).toEqual({
+      provider: 'tiered',
+      model: 'moonshot-v1-8k',
+    });
   });
 });
 

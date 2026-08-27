@@ -147,6 +147,7 @@ exports.Prisma.TaskScalarFieldEnum = {
   retryCount: 'retryCount',
   lastRetryAt: 'lastRetryAt',
   retryHistory: 'retryHistory',
+  orchestratorState: 'orchestratorState',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

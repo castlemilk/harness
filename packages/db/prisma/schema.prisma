@@ -37,6 +37,7 @@ model Task {
   retryCount    Int        @default(0)
   lastRetryAt   DateTime?
   retryHistory  String? // JSON: [{ strategy, provider, model, cli, classification, category, decision, error, timestamp }]
+  orchestratorState String? // JSON checkpoint for resumable orchestration
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   steps         TaskStep[]

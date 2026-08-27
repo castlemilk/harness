@@ -22,28 +22,29 @@ model Project {
 }
 
 model Task {
-  id           String      @id @default(uuid())
-  projectId    String
-  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  title        String
-  description  String?
-  status       String      @default("todo")
-  complexity   String      @default("simple")
-  tags         String? // JSON array
-  provider     String?
-  model        String?
-  result       String?
-  error        String?
-  retryCount   Int         @default(0)
-  lastRetryAt  DateTime?
-  retryHistory String? // JSON: [{ strategy, provider, model, cli, classification, category, decision, error, timestamp }]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  steps        TaskStep[]
-  traces       TaskTrace[]
-  diffs        TaskDiff[]
-  agentRuns    AgentRun[]
-  traceSpans   TraceSpan[]
+  id                String      @id @default(uuid())
+  projectId         String
+  project           Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title             String
+  description       String?
+  status            String      @default("todo")
+  complexity        String      @default("simple")
+  tags              String? // JSON array
+  provider          String?
+  model             String?
+  result            String?
+  error             String?
+  retryCount        Int         @default(0)
+  lastRetryAt       DateTime?
+  retryHistory      String? // JSON: [{ strategy, provider, model, cli, classification, category, decision, error, timestamp }]
+  orchestratorState String? // JSON checkpoint for resumable orchestration
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  steps             TaskStep[]
+  traces            TaskTrace[]
+  diffs             TaskDiff[]
+  agentRuns         AgentRun[]
+  traceSpans        TraceSpan[]
 
   @@index([status, createdAt])
   @@index([projectId])

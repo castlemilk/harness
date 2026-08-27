@@ -154,6 +154,40 @@ describe('external task circuit routing', () => {
     );
   });
 
+  it('does not eagerly pin an unassigned orchestrated parent', async () => {
+    const now = new Date('2026-08-23T00:00:00.000Z');
+    const task = {
+      ...makeTask('codex', 'internal-model'),
+      title: 'Tiered orchestration task',
+      tags: JSON.stringify(['agent', 'orchestrate']),
+      provider: null,
+      model: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const router = {};
+    mocks.getRouter.mockResolvedValue(router);
+    mocks.runOrchestratedTask.mockResolvedValue({
+      task: { ...task, status: 'done', createdAt: now, updatedAt: now },
+      agentRunId: 'run-1',
+    });
+    const prisma = {
+      ...makePrisma(task),
+      providerConfig: { findMany: vi.fn() },
+    } as unknown as PrismaClient;
+
+    await runTask(prisma, task.id);
+
+    expect(mocks.runOrchestratedTask).toHaveBeenCalledWith(
+      prisma,
+      task.id,
+      expect.objectContaining({ intelligentRouter: router }),
+    );
+    expect(prisma.task.update).not.toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ provider: expect.any(String), model: expect.any(String) }),
+    }));
+  });
+
   it('does not fail a completed CLI run when router telemetry throws', async () => {
     const health = {
       isCircuitBroken: vi.fn().mockReturnValue(false),

@@ -2,7 +2,6 @@ import type { PrismaClient } from '@omega/db';
 import type { Provider, ProviderConfig } from '@omega/core';
 import { createProvider } from '@omega/providers';
 import { pickModelForTier } from '@omega/router';
-import type { IntelligentRouter } from '@omega/router';
 import type { OrchestratedSubtask, SubtaskState } from './orchestrator-types.js';
 
 export const COMPLEXITIES = new Set(['simple', 'medium', 'complex']);
@@ -188,39 +187,6 @@ export function resolvePinnedModel(
 export async function pickModel(
   prisma: PrismaClient,
   tier: 'high' | 'medium' | 'low',
-  intelligentRouter?: IntelligentRouter,
-  taskTitle?: string,
-  taskComplexity?: string,
 ): Promise<{ provider: string; model: string } | undefined> {
-  if (intelligentRouter && taskTitle) {
-    const configs = await prisma.providerConfig.findMany();
-    const coreConfigs: ProviderConfig[] = configs.map((cfg) => ({
-      id: cfg.id,
-      name: cfg.name,
-      kind: cfg.kind as ProviderConfig['kind'],
-      baseUrl: cfg.baseUrl ?? undefined,
-      apiKey: cfg.apiKey ?? undefined,
-      defaultModel: cfg.defaultModel,
-      capabilities: JSON.parse(cfg.capabilities) as ProviderConfig['capabilities'],
-      enabled: cfg.enabled,
-    }));
-    const task = {
-      id: 'orchestrator',
-      projectId: 'orchestrator',
-      title: taskTitle,
-      status: 'todo' as const,
-      complexity: (taskComplexity ?? 'medium') as 'simple' | 'medium' | 'complex',
-      tags: ['orchestrate', `tier:${tier}`],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const decision = intelligentRouter.route(coreConfigs, task, {
-      strategy: tier === 'high' ? 'performance-optimized' : 'balanced',
-      maxCandidates: 1,
-    });
-    if (decision) {
-      return { provider: decision.primary.provider.name, model: decision.primary.model };
-    }
-  }
   return pickModelForTier(prisma, tier);
 }

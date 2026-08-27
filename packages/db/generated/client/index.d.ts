@@ -3991,6 +3991,7 @@ export namespace Prisma {
     retryCount: number | null
     lastRetryAt: Date | null
     retryHistory: string | null
+    orchestratorState: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -4010,6 +4011,7 @@ export namespace Prisma {
     retryCount: number | null
     lastRetryAt: Date | null
     retryHistory: string | null
+    orchestratorState: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -4029,6 +4031,7 @@ export namespace Prisma {
     retryCount: number
     lastRetryAt: number
     retryHistory: number
+    orchestratorState: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -4058,6 +4061,7 @@ export namespace Prisma {
     retryCount?: true
     lastRetryAt?: true
     retryHistory?: true
+    orchestratorState?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -4077,6 +4081,7 @@ export namespace Prisma {
     retryCount?: true
     lastRetryAt?: true
     retryHistory?: true
+    orchestratorState?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -4096,6 +4101,7 @@ export namespace Prisma {
     retryCount?: true
     lastRetryAt?: true
     retryHistory?: true
+    orchestratorState?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -4202,6 +4208,7 @@ export namespace Prisma {
     retryCount: number
     lastRetryAt: Date | null
     retryHistory: string | null
+    orchestratorState: string | null
     createdAt: Date
     updatedAt: Date
     _count: TaskCountAggregateOutputType | null
@@ -4240,6 +4247,7 @@ export namespace Prisma {
     retryCount?: boolean
     lastRetryAt?: boolean
     retryHistory?: boolean
+    orchestratorState?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     project?: boolean | ProjectDefaultArgs<ExtArgs>
@@ -4266,6 +4274,7 @@ export namespace Prisma {
     retryCount?: boolean
     lastRetryAt?: boolean
     retryHistory?: boolean
+    orchestratorState?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     project?: boolean | ProjectDefaultArgs<ExtArgs>
@@ -4286,6 +4295,7 @@ export namespace Prisma {
     retryCount?: boolean
     lastRetryAt?: boolean
     retryHistory?: boolean
+    orchestratorState?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -4328,6 +4338,7 @@ export namespace Prisma {
       retryCount: number
       lastRetryAt: Date | null
       retryHistory: string | null
+      orchestratorState: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["task"]>
@@ -4743,6 +4754,7 @@ export namespace Prisma {
     readonly retryCount: FieldRef<"Task", 'Int'>
     readonly lastRetryAt: FieldRef<"Task", 'DateTime'>
     readonly retryHistory: FieldRef<"Task", 'String'>
+    readonly orchestratorState: FieldRef<"Task", 'String'>
     readonly createdAt: FieldRef<"Task", 'DateTime'>
     readonly updatedAt: FieldRef<"Task", 'DateTime'>
   }
@@ -26386,6 +26398,7 @@ export namespace Prisma {
     retryCount: 'retryCount',
     lastRetryAt: 'lastRetryAt',
     retryHistory: 'retryHistory',
+    orchestratorState: 'orchestratorState',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -26948,6 +26961,7 @@ export namespace Prisma {
     retryCount?: IntFilter<"Task"> | number
     lastRetryAt?: DateTimeNullableFilter<"Task"> | Date | string | null
     retryHistory?: StringNullableFilter<"Task"> | string | null
+    orchestratorState?: StringNullableFilter<"Task"> | string | null
     createdAt?: DateTimeFilter<"Task"> | Date | string
     updatedAt?: DateTimeFilter<"Task"> | Date | string
     project?: XOR<ProjectRelationFilter, ProjectWhereInput>
@@ -26973,6 +26987,7 @@ export namespace Prisma {
     retryCount?: SortOrder
     lastRetryAt?: SortOrderInput | SortOrder
     retryHistory?: SortOrderInput | SortOrder
+    orchestratorState?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     project?: ProjectOrderByWithRelationInput
@@ -27001,6 +27016,7 @@ export namespace Prisma {
     retryCount?: IntFilter<"Task"> | number
     lastRetryAt?: DateTimeNullableFilter<"Task"> | Date | string | null
     retryHistory?: StringNullableFilter<"Task"> | string | null
+    orchestratorState?: StringNullableFilter<"Task"> | string | null
     createdAt?: DateTimeFilter<"Task"> | Date | string
     updatedAt?: DateTimeFilter<"Task"> | Date | string
     project?: XOR<ProjectRelationFilter, ProjectWhereInput>
@@ -27026,6 +27042,7 @@ export namespace Prisma {
     retryCount?: SortOrder
     lastRetryAt?: SortOrderInput | SortOrder
     retryHistory?: SortOrderInput | SortOrder
+    orchestratorState?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: TaskCountOrderByAggregateInput
@@ -27053,6 +27070,7 @@ export namespace Prisma {
     retryCount?: IntWithAggregatesFilter<"Task"> | number
     lastRetryAt?: DateTimeNullableWithAggregatesFilter<"Task"> | Date | string | null
     retryHistory?: StringNullableWithAggregatesFilter<"Task"> | string | null
+    orchestratorState?: StringNullableWithAggregatesFilter<"Task"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Task"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Task"> | Date | string
   }
@@ -29067,6 +29085,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     project: ProjectCreateNestedOneWithoutTasksInput
@@ -29092,6 +29111,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
@@ -29115,6 +29135,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
@@ -29140,6 +29161,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
@@ -29164,6 +29186,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -29182,6 +29205,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -29201,6 +29225,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -31665,6 +31690,7 @@ export namespace Prisma {
     retryCount?: SortOrder
     lastRetryAt?: SortOrder
     retryHistory?: SortOrder
+    orchestratorState?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -31688,6 +31714,7 @@ export namespace Prisma {
     retryCount?: SortOrder
     lastRetryAt?: SortOrder
     retryHistory?: SortOrder
+    orchestratorState?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -31707,6 +31734,7 @@ export namespace Prisma {
     retryCount?: SortOrder
     lastRetryAt?: SortOrder
     retryHistory?: SortOrder
+    orchestratorState?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -34348,6 +34376,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepCreateNestedManyWithoutTaskInput
@@ -34371,6 +34400,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
@@ -34468,6 +34498,7 @@ export namespace Prisma {
     retryCount?: IntFilter<"Task"> | number
     lastRetryAt?: DateTimeNullableFilter<"Task"> | Date | string | null
     retryHistory?: StringNullableFilter<"Task"> | string | null
+    orchestratorState?: StringNullableFilter<"Task"> | string | null
     createdAt?: DateTimeFilter<"Task"> | Date | string
     updatedAt?: DateTimeFilter<"Task"> | Date | string
   }
@@ -34963,6 +34994,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     project: ProjectCreateNestedOneWithoutTasksInput
@@ -34987,6 +35019,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     traces?: TaskTraceUncheckedCreateNestedManyWithoutTaskInput
@@ -35025,6 +35058,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
@@ -35049,6 +35083,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     traces?: TaskTraceUncheckedUpdateManyWithoutTaskNestedInput
@@ -35071,6 +35106,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     project: ProjectCreateNestedOneWithoutTasksInput
@@ -35095,6 +35131,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
@@ -35133,6 +35170,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
@@ -35157,6 +35195,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
@@ -35179,6 +35218,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     project: ProjectCreateNestedOneWithoutTasksInput
@@ -35203,6 +35243,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
@@ -35241,6 +35282,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
@@ -35265,6 +35307,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
@@ -35287,6 +35330,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     project: ProjectCreateNestedOneWithoutTasksInput
@@ -35311,6 +35355,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
@@ -35382,6 +35427,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
@@ -35406,6 +35452,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
@@ -35467,6 +35514,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     project: ProjectCreateNestedOneWithoutTasksInput
@@ -35491,6 +35539,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
@@ -35529,6 +35578,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
@@ -35553,6 +35603,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
@@ -37412,6 +37463,7 @@ export namespace Prisma {
     retryCount?: number
     lastRetryAt?: Date | string | null
     retryHistory?: string | null
+    orchestratorState?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -37443,6 +37495,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUpdateManyWithoutTaskNestedInput
@@ -37466,6 +37519,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
@@ -37489,6 +37543,7 @@ export namespace Prisma {
     retryCount?: IntFieldUpdateOperationsInput | number
     lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

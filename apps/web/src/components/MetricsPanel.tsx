@@ -142,7 +142,7 @@ export function MetricsPanel() {
             {recentRuns.map((run) => (
               <div key={run.id} className="bg-gray-50 p-2 rounded">
                 <div className="font-medium truncate" title={run.title}>{run.title}</div>
-                {(run.provider || run.model || run.currentPhase) && (
+                {(run.provider ?? run.model ?? run.currentPhase) && (
                   <div className="text-gray-400 truncate mt-1" title={run.model ?? undefined}>
                     {run.provider ?? 'unknown'}{run.model ? ` / ${run.model}` : ''}{run.currentPhase ? ` · ${run.currentPhase}` : ''}
                   </div>

@@ -40,7 +40,7 @@ In the TUI:
 node scripts/run-e2e-report.mjs
 ```
 
-This runs `pnpm --filter @omega/e2e test`, writes raw Vitest JSON to `.omega/reports/e2e-raw-<ts>.json` and a Markdown summary to `.omega/reports/e2e-report-<ts>.md`.
+This runs `pnpm --filter @omega/e2e test`, writes raw Vitest JSON to `$OMEGA_STORAGE_ROOT/reports/e2e-raw-<ts>.json` and a Markdown summary to `$OMEGA_STORAGE_ROOT/reports/e2e-report-<ts>.md` (default `~/.omega/reports/`).
 
 ## Run performance benchmarks
 
@@ -48,7 +48,7 @@ This runs `pnpm --filter @omega/e2e test`, writes raw Vitest JSON to `.omega/rep
 node scripts/run-benchmarks.mjs
 ```
 
-This starts a temporary harness server + mock Kimi LLM, measures HTTP task creation, gRPC task submission and end-to-end task-run latency, then writes `.omega/reports/benchmark-<ts>.json`.
+This starts a temporary harness server + mock Kimi LLM, measures HTTP task creation, gRPC task submission and end-to-end task-run latency, then writes `$OMEGA_STORAGE_ROOT/reports/benchmark-<ts>.json` (default `~/.omega/reports/`).
 
 ## Process traces
 
@@ -68,7 +68,7 @@ When reviewing an agent task, always fetch these four endpoints and summarise:
 
 ## Self-improvement loop
 
-The loop submits tasks back into the harness, lets the agent improve the codebase, captures traces/diffs, and validates with E2E + benchmarks.
+The loop submits tasks back into the harness, lets the agent improve the codebase, captures traces/diffs, validates the candidate in its own worktree, compares it with a baseline benchmark, and fast-forwards the promotion branch only when all gates pass. The complete operator guide is [docs/self-improvement-loop.md](../../../docs/self-improvement-loop.md).
 
 ### Start the harness server first
 
@@ -102,23 +102,27 @@ node scripts/omega-loop.mjs
 | `OMEGA_LOOP_PROMPT` | Review codebase, run lint/e2e, implement best improvement | Task description sent to the agent |
 | `OMEGA_LOOP_MAX_ITERATIONS` | `3` | Hard stop after N iterations |
 | `OMEGA_LOOP_INTERVAL_MS` | `60000` | Wait time between iterations |
-| `OMEGA_LOOP_AUTO_PUBLISH` | `false` | Allow the agent to publish a new npm version |
-| `OMEGA_LOOP_VALIDATE` | `true` | Run E2E report + benchmarks after each task |
+| `OMEGA_LOOP_AUTO_PUBLISH` | `false` | Release-policy signal only; the loop never publishes an npm package |
+| `OMEGA_LOOP_VALIDATE` | `true` | Required for promotion; `false` refuses candidate promotion |
 | `OMEGA_LOOP_MAX_CONSECUTIVE_FAILURES` | `2` | Stop if this many iterations fail in a row |
+| `OMEGA_LOOP_PROMOTION_BRANCH` | `main` | Branch that must remain clean and unchanged during validation |
 
 ### Outputs
 
-- Iteration reports: `.omega/iterations/iteration-<n>-<ts>.md`
-- E2E reports: `.omega/reports/e2e-report-<ts>.md`
-- Benchmark reports: `.omega/reports/benchmark-<ts>.json`
+- Iteration reports: `$OMEGA_STORAGE_ROOT/iterations/iteration-<n>-<ts>.md`
+- Candidate gate reports: `$OMEGA_STORAGE_ROOT/candidate-gates/iteration-<n>/`
+- Benchmark reports: `$OMEGA_STORAGE_ROOT/reports/benchmark-<ts>.json`
 
 ### Safety guardrails
 
-- The loop only publishes when `OMEGA_LOOP_AUTO_PUBLISH=true` AND the task is tagged with `publish` (the loop adds the tag automatically when enabled).
+- The loop never publishes an npm package. `OMEGA_LOOP_AUTO_PUBLISH` is retained as a release-policy signal in reports; publishing is an explicit post-promotion action.
+- Candidates are validated in a detached worktree with install, benchmark dependency build, recursive build, lint, and recursive tests before promotion.
+- Baseline and candidate benchmark metrics are compared with a 10% tolerance and a 100ms minimum allowance.
+- Promotion requires a clean, attached promotion branch at the same base commit and uses `git merge --ff-only`.
 - The loop stops after `OMEGA_LOOP_MAX_ITERATIONS`.
 - The loop stops after `OMEGA_LOOP_MAX_CONSECUTIVE_FAILURES` consecutive failures.
 - The agent commits changes to a branch named `agent/<task-id>`, not directly to the current branch.
-- Always review `.omega/iterations/` before enabling auto-publish or merging a branch.
+- Always review `$OMEGA_STORAGE_ROOT/iterations/`, the task traces, steps, diffs, and agent-run metadata before release.
 
 ## How the agent improves the harness
 

@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { validateAndPromoteCandidate } from './self-improve-gates.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const root = path.resolve(__filename, '..', '..');
@@ -21,6 +21,7 @@ const config = {
   autoPublish: process.env.OMEGA_LOOP_AUTO_PUBLISH === 'true',
   validate: process.env.OMEGA_LOOP_VALIDATE !== 'false',
   maxConsecutiveFailures: parseInt(process.env.OMEGA_LOOP_MAX_CONSECUTIVE_FAILURES ?? '2', 10),
+  promotionBranch: process.env.OMEGA_LOOP_PROMOTION_BRANCH ?? 'main',
   defaultPrompt:
     process.env.OMEGA_LOOP_PROMPT ??
     'Review the Omega harness codebase. Run lint and the e2e tests. Identify the highest-impact improvement you can make, implement it with the available tools, run validation, and finish with a concise summary of what changed.',
@@ -68,7 +69,6 @@ async function ensureProject() {
 
 async function submitSelfImproveTask(projectId) {
   const tags = ['self-improve'];
-  if (config.autoPublish) tags.push('publish');
   const title = config.defaultPrompt.length > 120 ? `${config.defaultPrompt.slice(0, 120)}...` : config.defaultPrompt;
   const res = await fetch(`${config.apiUrl}/tasks`, {
     method: 'POST',
@@ -118,29 +118,13 @@ async function fetchArtifacts(taskId) {
   return artifacts;
 }
 
-async function runE2E() {
-  const result = spawnSync('node', ['scripts/run-e2e-report.mjs'], {
-    cwd: root,
-    stdio: 'inherit',
-  });
-  return result.status ?? -1;
-}
-
-async function runBenchmarks() {
-  const result = spawnSync('node', ['scripts/run-benchmarks.mjs'], {
-    cwd: root,
-    stdio: 'inherit',
-  });
-  return result.status ?? -1;
-}
-
-function buildIterationReport(iteration, task, artifacts, e2eExit, benchExit) {
+function buildIterationReport(iteration, task, artifacts, gate) {
   let md = `# Self-Improve Iteration ${iteration}\n\n`;
   md += `- **Started:** ${new Date().toISOString()}\n`;
   md += `- **Task ID:** ${task.id}\n`;
   md += `- **Status:** ${task.status}\n`;
   md += `- **Model:** ${task.provider ?? '-'}/${task.model ?? '-'}\n`;
-  md += `- **Auto-publish:** ${config.autoPublish ? 'enabled' : 'disabled'}\n\n`;
+  md += `- **Auto-publish:** ${config.autoPublish ? 'deferred until explicit post-promotion release' : 'disabled'}\n\n`;
 
   md += `## Task Result\n\n`;
   md += '```\n';
@@ -180,9 +164,23 @@ function buildIterationReport(iteration, task, artifacts, e2eExit, benchExit) {
     }
   }
 
-  md += `## Validation\n\n`;
-  md += `- E2E report exit code: ${e2eExit}\n`;
-  md += `- Benchmark exit code: ${benchExit}\n\n`;
+  md += `## Candidate Gate\n\n`;
+  md += `- Passed: ${gate.passed ? 'yes' : 'no'}\n`;
+  md += `- Promoted: ${gate.promoted ? 'yes' : 'no'}\n`;
+  for (const reason of gate.reasons ?? []) md += `- Reason: ${reason}\n`;
+  if (gate.branch) md += `- Branch: \`${gate.branch}\`\n`;
+  if (gate.candidateCommit) md += `- Candidate commit: \`${gate.candidateCommit}\`\n`;
+  if (gate.benchmarkGate?.metrics) {
+    md += `\n| Metric | Baseline | Candidate | Max allowed | Result |\n|---|---:|---:|---:|---|\n`;
+    for (const [name, metric] of Object.entries(gate.benchmarkGate.metrics)) {
+      md += `| ${name} | ${metric.baselineMs}ms | ${metric.candidateMs}ms | ${Math.round(metric.maxAllowedMs)}ms | ${metric.passed ? 'pass' : 'fail'} |\n`;
+    }
+  }
+  if (gate.candidateValidation?.steps) {
+    md += `\n### Candidate Validation\n\n`;
+    for (const step of gate.candidateValidation.steps) md += `- ${step.name}: ${step.passed ? 'pass' : 'fail'}${step.timedOut ? ' (timed out)' : ''}\n`;
+  }
+  md += '\n';
 
   return md;
 }
@@ -201,8 +199,7 @@ async function main() {
 
     let task;
     let artifacts = {};
-    let e2eExit = -1;
-    let benchExit = -1;
+    let gate = { passed: false, reasons: ['candidate gate not evaluated'] };
 
     try {
       task = await submitSelfImproveTask(projectId);
@@ -212,14 +209,25 @@ async function main() {
       console.log(`Task finished with status: ${task.status}`);
       artifacts = await fetchArtifacts(task.id);
 
-      if (config.validate) {
-        console.log('Running E2E report...');
-        e2eExit = await runE2E();
-        console.log('Running benchmarks...');
-        benchExit = await runBenchmarks();
+      if (!config.validate) {
+        gate = { passed: false, reasons: ['candidate validation is disabled; promotion refused'] };
+      } else if (task.status === 'done') {
+        console.log('Validating candidate branch and comparing benchmarks...');
+        gate = await validateAndPromoteCandidate({
+          projectPath: config.projectPath,
+          branch: artifacts.agentRun?.branch,
+          baseCommit: artifacts.agentRun?.baseCommit,
+          taskStatus: task.status,
+          agentRunStatus: artifacts.agentRun?.resultStatus,
+          diffPatch: artifacts.diffs?.[0]?.patch,
+          iteration: i,
+          storageRoot,
+          validationTimeoutMs: config.taskTimeoutMs,
+          promotionBranch: config.promotionBranch,
+        });
       }
 
-      if (task.status === 'done') {
+      if (task.status === 'done' && gate.passed) {
         consecutiveFailures = 0;
       } else {
         consecutiveFailures++;
@@ -230,7 +238,7 @@ async function main() {
       task = task ?? { id: 'unknown', status: 'failed', error: String(err) };
     }
 
-    const report = buildIterationReport(i, task, artifacts, e2eExit, benchExit);
+    const report = buildIterationReport(i, task, artifacts, gate);
     const reportPath = path.join(iterationsDir, `iteration-${i}-${nowIso()}.md`);
     await fs.writeFile(reportPath, report, 'utf-8');
     console.log(`Iteration report written to ${reportPath}`);

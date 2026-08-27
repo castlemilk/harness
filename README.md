@@ -24,6 +24,7 @@ A local-first, model-agnostic harness for scheduling work across projects, routi
 - **Token usage tracking** – provider responses record prompt/completion/total tokens and store them on each `AgentRun`.
 - **Multi-agent orchestration** – tasks tagged `orchestrate` are decomposed by a high-tier planner model, implemented by smaller-model sub-agents, and closed by a review/feedback loop. See [docs/orchestration.md](docs/orchestration.md), the [roadmap](docs/roadmap.md), and the [reference corpus](docs/references.md).
 - **External agent harnesses** – control Codex, Claude Code, Gemini CLI, OpenCode, Cursor CLI, or Aider by tagging a task `external:<cli>`. See [docs/external-agents.md](docs/external-agents.md).
+- **Self-improvement loop** – run isolated candidate iterations with trace/diff reflection, build/lint/test validation, benchmark regression gates, and fast-forward promotion. See [docs/self-improvement-loop.md](docs/self-improvement-loop.md).
 
 ## Architecture
 

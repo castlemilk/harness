@@ -174,10 +174,10 @@ function grpcClient(grpcPort) {
   return new Service(`127.0.0.1:${grpcPort}`, grpc.credentials.createInsecure());
 }
 
-function grpcSubmit(client, projectId, title) {
+function grpcSubmit(client, projectId, title, provider, model) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
-    client.submitTask({ project_id: projectId, title, auto_run: true }, (err, response) => {
+    client.submitTask({ project_id: projectId, title, auto_run: true, provider, model }, (err, response) => {
       const latency = Date.now() - start;
       if (err) return reject(err);
       resolve({ response, latency });
@@ -196,55 +196,60 @@ async function main() {
   const apiUrl = `http://127.0.0.1:${httpPort}`;
 
   console.log(`Starting benchmark server on HTTP ${httpPort}, gRPC ${grpcPort}`);
-  const mockLlm = await startMockLlm();
-  const server = await startHarness(httpPort, grpcPort, dbDir);
-  await waitForApi(apiUrl);
+  let mockLlm;
+  let server;
+  let client;
 
-  await registerProvider(apiUrl, mockLlm.port);
-  const project = await createProject(apiUrl, 'benchmark-project', '/tmp/benchmark-project');
+  try {
+    mockLlm = await startMockLlm();
+    server = await startHarness(httpPort, grpcPort, dbDir);
+    await waitForApi(apiUrl);
 
-  const results = {
-    timestamp: new Date().toISOString(),
-    httpPort,
-    grpcPort,
-    measurements: {},
-  };
+    await registerProvider(apiUrl, mockLlm.port);
+    const project = await createProject(apiUrl, 'benchmark-project', '/tmp/benchmark-project');
 
-  // HTTP task creation latency
-  const httpCreateStart = Date.now();
-  const httpTask = await createTask(apiUrl, project.id, 'HTTP benchmark task');
-  results.measurements.httpCreateTaskMs = Date.now() - httpCreateStart;
-  await pinTaskProvider(apiUrl, httpTask.id, 'benchmark-kimi', 'moonshot-v1-8k');
+    const results = {
+      timestamp: new Date().toISOString(),
+      httpPort,
+      grpcPort,
+      measurements: {},
+    };
 
-  // Time to run a simple task through the mock LLM
-  const runStart = Date.now();
-  await runTask(apiUrl, httpTask.id);
-  const finishedTask = await waitForTask(apiUrl, httpTask.id);
-  results.measurements.taskRunTotalMs = Date.now() - runStart;
-  results.measurements.taskStatus = finishedTask.status;
+    // HTTP task creation latency
+    const httpCreateStart = Date.now();
+    const httpTask = await createTask(apiUrl, project.id, 'HTTP benchmark task');
+    results.measurements.httpCreateTaskMs = Date.now() - httpCreateStart;
+    await pinTaskProvider(apiUrl, httpTask.id, 'benchmark-kimi', 'moonshot-v1-8k');
 
-  // Submit the gRPC task only after the HTTP run completes so the two
-  // measurements do not contend for the task queue. The RPC includes
-  // auto-run scheduling; completion is measured separately below.
-  const client = grpcClient(grpcPort);
-  const grpcResult = await grpcSubmit(client, project.id, 'gRPC benchmark task');
-  results.measurements.grpcSubmitTaskMs = grpcResult.latency;
+    // Time to run a simple task through the mock LLM
+    const runStart = Date.now();
+    await runTask(apiUrl, httpTask.id);
+    const finishedTask = await waitForTask(apiUrl, httpTask.id);
+    results.measurements.taskRunTotalMs = Date.now() - runStart;
+    results.measurements.taskStatus = finishedTask.status;
 
-  // gRPC task completion time
-  const grpcTaskId = grpcResult.response.id;
-  const grpcRunStart = Date.now();
-  const grpcFinished = await waitForTask(apiUrl, grpcTaskId);
-  results.measurements.grpcTaskRunTotalMs = Date.now() - grpcRunStart;
-  results.measurements.grpcTaskStatus = grpcFinished.status;
+    // Submit the gRPC task only after the HTTP run completes so the two
+    // measurements do not contend for the task queue. The RPC includes
+    // auto-run scheduling; completion is measured separately below.
+    client = grpcClient(grpcPort);
+    const grpcResult = await grpcSubmit(client, project.id, 'gRPC benchmark task', 'benchmark-kimi', 'moonshot-v1-8k');
+    results.measurements.grpcSubmitTaskMs = grpcResult.latency;
 
-  await fs.writeFile(reportFile, JSON.stringify(results, null, 2), 'utf-8');
-  console.log(`Benchmark report written to ${reportFile}`);
-  console.log(JSON.stringify(results.measurements, null, 2));
+    // gRPC task completion time
+    const grpcTaskId = grpcResult.response.id;
+    const grpcRunStart = Date.now();
+    const grpcFinished = await waitForTask(apiUrl, grpcTaskId);
+    results.measurements.grpcTaskRunTotalMs = Date.now() - grpcRunStart;
+    results.measurements.grpcTaskStatus = grpcFinished.status;
 
-  // Cleanup
-  client.close();
-  server.kill();
-  mockLlm.server.close();
+    await fs.writeFile(reportFile, JSON.stringify(results, null, 2), 'utf-8');
+    console.log(`Benchmark report written to ${reportFile}`);
+    console.log(JSON.stringify(results.measurements, null, 2));
+  } finally {
+    client?.close();
+    if (server && !server.killed) server.kill();
+    if (mockLlm) await new Promise((resolve) => mockLlm.server.close(resolve));
+  }
 }
 
 main().catch((err) => {

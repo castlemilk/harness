@@ -339,3 +339,100 @@ describe('OpenAIProvider (OAuth / Codex Responses API)', () => {
     expect(captured).toEqual({ promptTokens: 42, completionTokens: 7, totalTokens: 49 });
   });
 });
+
+describe('free-tier model rotation (sendWithTools)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const freeConfig: ProviderConfig = {
+    id: 'openrouter',
+    name: 'openrouter',
+    kind: 'generic',
+    apiKey: 'sk-or-test',
+    defaultModel: 'a:free',
+    capabilities: [
+      { name: 'a:free', level: 'advanced', supportsTools: true },
+      { name: 'b:free', level: 'advanced', supportsTools: true },
+      { name: 'c:free', level: 'capable', supportsTools: true },
+    ],
+    enabled: true,
+  };
+
+  const tools = [{ name: 'finish', description: 'finish the task', parameters: { type: 'object' } }];
+
+  function rateLimited(status = 429): Response {
+    // Retry-After: 0 keeps fetchWithRetry's in-loop retries instant so the
+    // test exercises rotation policy, not wall-clock backoff.
+    return new Response(JSON.stringify({ error: { message: 'upstream error' } }), {
+      status,
+      headers: { 'Retry-After': '0' },
+    });
+  }
+
+  function toolResponse(model: string): Response {
+    return jsonResponse({
+      model,
+      choices: [
+        { message: { content: '', tool_calls: [{ id: 'call-1', function: { name: 'finish', arguments: '{"success":true}' } }] } },
+      ],
+    });
+  }
+
+  /** A mock that records every requested model, in order. */
+  function recordingMock(respond: (model: string) => Response): {
+    fetch: (url: string, init?: RequestInit) => Promise<Response>;
+    requestedModels: string[];
+  } {
+    const requestedModels: string[] = [];
+    const fn = vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { model: string };
+      requestedModels.push(body.model);
+      return respond(body.model);
+    });
+    return { fetch: fn, requestedModels };
+  }
+
+  /** The tool-send method, guarded the way the agent's planner guards it. */
+  function toolSender(config: ProviderConfig): NonNullable<Provider['sendWithTools']> {
+    const provider: Provider = createProvider(config);
+    if (!provider.sendWithTools) {
+      throw new Error('expected a tool-capable provider');
+    }
+    return provider.sendWithTools.bind(provider);
+  }
+
+  it('rotates to a sibling model when the primary is persistently rate-limited', async () => {
+    const mock = recordingMock((model) => (model === 'a:free' ? rateLimited() : toolResponse(model)));
+    vi.stubGlobal('fetch', mock.fetch);
+
+    const out = await toolSender(freeConfig)('go', tools, { model: 'a:free' });
+
+    // The caller's contract is unchanged: normalized tool_calls, arguments parsed.
+    expect(out).toContain('"name":"finish"');
+    expect(mock.requestedModels.slice(0, 1)).toEqual(['a:free']);
+    expect(mock.requestedModels.some((m) => m === 'b:free')).toBe(true);
+    expect(mock.requestedModels.every((m) => ['a:free', 'b:free', 'c:free'].includes(m))).toBe(true);
+  });
+
+  it('gives up after the declared alternatives, with the upstream status in the error', async () => {
+    const mock = recordingMock(() => rateLimited());
+    vi.stubGlobal('fetch', mock.fetch);
+
+    await expect(
+      toolSender(freeConfig)('go', tools, { model: 'a:free' })
+    ).rejects.toThrow(/429/);
+    // Primary + at most two alternatives were tried, not one and not more.
+    expect(new Set(mock.requestedModels).size).toBe(3);
+  });
+
+  it('does not rotate on non-429 failures — a 500 is a bug, not a busy pool', async () => {
+    const mock = recordingMock(() => rateLimited(500));
+    vi.stubGlobal('fetch', mock.fetch);
+
+    await expect(
+      toolSender(freeConfig)('go', tools, { model: 'a:free' })
+    ).rejects.toThrow(/500/);
+    expect(new Set(mock.requestedModels)).toEqual(new Set(['a:free']));
+  });
+});

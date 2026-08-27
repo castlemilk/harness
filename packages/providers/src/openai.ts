@@ -189,99 +189,147 @@ export class OpenAIProvider implements Provider {
     return data.choices?.[0]?.message?.content ?? '';
   }
 
+  /**
+   * Alternative tool-capable models from this provider's declared
+   * capabilities, excluding the one that just failed.
+   *
+   * Free-tier pools make this necessary rather than nice: OpenRouter's
+   * `:free` variants share upstream provider quota, and a single model can
+   * stay 429-rate-limited for minutes while its siblings still answer.
+   * OpenRouter's own 429 remedy is "route to another model" — the provider
+   * already declares which models those are.
+   *
+   * Rotation only triggers when the primary model is exhausted THROUGH the
+   * retry loop (a sustained 429, not a transient blip — those retry in
+   * place), and tries at most two alternatives before giving up.
+   */
+  private fallbackModelsForRotation(failed: string | undefined): string[] {
+    return this.config.capabilities
+      .filter((c) => c.supportsTools !== false && c.name !== failed)
+      .map((c) => c.name)
+      .slice(0, 2);
+  }
+
   async sendWithTools(prompt: string, tools: ToolDefinition[], opts?: SendOptions): Promise<string> {
     await this.ensureTokenFresh();
     if (this.isOAuth) {
       return this.sendCodex(prompt, opts, tools);
     }
-    const thinking = this.thinkingFor(opts?.model);
-    const requestBody = JSON.stringify({
-      model: opts?.model ?? this.config.defaultModel,
-      messages: this.buildMessages(prompt, opts),
-      tools: tools.map((t) => ({
-        type: 'function',
-        function: { name: t.name, description: t.description, parameters: t.parameters },
-      })),
-      tool_choice: 'auto',
-      parallel_tool_calls: false,
-      ...(thinking
-        ? { thinking: { type: 'enabled' }, reasoning_effort: thinking.effort }
-        : this.supportsTemperature && opts?.temperature !== undefined
-          ? { temperature: opts.temperature }
-          : {}),
-    });
-    const res = await fetchWithRetry(
-      `${this.baseUrl}/chat/completions`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...this.authHeaders(),
-        },
-        body: requestBody,
-      },
-      'OpenAI tools',
-    );
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      let parsedBody: { messages?: { role?: string; content?: string; tool_calls?: { id?: string }[]; tool_call_id?: string }[] } = {};
-      try {
-        parsedBody = JSON.parse(body) as typeof parsedBody;
-      } catch {
-        // ignore parse errors
+    const primary = opts?.model ?? this.config.defaultModel;
+    const candidates = [primary, ...this.fallbackModelsForRotation(primary)];
+
+    for (let i = 0; i < candidates.length; i++) {
+      const model = candidates[i];
+      if (i > 0) {
+        console.warn(
+          `OpenAI tools: model "${primary}" is rate-limited — rotating to "${model}" (${String(i)}/${String(candidates.length - 1)})`,
+        );
       }
-      const summary = JSON.stringify(
-        (parsedBody.messages ?? []).map((m) => ({
-          role: m.role,
-          contentLen: m.content?.length ?? 0,
-          toolCallIds: m.tool_calls?.map((tc) => tc.id),
-          toolCallId: m.tool_call_id,
-        }))
-      );
-      console.error('OpenAI tools response summary:', summary);
-      const prefix = res.status === 401 || res.status === 403
-        ? 'CREDENTIAL_ERROR: '
-        : 'OpenAI tools request failed: ';
-      throw new Error(`${prefix}${res.status.toString()} ${res.statusText} — ${body.slice(0, 500)}`);
-    }
-    const data = (await res.json()) as {
-      choices?: {
-        message?: {
-          content?: string;
-          reasoning_content?: string;
-          tool_calls?: {
-            id?: string;
-            function?: { name?: string; arguments?: string };
-          }[];
-        };
-      }[];
-      usage?: Record<string, unknown>;
-    };
-    opts?.onUsage?.(extractUsage(data) ?? {});
-    const message = data.choices?.[0]?.message;
-    const toolCalls = message?.tool_calls;
-    if (toolCalls && toolCalls.length > 0) {
-      const normalized = toolCalls
-        .map((tc) => ({
-          id: tc.id ?? '',
-          name: tc.function?.name ?? '',
-          arguments: (() => {
-            try {
-              return JSON.parse(tc.function?.arguments ?? '{}') as Record<string, unknown>;
-            } catch {
-              return {};
-            }
-          })(),
-        }))
-        .filter((tc) => tc.id && tc.name);
-      // Echo the chain-of-thought back so reasoning models (DeepSeek thinking)
-      // can continue the same reasoning chain on the next tool-call turn.
-      return JSON.stringify({
-        tool_calls: normalized,
-        reasoning_content: message.reasoning_content ?? '',
+      const thinking = this.thinkingFor(model);
+      const requestBody = JSON.stringify({
+        model,
+        messages: this.buildMessages(prompt, opts),
+        tools: tools.map((t) => ({
+          type: 'function',
+          function: { name: t.name, description: t.description, parameters: t.parameters },
+        })),
+        tool_choice: 'auto',
+        parallel_tool_calls: false,
+        ...(thinking
+          ? { thinking: { type: 'enabled' }, reasoning_effort: thinking.effort }
+          : this.supportsTemperature && opts?.temperature !== undefined
+            ? { temperature: opts.temperature }
+            : {}),
       });
+      const res = await fetchWithRetry(
+        `${this.baseUrl}/chat/completions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...this.authHeaders(),
+          },
+          body: requestBody,
+        },
+        'OpenAI tools',
+      );
+      if (res.ok) {
+        const data = (await res.json()) as {
+          choices?: {
+            message?: {
+              content?: string;
+              reasoning_content?: string;
+              tool_calls?: {
+                id?: string;
+                function?: { name?: string; arguments?: string };
+              }[];
+            };
+          }[];
+          usage?: Record<string, unknown>;
+        };
+        opts?.onUsage?.(extractUsage(data) ?? {});
+        const message = data.choices?.[0]?.message;
+        // A rotation is invisible to the caller's telemetry — the run says it
+        // used the pinned model — so the fact must at least be recoverable
+        // from logs, on every turn it happened.
+        if (model !== primary) {
+          console.warn(`OpenAI tools: request served by rotated model "${model}"`);
+        }
+        const toolCalls = message?.tool_calls;
+        if (toolCalls && toolCalls.length > 0) {
+          const normalized = toolCalls
+            .map((tc) => ({
+              id: tc.id ?? '',
+              name: tc.function?.name ?? '',
+              arguments: (() => {
+                try {
+                  return JSON.parse(tc.function?.arguments ?? '{}') as Record<string, unknown>;
+                } catch {
+                  return {};
+                }
+              })(),
+            }))
+            .filter((tc) => tc.id && tc.name);
+          // Echo the chain-of-thought back so reasoning models (DeepSeek thinking)
+          // can continue the same reasoning chain on the next tool-call turn.
+          return JSON.stringify({
+            tool_calls: normalized,
+            reasoning_content: message.reasoning_content ?? '',
+          });
+        }
+        return message?.content ?? '';
+      }
+
+      const body = await res.text().catch(() => '');
+      const canRotate = res.status === 429 && i < candidates.length - 1;
+      if (!canRotate) {
+        let parsedBody: { messages?: { role?: string; content?: string; tool_calls?: { id?: string }[]; tool_call_id?: string }[] } = {};
+        try {
+          parsedBody = JSON.parse(body) as typeof parsedBody;
+        } catch {
+          // ignore parse errors
+        }
+        const summary = JSON.stringify(
+          (parsedBody.messages ?? []).map((m) => ({
+            role: m.role,
+            contentLen: m.content?.length ?? 0,
+            toolCallIds: m.tool_calls?.map((tc) => tc.id),
+            toolCallId: m.tool_call_id,
+          }))
+        );
+        console.error('OpenAI tools response summary:', summary);
+        const prefix = res.status === 401 || res.status === 403
+          ? 'CREDENTIAL_ERROR: '
+          : 'OpenAI tools request failed: ';
+        throw new Error(`${prefix}${res.status.toString()} ${res.statusText} — ${body.slice(0, 500)}`);
+      }
+      // 429 with another candidate: loop rotates. The retry loop inside
+      // fetchWithRetry already honored Retry-After; a model that is still
+      // rate-limited after 8 spread attempts is pool-saturated, and waiting
+      // longer on it just burns the shared budget its siblings need.
     }
-    return message?.content ?? '';
+    // Unreachable: the loop returns or throws on every path.
+    throw new Error('OpenAI tools: no model candidates available');
   }
 
   // --- Codex Responses API (OAuth token path) ---

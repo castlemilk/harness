@@ -199,12 +199,21 @@ export async function installWorktreeDependencies(projectPath: string): Promise<
 }
 
 export function deadlineMsForComplexity(complexity: string | undefined): number {
-  switch (complexity) {
-    case 'simple': return 5 * 60_000;
-    case 'medium': return 15 * 60_000;
-    case 'complex': return 90 * 60_000;
-    default: return 10 * 60_000;
-  }
+  // Free-tier models (OpenRouter `:free` shared pools) can take minutes per
+  // turn — queued upstream, rotated off a rate-limited sibling, or simply
+  // slow. A deadline sized for paid latency kills a healthy free-tier run
+  // after two or three turns. OMEGA_DEADLINE_MULTIPLIER scales every tier
+  // for exactly those runs; clamped >= 1 so a typo cannot shrink deadlines.
+  const multiplier = Math.max(Number(process.env.OMEGA_DEADLINE_MULTIPLIER ?? 1) || 1, 1);
+  const base = (() => {
+    switch (complexity) {
+      case 'simple': return 5 * 60_000;
+      case 'medium': return 15 * 60_000;
+      case 'complex': return 90 * 60_000;
+      default: return 10 * 60_000;
+    }
+  })();
+  return Math.round(base * multiplier);
 }
 
 export function explorationBudgetForComplexity(complexity: string | undefined): { beforeFirstEdit: number; betweenEdits: number } {

@@ -101,8 +101,8 @@ export function trackProviderEvents(span: Span, telemetry?: ProviderTelemetry): 
 function truncateMessages(
   messages: Message[],
   maxTotal = 40,
-  fullWindow = 10,
-  truncateLength = 500
+  fullWindow = 6,
+  truncateLength = 2_000
 ): Message[] {
   const cleaned = messages.filter((m) => m.role !== 'system');
 

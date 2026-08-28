@@ -1,13 +1,14 @@
 import { prisma, pglite } from './client.js';
 
 export async function seedDefaults(): Promise<void> {
+  const ollamaBaseUrl = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434';
   await prisma.providerConfig.upsert({
     where: { name: 'ollama-local' },
-    update: {},
+    update: { baseUrl: ollamaBaseUrl },
     create: {
       name: 'ollama-local',
       kind: 'ollama',
-      baseUrl: 'http://localhost:11434',
+      baseUrl: ollamaBaseUrl,
       defaultModel: 'llama3',
       capabilities: JSON.stringify([{ name: 'llama3', level: 'capable' }]),
     },

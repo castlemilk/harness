@@ -114,3 +114,36 @@ describe('sendToProvider request timeout', () => {
     );
   });
 });
+
+describe('provider context bounds', () => {
+  it('trims older tool results while preserving the recent conversation window', async () => {
+    const sendWithTools = vi.fn().mockResolvedValue('done');
+    const provider = {
+      config: { name: 'tools' },
+      send: vi.fn(),
+      sendWithTools,
+    } as unknown as Provider;
+    const oldOutput = 'o'.repeat(5_000);
+    const recentOutput = 'r'.repeat(5_000);
+    const messages = [
+      ...Array.from({ length: 5 }, (_, index) => ({
+        role: 'tool' as const,
+        tool_call_id: `old-${String(index)}`,
+        content: oldOutput,
+      })),
+      ...Array.from({ length: 6 }, (_, index) => ({
+        role: 'tool' as const,
+        tool_call_id: `recent-${String(index)}`,
+        content: recentOutput,
+      })),
+    ];
+
+    await sendToProvider(providerContext(provider, Date.now() + 1_600_000), messages);
+
+    const sent = sendWithTools.mock.calls[0]?.[2] as { messages?: { content?: string }[] };
+    expect(sent.messages?.[0]?.content).toContain('[truncated]');
+    expect(sent.messages?.[4]?.content).toContain('[truncated]');
+    expect(sent.messages?.[5]?.content).toBe(recentOutput);
+    expect(sent.messages?.[10]?.content).toBe(recentOutput);
+  });
+});

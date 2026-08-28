@@ -3,7 +3,7 @@ import type { ResolvedSkill } from './skill-resolver.js';
 import type { AgentContext } from './agent-types.js';
 import { logger } from './logger.js';
 import { sanitizeForDb } from './utils.js';
-import { parseProviderResponse, parseToolCalls } from './provider-client.js';
+import { parseProviderResponse, parseToolCalls, recordUsage } from './provider-client.js';
 import { buildReflectionPrompt } from './prompts.js';
 import { hasChanges, stageAllChanges, commit, getDiff } from './git.js';
 import {
@@ -113,6 +113,8 @@ export async function tryStuckSolve(ctx: AgentContext): Promise<boolean> {
       system: 'You are a senior software engineer. Output ONLY a unified diff patch in git apply format. No explanation, no markdown fences.',
       model: ctx.model,
       temperature: 0.2,
+      thinking: ctx.thinking,
+      onUsage: (usage) => { recordUsage(ctx, usage); },
       timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
     }), ctx.signal);
     const patch = extractPatch(raw);

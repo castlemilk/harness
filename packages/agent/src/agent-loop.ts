@@ -422,13 +422,27 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         turnCount: ctx.turnCount,
         explorationCount: ctx.explorationCount,
       });
-      messages.push({
-        role: 'user',
-        content:
-          '[LOW-BUDGET ACTION REQUIRED] Two model turns have completed without a source edit. ' +
-          'Use the repository information already gathered and make the smallest concrete edit now. ' +
-          'Do not run more discovery, think, list files, or run commands before editing.',
-      });
+      const solved = await runAgentOperation(() => tryStuckSolve(ctx));
+      if (solved) {
+        ctx.editCount++;
+        ctx.explorationAtLastEdit = ctx.explorationCount;
+        ctx.explorationSinceLastEdit = 0;
+        forcedEditMode = false;
+        ctx.rootSpan.addEvent('agent.low_budget_stuck_solve', { applied: true });
+        messages.push({
+          role: 'user',
+          content: 'A grounded fallback patch was applied from the exploration already completed. Review the change, run the focused test, and finish.',
+        });
+      } else {
+        ctx.rootSpan.addEvent('agent.low_budget_stuck_solve', { applied: false });
+        messages.push({
+          role: 'user',
+          content:
+            '[LOW-BUDGET ACTION REQUIRED] Two model turns have completed without a source edit. ' +
+            'Use the repository information already gathered and make the smallest concrete edit now. ' +
+            'Do not run more discovery, think, list files, or run commands before editing.',
+        });
+      }
     }
 
     if (

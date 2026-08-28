@@ -113,12 +113,20 @@ export async function tryStuckSolve(ctx: AgentContext): Promise<boolean> {
       system: 'You are a senior software engineer. Output ONLY a unified diff patch in git apply format. No explanation, no markdown fences.',
       model: ctx.model,
       temperature: 0.2,
-      thinking: ctx.thinking,
+      // Patch extraction needs the model's final content, not a reasoning-only
+      // response from native thinking mode.
+      thinking: false,
       onUsage: (usage) => { recordUsage(ctx, usage); },
       timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
     }), ctx.signal);
     const patch = extractPatch(raw);
-    if (!patch) return false;
+    if (!patch) {
+      ctx.rootSpan.addEvent('agent.low_budget_stuck_solve_failed', {
+        reason: 'no-patch',
+        outputLength: raw.length,
+      });
+      return false;
+    }
     const tmp = path.join(ctx.projectPath, '.stuck-solve.patch');
     await fs.writeFile(tmp, patch, 'utf-8');
     try {
@@ -135,6 +143,9 @@ export async function tryStuckSolve(ctx: AgentContext): Promise<boolean> {
         logger.info('Stuck-solver applied a draft patch (3way)', { taskId: ctx.task.id, agentRunId: ctx.agentRunId });
         return true;
       } catch (err) {
+        ctx.rootSpan.addEvent('agent.low_budget_stuck_solve_failed', {
+          reason: 'patch-apply',
+        });
         logger.warn('Stuck-solver patch failed to apply', {
           taskId: ctx.task.id,
           agentRunId: ctx.agentRunId,

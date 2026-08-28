@@ -880,7 +880,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       if (forcedEditMode && !allowedInForcedMode.has(call.name) && !isPatchCommand) {
         result = {
           success: false,
-          output: 'EDIT-FIRST MODE: you have explored too long without editing. read_file, search, and think are still allowed, but run_command, list_files, code_overview, lsp_*, finish, publish, validate_patch, and verify_api_surface are rejected until you make a concrete source change. Make an edit now (use edit_file, edit_lines, apply_patch, or write_file for a new file).',
+          output: 'EDIT-FIRST MODE: you have explored too long without editing. Only edit_file, edit_lines, apply_patch, and write_file are allowed until you make a concrete source change. Make an edit now using one of those tools.',
         };
       } else if (call.name === 'run_command' && typeof call.arguments.command === 'string' && isReadOnlyShellCommand(call.arguments.command)) {
         result = {

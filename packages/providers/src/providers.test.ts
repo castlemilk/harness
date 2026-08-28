@@ -112,6 +112,28 @@ describe('createProvider', () => {
     );
   });
 
+  it.each(['send', 'sendWithTools'] as const)('honors request timeout for Ollama %s', async (method) => {
+    vi.useFakeTimers();
+    try {
+      let signal: AbortSignal | undefined;
+      fetchSpy.mockImplementation((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+        signal = init?.signal;
+        signal?.addEventListener('abort', () => reject(new DOMException('timed out', 'AbortError')), { once: true });
+      }));
+      const provider = createProvider(ollamaConfig);
+      const request = method === 'send'
+        ? provider.send('hey', { timeoutMs: 2_500, maxRetries: 0 })
+        : provider.sendWithTools?.('hey', [], { timeoutMs: 2_500, maxRetries: 0 });
+      const rejection = expect(request).rejects.toThrow();
+
+      await vi.advanceTimersByTimeAsync(2_500);
+      await rejection;
+      expect(signal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('enables native thinking for an Ollama tool request when requested', async () => {
     fetchSpy.mockResolvedValue(jsonResponse({
       message: {

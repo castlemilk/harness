@@ -94,7 +94,11 @@ export class OllamaProvider implements Provider {
         }),
       },
       'Ollama chat',
-      OLLAMA_RETRY,
+      {
+        ...OLLAMA_RETRY,
+        ...(opts?.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
+        ...(opts?.maxRetries !== undefined ? { maxRetries: opts.maxRetries } : {}),
+      },
     );
     if (!res.ok) {
       throw new Error(`Ollama request failed: ${res.status.toString()} ${res.statusText}`);
@@ -138,7 +142,11 @@ export class OllamaProvider implements Provider {
         body,
       },
       'Ollama tools chat',
-      OLLAMA_RETRY,
+      {
+        ...OLLAMA_RETRY,
+        ...(opts?.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
+        ...(opts?.maxRetries !== undefined ? { maxRetries: opts.maxRetries } : {}),
+      },
     );
     if (!res.ok) {
       const b = await res.text().catch(() => '');

@@ -117,7 +117,7 @@ describe('createProvider', () => {
     try {
       let signal: AbortSignal | undefined;
       fetchSpy.mockImplementation((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
-        signal = init?.signal;
+        signal = init?.signal ?? undefined;
         signal?.addEventListener('abort', () => reject(new DOMException('timed out', 'AbortError')), { once: true });
       }));
       const provider = createProvider(ollamaConfig);

@@ -329,6 +329,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           {
             timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
             signal: ctx.signal,
+            model: ctx.model,
           },
         ),
         ctx.signal,

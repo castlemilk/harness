@@ -121,6 +121,31 @@ const STOP_LABELS: Record<AgentStopCondition, string> = {
 
 const LOW_BUDGET_EDIT_THRESHOLD = 40_000;
 
+export interface TokenBudgetTrace {
+  turn: number;
+  usedTokens: number;
+  budgetTokens: number;
+  remainingTokens: number;
+  ratio: number;
+  stopReason: 'within-budget' | 'exceeded';
+}
+
+export function buildTokenBudgetTrace(
+  turn: number,
+  usedTokens: number,
+  budgetTokens: number,
+): TokenBudgetTrace {
+  const remainingTokens = Math.max(0, budgetTokens - usedTokens);
+  return {
+    turn,
+    usedTokens,
+    budgetTokens,
+    remainingTokens,
+    ratio: budgetTokens > 0 ? usedTokens / budgetTokens : 0,
+    stopReason: usedTokens > budgetTokens ? 'exceeded' : 'within-budget',
+  };
+}
+
 export function shouldEnterLowBudgetEditMode(
   tokenBudget: number | undefined,
   editCount: number,
@@ -462,6 +487,12 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     let response: Awaited<ReturnType<typeof sendToProvider>>;
     try {
       response = await sendToProvider(ctx, messages);
+      if (ctx.tokenBudget !== undefined) {
+        ctx.rootSpan.addEvent(
+          'token_budget.turn',
+          { ...buildTokenBudgetTrace(ctx.turnCount, ctx.usage.totalTokens ?? 0, ctx.tokenBudget) },
+        );
+      }
     } catch (error) {
       if (!stopForAbort(error)) throw error;
       break;
@@ -880,7 +911,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         };
       }
 
-      const TOOL_OUTPUT_LIMIT = 6_000;
+      const TOOL_OUTPUT_LIMIT = 4_000;
       const displayOutput =
         result.output.length > TOOL_OUTPUT_LIMIT
           ? `${result.output.slice(0, TOOL_OUTPUT_LIMIT)}\n... [truncated]`

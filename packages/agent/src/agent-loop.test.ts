@@ -21,6 +21,7 @@ vi.mock('./git.js', () => gitMocks);
 
 import {
   budgetNoticeExperiments,
+  buildTokenBudgetTrace,
   executeAgentLoop,
   formatBudgetNotice,
   shouldEnterLowBudgetEditMode,
@@ -31,6 +32,18 @@ const GRADED_PATCH = 'diff --git a/src/value.ts b/src/value.ts\n';
 const GRADED_PATCH_SHA256 = createHash('sha256').update(GRADED_PATCH).digest('hex');
 
 describe('executeAgentLoop terminal disclosure', () => {
+  it('builds a per-turn token budget trace with bounded remaining headroom', () => {
+    expect(buildTokenBudgetTrace(3, 18_000, 24_000)).toEqual({
+      turn: 3,
+      usedTokens: 18_000,
+      budgetTokens: 24_000,
+      remainingTokens: 6_000,
+      ratio: 0.75,
+      stopReason: 'within-budget',
+    });
+    expect(buildTokenBudgetTrace(4, 25_000, 24_000).stopReason).toBe('exceeded');
+  });
+
   it('enters edit-first mode before another exploration turn on a low token budget', () => {
     expect(shouldEnterLowBudgetEditMode(24_000, 0, 2)).toBe(true);
     expect(shouldEnterLowBudgetEditMode(24_000, 1, 2)).toBe(false);

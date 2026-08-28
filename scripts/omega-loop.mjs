@@ -218,7 +218,7 @@ function buildIterationReport(iteration, task, artifacts, gate) {
 }
 
 async function main() {
-  await fs.mkdir(iterationsDir, { recursive: true });
+  await fs.mkdir(config.iterationsDir, { recursive: true });
   console.log('Omega self-improve loop starting with config:');
   console.log(JSON.stringify({ ...config, defaultPrompt: config.defaultPrompt.slice(0, 120) + '...' }, null, 2));
 

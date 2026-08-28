@@ -50,6 +50,9 @@ Run one iteration before enabling a longer run:
 
 ```bash
 OMEGA_LOOP_MAX_ITERATIONS=1 \
+OMEGA_LOOP_PROVIDER=ollama-local \
+OMEGA_LOOP_MODEL=qwen3:8b \
+OMEGA_LOOP_TOKEN_BUDGET=30000 \
 OMEGA_LOOP_AUTO_PUBLISH=false \
 node scripts/omega-loop.mjs
 ```
@@ -80,6 +83,9 @@ artifact collection.
 | `OMEGA_LOOP_MAX_ITERATIONS` | `3` | Hard limit for one process. |
 | `OMEGA_LOOP_INTERVAL_MS` | `60000` | Delay between iterations. |
 | `OMEGA_LOOP_TASK_TIMEOUT_MS` | `1800000` | Timeout for agent and candidate commands. |
+| `OMEGA_LOOP_PROVIDER` | unset | Provider to pin for each self-improvement task. Set with `OMEGA_LOOP_MODEL`. |
+| `OMEGA_LOOP_MODEL` | unset | Model to pin for each self-improvement task. Set with `OMEGA_LOOP_PROVIDER`. |
+| `OMEGA_LOOP_TOKEN_BUDGET` | unset | Token cap forwarded to each task run. |
 | `OMEGA_LOOP_MAX_CONSECUTIVE_FAILURES` | `2` | Stop threshold for failed tasks or gates. |
 | `OMEGA_LOOP_VALIDATE` | `true` | Required switch for candidate validation and promotion. `false` refuses promotion. |
 | `OMEGA_LOOP_PROMOTION_BRANCH` | `main` | Branch whose unchanged base is required for promotion. |

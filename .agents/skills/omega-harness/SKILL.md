@@ -102,6 +102,9 @@ node scripts/omega-loop.mjs
 | `OMEGA_LOOP_PROMPT` | Review codebase, run lint/e2e, implement best improvement | Task description sent to the agent |
 | `OMEGA_LOOP_MAX_ITERATIONS` | `3` | Hard stop after N iterations |
 | `OMEGA_LOOP_INTERVAL_MS` | `60000` | Wait time between iterations |
+| `OMEGA_LOOP_PROVIDER` | unset | Provider to pin for each task; set together with `OMEGA_LOOP_MODEL` |
+| `OMEGA_LOOP_MODEL` | unset | Model to pin for each task; set together with `OMEGA_LOOP_PROVIDER` |
+| `OMEGA_LOOP_TOKEN_BUDGET` | unset | Token cap forwarded to each task run |
 | `OMEGA_LOOP_AUTO_PUBLISH` | `false` | Release-policy signal only; the loop never publishes an npm package |
 | `OMEGA_LOOP_VALIDATE` | `true` | Required for promotion; `false` refuses candidate promotion |
 | `OMEGA_LOOP_MAX_CONSECUTIVE_FAILURES` | `2` | Stop if this many iterations fail in a row |

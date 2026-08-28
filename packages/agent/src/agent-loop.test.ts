@@ -23,6 +23,7 @@ import {
   budgetNoticeExperiments,
   executeAgentLoop,
   formatBudgetNotice,
+  shouldEnterLowBudgetEditMode,
 } from './agent-loop.js';
 import { Tracer } from './tracer.js';
 
@@ -30,6 +31,13 @@ const GRADED_PATCH = 'diff --git a/src/value.ts b/src/value.ts\n';
 const GRADED_PATCH_SHA256 = createHash('sha256').update(GRADED_PATCH).digest('hex');
 
 describe('executeAgentLoop terminal disclosure', () => {
+  it('enters edit-first mode before another exploration turn on a low token budget', () => {
+    expect(shouldEnterLowBudgetEditMode(24_000, 0, 2)).toBe(true);
+    expect(shouldEnterLowBudgetEditMode(24_000, 1, 2)).toBe(false);
+    expect(shouldEnterLowBudgetEditMode(60_000, 0, 2)).toBe(false);
+    expect(shouldEnterLowBudgetEditMode(24_000, 0, 1)).toBe(false);
+  });
+
   it('reports both remaining steps and remaining wall-clock in budget notices', () => {
     const notice = formatBudgetNotice(12, 8 * 60_000 + 12_000);
     expect(notice).toContain('12 steps remain');

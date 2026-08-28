@@ -23,6 +23,7 @@ interface ProviderContext {
   model: string;
   systemPrompt: string;
   textToolsSystemPrompt: string;
+  thinking?: boolean;
   signal?: AbortSignal;
   deadlineMs: number;
   router?: IntelligentRouter;
@@ -189,6 +190,7 @@ export async function sendToProvider(
           system: ctx.systemPrompt,
           model: ctx.model,
           temperature: 0.3,
+          thinking: ctx.thinking,
           timeoutMs,
           onUsage,
           messages: sendMessages,
@@ -212,6 +214,7 @@ export async function sendToProvider(
         raw = await abortableOperation(() => provider.send(transcript, {
           system: ctx.textToolsSystemPrompt,
           model: ctx.model,
+          thinking: ctx.thinking,
           timeoutMs,
           onUsage,
           onEvent,

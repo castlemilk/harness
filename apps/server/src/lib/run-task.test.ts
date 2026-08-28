@@ -25,7 +25,7 @@ vi.mock('./webhook-alerts.js', () => ({
   notifyFailure: mocks.notifyFailure,
 }));
 
-import { runTask } from './run-task.js';
+import { cancelRunningTask, runTask } from './run-task.js';
 
 function makeTask(cli: 'codex' | 'opencode', model: string) {
   const now = new Date('2026-08-23T00:00:00.000Z');
@@ -93,7 +93,7 @@ describe('external task circuit routing', () => {
     expect(mocks.runExternalAgentTask).toHaveBeenCalledWith(
       prisma,
       'task-1',
-      expect.objectContaining({ signal: controller.signal }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     expect(health.record).toHaveBeenCalledWith('external:codex', expect.objectContaining({ success: true }));
     expect(performance.update).toHaveBeenCalledWith('external:codex/gpt-5.6-luna', true, 0, expect.any(Number));
@@ -116,14 +116,45 @@ describe('external task circuit routing', () => {
     } as unknown as PrismaClient;
     const controller = new AbortController();
 
-    await runTask(prisma, task.id, { timeoutMs: 1_200_000, signal: controller.signal });
+    await runTask(prisma, task.id, {
+      timeoutMs: 1_200_000,
+      thinking: true,
+      signal: controller.signal,
+    });
 
     expect(mocks.runAgentTask).toHaveBeenCalledWith(
       prisma,
       task.id,
-      expect.objectContaining({ timeoutMs: 1_200_000, signal: controller.signal }),
+      expect.objectContaining({ timeoutMs: 1_200_000, thinking: true, signal: expect.any(AbortSignal) }),
       router,
     );
+  });
+
+  it('cancels a detached internal task and releases its controller', async () => {
+    const task = {
+      ...makeTask('codex', 'internal-model'),
+      title: 'Internal task',
+      tags: JSON.stringify(['agent']),
+      provider: 'internal-provider',
+    };
+    const router = { health: { record: vi.fn() }, performance: { update: vi.fn() } };
+    mocks.getRouter.mockResolvedValue(router);
+    mocks.runAgentTask.mockImplementation(async (_prisma, _taskId, options) => {
+      await new Promise<void>((resolve) => options.signal?.addEventListener('abort', () => resolve(), { once: true }));
+      return { task: { ...task, status: 'failed', error: 'Task cancelled' }, agentRunId: 'run-1' };
+    });
+    const prisma = {
+      ...makePrisma(task),
+      providerConfig: { findMany: vi.fn().mockResolvedValue([]) },
+    } as unknown as PrismaClient;
+
+    await expect(runTask(prisma, task.id, { detached: true })).resolves.toEqual(expect.objectContaining({ status: 'in_progress' }));
+    await vi.waitFor(() => expect(mocks.runAgentTask).toHaveBeenCalled());
+    expect(cancelRunningTask(task.id)).toBe(true);
+    await vi.waitFor(() => expect(prisma.task.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: 'failed' }),
+    })));
+    await vi.waitFor(() => expect(cancelRunningTask(task.id)).toBe(false));
   });
 
   it('threads caller cancellation into the orchestrated agent executor', async () => {
@@ -150,7 +181,7 @@ describe('external task circuit routing', () => {
     expect(mocks.runOrchestratedTask).toHaveBeenCalledWith(
       prisma,
       task.id,
-      expect.objectContaining({ signal: controller.signal }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 

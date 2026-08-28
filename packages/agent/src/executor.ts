@@ -293,6 +293,7 @@ export async function runAgentTask(
     maxSteps: options.maxSteps ?? maxStepsForComplexity(task.complexity),
     explorationBudget: explorationBudgetForComplexity(task.complexity),
     tokenBudget: options.tokenBudget,
+    thinking: options.thinking,
     modifiedFiles: new Set<string>(),
     consecutiveThinks: 0,
     explorationCount: 0,

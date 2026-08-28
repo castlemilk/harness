@@ -112,6 +112,38 @@ describe('createProvider', () => {
     );
   });
 
+  it('enables native thinking for an Ollama tool request when requested', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({
+      message: {
+        content: '',
+        thinking: 'inspect the repository first',
+        tool_calls: [{ function: { name: 'think', arguments: { thought: 'inspect the repository first' } } }],
+      },
+    }));
+    const raw = await createProvider(ollamaConfig).sendWithTools?.('hey', [], {
+      model: 'qwen3.8:27b-mlx',
+      thinking: true,
+    });
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.think).toBe(true);
+    expect(JSON.parse(raw ?? '').reasoning_content).toBe('inspect the repository first');
+  });
+
+  it('echoes Qwen thinking in the next Ollama assistant message', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ message: { content: 'done' } }));
+    await createProvider(ollamaConfig).sendWithTools?.('continue', [], {
+      messages: [{
+        role: 'assistant',
+        content: '',
+        reasoning_content: 'previous reasoning',
+      }],
+    });
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.messages[0].thinking).toBe('previous reasoning');
+  });
+
   it('lists Ollama models', async () => {
     fetchSpy.mockResolvedValue(jsonResponse({ models: [{ name: 'llama3' }, { name: 'mistral' }] }));
     const models = await createProvider(ollamaConfig).listModels();

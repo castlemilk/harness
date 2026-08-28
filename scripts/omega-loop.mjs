@@ -14,6 +14,11 @@ function parseInteger(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function parseBoolean(value) {
+  if (value === undefined) return undefined;
+  return value.toLowerCase() === 'true';
+}
+
 export function createLoopConfig(env = process.env, homeDir = os.homedir(), projectRoot = root) {
   const storageRoot = env.OMEGA_STORAGE_ROOT ?? path.join(homeDir, '.omega');
   return {
@@ -29,13 +34,14 @@ export function createLoopConfig(env = process.env, homeDir = os.homedir(), proj
     provider: env.OMEGA_LOOP_PROVIDER,
     model: env.OMEGA_LOOP_MODEL,
     tokenBudget: parseInteger(env.OMEGA_LOOP_TOKEN_BUDGET, undefined),
+    thinking: parseBoolean(env.OMEGA_LOOP_THINKING),
     autoPublish: env.OMEGA_LOOP_AUTO_PUBLISH === 'true',
     validate: env.OMEGA_LOOP_VALIDATE !== 'false',
     maxConsecutiveFailures: parseInteger(env.OMEGA_LOOP_MAX_CONSECUTIVE_FAILURES, 2),
     promotionBranch: env.OMEGA_LOOP_PROMOTION_BRANCH ?? 'main',
     defaultPrompt:
       env.OMEGA_LOOP_PROMPT ??
-    'Review the Omega harness codebase. Run lint and the e2e tests. Identify the highest-impact improvement you can make, implement it with the available tools, run validation, and finish with a concise summary of what changed.',
+    'Review the Omega harness codebase. First run `pnpm -r build`, then `pnpm -r test`, and finally `pnpm lint`; do not use `--fix` and do not invent an e2e command. Identify one highest-impact improvement, implement only that focused change, run the relevant validation, and finish with a concise summary.',
   };
 }
 
@@ -114,12 +120,23 @@ export async function submitSelfImproveTask(projectId, loopConfig = config) {
 export async function runTask(taskId, loopConfig = config) {
   const body = {};
   if (loopConfig.tokenBudget !== undefined) body.tokenBudget = loopConfig.tokenBudget;
+  if (loopConfig.thinking !== undefined) body.thinking = loopConfig.thinking;
+  if (loopConfig.taskTimeoutMs !== undefined) body.timeoutMs = loopConfig.taskTimeoutMs;
   const res = await fetch(`${loopConfig.apiUrl}/tasks/${taskId}/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Could not run task: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+export async function cancelTask(taskId, loopConfig = config) {
+  const res = await fetch(`${loopConfig.apiUrl}/tasks/${taskId}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Could not cancel task: ${res.status} ${await res.text()}`);
   return res.json();
 }
 
@@ -267,6 +284,14 @@ async function main() {
     } catch (err) {
       consecutiveFailures++;
       console.error(`Iteration ${i} failed:`, err);
+      if (task?.id) {
+        try {
+          await cancelTask(task.id, config);
+          console.warn(`Cancelled timed-out task ${task.id}`);
+        } catch (cancelErr) {
+          console.warn(`Could not cancel task ${task.id}:`, cancelErr);
+        }
+      }
       task = task ?? { id: 'unknown', status: 'failed', error: String(err) };
     }
 

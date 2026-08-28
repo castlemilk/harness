@@ -54,8 +54,8 @@ export async function createPlan(
   taskDescription?: string,
   context?: string,
   onUsage?: SendOptions['onUsage'],
-  onEventOrOptions?: SendOptions['onEvent'] | { timeoutMs?: number; signal?: AbortSignal; model?: string },
-  options?: { timeoutMs?: number; signal?: AbortSignal; model?: string },
+  onEventOrOptions?: SendOptions['onEvent'] | { timeoutMs?: number; signal?: AbortSignal; model?: string; thinking?: boolean },
+  options?: { timeoutMs?: number; signal?: AbortSignal; model?: string; thinking?: boolean },
 ): Promise<PlannerResult> {
   const contextBlock = context ? `\n\nProject context:\n${context}` : '';
   const prompt = `${PLAN_PROMPT}${contextBlock}\n\nTask: ${taskTitle}\n${taskDescription ? `Description: ${taskDescription}\n` : ''}`;
@@ -69,6 +69,7 @@ export async function createPlan(
       system: PLAN_PROMPT,
       model: requestOptions?.model,
       temperature: 0.2,
+      thinking: requestOptions?.thinking,
       onUsage,
       onEvent,
       timeoutMs: requestOptions?.timeoutMs,
@@ -77,6 +78,7 @@ export async function createPlan(
     raw = await abortableOperation(() => provider.send(prompt, {
       system: PLAN_PROMPT,
       model: requestOptions?.model,
+      thinking: requestOptions?.thinking,
       temperature: 0.2,
       onUsage,
       onEvent,

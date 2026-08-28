@@ -9,6 +9,10 @@ export interface ResolvedSkill {
   sourcePath: string;
 }
 
+const MAX_BROAD_SKILLS = 3;
+const MAX_BROAD_INSTRUCTIONS = 6_000;
+const MAX_BROAD_CONTEXT_INSTRUCTIONS = 8_000;
+
 interface FileSignature {
   languages: Set<string>;
   frameworks: Set<string>;
@@ -161,14 +165,15 @@ function skillMatchesExactly(skillName: string, taskTags?: string[]): boolean {
 }
 
 function skillMatchesBroadly(signature: FileSignature, skillName: string, description: string): boolean {
+  return skillMatchScore(signature, skillName, description) > 0;
+}
+
+function skillMatchScore(signature: FileSignature, skillName: string, description: string): number {
   const haystack = `${skillName} ${description}`.toLowerCase();
-  for (const lang of signature.languages) {
-    if (haystack.includes(lang.toLowerCase())) return true;
-  }
-  for (const fw of signature.frameworks) {
-    if (haystack.includes(fw.toLowerCase())) return true;
-  }
-  return false;
+  return [...signature.languages, ...signature.frameworks].reduce(
+    (total, signal) => total + (haystack.includes(signal.toLowerCase()) ? 1 : 0),
+    0
+  );
 }
 
 export async function resolveSkills(
@@ -240,21 +245,34 @@ export async function resolveSkills(
   // EXCLUDE reference-patch skills (instructions that cite a solution.patch):
   // those are verified patches for ONE specific task and must only be delivered
   // via an exact tag match — never broadly matched onto an unrelated repo.
+  let remainingInstructions = MAX_BROAD_CONTEXT_INSTRUCTIONS;
   const matched = artifacts
-    .filter((a) => {
-      const manifest = JSON.parse(a.manifest) as { name: string; description: string; instructions: string };
-      if (manifest.instructions.includes('solution.patch')) return false;
-      return skillMatchesBroadly(signature, manifest.name, manifest.description);
-    })
     .map((a) => {
       const manifest = JSON.parse(a.manifest) as { name: string; description: string; instructions: string };
+      if (manifest.instructions.includes('solution.patch')) return undefined;
+      if (!skillMatchesBroadly(signature, manifest.name, manifest.description)) return undefined;
+      const score = skillMatchScore(signature, manifest.name, manifest.description);
+      return { artifact: a, manifest, score };
+    })
+    .filter((entry): entry is { artifact: typeof artifacts[number]; manifest: { name: string; description: string; instructions: string }; score: number } => entry !== undefined)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, MAX_BROAD_SKILLS)
+    .map(({ artifact: a, manifest }) => {
+      const instructionLimit = Math.min(MAX_BROAD_INSTRUCTIONS, remainingInstructions);
+      remainingInstructions -= instructionLimit;
+      if (instructionLimit === 0) return undefined;
+      const instructions = manifest.instructions.slice(0, instructionLimit);
       return {
         name: manifest.name,
         description: manifest.description,
-        instructions: manifest.instructions,
+        instructions:
+          instructions.length < manifest.instructions.length
+            ? `${instructions}\n\n[Additional broad skill instructions omitted to preserve agent context.]`
+            : instructions,
         sourcePath: a.sourcePath,
       };
-    });
+    })
+    .filter((skill): skill is ResolvedSkill => skill !== undefined);
 
   // De-duplicate by name, preserving DB order.
   const seen = new Set<string>();

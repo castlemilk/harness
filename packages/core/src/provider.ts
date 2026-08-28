@@ -77,6 +77,8 @@ export interface SendOptions {
   model?: string;
   system?: string;
   temperature?: number;
+  /** Enable provider-native reasoning/thinking mode when supported. */
+  thinking?: boolean;
   onUsage?: (usage: UsageInfo) => void;
   messages?: ChatMessage[];
   timeoutMs?: number;

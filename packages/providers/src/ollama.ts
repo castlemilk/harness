@@ -18,6 +18,11 @@ export class OllamaProvider implements Provider {
     return (this.config.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, '');
   }
 
+  private thinkingEnabled(model: string, opts?: SendOptions): boolean {
+    if (opts?.thinking !== undefined) return opts.thinking;
+    return this.config.capabilities.find((cap) => cap.name === model)?.thinking === true;
+  }
+
   async listModels(): Promise<string[]> {
     const res = await fetchWithRetry(`${this.baseUrl}/api/tags`, undefined, 'Ollama tags', { maxRetries: 1 });
     if (!res.ok) return [this.config.defaultModel];
@@ -53,6 +58,7 @@ export class OllamaProvider implements Provider {
             };
           });
         }
+        if (m.reasoning_content && m.role === 'assistant') base.thinking = m.reasoning_content;
         if (m.role === 'tool') {
           base.tool_call_id = m.tool_call_id ?? '';
         }
@@ -83,6 +89,7 @@ export class OllamaProvider implements Provider {
             { role: 'user', content: prompt },
           ],
           stream: false,
+          ...(this.thinkingEnabled(opts?.model ?? this.config.defaultModel, opts) ? { think: true } : {}),
           options: opts?.temperature !== undefined ? { temperature: opts.temperature } : undefined,
         }),
       },
@@ -118,6 +125,7 @@ export class OllamaProvider implements Provider {
       })),
       stream: false,
     };
+    if (this.thinkingEnabled(opts?.model ?? this.config.defaultModel, opts)) bodyObj.think = true;
     if (opts?.temperature !== undefined) {
       bodyObj.options = { temperature: opts.temperature };
     }
@@ -139,6 +147,7 @@ export class OllamaProvider implements Provider {
     const data = (await res.json()) as {
       message?: {
         content?: string | null;
+        thinking?: string;
         tool_calls?: { function?: { name?: string; arguments?: unknown } }[];
       };
       prompt_eval_count?: number;
@@ -172,7 +181,11 @@ export class OllamaProvider implements Provider {
           })(),
         }))
         .filter((tc) => tc.name);
-      return JSON.stringify({ tool_calls: normalized });
+      return JSON.stringify({
+        content: data.message?.content ?? undefined,
+        reasoning_content: data.message?.thinking ?? undefined,
+        tool_calls: normalized,
+      });
     }
     return data.message?.content ?? '';
   }

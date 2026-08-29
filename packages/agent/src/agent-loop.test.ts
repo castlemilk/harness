@@ -25,6 +25,7 @@ import {
   executeAgentLoop,
   formatBudgetNotice,
   shouldAllowTokenBudgetFinalization,
+  shouldAllowFinalizationRepair,
   shouldEnterLowBudgetEditMode,
   shouldForceEditForTokenUsage,
 } from './agent-loop.js';
@@ -59,6 +60,17 @@ describe('executeAgentLoop terminal disclosure', () => {
     expect(shouldForceEditForTokenUsage(41_000, 80_000, 1, 3)).toBe(false);
     expect(shouldForceEditForTokenUsage(41_000, 80_000, 0, 1)).toBe(false);
     expect(shouldForceEditForTokenUsage(41_000, undefined, 0, 3)).toBe(false);
+  });
+
+  it('grants one repair turn for lint or typecheck rejection during finalization', () => {
+    expect(shouldAllowFinalizationRepair(true, 1, 'lint', false)).toBe(true);
+    expect(shouldAllowFinalizationRepair(true, 1, 'typecheck', false)).toBe(true);
+    expect(shouldAllowFinalizationRepair(true, 1, 'test', false)).toBe(false);
+    expect(shouldAllowFinalizationRepair(true, 1, 'build', false)).toBe(false);
+    expect(shouldAllowFinalizationRepair(true, 1, undefined, false)).toBe(false);
+    expect(shouldAllowFinalizationRepair(true, 1, 'lint', true)).toBe(false);
+    expect(shouldAllowFinalizationRepair(true, 0, 'lint', false)).toBe(false);
+    expect(shouldAllowFinalizationRepair(false, 1, 'lint', false)).toBe(false);
   });
 
   it('allows one finalization turn only after an edit and test', () => {

@@ -192,6 +192,25 @@ export function shouldAllowTokenBudgetFinalization(
 }
 
 /**
+ * When the finalization turn's finish is rejected for a narrow, fixable
+ * validation failure (lint or typecheck), grant exactly one repair turn so
+ * the agent can address the specific failure and call finish again. Wider
+ * failures (test/build) are out of scope: those usually require real new work
+ * the exhausted budget cannot afford.
+ */
+export function shouldAllowFinalizationRepair(
+  finalizationOnly: boolean,
+  editCount: number,
+  repairKind: 'lint' | 'typecheck' | 'test' | 'build' | undefined,
+  repairTurnUsed: boolean,
+): boolean {
+  if (!finalizationOnly) return false;
+  if (editCount <= 0) return false;
+  if (repairTurnUsed) return false;
+  return repairKind === 'lint' || repairKind === 'typecheck';
+}
+
+/**
  * Build the canonical terminal narrative written to Task.result/error. Keeping
  * this in one place makes a blank failed reason structurally impossible.
  */
@@ -226,6 +245,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
   let forcedEditModeSteps = 0;
   let finalizationTurnUsed = false;
   let finalizationOnly = false;
+  let repairTurnUsed = false;
   let stopCondition: AgentStopCondition = 'stopped-without-finish';
   const toolCallCounts: Record<string, number> = {};
   ctx.turnCount = 0;
@@ -659,7 +679,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       });
       const stepId = step.id;
 
-      const rejectFinish = async (message: string): Promise<void> => {
+      const rejectFinish = async (message: string, repairKind?: 'lint' | 'typecheck' | 'test' | 'build'): Promise<boolean> => {
         turnHadFailure = true;
         await ctx.prisma.taskStep.update({
           where: { id: stepId },
@@ -668,7 +688,35 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         toolResults.push({ toolCallId: call.id, name: 'finish', output: message, success: false });
         messages.push({ role: 'tool', tool_call_id: call.id, content: message });
         processedToolCallIds.add(call.id);
+        // The finalization turn protects a verified edit+test from dying on
+        // budget. If finish was rejected on that turn for a narrow, fixable
+        // validation issue (lint or typecheck), grant exactly one repair turn
+        // so the agent can address the specific failure and call finish again.
+        // Tests/builds that fail after a focused test is more nuanced: only
+        // grant a repair turn when the agent's recent edit introduced the
+        // regression (test/build would otherwise require real new work that
+        // the finalization budget cannot afford).
+        if (shouldAllowFinalizationRepair(finalizationOnly, ctx.editCount, repairKind, repairTurnUsed)) {
+          repairTurnUsed = true;
+          finalizationOnly = false;
+          const focus = repairKind === 'lint'
+            ? 'fix the lint errors reported above'
+            : 'fix the TypeScript type errors reported above';
+          messages.push({
+            role: 'user',
+            content:
+              `[REPAIR TURN] The token budget is exhausted, but finish was rejected for a fixable ` +
+              `${String(repairKind)} failure after a verified edit and test. ${focus} with edit_file, then ` +
+              `call finish. Do not run new discovery or unrelated commands.`,
+          });
+          ctx.rootSpan.addEvent('agent.finalization_repair', {
+            kind: repairKind,
+            editCount: ctx.editCount,
+          });
+          return true;
+        }
         rejectRemainingToolCalls('finish was rejected');
+        return false;
       };
 
       if (call.name === 'finish') {
@@ -718,11 +766,13 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
             break;
           }
           if (!typeCheck.success) {
-            await rejectFinish(
-              `finish rejected: TypeScript typecheck failed after editing ${String(modifiedTsFiles.length)} file(s). Fix the type errors before finishing.\n\n${typeCheck.output}`,
-            );
-            advanceStep();
-            break;
+            const message = `finish rejected: TypeScript typecheck failed after editing ${String(modifiedTsFiles.length)} file(s). Fix the type errors before finishing.\n\n${typeCheck.output}`;
+            const repairUsed = await rejectFinish(message, 'typecheck');
+            if (!repairUsed) {
+              advanceStep();
+              break;
+            }
+            continue;
           }
         }
 
@@ -749,8 +799,24 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           ]
             .filter(Boolean)
             .join('\n\n');
-          await rejectFinish(`finish rejected: project validation did not pass. Fix the failures and try again.\n\n${failures}`);
-          break;
+          const message = `finish rejected: project validation did not pass. Fix the failures and try again.\n\n${failures}`;
+          // Lint failures (and typecheck failures handled above) are the
+          // narrow, fixable class. Tests/builds that fail after the agent
+          // has already run a focused test warrant the same one-shot repair
+          // turn only when the project validation explicitly says the
+          // recent edit introduced the regression.
+          const repairKind: 'lint' | 'test' | 'build' | undefined = !validation.lint.passed
+            ? 'lint'
+            : !validation.test.passed
+              ? 'test'
+              : !validation.build.passed
+                ? 'build'
+                : undefined;
+          const repairUsed = await rejectFinish(message, repairKind);
+          if (!repairUsed) {
+            break;
+          }
+          continue;
         }
 
         const autoChecks = generateAutoApiChecks(ctx.task.description);

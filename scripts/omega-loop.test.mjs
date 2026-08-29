@@ -6,13 +6,13 @@ afterEach(() => {
 });
 
 describe('omega self-improve loop configuration', () => {
-  it('gives the default agent an executable validation sequence', () => {
+  it('gives the default agent a focused prompt that defers full validation to the gate', () => {
     const config = createLoopConfig({}, '/home/test', '/repo');
 
-    expect(config.defaultPrompt).toContain('pnpm -r build');
-    expect(config.defaultPrompt).toContain('pnpm -r test');
-    expect(config.defaultPrompt).toContain('pnpm lint');
-    expect(config.defaultPrompt).toContain('do not invent an e2e command');
+    expect(config.defaultPrompt).toContain('one small, high-confidence change');
+    expect(config.defaultPrompt).toContain('do NOT run full-repo build/test/lint');
+    expect(config.defaultPrompt).toContain('promotion gate');
+    expect(config.defaultPrompt).toContain('focused test');
   });
 
   it('maps provider, model, budget, and orchestration controls from the environment', () => {
@@ -65,7 +65,7 @@ describe('omega self-improve loop configuration', () => {
           projectId: 'project-1',
           title: 'Improve one thing.',
           description: 'Improve one thing.',
-          complexity: 'complex',
+          complexity: 'simple',
           tags: ['self-improve'],
         }),
       }),

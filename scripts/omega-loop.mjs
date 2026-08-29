@@ -97,7 +97,10 @@ export async function submitSelfImproveTask(projectId, loopConfig = config) {
       projectId,
       title,
       description: loopConfig.defaultPrompt,
-      complexity: 'complex',
+      // One focused improvement per iteration: 'simple' keeps the agent's
+      // exploration budget (beforeFirstEdit=8) matched to the focused prompt,
+      // so wandering is curbed before a small local model exhausts its tokens.
+      complexity: 'simple',
       tags,
     }),
   });

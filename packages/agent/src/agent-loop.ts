@@ -157,6 +157,25 @@ export function shouldEnterLowBudgetEditMode(
     && turnCount >= 2;
 }
 
+/**
+ * Exploration-call limits cannot protect small local models whose context
+ * floods from a handful of large reads: a single turn can consume 20% or more
+ * of the token budget. When half the budget is gone with no edit yet, force
+ * the agent into edit mode while enough budget remains to edit, test, and
+ * finish.
+ */
+export function shouldForceEditForTokenUsage(
+  usedTokens: number,
+  tokenBudget: number | undefined,
+  editCount: number,
+  turnCount: number,
+): boolean {
+  return tokenBudget !== undefined
+    && usedTokens > tokenBudget * 0.5
+    && editCount === 0
+    && turnCount >= 2;
+}
+
 export function shouldAllowTokenBudgetFinalization(
   usedTokens: number,
   tokenBudget: number | undefined,
@@ -431,11 +450,19 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       break;
     }
 
-    if (shouldEnterLowBudgetEditMode(ctx.tokenBudget, ctx.editCount, ctx.turnCount) && !forcedEditMode) {
+    const usageForcedEdit = shouldForceEditForTokenUsage(
+      ctx.usage.totalTokens ?? 0,
+      ctx.tokenBudget,
+      ctx.editCount,
+      ctx.turnCount,
+    );
+    if ((shouldEnterLowBudgetEditMode(ctx.tokenBudget, ctx.editCount, ctx.turnCount) || usageForcedEdit) && !forcedEditMode) {
       forcedEditMode = true;
       forcedEditModeSteps = 0;
       ctx.rootSpan.addEvent('agent.low_budget_edit_first', {
         tokenBudget: ctx.tokenBudget,
+        tokenBudgetUsed: ctx.usage.totalTokens ?? 0,
+        trigger: usageForcedEdit ? 'token-usage' : 'small-budget',
         turnCount: ctx.turnCount,
         explorationCount: ctx.explorationCount,
       });
@@ -458,7 +485,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         messages.push({
           role: 'user',
           content:
-            '[LOW-BUDGET ACTION REQUIRED] Two model turns have completed without a source edit. ' +
+            '[LOW-BUDGET ACTION REQUIRED] A large share of the token budget is gone and no source edit has been made. ' +
             'Use the repository information already gathered and make the smallest concrete edit now. ' +
             'Your next response must contain an edit_file, edit_lines, apply_patch, or write_file tool call. ' +
             'Do not run more discovery, think, list files, or run commands before editing.',
@@ -868,7 +895,8 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       // In forced-edit mode, reads stay allowed briefly (the model may need to
       // locate the file it was told to edit), but once it has burned half the
       // forced budget still reading, drop reads too — only edits advance.
-      const lowBudgetEditMode = shouldEnterLowBudgetEditMode(ctx.tokenBudget, ctx.editCount, ctx.turnCount);
+      const lowBudgetEditMode = shouldEnterLowBudgetEditMode(ctx.tokenBudget, ctx.editCount, ctx.turnCount)
+        || shouldForceEditForTokenUsage(ctx.usage.totalTokens ?? 0, ctx.tokenBudget, ctx.editCount, ctx.turnCount);
       const forcedBudget = lowBudgetEditMode ? 2 : ctx.explorationBudget.beforeFirstEdit;
       const editOnlyInForcedMode = forcedEditMode && forcedEditModeSteps > Math.max(2, Math.floor(forcedBudget / 2));
       const initialForcedRead = forcedEditMode && lowBudgetEditMode && forcedEditModeSteps === 0;

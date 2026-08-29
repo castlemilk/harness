@@ -26,6 +26,7 @@ import {
   formatBudgetNotice,
   shouldAllowTokenBudgetFinalization,
   shouldEnterLowBudgetEditMode,
+  shouldForceEditForTokenUsage,
 } from './agent-loop.js';
 import { Tracer } from './tracer.js';
 
@@ -50,6 +51,14 @@ describe('executeAgentLoop terminal disclosure', () => {
     expect(shouldEnterLowBudgetEditMode(24_000, 1, 2)).toBe(false);
     expect(shouldEnterLowBudgetEditMode(60_000, 0, 2)).toBe(false);
     expect(shouldEnterLowBudgetEditMode(24_000, 0, 1)).toBe(false);
+  });
+
+  it('forces edit-first mode once half the token budget is spent without an edit', () => {
+    expect(shouldForceEditForTokenUsage(41_000, 80_000, 0, 3)).toBe(true);
+    expect(shouldForceEditForTokenUsage(40_000, 80_000, 0, 3)).toBe(false);
+    expect(shouldForceEditForTokenUsage(41_000, 80_000, 1, 3)).toBe(false);
+    expect(shouldForceEditForTokenUsage(41_000, 80_000, 0, 1)).toBe(false);
+    expect(shouldForceEditForTokenUsage(41_000, undefined, 0, 3)).toBe(false);
   });
 
   it('allows one finalization turn only after an edit and test', () => {

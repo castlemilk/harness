@@ -47,7 +47,7 @@ export async function writeFile(
   if (isForbiddenWritePath(filePath)) {
     return {
       success: false,
-      output: `Writing to test/spec paths is not allowed: ${filePath}. Use edit_file on source files only.`,
+      output: `Writing to test/spec paths is not allowed: ${filePath}. Use edit_file to modify an existing file (including existing test files), or pick a non-test source path for new files.`,
     };
   }
   try {

@@ -6,10 +6,11 @@ afterEach(() => {
 });
 
 describe('omega self-improve loop configuration', () => {
-  it('gives the default agent a focused prompt that defers full validation to the gate', () => {
+  it('gives the default agent a focused prompt scoped to packages/agent source files', () => {
     const config = createLoopConfig({}, '/home/test', '/repo');
 
-    expect(config.defaultPrompt).toContain('one small, high-confidence change');
+    expect(config.defaultPrompt).toContain('packages/agent');
+    expect(config.defaultPrompt).toContain('SOURCE file');
     expect(config.defaultPrompt).toContain('do NOT run full-repo build/test/lint');
     expect(config.defaultPrompt).toContain('promotion gate');
     expect(config.defaultPrompt).toContain('focused test');

@@ -41,7 +41,7 @@ export function createLoopConfig(env = process.env, homeDir = os.homedir(), proj
     promotionBranch: env.OMEGA_LOOP_PROMOTION_BRANCH ?? 'main',
     defaultPrompt:
       env.OMEGA_LOOP_PROMPT ??
-    'Improve the Omega harness codebase with one small, high-confidence change (a bug fix, a missing test, or a tiny refactor). The promotion gate re-runs install, build, lint, and the full test suite on your diff automatically, so do NOT run full-repo build/test/lint yourself. Pick one focused improvement, implement it, run only the focused test that covers it (for example `pnpm --filter <pkg> test`), and finish with success=true and a concise summary if that focused test passes. Keep the diff minimal.',
+    'Improve packages/agent in the Omega harness with one small, high-confidence change to a SOURCE file (packages/agent/src/**, not test files). The promotion gate re-runs install, build, lint, and the full test suite on your diff automatically, so do NOT run full-repo build/test/lint yourself. Examples of good changes: tighten a small helper, add a regression for an existing branch, fix an obvious code smell in agent-loop.ts or agent-helpers.ts. To add a new regression, edit an EXISTING test file with edit_file (write_file to test paths is rejected). Run only the focused test covering your change (for example `pnpm --filter @omega/agent test -- --run <file>`) and finish with success=true and a concise summary if it passes. Keep the diff to a single file and minimal.',
   };
 }
 

@@ -164,11 +164,12 @@ export function shouldAllowTokenBudgetFinalization(
   hasRunTestCommand: boolean,
   finalizationTurnUsed: boolean,
 ): boolean {
+  // Grant exactly one finalization turn after a verified edit and test.
   return tokenBudget !== undefined
-    && usedTokens > tokenBudget
-    && editCount > 0
-    && hasRunTestCommand
-    && !finalizationTurnUsed;
+     && usedTokens > tokenBudget
+     && editCount > 0
+     && hasRunTestCommand
+     && !finalizationTurnUsed;
 }
 
 /**

@@ -116,11 +116,12 @@ async function validateCandidate(candidatePath, reportRoot, timeoutMs, runner = 
   const install = run('install', 'pnpm', ['install', '--frozen-lockfile', '--prefer-offline']);
   if (!install.passed) return { passed: false, steps };
 
-  // Build the benchmark's dependencies first because the workspace bundle does
-  // not declare every build-time relationship and recursive builds can race.
-  const benchBuild = run('bench-build', 'pnpm', ['--filter', '@omega/bench', 'build']);
-  if (!benchBuild.passed) return { passed: false, steps };
-
+  // Build the whole workspace in topological order. Now that the bundle
+  // package declares @omega/bench as a devDependency, pnpm -r builds bench
+  // before bundle; bench's own tsc resolves @omega/core and @omega/db
+  // because pnpm builds leaves first. The previous special-case bench-build
+  // step existed to work around the undeclared bundle->bench edge that
+  // caused a build-order race, which the dependency declaration fixed.
   const build = run('build', 'pnpm', ['-r', 'build']);
   if (!build.passed) return { passed: false, steps };
 

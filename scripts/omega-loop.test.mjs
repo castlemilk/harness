@@ -13,7 +13,9 @@ describe('omega self-improve loop configuration', () => {
     expect(config.defaultPrompt).toContain('SOURCE file');
     expect(config.defaultPrompt).toContain('do NOT run full-repo build/test/lint');
     expect(config.defaultPrompt).toContain('promotion gate');
-    expect(config.defaultPrompt).toContain('focused test');
+    expect(config.defaultPrompt).toContain('agent-helpers.ts');
+    expect(config.defaultPrompt).toContain('AVOID');
+    expect(config.defaultPrompt).toContain('fix the lint with edit_file BEFORE calling finish');
   });
 
   it('maps provider, model, budget, and orchestration controls from the environment', () => {

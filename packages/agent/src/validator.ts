@@ -187,14 +187,19 @@ async function validateNodeProject(
     return [script];
   };
 
+  // Build first: type-aware lint rules and test runners resolve workspace
+  // package types from their build output, so a fresh worktree fails lint
+  // with hundreds of "could not be resolved" errors until the workspace is
+  // built. Building before validating keeps finish-time validation honest
+  // for agents working in freshly checked-out worktrees.
+  const build = (await fileHasScript(projectPath, 'build'))
+    ? await runStep(projectPath, pm.command, scriptArgs('build'), options)
+    : pass();
   const lint = (await fileHasScript(projectPath, 'lint'))
     ? await runStep(projectPath, pm.command, scriptArgs('lint'), options)
     : pass();
   const test = (await fileHasScript(projectPath, 'test'))
     ? await runStep(projectPath, pm.command, scriptArgs('test'), options)
-    : pass();
-  const build = (await fileHasScript(projectPath, 'build'))
-    ? await runStep(projectPath, pm.command, scriptArgs('build'), options)
     : pass();
 
   return { lint, test, build, allPassed: lint.passed && test.passed && build.passed };

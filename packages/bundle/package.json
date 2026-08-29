@@ -33,6 +33,7 @@
     "yaml": "^2.4.0"
   },
   "devDependencies": {
+    "@omega/bench": "workspace:*",
     "@omega/core": "workspace:*",
     "@omega/providers": "workspace:*",
     "@omega/router": "workspace:*",

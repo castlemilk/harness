@@ -207,13 +207,19 @@ describe('PluginsView', () => {
     expect(render(objectives)).toContain('dev only');
   });
 
+  // Victoria is an OPTIONAL out-of-tree shell (see roster.test.ts): the
+  // jump-target assertion reads the real roster, so it runs only where the
+  // sibling omega checkout that provides victoria exists.
+  const installedIds = new Set(registered.map((s) => s.id));
+  const ifVictoriaInstalled = installedIds.has('victoria') ? it : it.skip;
+
   it('offers to start an objective for a shell no objective uses', () => {
     const html = render(objectives);
     expect(html).toContain('No objective uses it');
     expect(html).toContain('Start an objective with this use-case');
   });
 
-  it('jumps instead, once an objective carries the shell', () => {
+  ifVictoriaInstalled('jumps instead, once an objective carries the shell', () => {
     const html = render(objectives);
     expect(html).toContain('1 objective using it');
     expect(html).toContain('Run the Victoria trading desk');

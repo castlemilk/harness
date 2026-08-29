@@ -331,6 +331,9 @@ importers:
         specifier: ^2.4.0
         version: 2.9.0
     devDependencies:
+      '@omega/bench':
+        specifier: workspace:*
+        version: link:../bench
       '@omega/core':
         specifier: workspace:*
         version: link:../core

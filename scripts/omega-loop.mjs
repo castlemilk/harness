@@ -41,7 +41,7 @@ export function createLoopConfig(env = process.env, homeDir = os.homedir(), proj
     promotionBranch: env.OMEGA_LOOP_PROMOTION_BRANCH ?? 'main',
     defaultPrompt:
       env.OMEGA_LOOP_PROMPT ??
-    'Review the Omega harness codebase. First run `pnpm -r build`, then `pnpm -r test`, and finally `pnpm lint`; do not use `--fix` and do not invent an e2e command. Identify one highest-impact improvement, implement only that focused change, run the relevant validation, and finish with a concise summary.',
+    'Improve the Omega harness codebase with one small, high-confidence change (a bug fix, a missing test, or a tiny refactor). The promotion gate re-runs install, build, lint, and the full test suite on your diff automatically, so do NOT run full-repo build/test/lint yourself. Pick one focused improvement, implement it, run only the focused test that covers it (for example `pnpm --filter <pkg> test`), and finish with success=true and a concise summary if that focused test passes. Keep the diff minimal.',
   };
 }
 

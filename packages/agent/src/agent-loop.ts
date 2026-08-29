@@ -157,6 +157,20 @@ export function shouldEnterLowBudgetEditMode(
     && turnCount >= 2;
 }
 
+export function shouldAllowTokenBudgetFinalization(
+  usedTokens: number,
+  tokenBudget: number | undefined,
+  editCount: number,
+  hasRunTestCommand: boolean,
+  finalizationTurnUsed: boolean,
+): boolean {
+  return tokenBudget !== undefined
+    && usedTokens > tokenBudget
+    && editCount > 0
+    && hasRunTestCommand
+    && !finalizationTurnUsed;
+}
+
 /**
  * Build the canonical terminal narrative written to Task.result/error. Keeping
  * this in one place makes a blank failed reason structurally impossible.
@@ -190,6 +204,8 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
   let stuckTurnCount = 0;
   let forcedEditMode = false;
   let forcedEditModeSteps = 0;
+  let finalizationTurnUsed = false;
+  let finalizationOnly = false;
   let stopCondition: AgentStopCondition = 'stopped-without-finish';
   const toolCallCounts: Record<string, number> = {};
   ctx.turnCount = 0;
@@ -422,7 +438,10 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         turnCount: ctx.turnCount,
         explorationCount: ctx.explorationCount,
       });
-      const solved = await runAgentOperation(() => tryStuckSolve(ctx));
+      const shouldAttemptStuckSolve = ctx.explorationCount > ctx.explorationBudget.beforeFirstEdit;
+      const solved = shouldAttemptStuckSolve
+        ? await runAgentOperation(() => tryStuckSolve(ctx))
+        : false;
       if (solved) {
         ctx.editCount++;
         ctx.explorationAtLastEdit = ctx.explorationCount;
@@ -434,21 +453,35 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           content: 'A grounded fallback patch was applied from the exploration already completed. Review the change, run the focused test, and finish.',
         });
       } else {
-        ctx.rootSpan.addEvent('agent.low_budget_stuck_solve', { applied: false });
+        ctx.rootSpan.addEvent('agent.low_budget_stuck_solve', { applied: false, skipped: !shouldAttemptStuckSolve });
         messages.push({
           role: 'user',
           content:
             '[LOW-BUDGET ACTION REQUIRED] Two model turns have completed without a source edit. ' +
             'Use the repository information already gathered and make the smallest concrete edit now. ' +
+            'Your next response must contain an edit_file, edit_lines, apply_patch, or write_file tool call. ' +
             'Do not run more discovery, think, list files, or run commands before editing.',
         });
       }
     }
 
-    if (
-      ctx.tokenBudget !== undefined &&
-      (ctx.usage.totalTokens ?? 0) > ctx.tokenBudget
-    ) {
+    const overTokenBudget = ctx.tokenBudget !== undefined && (ctx.usage.totalTokens ?? 0) > ctx.tokenBudget;
+    if (shouldAllowTokenBudgetFinalization(
+      ctx.usage.totalTokens ?? 0,
+      ctx.tokenBudget,
+      ctx.editCount,
+      ctx.hasRunTestCommand,
+      finalizationTurnUsed,
+    )) {
+      finalizationTurnUsed = true;
+      finalizationOnly = true;
+      messages.push({
+        role: 'user',
+        content:
+          '[FINALIZATION TURN] The token budget is exhausted, but a source edit and test command have completed. ' +
+          'Do not call any tool except finish. Call finish now with success=true and a concise summary.',
+      });
+    } else if (overTokenBudget) {
       logger.warn('Token budget exceeded, ending agent loop', {
         taskId: ctx.task.id,
         agentRunId: ctx.agentRunId,
@@ -837,13 +870,19 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       const lowBudgetEditMode = shouldEnterLowBudgetEditMode(ctx.tokenBudget, ctx.editCount, ctx.turnCount);
       const forcedBudget = lowBudgetEditMode ? 2 : ctx.explorationBudget.beforeFirstEdit;
       const editOnlyInForcedMode = forcedEditMode && forcedEditModeSteps > Math.max(2, Math.floor(forcedBudget / 2));
+      const initialForcedRead = forcedEditMode && lowBudgetEditMode && forcedEditModeSteps === 0;
       const allowedInForcedMode = new Set(
-        editOnlyInForcedMode || lowBudgetEditMode
+        editOnlyInForcedMode || (lowBudgetEditMode && !initialForcedRead)
           ? ['edit_file', 'write_file', 'edit_lines', 'apply_patch']
           : ['edit_file', 'write_file', 'edit_lines', 'apply_patch', 'read_file', 'search', 'think'],
       );
       if (stuckWithoutEdits && !forcedEditMode) {
-        const solved = await tryStuckSolve(ctx);
+        // A low-budget agent that has only made two targeted reads still has
+        // enough context to edit. Avoid spending another slow local-model turn
+        // on a speculative patch before giving it the forced edit instruction.
+        const solved = ctx.explorationCount > ctx.explorationBudget.beforeFirstEdit
+          ? await tryStuckSolve(ctx)
+          : false;
         if (solved) {
           ctx.editCount++;
           ctx.explorationAtLastEdit = ctx.explorationCount;
@@ -877,10 +916,17 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           explorationCount: ctx.explorationCount,
         });
       }
-      if (forcedEditMode && !allowedInForcedMode.has(call.name) && !isPatchCommand) {
+      if (finalizationOnly && call.name !== 'finish') {
         result = {
           success: false,
-          output: 'EDIT-FIRST MODE: you have explored too long without editing. Only edit_file, edit_lines, apply_patch, and write_file are allowed until you make a concrete source change. Make an edit now using one of those tools.',
+          output: 'FINALIZATION TURN: only the finish tool is allowed because the token budget is exhausted. Call finish now.',
+        };
+      } else if (forcedEditMode && !allowedInForcedMode.has(call.name) && !isPatchCommand) {
+        result = {
+          success: false,
+          output: initialForcedRead
+            ? 'EDIT-FIRST MODE: make a concrete edit now. Only edit_file, edit_lines, apply_patch, and write_file are allowed, except for one targeted read_file to obtain exact lines.'
+            : 'EDIT-FIRST MODE: you have explored too long without editing. Only edit_file, edit_lines, apply_patch, and write_file are allowed. Make an edit now.',
         };
       } else if (call.name === 'run_command' && typeof call.arguments.command === 'string' && isReadOnlyShellCommand(call.arguments.command)) {
         result = {
@@ -1062,8 +1108,8 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         role: 'user',
         content:
           `[ACTION REQUIRED] You have explored long enough without editing. ` +
-          `You are now in FORCED EDIT MODE. Only read_file, search, and edit_file are accepted. ` +
-          `All other tools (write_file, run_command, list_files, code_overview, think, lsp_*) will be rejected until you make a concrete edit. ` +
+          `You are now in FORCED EDIT MODE. Use one targeted read_file only if you need exact lines, then use edit_file, edit_lines, apply_patch, or write_file. ` +
+          `All other tools (search, run_command, list_files, code_overview, think, lsp_*) will be rejected until you make a concrete edit. ` +
           `You still have the full conversation above (repo exploration, tool results, and any partial analysis). ` +
           `Choose the most relevant source file, read the exact lines you need, and make the smallest edit_file change that advances the task. ` +
           `Do not explain. Do not ask for clarification. Edit now.`,

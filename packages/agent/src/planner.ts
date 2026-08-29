@@ -1,4 +1,4 @@
-import type { Provider, ToolDefinition, SendOptions } from '@omega/core';
+import type { Provider, SendOptions } from '@omega/core';
 import { AGENT_TOOLS } from './tool-definitions.js';
 import { abortableOperation } from './retry.js';
 
@@ -12,18 +12,6 @@ export interface PlannerResult {
   plan: PlanStep[];
   reasoning: string;
 }
-
-const PLANNING_TOOLS: ToolDefinition[] = [
-  {
-    name: 'think',
-    description: 'Record a planning thought.',
-    parameters: {
-      type: 'object',
-      properties: { thought: { type: 'string' } },
-      required: ['thought'],
-    },
-  },
-];
 
 const toolDescriptions = AGENT_TOOLS.map(
   (t) => `- ${t.name}: ${t.description}`
@@ -59,32 +47,19 @@ export async function createPlan(
 ): Promise<PlannerResult> {
   const contextBlock = context ? `\n\nProject context:\n${context}` : '';
   const prompt = `${PLAN_PROMPT}${contextBlock}\n\nTask: ${taskTitle}\n${taskDescription ? `Description: ${taskDescription}\n` : ''}`;
-  // Try tool-aware path first, fall back to plain send.
-  let raw: string;
+  // Planning asks for a JSON document, not a tool call. Tool-aware requests
+  // make smaller models return a serialized think call instead of the plan.
   const onEvent = typeof onEventOrOptions === 'function' ? onEventOrOptions : undefined;
   const requestOptions = typeof onEventOrOptions === 'object' ? onEventOrOptions : options;
-  const sendWithTools = provider.sendWithTools?.bind(provider);
-  if (typeof sendWithTools === 'function') {
-    raw = await abortableOperation(() => sendWithTools.call(provider, prompt, PLANNING_TOOLS, {
-      system: PLAN_PROMPT,
-      model: requestOptions?.model,
-      temperature: 0.2,
-      thinking: requestOptions?.thinking,
-      onUsage,
-      onEvent,
-      timeoutMs: requestOptions?.timeoutMs,
-    }), requestOptions?.signal);
-  } else {
-    raw = await abortableOperation(() => provider.send(prompt, {
-      system: PLAN_PROMPT,
-      model: requestOptions?.model,
-      thinking: requestOptions?.thinking,
-      temperature: 0.2,
-      onUsage,
-      onEvent,
-      timeoutMs: requestOptions?.timeoutMs,
-    }), requestOptions?.signal);
-  }
+  const raw = await abortableOperation(() => provider.send(prompt, {
+    system: PLAN_PROMPT,
+    model: requestOptions?.model,
+    thinking: requestOptions?.thinking,
+    temperature: 0.2,
+    onUsage,
+    onEvent,
+    timeoutMs: requestOptions?.timeoutMs,
+  }), requestOptions?.signal);
 
   try {
     const parsed = JSON.parse(stripMarkdown(raw)) as PlannerResult;

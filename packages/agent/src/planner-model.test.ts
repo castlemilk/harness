@@ -3,9 +3,10 @@ import type { Provider } from '@omega/core';
 import { createPlan } from './planner.js';
 
 describe('planner model selection', () => {
-  it('passes the selected model to tool-aware provider planning calls', async () => {
+  it('passes the selected model to plain JSON planning calls', async () => {
+    const send = vi.fn().mockResolvedValue(JSON.stringify({ reasoning: 'plan', plan: [] }));
     const sendWithTools = vi.fn().mockResolvedValue(JSON.stringify({ reasoning: 'plan', plan: [] }));
-    const provider = { sendWithTools } as unknown as Provider;
+    const provider = { send, sendWithTools } as unknown as Provider;
 
     await createPlan(
       provider,
@@ -17,10 +18,10 @@ describe('planner model selection', () => {
       { model: 'qwen3:8b' },
     );
 
-    expect(sendWithTools).toHaveBeenCalledWith(
+    expect(send).toHaveBeenCalledWith(
       expect.any(String),
-      expect.any(Array),
       expect.objectContaining({ model: 'qwen3:8b' }),
     );
+    expect(sendWithTools).not.toHaveBeenCalled();
   });
 });

@@ -24,6 +24,7 @@ import {
   buildTokenBudgetTrace,
   executeAgentLoop,
   formatBudgetNotice,
+  shouldAllowTokenBudgetFinalization,
   shouldEnterLowBudgetEditMode,
 } from './agent-loop.js';
 import { Tracer } from './tracer.js';
@@ -49,6 +50,13 @@ describe('executeAgentLoop terminal disclosure', () => {
     expect(shouldEnterLowBudgetEditMode(24_000, 1, 2)).toBe(false);
     expect(shouldEnterLowBudgetEditMode(60_000, 0, 2)).toBe(false);
     expect(shouldEnterLowBudgetEditMode(24_000, 0, 1)).toBe(false);
+  });
+
+  it('allows one finalization turn only after an edit and test', () => {
+    expect(shouldAllowTokenBudgetFinalization(40_001, 40_000, 1, true, false)).toBe(true);
+    expect(shouldAllowTokenBudgetFinalization(40_001, 40_000, 0, true, false)).toBe(false);
+    expect(shouldAllowTokenBudgetFinalization(40_001, 40_000, 1, false, false)).toBe(false);
+    expect(shouldAllowTokenBudgetFinalization(40_001, 40_000, 1, true, true)).toBe(false);
   });
 
   it('reports both remaining steps and remaining wall-clock in budget notices', () => {

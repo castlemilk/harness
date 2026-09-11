@@ -99,6 +99,7 @@ artifact collection.
 | `OMEGA_LOOP_PROVIDER` | unset | Provider to pin for each self-improvement task. Set with `OMEGA_LOOP_MODEL`. |
 | `OMEGA_LOOP_MODEL` | unset | Model to pin for each self-improvement task. Set with `OMEGA_LOOP_PROVIDER`. |
 | `OMEGA_LOOP_TOKEN_BUDGET` | unset | Token cap forwarded to each task run. |
+| `OMEGA_PROVIDER_REQUEST_TIMEOUT_MS` | `180000` | Maximum duration of one provider transport request. Increase this for slow local models, while also increasing the task `--timeout`. |
 | `OMEGA_LOOP_MAX_CONSECUTIVE_FAILURES` | `2` | Stop threshold for failed tasks or gates. |
 | `OMEGA_LOOP_VALIDATE` | `true` | Required switch for candidate validation and promotion. `false` refuses promotion. |
 | `OMEGA_LOOP_PROMOTION_BRANCH` | `main` | Branch whose unchanged base is required for promotion. |

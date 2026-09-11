@@ -211,6 +211,11 @@ export async function resolveSkills(
     }
   }
 
+  const isBenchmarkTask = taskTags?.some((tag) => tag.toLowerCase() === 'benchmark') ?? false;
+  // Benchmarks must be solved from their task specification. Do not inject
+  // either reference patches or unrelated broad skills into the model context.
+  if (isBenchmarkTask) return [];
+
   const artifacts = await prisma.skillArtifact.findMany();
 
   // Prefer exact skill-name matches against task tags. This makes per-task

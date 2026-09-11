@@ -38,11 +38,11 @@ function extractTaskKeywords(description?: string | null): string[] {
     slicing: ['slice', 'range', 'index', 'array', 'string'],
     parsing: ['parse', 'token', 'lexer', 'ast', 'grammar'],
     types: ['typescript', 'type', 'generic', 'interface'],
-    frontend: ['react', 'component', 'dom', 'css', 'html'],
+    frontend: ['react', 'dom', 'css', 'html'],
     testing: ['test', 'mock', 'stub', 'jest', 'vitest'],
   };
   for (const [hint, terms] of Object.entries(patterns)) {
-    if (terms.some((t) => lower.includes(t))) {
+    if (terms.some((t) => t.includes(' ') ? lower.includes(t) : new RegExp(`\\b${t}\\b`).test(lower))) {
       keywords.push(hint);
     }
   }
@@ -92,7 +92,9 @@ export async function buildPromptContext(
   const globalTelemetryRuns = await prisma.agentRun.findMany({
     where: { providerCalls: { gt: 0 } },
     orderBy: { createdAt: 'desc' },
-    take: lookback,
+    // Keep cross-project context to one exemplar. Repeating several long
+    // model/path records can push local MLX prompts over their memory limit.
+    take: 1,
     include: { task: { select: { title: true, provider: true, model: true, project: { select: { name: true } } } } },
   });
 

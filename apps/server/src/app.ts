@@ -17,6 +17,7 @@ import { errorRoutes } from './routes/errors.js';
 import { providerCompareRoutes } from './routes/provider-compare.js';
 import { foremanRoutes } from './routes/foreman.js';
 import { foremanEngineRoutes } from './routes/foreman-engine.js';
+import { localModelRoutes } from './routes/local-models.js';
 
 export const app: express.Express = express();
 
@@ -69,6 +70,7 @@ app.use('/errors', errorRoutes(prisma));
 app.use('/providers/compare', providerCompareRoutes(prisma));
 app.use('/foreman', foremanRoutes(prisma));
 app.use('/foreman', foremanEngineRoutes(prisma));
+app.use('/local-models', localModelRoutes(prisma));
 
 /**
  * An unknown API path is a 404, not the SPA.

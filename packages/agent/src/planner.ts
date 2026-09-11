@@ -59,6 +59,7 @@ export async function createPlan(
     onUsage,
     onEvent,
     timeoutMs: requestOptions?.timeoutMs,
+    signal: requestOptions?.signal,
   }), requestOptions?.signal);
 
   try {

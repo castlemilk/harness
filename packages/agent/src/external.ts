@@ -604,7 +604,7 @@ export async function runExternalAgentTask(
 
   let codexPrompt = '';
   if (options.cli === 'codex') {
-    const verificationCommand = await deriveVerificationCommand(options.projectPath);
+    const verificationCommand = await deriveVerificationCommand(options.projectPath, task.description ?? undefined);
     codexPrompt = buildCodexTaskPrompt({
       title: task.title,
       description: [task.description, deadlineNotice].filter(Boolean).join('\n\n'),

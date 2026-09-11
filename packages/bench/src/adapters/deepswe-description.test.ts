@@ -67,6 +67,7 @@ describe('DeepSWE task description', () => {
     expect(description).toContain('output/file format');
     expect(description).toContain('character-for-character');
     expect(description).toContain('not substring matching');
+    expect(description).toContain('FEATURE CHECK');
     expect(description).not.toContain('omega_specgate');
     expect(description).not.toContain('disposable assertion');
     expect(description).not.toContain('expected to fail before implementation');
@@ -145,6 +146,24 @@ ${TASK_INSTRUCTION}`);
     expect(description).toContain('Internal runs report both steps and wall-clock remaining in budget notices');
     expect(description).toContain('external CLI runs receive their launch time and absolute UTC deadline');
     expect(description).not.toContain('runner or provider may impose an earlier deadline');
+  });
+
+  it('gives Go agents a status-preserving verification command', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'omega-deepswe-go-description-'));
+    roots.push(root);
+    const taskDir = path.join(root, 'description-task');
+    await fs.mkdir(path.join(taskDir, 'tests'), { recursive: true });
+    await Promise.all([
+      fs.writeFile(path.join(taskDir, 'task.toml'), `[task]\nname = "description-task"\n\n[metadata]\ntask_id = "description-task"\ndisplay_title = "Description task"\nlanguage = "go"\n`, 'utf-8'),
+      fs.writeFile(path.join(taskDir, 'instruction.md'), `${TASK_INSTRUCTION}\n`, 'utf-8'),
+      fs.writeFile(path.join(taskDir, 'tests', 'config.json'), '{}\n', 'utf-8'),
+      fs.writeFile(path.join(taskDir, 'tests', 'test.patch'), '\n', 'utf-8'),
+    ]);
+
+    const [task] = await loadDeepSWESuite({ tasksDir: root });
+    const description = task.description ?? '';
+    expect(description).toContain("go list -e -f '{{.ImportPath}}' ./...");
+    expect(description).toContain('do not pipe these commands to head/tee');
   });
 
   it('describes a sub-second budget without rounding it up to a second', async () => {

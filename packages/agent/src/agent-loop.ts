@@ -18,9 +18,11 @@ import { validateProject, type ValidationSummary } from './validator.js';
 import { publishOmega, type PublishResult } from './publisher.js';
 import {
   isTypeScriptProject,
+  isReliableTestCommand,
   looksLikeTestCommand,
   taskMentionsPublicApi,
   taskLikelyHasTests,
+  taskLikelyRequiresChanges,
   toCoreTask,
   boundedProviderRequestTimeoutMs,
   remainingDeadlineMs,
@@ -120,6 +122,12 @@ const STOP_LABELS: Record<AgentStopCondition, string> = {
 };
 
 const LOW_BUDGET_EDIT_THRESHOLD = 40_000;
+const WALL_CLOCK_EDIT_FRACTION = 0.6;
+const WALL_CLOCK_VERIFICATION_FRACTION = 0.6;
+
+export function isBuildCommand(command: string): boolean {
+  return /(?:^|\s)(?:go\s+build|cargo\s+(?:build|check)|(?:npm|pnpm|yarn)\s+(?:run\s+)?build|(?:npx\s+)?tsc|python3?(?:\s+-m)?\s+compileall)(?:\s|$)/i.test(command);
+}
 
 export interface TokenBudgetTrace {
   turn: number;
@@ -176,6 +184,30 @@ export function shouldForceEditForTokenUsage(
     && turnCount >= 2;
 }
 
+export function shouldForceEditForWallClock(
+  startedAtMs: number,
+  deadlineMs: number,
+  editCount: number,
+  turnCount: number,
+  nowMs: number = Date.now(),
+): boolean {
+  if (editCount !== 0 || turnCount < 2) return false;
+  const durationMs = deadlineMs - startedAtMs;
+  return durationMs > 0 && nowMs >= startedAtMs + durationMs * WALL_CLOCK_EDIT_FRACTION;
+}
+
+export function shouldEnterWallClockVerificationMode(
+  startedAtMs: number,
+  deadlineMs: number,
+  editCount: number,
+  hasRunTestCommand: boolean,
+  nowMs: number = Date.now(),
+): boolean {
+  if (editCount === 0 || hasRunTestCommand) return false;
+  const durationMs = deadlineMs - startedAtMs;
+  return durationMs > 0 && nowMs >= startedAtMs + durationMs * WALL_CLOCK_VERIFICATION_FRACTION;
+}
+
 export function shouldAllowTokenBudgetFinalization(
   usedTokens: number,
   tokenBudget: number | undefined,
@@ -230,6 +262,7 @@ export function formatAgentTerminalReason(input: AgentTerminalReasonInput): stri
 }
 
 export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[]): Promise<AgentResult> {
+  ctx.rootSpan.setAttributes({ thinking: ctx.thinking === true });
   await addTrace(ctx, 'system', ctx.systemPrompt);
   await addTrace(ctx, 'user', buildTaskPrompt(ctx.task.title, ctx.task.description ?? undefined));
 
@@ -243,11 +276,23 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
   let stuckTurnCount = 0;
   let forcedEditMode = false;
   let forcedEditModeSteps = 0;
+  let wallClockVerificationMode = false;
+  let wallClockVerificationTestFailed = false;
+  let wallClockRepairReads = 0;
   let finalizationTurnUsed = false;
   let finalizationOnly = false;
   let repairTurnUsed = false;
+  let editFailureCount = 0;
+  let editRecoveryMode = false;
+  let editRecoveryReadUsed = false;
+  let compileRepairMode = false;
+  let compileRepairAttempts = 0;
   let stopCondition: AgentStopCondition = 'stopped-without-finish';
   const toolCallCounts: Record<string, number> = {};
+  const isMlxModel = ctx.provider.config.kind === 'ollama' && ctx.model.toLowerCase().includes('mlx');
+  const forcedEditToolNames = isMlxModel
+    ? ['apply_patch']
+    : ['edit_file', 'write_file', 'edit_lines', 'apply_patch'];
   ctx.turnCount = 0;
   ctx.stepCount = 0;
   ctx.lastToolError = undefined;
@@ -435,6 +480,10 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       await planSpan.end('ok');
       await addTrace(ctx, 'assistant', `Plan: ${JSON.stringify(plan)}`);
       messages.push({ role: 'assistant', content: `Plan: ${JSON.stringify(plan)}` });
+      messages.push({
+        role: 'user',
+        content: 'Execute the first planned step now using the appropriate tool. Do not explain; make the tool call.',
+      });
     } catch (error) {
       if (!stopForAbort(error)) throw error;
       planSpan.recordError(error);
@@ -470,23 +519,51 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       break;
     }
 
+    if (
+      !finalizationOnly &&
+      shouldEnterWallClockVerificationMode(
+        ctx.rootSpan.startTime.getTime(),
+        ctx.deadlineMs,
+        ctx.editCount,
+        ctx.hasRunTestCommand,
+      ) &&
+      !wallClockVerificationMode
+    ) {
+      wallClockVerificationMode = true;
+      wallClockVerificationTestFailed = false;
+      ctx.rootSpan.addEvent('agent.wall_clock_verification_mode');
+      messages.push({
+        role: 'user',
+        content:
+          '[WALL-CLOCK VERIFICATION REQUIRED] The attempt is near its deadline and a source edit exists. ' +
+          'Run the project\'s existing test command now. Do not explore or edit before running it. ' +
+          'If it passes, call finish immediately; if it fails, make only the smallest repair and rerun the test.',
+      });
+    }
+
+    const wallClockForcedEdit = shouldForceEditForWallClock(
+      ctx.rootSpan.startTime.getTime(),
+      ctx.deadlineMs,
+      ctx.editCount,
+      ctx.turnCount,
+    );
     const usageForcedEdit = shouldForceEditForTokenUsage(
       ctx.usage.totalTokens ?? 0,
       ctx.tokenBudget,
       ctx.editCount,
       ctx.turnCount,
     );
-    if ((shouldEnterLowBudgetEditMode(ctx.tokenBudget, ctx.editCount, ctx.turnCount) || usageForcedEdit) && !forcedEditMode) {
+    if ((shouldEnterLowBudgetEditMode(ctx.tokenBudget, ctx.editCount, ctx.turnCount) || usageForcedEdit || wallClockForcedEdit) && !forcedEditMode) {
       forcedEditMode = true;
       forcedEditModeSteps = 0;
       ctx.rootSpan.addEvent('agent.low_budget_edit_first', {
         tokenBudget: ctx.tokenBudget,
         tokenBudgetUsed: ctx.usage.totalTokens ?? 0,
-        trigger: usageForcedEdit ? 'token-usage' : 'small-budget',
+        trigger: wallClockForcedEdit ? 'wall-clock' : usageForcedEdit ? 'token-usage' : 'small-budget',
         turnCount: ctx.turnCount,
         explorationCount: ctx.explorationCount,
       });
-      const shouldAttemptStuckSolve = ctx.explorationCount > ctx.explorationBudget.beforeFirstEdit;
+      const shouldAttemptStuckSolve = !wallClockForcedEdit && ctx.explorationCount > ctx.explorationBudget.beforeFirstEdit;
       const solved = shouldAttemptStuckSolve
         ? await runAgentOperation(() => tryStuckSolve(ctx))
         : false;
@@ -511,6 +588,31 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
             'Do not run more discovery, think, list files, or run commands before editing.',
         });
       }
+    }
+
+    const explorationLimitReached = ctx.editCount === 0
+      ? ctx.explorationCount >= ctx.explorationBudget.beforeFirstEdit
+      : ctx.explorationSinceLastEdit >= ctx.explorationBudget.betweenEdits;
+    if (
+      taskLikelyRequiresChanges(ctx.task) &&
+      explorationLimitReached &&
+      !forcedEditMode &&
+      !editRecoveryMode &&
+      !compileRepairMode
+    ) {
+      forcedEditMode = true;
+      forcedEditModeSteps = 0;
+      ctx.rootSpan.addEvent('agent.exploration_budget_exhausted', {
+        explorationCount: ctx.explorationCount,
+        explorationSinceLastEdit: ctx.explorationSinceLastEdit,
+        editCount: ctx.editCount,
+      });
+      messages.push({
+        role: 'user',
+        content: ctx.editCount === 0
+          ? '[EDIT-FIRST MODE] The exploration budget is exhausted. Make one concrete source edit now; only edit tools and one targeted read_file are allowed until it succeeds.'
+          : '[EDIT-FIRST MODE] The between-edit exploration budget is exhausted. Make the next smallest source edit now; do not search, think, or run unrelated commands.',
+      });
     }
 
     const overTokenBudget = ctx.tokenBudget !== undefined && (ctx.usage.totalTokens ?? 0) > ctx.tokenBudget;
@@ -581,7 +683,30 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     }
     let response: Awaited<ReturnType<typeof sendToProvider>>;
     try {
-      response = await sendToProvider(ctx, messages);
+      const mlxNormalTools = isMlxModel
+        ? ctx.editCount === 0
+          ? new Set(['read_file', 'apply_patch'])
+          : ctx.hasRunTestCommand
+            ? new Set(['publish', 'finish'])
+            : new Set(['run_command', 'apply_patch'])
+        : undefined;
+      const allowedToolNames = finalizationOnly
+        ? new Set(['finish'])
+        : wallClockVerificationMode && !wallClockVerificationTestFailed
+          ? new Set(['run_command', 'finish'])
+          : editRecoveryMode
+            ? new Set([...forcedEditToolNames, 'read_file', ...(ctx.editCount > 0 ? ['run_command'] : []), 'finish'])
+            : compileRepairMode
+              ? new Set([...forcedEditToolNames, 'run_command', 'finish'])
+              : forcedEditMode
+                ? new Set([
+                  ...forcedEditToolNames,
+                  ...(forcedEditModeSteps === 0 ? ['read_file'] : []),
+                  ...(ctx.editCount > 0 ? ['run_command'] : []),
+                  'finish',
+                ])
+              : mlxNormalTools;
+      response = await sendToProvider(ctx, messages, undefined, allowedToolNames);
       if (ctx.tokenBudget !== undefined) {
         ctx.rootSpan.addEvent(
           'token_budget.turn',
@@ -643,6 +768,8 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
     let turnHadFailure = false;
     let turnForcedCount = 0;
     let turnToolCount = 0;
+    const editedPathsThisTurn = new Set<string>();
+    let appliedPatchThisTurn = false;
     const processedToolCallIds = new Set<string>();
 
     function rejectRemainingToolCalls(reason: string): void {
@@ -719,17 +846,25 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         return false;
       };
 
-      if (call.name === 'finish') {
-        const finishingWithFailure = call.arguments.success === false;
-        const earlyFailure = finishingWithFailure && stepIndex < ctx.maxSteps - 5;
+        if (call.name === 'finish') {
+          const finishingWithFailure = call.arguments.success === false;
+          const earlyFailure = finishingWithFailure && stepIndex < ctx.maxSteps - 5;
         if (earlyFailure) {
           await rejectFinish(
             `finish rejected: you are declaring failure too early (step ${String(stepIndex)} of ${String(ctx.maxSteps)}). Continue diagnosing and fixing the issue instead of giving up.`,
           );
           advanceStep();
-          break;
-        }
-        if (!ctx.hasRunTestCommand && taskLikelyHasTests(ctx.task, ctx.promptContext) && ctx.projectHasTests) {
+            break;
+          }
+          const hasWorkingTreeChanges = ctx.modifiedFiles.size > 0 || (await hasChanges(ctx.projectPath));
+          if (taskLikelyRequiresChanges(ctx.task) && !hasWorkingTreeChanges) {
+            await rejectFinish(
+              'finish rejected: this implementation task has no source changes. Implement the requested behavior before finishing.',
+            );
+            advanceStep();
+            break;
+          }
+          if (!ctx.hasRunTestCommand && taskLikelyHasTests(ctx.task, ctx.promptContext) && ctx.projectHasTests) {
           await rejectFinish(
             'finish rejected: this task has a test suite but you have not run any test command. Run the project\'s test command (e.g. npm test, pnpm test, pytest, go test ./..., cargo test) and fix any failures before finishing.',
           );
@@ -805,14 +940,29 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           // has already run a focused test warrant the same one-shot repair
           // turn only when the project validation explicitly says the
           // recent edit introduced the regression.
-          const repairKind: 'lint' | 'test' | 'build' | undefined = !validation.lint.passed
-            ? 'lint'
-            : !validation.test.passed
-              ? 'test'
-              : !validation.build.passed
-                ? 'build'
-                : undefined;
-          const repairUsed = await rejectFinish(message, repairKind);
+           const repairKind: 'lint' | 'test' | 'build' | undefined = !validation.lint.passed
+             ? 'lint'
+             : !validation.test.passed
+               ? 'test'
+               : !validation.build.passed
+                 ? 'build'
+                 : undefined;
+           if (!validation.build.passed) {
+             compileRepairMode = true;
+             compileRepairAttempts++;
+             forcedEditMode = true;
+             forcedEditModeSteps = 0;
+             messages.push({
+               role: 'user',
+               content:
+                 `[COMPILE REPAIR] The project build failed after validation attempt ${String(compileRepairAttempts)}. ` +
+                 'Use the compiler output below to make the smallest source edit, then rerun the build. ' +
+                 'Do not explore or make unrelated changes.\n\n' +
+                 validation.build.output.slice(0, 8_000),
+             });
+             ctx.rootSpan.addEvent('agent.compile_repair', { attempt: compileRepairAttempts });
+           }
+           const repairUsed = await rejectFinish(message, repairKind);
           if (!repairUsed) {
             break;
           }
@@ -912,37 +1062,41 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         call.name === 'run_command' &&
         typeof call.arguments.command === 'string' &&
         looksLikeTestCommand(call.arguments.command);
+      const isReliableVerificationCommand =
+        call.name === 'run_command' &&
+        typeof call.arguments.command === 'string' &&
+        isReliableTestCommand(call.arguments.command);
+      const isBuildCommandCall =
+        call.name === 'run_command' &&
+        typeof call.arguments.command === 'string' &&
+        isBuildCommand(call.arguments.command);
       const isPatchCommand =
         call.name === 'run_command' &&
         typeof call.arguments.command === 'string' &&
         /\bgit\s+apply\b|\bpatch\s+[-p]/.test(call.arguments.command);
       const isExploration = explorationTools.includes(call.name) && !isTestCommand && !isPatchCommand;
       const isEdit = editTools.includes(call.name) || isPatchCommand;
+      const editPath = typeof call.arguments.path === 'string' ? call.arguments.path : undefined;
+      const duplicateEditInTurn = isEdit && (
+        isPatchCommand
+          ? appliedPatchThisTurn
+          : editPath !== undefined && editedPathsThisTurn.has(editPath)
+      );
       if (isExploration) {
         ctx.explorationCount++;
         ctx.explorationSinceLastEdit++;
-      }
-      if (isEdit) {
-        ctx.editCount++;
-        ctx.explorationAtLastEdit = ctx.explorationCount;
-        if (ctx.editCount % 5 === 0) {
-          await checkpointCommit(ctx);
-        }
       }
 
       const toolSpan = ctx.tracer.startSpan(`agent.tool.${call.name}`, ctx.rootSpan.toContext());
       toolSpan.setAttributes({ tool: call.name });
 
-      if (isTestCommand) {
-        ctx.hasRunTestCommand = true;
-      }
-
       let result: ToolResult;
+      let testCommandAttempted = false;
       turnToolCount++;
       const stuckWithoutEdits =
         ctx.editCount === 0 &&
-        ctx.explorationCount >= ctx.explorationBudget.beforeFirstEdit * 2 &&
-        !editTools.includes(call.name) &&
+        ctx.explorationCount >= ctx.explorationBudget.beforeFirstEdit &&
+        !isEdit &&
         call.name !== 'finish' &&
         call.name !== 'publish';
       if (stuckWithoutEdits) turnForcedCount++;
@@ -958,19 +1112,31 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       const budgetAdvisory =
         !forcedEditMode && (explorationBudgetExhausted || wanderingAfterEdits || stuckWithoutEdits || wanderingTooLong);
 
-      // In forced-edit mode, reads stay allowed briefly (the model may need to
-      // locate the file it was told to edit), but once it has burned half the
-      // forced budget still reading, drop reads too — only edits advance.
-      const lowBudgetEditMode = shouldEnterLowBudgetEditMode(ctx.tokenBudget, ctx.editCount, ctx.turnCount)
-        || shouldForceEditForTokenUsage(ctx.usage.totalTokens ?? 0, ctx.tokenBudget, ctx.editCount, ctx.turnCount);
-      const forcedBudget = lowBudgetEditMode ? 2 : ctx.explorationBudget.beforeFirstEdit;
-      const editOnlyInForcedMode = forcedEditMode && forcedEditModeSteps > Math.max(2, Math.floor(forcedBudget / 2));
-      const initialForcedRead = forcedEditMode && lowBudgetEditMode && forcedEditModeSteps === 0;
+      const initialForcedRead = forcedEditMode && forcedEditModeSteps === 0;
+      const recoveryRead = editRecoveryMode && !editRecoveryReadUsed;
       const allowedInForcedMode = new Set(
-        editOnlyInForcedMode || (lowBudgetEditMode && !initialForcedRead)
-          ? ['edit_file', 'write_file', 'edit_lines', 'apply_patch']
-          : ['edit_file', 'write_file', 'edit_lines', 'apply_patch', 'read_file', 'search', 'think'],
+        editRecoveryMode
+          ? [...forcedEditToolNames, ...(recoveryRead ? ['read_file'] : [])]
+          : compileRepairMode
+            ? forcedEditToolNames
+            : forcedEditMode && !initialForcedRead
+              ? forcedEditToolNames
+              : [...forcedEditToolNames, 'read_file'],
       );
+      // Once a concrete edit exists, allow the reliable test command through
+      // so forced-edit mode can verify progress instead of demanding another
+      // potentially destructive edit.
+      if (ctx.editCount > 0 && isReliableVerificationCommand) {
+        allowedInForcedMode.add('run_command');
+      }
+      if (compileRepairMode && (isBuildCommandCall || isReliableVerificationCommand)) {
+        allowedInForcedMode.add('run_command');
+      }
+      const canReadForWallClockRepair =
+        wallClockVerificationTestFailed && call.name === 'read_file' && wallClockRepairReads < 2;
+      if (canReadForWallClockRepair) {
+        allowedInForcedMode.add('read_file');
+      }
       if (stuckWithoutEdits && !forcedEditMode) {
         // A low-budget agent that has only made two targeted reads still has
         // enough context to edit. Avoid spending another slow local-model turn
@@ -1016,6 +1182,35 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           success: false,
           output: 'FINALIZATION TURN: only the finish tool is allowed because the token budget is exhausted. Call finish now.',
         };
+      } else if (duplicateEditInTurn) {
+        result = {
+          success: false,
+          output: 'EDIT SEQUENCING: this file was already edited earlier in the same response. Use one coordinated apply_patch, or reread the file in the next turn before editing again.',
+        };
+      } else if (
+        wallClockVerificationMode &&
+        !wallClockVerificationTestFailed &&
+        call.name !== 'finish' &&
+        !isReliableVerificationCommand
+      ) {
+        result = {
+          success: false,
+          output:
+            'WALL-CLOCK VERIFICATION MODE: run the existing test command now with its exit status visible. ' +
+            'Do not pipe it to head/tee, use || true, or append another command. Exploration and edits are blocked until the test has run.',
+        };
+      } else if (
+        wallClockVerificationMode &&
+        wallClockVerificationTestFailed &&
+        call.name !== 'finish' &&
+        !isTestCommand &&
+        !isEdit &&
+        !canReadForWallClockRepair
+      ) {
+        result = {
+          success: false,
+          output: 'WALL-CLOCK REPAIR MODE: make the smallest repair or rerun the existing test command. Do not explore.',
+        };
       } else if (forcedEditMode && !allowedInForcedMode.has(call.name) && !isPatchCommand) {
         result = {
           success: false,
@@ -1048,6 +1243,7 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
         result = await executeAgentTool(call.name, call.arguments);
       } else if (call.name === 'run_command' && typeof call.arguments.command === 'string') {
         ctx.consecutiveThinks = 0;
+        testCommandAttempted = isTestCommand;
         result = await executeAgentTool(call.name, call.arguments);
       } else {
         ctx.consecutiveThinks = 0;
@@ -1072,13 +1268,13 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
           ? `${result.output.slice(0, TOOL_OUTPUT_LIMIT)}\n... [truncated]`
           : result.output;
 
-      if (call.name === 'write_file' && typeof call.arguments.path === 'string') {
+      if (call.name === 'write_file' && result.success && typeof call.arguments.path === 'string') {
         ctx.modifiedFiles.add(call.arguments.path);
       }
-      if (call.name === 'edit_file' && typeof call.arguments.path === 'string') {
+      if (call.name === 'edit_file' && result.success && typeof call.arguments.path === 'string') {
         ctx.modifiedFiles.add(call.arguments.path);
       }
-      if (call.name === 'edit_lines' && typeof call.arguments.path === 'string') {
+      if (call.name === 'edit_lines' && result.success && typeof call.arguments.path === 'string') {
         ctx.modifiedFiles.add(call.arguments.path);
       }
       if (call.name === 'apply_patch' && result.success) {
@@ -1107,8 +1303,42 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
       if (!result.success) {
         turnHadFailure = true;
       }
-      if (isEdit && result.success) {
-        forcedEditMode = false;
+      if (testCommandAttempted) {
+        ctx.hasRunTestCommand = true;
+      }
+      if (compileRepairMode && isBuildCommandCall) {
+        if (result.success) {
+          compileRepairMode = false;
+          forcedEditMode = false;
+          forcedEditModeSteps = 0;
+          messages.push({
+            role: 'user',
+            content: 'The repair build passed. Run the existing test command, then call finish if it passes.',
+          });
+        }
+      }
+      if (canReadForWallClockRepair) {
+        wallClockRepairReads++;
+      }
+      if (editRecoveryMode && call.name === 'read_file' && result.success) {
+        editRecoveryReadUsed = true;
+      }
+      const editApplied = isEdit && result.success;
+      if (editApplied) {
+        editFailureCount = 0;
+        editRecoveryMode = false;
+        editRecoveryReadUsed = false;
+        ctx.editCount++;
+        ctx.explorationAtLastEdit = ctx.explorationCount;
+        if (ctx.editCount % 5 === 0) {
+          await checkpointCommit(ctx);
+        }
+        if (isPatchCommand) {
+          appliedPatchThisTurn = true;
+        } else if (editPath !== undefined) {
+          editedPathsThisTurn.add(editPath);
+        }
+        if (!compileRepairMode) forcedEditMode = false;
         forcedEditModeSteps = 0;
         ctx.explorationSinceLastEdit = 0;
 
@@ -1124,6 +1354,38 @@ export async function executeAgentLoop(ctx: AgentContext, skills: ResolvedSkill[
             turnHadFailure = true;
           }
         }
+      } else if (isEdit) {
+        editFailureCount++;
+        if (editRecoveryMode) {
+          editRecoveryReadUsed = false;
+        }
+        if (editFailureCount >= 2) {
+          editRecoveryMode = true;
+          editRecoveryReadUsed = false;
+          forcedEditMode = true;
+          forcedEditModeSteps = 0;
+          messages.push({
+            role: 'user',
+            content:
+              '[EDIT RECOVERY] Two edit attempts failed. Use exactly one targeted read_file to obtain the current lines, then make one edit_file or edit_lines change using that exact content. Do not search, think, list files, or run commands until the edit succeeds.',
+          });
+          ctx.rootSpan.addEvent('agent.edit_recovery', { editFailureCount });
+        }
+      }
+      if (wallClockVerificationMode && testCommandAttempted) {
+        if (result.success && isReliableVerificationCommand) {
+          wallClockVerificationMode = false;
+          finalizationOnly = true;
+          messages.push({
+            role: 'user',
+            content: 'The test command passed during the final verification window. Call finish now; do not run more commands or make more edits.',
+          });
+        } else if (isReliableVerificationCommand) {
+          wallClockVerificationTestFailed = true;
+        }
+      }
+      if (wallClockVerificationMode && wallClockVerificationTestFailed && isEdit && !result.success) {
+        wallClockRepairReads = 0;
       }
       await ctx.prisma.taskStep.update({
         where: { id: stepId },

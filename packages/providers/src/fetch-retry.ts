@@ -1,10 +1,29 @@
 const DEFAULT_MAX_RETRIES = 8;
 const REQUEST_TIMEOUT_MS = 120_000;
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(abortReason(signal));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+      reject(abortReason(signal));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
   });
+}
+
+function abortReason(signal?: AbortSignal): Error {
+  return signal?.reason instanceof Error
+    ? signal.reason
+    : new DOMException('Operation aborted', 'AbortError');
 }
 
 function backoffMs(attempt: number): number {
@@ -28,6 +47,7 @@ function isTransientStatus(status: number): boolean {
 export interface FetchRetryOptions {
   maxRetries?: number;
   timeoutMs?: number;
+  signal?: AbortSignal;
   onRetry?: (event: { attempt: number; status?: number; waitMs: number; error?: string }) => void;
 }
 
@@ -46,13 +66,25 @@ export async function fetchWithRetry(
   for (let attempt = 0; ; attempt++) {
     let res: Response;
     const controller = new AbortController();
+    const externalSignal: AbortSignal | undefined = options?.signal ?? init?.signal ?? undefined;
+    const abortFromCaller = (): void => {
+      controller.abort(externalSignal?.reason);
+    };
+    if (externalSignal?.aborted) abortFromCaller();
+    else externalSignal?.addEventListener('abort', abortFromCaller, { once: true });
     const timeoutId = setTimeout(() => {
-      controller.abort();
+      controller.abort(new DOMException(`${label} request timed out`, 'TimeoutError'));
     }, timeoutMs);
     try {
       res = await fetch(url, { ...init, signal: controller.signal });
     } catch (err) {
       clearTimeout(timeoutId);
+      externalSignal?.removeEventListener('abort', abortFromCaller);
+      if (externalSignal?.aborted) throw err;
+      // Retrying the same request after its transport budget is exhausted can
+      // multiply a single slow provider turn into several minutes. Callers
+      // may retry the next turn with a fresh prompt/deadline if appropriate.
+      if (controller.signal.aborted) throw new DOMException(`${label} request timed out`, 'TimeoutError');
       if (attempt >= maxRetries) throw err;
       const wait = backoffMs(attempt);
       options?.onRetry?.({
@@ -63,10 +95,11 @@ export async function fetchWithRetry(
       console.warn(
         `${label}: network error, retry ${String(attempt + 1)}/${String(maxRetries)} in ${String(wait)}ms`,
       );
-      await sleep(wait);
+      await sleep(wait, externalSignal);
       continue;
     }
     clearTimeout(timeoutId);
+    externalSignal?.removeEventListener('abort', abortFromCaller);
     if (isTransientStatus(res.status) && attempt < maxRetries) {
       await res.text().catch(() => undefined);
       const retryAfter = parseRetryAfter(res.headers.get('retry-after'));
@@ -75,7 +108,7 @@ export async function fetchWithRetry(
       console.warn(
         `${label}: ${String(res.status)} transient, retry ${String(attempt + 1)}/${String(maxRetries)} in ${String(wait)}ms`,
       );
-      await sleep(wait);
+      await sleep(wait, externalSignal);
       continue;
     }
     return res;

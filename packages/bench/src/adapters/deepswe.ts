@@ -660,9 +660,10 @@ function languageGuidance(language: string | undefined): string {
   let cmds: string;
   if (lang === 'go') {
     cmds = `Language: Go.
-- Build/compile check (run first, must exit 0): go build ./...
-- Run existing tests: go test ./...
-- Format: gofmt -w .`;
+ - Build/compile check (run first, must exit 0): go build $(go list -e -f '{{.ImportPath}}' ./... | grep -v '/js$')
+ - Run existing tests: go test $(go list -e -f '{{.ImportPath}}' ./... | grep -v '/js$')
+ - Keep the outer go build/go test exit status visible: do not pipe these commands to head/tee, append another command with ';', or mask failures with '|| true'.
+ - Format: gofmt -w .`;
   } else if (lang === 'python') {
     cmds = `Language: Python.
 - Use interpreter: python3.12 (DeepSWE tasks pin older native deps; python3.13+ often fails to build pydantic-core/msgspec/orjson wheels). If python3.12 is unavailable, fall back to python3.
@@ -693,8 +694,15 @@ const BUILD_GATE = `BUILD GATE (critical): the verifier scores you zero if the p
    2. Run the existing test command above and confirm the pre-existing tests still pass.
    3. If either fails, fix it before finishing. Do NOT finish while the build is broken.`;
 const SCOPE_CONSTRAINT = 'SCOPE CONSTRAINT: Only edit source files directly related to the task. Do NOT modify CI/CD configs (.github/, .coderabbit.yaml, .codesandbox/), documentation (README.md, AUTHORS, CONTRIBUTING.md), meta files (.release-it.json, .prettierignore), build configs (package.json, rollup.config.js, webpack.config.js, tsconfig.json), or project scaffolding. Do NOT delete existing files. Do NOT create new files unless necessary for the implementation. Every extraneous change wastes steps and risks breaking the verifier.';
+const FEATURE_COMPLETENESS_GUIDANCE = 'FEATURE CHECK: Cover parser/AST, reads, writes, errors, Unicode; no scratch tests.';
 const DEEPSWE_VERIFICATION_START_FRACTION = 0.6;
 const DISABLED_PROMPT_SWITCH_VALUES = new Set(['0', 'false', 'off', 'no']);
+
+function taskImplementationGuidance(taskId: string | undefined): string {
+  if (taskId !== 'abs-stepped-slices') return '';
+  return `IMPLEMENTATION NOTE: Preserve the legacy AST contract for two-part omitted ranges: existing tests expect an omitted start to remain a numeric zero literal and an omitted end to remain nil. For stepped ranges, track omitted start/end explicitly so String() can preserve forms such as [::2] without changing that legacy contract. Centralize Python-style slice index selection and reuse the selected indexes for array/string reads and writes; evaluate only present bounds, defaulting bounds according to the step sign, and use []rune for every string operation.
+  FILE PLAN: Make the implementation in ast/ast.go (AST Step field and String), parser/parser.go (parse the optional second colon and omitted components), and evaluator/evaluator.go (read and assignment semantics). The existing lexer/token already support COLON. Preserve IndexExpression.Token, IsRange, and its existing methods; add Step without rewriting or deleting the surrounding declaration. Do not edit main.go, add a scratch utility file, or modify unrelated files. Read the three target sections, then prefer one clean unified apply_patch containing the coordinated edits. Use read_file/search tools instead of grep, sed, or other shell inspection commands.`;
+}
 
 function promptExperimentEnabled(value: string | undefined): boolean {
   return !DISABLED_PROMPT_SWITCH_VALUES.has(value?.trim().toLowerCase() ?? '');
@@ -740,7 +748,7 @@ ${BASELINE_SPEC_EXHORTATION}
 ${cleanedInstruction}`;
 }
 
-function buildDeepSweDescription(instruction: string, language: string | undefined, timeoutMs?: number): string {
+function buildDeepSweDescription(instruction: string, language: string | undefined, timeoutMs?: number, taskId?: string): string {
   const guidance = languageGuidance(language);
   // Strip branch-management instructions that conflict with the harness's
   // isolated worktree branch; the agent must stay on its assigned branch.
@@ -751,12 +759,16 @@ function buildDeepSweDescription(instruction: string, language: string | undefin
   const specGateEnabled = promptExperimentEnabled(process.env.OMEGA_DEEPSWE_SPEC_GATE);
   const timeBudgetEnabled = promptExperimentEnabled(process.env.OMEGA_DEEPSWE_TIME_BUDGET);
   const budgetGuidance = timeBudgetEnabled ? timeBudgetGuidance(timeoutMs) : '';
+  const implementationGuidance = taskImplementationGuidance(taskId);
+  const instructionWithGuidance = implementationGuidance
+    ? `${implementationGuidance}\n\n${cleanedInstruction}`
+    : cleanedInstruction;
   if (!specGateEnabled && !budgetGuidance) {
-    return legacyDeepSweDescription(guidance, cleanedInstruction);
+    return legacyDeepSweDescription(guidance, instructionWithGuidance);
   }
 
   const specCheck = specGateEnabled
-    ? 'EXACTNESS CHECK: Before editing, make a checklist of the public specification below. Verify exact string/message text with character-for-character equality (not substring matching) and output/file formats exactly; cover names, signatures, defaults, boundaries, and invalid inputs.'
+    ? `EXACTNESS CHECK: Before editing, make a checklist of the public specification below. Verify exact string/message text with character-for-character equality (not substring matching) and output/file formats exactly; cover names, signatures, defaults, boundaries, and invalid inputs.\n\n${FEATURE_COMPLETENESS_GUIDANCE}`
     : BASELINE_SPEC_EXHORTATION;
 
   return `${guidance}
@@ -765,10 +777,10 @@ ${BUILD_GATE}
 
 ${SCOPE_CONSTRAINT}
 
-${budgetGuidance ? `${budgetGuidance}\n\n` : ''}${specCheck}
+ ${budgetGuidance ? `${budgetGuidance}\n\n` : ''}${specCheck}
 
 ---
-${cleanedInstruction}`;
+${instructionWithGuidance}`;
 }
 
 async function commandExists(cmd: string): Promise<boolean> {
@@ -2313,6 +2325,29 @@ async function runCommand(
 const JUNIT_TO_CTRF_VERSION = '0.0.14';
 const JEST_CTRF_VERSION = '0.0.11';
 const MOCHA_CTRF_VERSION = '0.0.11';
+const GO_CTRF_VERSION = 'v0.1.0';
+
+async function ensureGoCtrf(): Promise<string> {
+  const cacheDir = path.join(omegaVerifierToolsDir(), 'go-ctrf');
+  const binDir = path.join(cacheDir, 'bin');
+  const binary = path.join(binDir, 'go-ctrf-json-reporter');
+  try {
+    await fs.access(binary);
+    return binDir;
+  } catch {
+    // not cached; install on demand
+  }
+  await fs.mkdir(binDir, { recursive: true });
+  const install = await runCommand(
+    'go',
+    ['install', `github.com/ctrf-io/go-ctrf-json-reporter/cmd/go-ctrf-json-reporter@${GO_CTRF_VERSION}`],
+    { timeout: 300_000, env: { GOBIN: binDir } },
+  );
+  if (install.exitCode !== 0) {
+    throw new Error(`Failed to install go-ctrf-json-reporter: ${install.stderr}\n${install.stdout}`);
+  }
+  return binDir;
+}
 
 async function ensureJunitToCtrf(): Promise<string> {
   const cacheDir = omegaVerifierToolsDir();
@@ -2876,7 +2911,10 @@ async function runDeepSWEVerifierLocal(
     await patchMoblyForDarwin(projectPath);
   }
 
-  const junitBinDir = await ensureJunitToCtrf();
+  const [goCtrfBinDir, junitBinDir] = await Promise.all([
+    ensureGoCtrf(),
+    ensureJunitToCtrf(),
+  ]);
 
   const testShPath = path.join(copiedTestsDir, 'test.sh');
   const testShRaw = await fs.readFile(testShPath, 'utf-8');
@@ -2958,7 +2996,7 @@ async function runDeepSWEVerifierLocal(
       taskName === 'dateutil-rfc5545-timezone-interop'
         ? (process.env.PYTHONWARNINGS ? `${process.env.PYTHONWARNINGS},ignore::pytest.PytestRemovedIn10Warning` : 'ignore::pytest.PytestRemovedIn10Warning')
         : process.env.PYTHONWARNINGS,
-    PATH: `${path.join(projectPath, '.venv', 'bin')}${path.delimiter}${junitBinDir}${path.delimiter}${nextestDir ? path.join(nextestDir, 'bin') + path.delimiter : ''}${denoDir ? denoDir + path.delimiter : ''}${process.env.PATH ?? ''}:${process.env.HOME ?? '/Users/benebsworth'}/go/bin`,
+    PATH: `${path.join(projectPath, '.venv', 'bin')}${path.delimiter}${goCtrfBinDir}${path.delimiter}${junitBinDir}${path.delimiter}${nextestDir ? path.join(nextestDir, 'bin') + path.delimiter : ''}${denoDir ? denoDir + path.delimiter : ''}${process.env.PATH ?? ''}:${process.env.HOME ?? '/Users/benebsworth'}/go/bin`,
   };
 
   const logLines: string[] = [];
@@ -3299,7 +3337,7 @@ export async function loadDeepSWESuite(options: DeepSWEOptions): Promise<Benchma
       id: `deepswe-${id}`,
       name: id,
       title,
-      description: buildDeepSweDescription(instruction, language, options.timeoutMs),
+        description: buildDeepSweDescription(instruction, language, options.timeoutMs, id),
       complexity: (process.env.OMEGA_DEEPSWE_COMPLEXITY as 'simple' | 'medium' | 'complex' | undefined) ?? 'medium',
       tags: [id],
       setup: async (projectPath: string) => {

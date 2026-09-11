@@ -610,13 +610,24 @@ export async function runTask(
     const remaining = CASCADE_TIMEOUT_MS - (Date.now() - cascadeStart);
     const attemptTimeoutMs = Math.min(perProviderTimeoutMs, Math.max(10_000, remaining / 2));
     const maxAttempts = Math.max(0, Math.min(3, Math.floor(remaining / attemptTimeoutMs) - 1));
+
+    // For Ollama with repeated prompts (variance/benchmark runs), use n-gram warmup
+    const isOllama = config.kind === 'ollama';
+    const isRepeatedTask = (task.retryCount || 0) > 0 || safeJsonParse<string[]>(task.tags ?? '[]', []).includes('variance');
+    const sendOptions: Parameters<typeof provider.send>[1] = {
+      model: modelName,
+      timeoutMs: attemptTimeoutMs,
+      maxRetries: maxAttempts,
+    };
+    if (isOllama && isRepeatedTask) {
+      sendOptions.cacheMode = 'warm-ngram';
+      sendOptions.warmupRuns = 1;
+      sendOptions.keepAlive = '30m';
+    }
+
     traceEvent(trace, 'cascade.budget', { provider: providerName, remainingMs: remaining, timeoutMs: attemptTimeoutMs, maxRetries: maxAttempts });
     try {
-      const result = await provider.send(prompt, {
-        model: modelName,
-        timeoutMs: attemptTimeoutMs,
-        maxRetries: maxAttempts,
-      });
+      const result = await provider.send(prompt, sendOptions);
       const durationMs = Date.now() - startMs;
 
       traceEvent(trace, 'llm.response', { provider: providerName, model: modelName, durationMs, resultLen: result.length });

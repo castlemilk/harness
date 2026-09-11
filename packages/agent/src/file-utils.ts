@@ -1,7 +1,32 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { isInsideProject, isForbiddenWritePath } from './project-utils.js';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { isInsideProject, isForbiddenWritePath, resolveExistingProjectPath } from './project-utils.js';
 import type { ToolResult } from './tool-types.js';
+
+const execFileAsync = promisify(execFile);
+
+async function formatGoEdit(
+  projectPath: string,
+  filePath: string,
+  previousContent: string | undefined,
+): Promise<string | undefined> {
+  if (!filePath.endsWith('.go')) return undefined;
+  const target = path.resolve(projectPath, filePath);
+  try {
+    await execFileAsync('gofmt', ['-w', target], { cwd: projectPath, timeout: 10_000 });
+    return undefined;
+  } catch (err) {
+    if (previousContent === undefined) {
+      await fs.rm(target, { force: true });
+    } else {
+      await fs.writeFile(target, previousContent, 'utf-8');
+    }
+    const detail = err instanceof Error ? err.message : String(err);
+    return `Edit rejected: gofmt failed for ${filePath}; the file was restored to its previous contents. ${detail}`;
+  }
+}
 
 export async function readFile(
   projectPath: string,
@@ -10,7 +35,8 @@ export async function readFile(
   lineOffset?: number,
   lineCount?: number
 ): Promise<ToolResult> {
-  const target = path.resolve(projectPath, filePath);
+  const resolved = await resolveExistingProjectPath(projectPath, filePath, 'file');
+  const target = resolved?.absolutePath ?? path.resolve(projectPath, filePath);
   if (!isInsideProject(projectPath, target)) {
     return { success: false, output: 'Path traversal blocked' };
   }
@@ -60,6 +86,8 @@ export async function writeFile(
     }
     await fs.mkdir(path.dirname(target), { recursive: true });
     await fs.writeFile(target, content, 'utf-8');
+    const formatError = await formatGoEdit(projectPath, filePath, undefined);
+    if (formatError) return { success: false, output: formatError };
     return { success: true, output: `Wrote ${filePath}` };
   } catch (err) {
     return { success: false, output: err instanceof Error ? err.message : String(err) };
@@ -106,7 +134,8 @@ export async function editFile(
   oldString: string,
   newString: string
 ): Promise<ToolResult> {
-  const target = path.resolve(projectPath, filePath);
+  const resolved = await resolveExistingProjectPath(projectPath, filePath, 'file');
+  const target = resolved?.absolutePath ?? path.resolve(projectPath, filePath);
   if (!isInsideProject(projectPath, target)) {
     return { success: false, output: 'Path traversal blocked' };
   }
@@ -116,24 +145,29 @@ export async function editFile(
     if (occurrences === 1) {
       const updated = content.replace(oldString, newString);
       await fs.writeFile(target, updated, 'utf-8');
-      return { success: true, output: `Edited ${filePath}` };
+      const formatError = await formatGoEdit(projectPath, resolved?.relativePath ?? filePath, content);
+      if (formatError) return { success: false, output: formatError };
+      return { success: true, output: `Edited ${resolved?.relativePath ?? filePath}` };
     }
     if (occurrences > 1) {
       return {
         success: false,
-        output: `old_string appears ${String(occurrences)} times in ${filePath}. Provide a larger, unique block of code (including surrounding lines) so the edit targets exactly one location, or use edit_lines instead.`,
+        output: `old_string appears ${String(occurrences)} times in ${resolved?.relativePath ?? filePath}. Provide a larger, unique block of code (including surrounding lines) so the edit targets exactly one location, or use edit_lines instead.`,
       };
     }
     const fuzzy = findFuzzyBlock(content, oldString);
     if (fuzzy) {
       const updated = content.slice(0, fuzzy.start) + newString + content.slice(fuzzy.end);
       await fs.writeFile(target, updated, 'utf-8');
-      return { success: true, output: `Edited ${filePath} (fuzzy match)` };
+      const formatError = await formatGoEdit(projectPath, resolved?.relativePath ?? filePath, content);
+      if (formatError) return { success: false, output: formatError };
+      return { success: true, output: `Edited ${resolved?.relativePath ?? filePath} (fuzzy match)` };
     }
+    const displayPath = resolved?.relativePath ?? filePath;
     const context = content.slice(0, 500).replace(/\n/g, '\\n').slice(0, 200);
     return {
       success: false,
-      output: `old_string not found in ${filePath}. The file may have changed or the string may be slightly different. First 200 chars: ${context}. Try edit_lines with line numbers if you keep hitting this.`,
+      output: `old_string not found in ${displayPath}. The file may have changed or the string may be slightly different. First 200 chars: ${context}. Try edit_lines with line numbers if you keep hitting this.`,
     };
   } catch (err) {
     return { success: false, output: err instanceof Error ? err.message : String(err) };
@@ -147,7 +181,8 @@ export async function editLines(
   endLine: number,
   newString: string
 ): Promise<ToolResult> {
-  const target = path.resolve(projectPath, filePath);
+  const resolved = await resolveExistingProjectPath(projectPath, filePath, 'file');
+  const target = resolved?.absolutePath ?? path.resolve(projectPath, filePath);
   if (!isInsideProject(projectPath, target)) {
     return { success: false, output: 'Path traversal blocked' };
   }
@@ -160,9 +195,11 @@ export async function editLines(
     const after = lines.slice(end);
     const updated = [...before, newString, ...after].join('\n');
     await fs.writeFile(target, updated, 'utf-8');
+    const formatError = await formatGoEdit(projectPath, resolved?.relativePath ?? filePath, content);
+    if (formatError) return { success: false, output: formatError };
     return {
       success: true,
-      output: `Edited ${filePath} lines ${String(start)}-${String(end)}`,
+      output: `Edited ${resolved?.relativePath ?? filePath} lines ${String(start)}-${String(end)}`,
     };
   } catch (err) {
     return { success: false, output: err instanceof Error ? err.message : String(err) };

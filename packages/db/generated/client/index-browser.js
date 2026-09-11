@@ -246,7 +246,26 @@ exports.Prisma.ProviderConfigScalarFieldEnum = {
   defaultModel: 'defaultModel',
   capabilities: 'capabilities',
   enabled: 'enabled',
+  defaultCacheMode: 'defaultCacheMode',
+  defaultWarmupRuns: 'defaultWarmupRuns',
+  defaultContextTokens: 'defaultContextTokens',
   createdAt: 'createdAt'
+};
+
+exports.Prisma.LocalModelConfigScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  baseUrl: 'baseUrl',
+  model: 'model',
+  cacheMode: 'cacheMode',
+  warmupRuns: 'warmupRuns',
+  contextTokens: 'contextTokens',
+  keepAlive: 'keepAlive',
+  proxyEnabled: 'proxyEnabled',
+  tokenHorizonUrl: 'tokenHorizonUrl',
+  enabled: 'enabled',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 };
 
 exports.Prisma.SkillArtifactScalarFieldEnum = {
@@ -491,6 +510,7 @@ exports.Prisma.ModelName = {
   AgentRun: 'AgentRun',
   TraceSpan: 'TraceSpan',
   ProviderConfig: 'ProviderConfig',
+  LocalModelConfig: 'LocalModelConfig',
   SkillArtifact: 'SkillArtifact',
   PromptVersion: 'PromptVersion',
   BenchmarkHistory: 'BenchmarkHistory',

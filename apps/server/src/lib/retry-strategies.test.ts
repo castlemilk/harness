@@ -141,6 +141,10 @@ describe('getNextStrategy', () => {
       classification: 'transient',
       category: 'timeout',
     }));
+    expect(classify('Agent stopped at exception after 19 model turns: Ollama tools chat request timed out')).toEqual(expect.objectContaining({
+      classification: 'terminal',
+      category: 'agent-result',
+    }));
     expect(classify('finish rejected: project validation did not pass; test failed because a spec timed out')).toEqual(expect.objectContaining({
       classification: 'terminal',
       category: 'validation-failure',

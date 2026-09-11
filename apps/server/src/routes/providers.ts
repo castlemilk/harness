@@ -17,6 +17,9 @@ const createSchema = z.object({
   defaultModel: z.string().min(1),
   capabilities: z.union([z.string(), z.array(z.any())]).optional(),
   enabled: z.boolean().optional(),
+  defaultCacheMode: z.enum(['cold', 'warm-prefix', 'warm-ngram']).optional(),
+  defaultWarmupRuns: z.number().int().min(0).max(10).optional(),
+  defaultContextTokens: z.number().int().positive().optional(),
 });
 
 const updateSchema = z.object({
@@ -29,6 +32,9 @@ const updateSchema = z.object({
   defaultModel: z.string().min(1).optional(),
   capabilities: z.union([z.string(), z.array(z.any())]).optional(),
   enabled: z.boolean().optional(),
+  defaultCacheMode: z.enum(['cold', 'warm-prefix', 'warm-ngram']).optional().nullable(),
+  defaultWarmupRuns: z.number().int().min(0).max(10).optional().nullable(),
+  defaultContextTokens: z.number().int().positive().optional().nullable(),
 });
 
 function normalizeCapabilities(input: unknown): string {
@@ -80,6 +86,9 @@ export function providerRoutes(prisma: PrismaClient): Router {
         tokenExpiresAt: body.tokenExpiresAt !== undefined ? new Date(body.tokenExpiresAt) : undefined,
         capabilities: normalizeCapabilities(body.capabilities),
         enabled: body.enabled ?? true,
+        defaultCacheMode: body.defaultCacheMode,
+        defaultWarmupRuns: body.defaultWarmupRuns,
+        defaultContextTokens: body.defaultContextTokens,
       },
     });
     // Background warmup: probe connectivity but don't block the response
@@ -130,6 +139,9 @@ export function providerRoutes(prisma: PrismaClient): Router {
     if (body.defaultModel !== undefined) data.defaultModel = body.defaultModel;
     if (body.capabilities !== undefined) data.capabilities = normalizeCapabilities(body.capabilities);
     if (body.enabled !== undefined) data.enabled = body.enabled;
+    if (body.defaultCacheMode !== undefined) data.defaultCacheMode = body.defaultCacheMode;
+    if (body.defaultWarmupRuns !== undefined) data.defaultWarmupRuns = body.defaultWarmupRuns;
+    if (body.defaultContextTokens !== undefined) data.defaultContextTokens = body.defaultContextTokens;
     const provider = await prisma.providerConfig.update({
       where: { id: req.params.id },
       data,

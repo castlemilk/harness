@@ -35,14 +35,14 @@ afterEach(() => {
 });
 
 describe('agent helper request timeout', () => {
-  it('caps the stuck-solver request at 120 seconds', async () => {
+  it('caps the stuck-solver request at 180 seconds', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(2_000_000);
     const send = vi.fn().mockResolvedValue('no patch');
     const ctx = context({ config: { name: 'test' }, send } as unknown as Provider, 2_600_000, []);
 
     await expect(tryStuckSolve(ctx)).resolves.toBe(false);
     expect(send).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-      timeoutMs: 120_000,
+      timeoutMs: 180_000,
       thinking: false,
     }));
   });

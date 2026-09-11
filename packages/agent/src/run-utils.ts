@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { execFileAsync } from './project-utils.js';
+import { execFileAsync, resolveExistingProjectPath } from './project-utils.js';
 import type { ToolResult } from './tool-types.js';
 
 const COREPACK_ENV: NodeJS.ProcessEnv = {
@@ -143,6 +143,22 @@ async function exists(filePath: string): Promise<boolean> {
   }
 }
 
+async function resolveGoFileArguments(
+  projectPath: string,
+  command: string,
+  args: string[],
+): Promise<string[]> {
+  const isGofmt = command === 'gofmt';
+  const isGoFileCommand = command === 'go' && (args[0] === 'fmt' || args[0] === 'vet');
+  if (!isGofmt && !isGoFileCommand) return args;
+
+  return Promise.all(args.map(async (arg, index) => {
+    if (arg.startsWith('-') || !arg.endsWith('.go') || (isGoFileCommand && index === 0)) return arg;
+    const resolved = await resolveExistingProjectPath(projectPath, arg, 'file');
+    return resolved?.relativePath ?? arg;
+  }));
+}
+
 export async function runCommand(
   projectPath: string,
   command: string,
@@ -159,7 +175,7 @@ export async function runCommand(
     return { success: false, output: 'Empty command' };
   }
   const cmd = useShell ? 'sh' : args[0];
-  const cmdArgs = useShell ? args : args.slice(1);
+  const cmdArgs = useShell ? args : await resolveGoFileArguments(projectPath, cmd, args.slice(1));
 
   const advisory = !useShell && isFullSuiteTestCommand(cmd, cmdArgs) ? FULL_SUITE_HINT : '';
 

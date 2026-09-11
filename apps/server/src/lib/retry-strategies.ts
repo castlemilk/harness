@@ -123,6 +123,12 @@ export function classifyRetryFailure(error: string): RetryFailureClassificationR
   ) {
     return terminal('agent-result', 'The agent reached a terminal result or policy limit rather than an infrastructure interruption.');
   }
+  if (
+    normalized.includes('agent stopped at exception')
+    && /(?:timed? out|timeout)/.test(normalized)
+  ) {
+    return terminal('agent-result', 'The agent attempt exhausted its provider transport timeout; automatic replay would duplicate the same expensive attempt.');
+  }
   // Ordinary test/assertion output is TERMINAL and must be matched before the
   // transient branches: a suite asserting on HTTP status codes puts literal
   // "500"/"429" into the failure text, and this repo's whole benchmark

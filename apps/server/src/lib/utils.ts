@@ -4,6 +4,10 @@
 
 import type { ProviderConfig as CoreProviderConfig } from '@omega/core';
 
+function normalizeCacheMode(value: string | null | undefined): CoreProviderConfig['defaultCacheMode'] {
+  return value === 'cold' || value === 'warm-prefix' || value === 'warm-ngram' ? value : undefined;
+}
+
 /**
  * Convert a Prisma ProviderConfig row to the core ProviderConfig type.
  * Used across routes and lib modules that need to create provider instances.
@@ -17,6 +21,9 @@ export function toCoreConfig(row: {
   defaultModel: string;
   capabilities: string;
   enabled: boolean;
+  defaultCacheMode?: string | null;
+  defaultWarmupRuns?: number | null;
+  defaultContextTokens?: number | null;
 }): CoreProviderConfig {
   return {
     id: row.id,
@@ -27,6 +34,9 @@ export function toCoreConfig(row: {
     defaultModel: row.defaultModel,
     capabilities: JSON.parse(row.capabilities) as CoreProviderConfig['capabilities'],
     enabled: row.enabled,
+    defaultCacheMode: normalizeCacheMode(row.defaultCacheMode),
+    defaultWarmupRuns: row.defaultWarmupRuns ?? undefined,
+    defaultContextTokens: row.defaultContextTokens ?? undefined,
   };
 }
 

@@ -32,6 +32,10 @@ export function costRoutes(prisma: PrismaClient): Router {
       ? totalTokens / completedRuns.length
       : 0;
 
+    // Local models (Ollama) have zero cost but still consume tokens
+    const localRuns = runs.filter((r) => (r.task.provider ?? '').includes('ollama'));
+    const localTokens = localRuns.reduce((sum, r) => sum + (r.totalTokens ?? 0), 0);
+
     const costByProvider: Record<string, number> = {};
     const costByModel: Record<string, number> = {};
     const costByDay: Record<string, number> = {};
@@ -55,6 +59,8 @@ export function costRoutes(prisma: PrismaClient): Router {
       avgCostPerRun: Math.round(avgCostPerRun * 1_000_000) / 1_000_000,
       avgTokensPerRun: Math.round(avgTokensPerRun),
       runsWithCost,
+      localModelRuns: localRuns.length,
+      localModelTokens: localTokens,
     });
   }));
 

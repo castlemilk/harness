@@ -379,4 +379,18 @@ export const api = {
       replay: Record<string, unknown>;
       trace: Record<string, unknown> | null;
     }>(`/tasks/${id}/replay`, { method: 'POST', body: JSON.stringify(body) }),
+
+  // ── Local models ────────────────────────────────────────
+
+  getLocalModels: () => request<Record<string, unknown>[]>('/local-models'),
+  getLocalModel: (id: string) => request<Record<string, unknown>>(`/local-models/${id}`),
+  createLocalModel: (body: Record<string, unknown>) =>
+    request<Record<string, unknown>>('/local-models', { method: 'POST', body: JSON.stringify(body) }),
+  deleteLocalModel: (id: string) => request(`/local-models/${id}`, { method: 'DELETE' }),
+  discoverLocalModels: (baseUrl?: string) =>
+    request<{ models: Record<string, unknown>[] }>(`/local-models/discover${baseUrl ? `?baseUrl=${encodeURIComponent(baseUrl)}` : ''}`),
+  launchLocalModel: (id: string) =>
+    request<Record<string, unknown>>(`/local-models/${id}/launch`, { method: 'POST' }),
+  getLocalModelMetrics: (id: string) =>
+    request<Record<string, unknown>>(`/local-models/${id}/metrics`),
 };

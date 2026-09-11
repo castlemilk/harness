@@ -54,6 +54,11 @@ export type TraceSpan = $Result.DefaultSelection<Prisma.$TraceSpanPayload>
  */
 export type ProviderConfig = $Result.DefaultSelection<Prisma.$ProviderConfigPayload>
 /**
+ * Model LocalModelConfig
+ * 
+ */
+export type LocalModelConfig = $Result.DefaultSelection<Prisma.$LocalModelConfigPayload>
+/**
  * Model SkillArtifact
  * 
  */
@@ -327,6 +332,16 @@ export class PrismaClient<
     * ```
     */
   get providerConfig(): Prisma.ProviderConfigDelegate<ExtArgs>;
+
+  /**
+   * `prisma.localModelConfig`: Exposes CRUD operations for the **LocalModelConfig** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more LocalModelConfigs
+    * const localModelConfigs = await prisma.localModelConfig.findMany()
+    * ```
+    */
+  get localModelConfig(): Prisma.LocalModelConfigDelegate<ExtArgs>;
 
   /**
    * `prisma.skillArtifact`: Exposes CRUD operations for the **SkillArtifact** model.
@@ -916,6 +931,7 @@ export namespace Prisma {
     AgentRun: 'AgentRun',
     TraceSpan: 'TraceSpan',
     ProviderConfig: 'ProviderConfig',
+    LocalModelConfig: 'LocalModelConfig',
     SkillArtifact: 'SkillArtifact',
     PromptVersion: 'PromptVersion',
     BenchmarkHistory: 'BenchmarkHistory',
@@ -945,7 +961,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "skillArtifact" | "promptVersion" | "benchmarkHistory" | "benchmarkRun" | "providerCircuitState" | "objective" | "objectivePhase" | "workstream" | "harness" | "pulse" | "intervention" | "playbook" | "harnessTool" | "harnessToolRun"
+      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "localModelConfig" | "skillArtifact" | "promptVersion" | "benchmarkHistory" | "benchmarkRun" | "providerCircuitState" | "objective" | "objectivePhase" | "workstream" | "harness" | "pulse" | "intervention" | "playbook" | "harnessTool" | "harnessToolRun"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1506,6 +1522,76 @@ export namespace Prisma {
           count: {
             args: Prisma.ProviderConfigCountArgs<ExtArgs>
             result: $Utils.Optional<ProviderConfigCountAggregateOutputType> | number
+          }
+        }
+      }
+      LocalModelConfig: {
+        payload: Prisma.$LocalModelConfigPayload<ExtArgs>
+        fields: Prisma.LocalModelConfigFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.LocalModelConfigFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LocalModelConfigPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.LocalModelConfigFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LocalModelConfigPayload>
+          }
+          findFirst: {
+            args: Prisma.LocalModelConfigFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LocalModelConfigPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.LocalModelConfigFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LocalModelConfigPayload>
+          }
+          findMany: {
+            args: Prisma.LocalModelConfigFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LocalModelConfigPayload>[]
+          }
+          create: {
+            args: Prisma.LocalModelConfigCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LocalModelConfigPayload>
+          }
+          createMany: {
+            args: Prisma.LocalModelConfigCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.LocalModelConfigCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LocalModelConfigPayload>[]
+          }
+          delete: {
+            args: Prisma.LocalModelConfigDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LocalModelConfigPayload>
+          }
+          update: {
+            args: Prisma.LocalModelConfigUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LocalModelConfigPayload>
+          }
+          deleteMany: {
+            args: Prisma.LocalModelConfigDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.LocalModelConfigUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.LocalModelConfigUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LocalModelConfigPayload>
+          }
+          aggregate: {
+            args: Prisma.LocalModelConfigAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateLocalModelConfig>
+          }
+          groupBy: {
+            args: Prisma.LocalModelConfigGroupByArgs<ExtArgs>
+            result: $Utils.Optional<LocalModelConfigGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.LocalModelConfigCountArgs<ExtArgs>
+            result: $Utils.Optional<LocalModelConfigCountAggregateOutputType> | number
           }
         }
       }
@@ -10536,8 +10622,20 @@ export namespace Prisma {
 
   export type AggregateProviderConfig = {
     _count: ProviderConfigCountAggregateOutputType | null
+    _avg: ProviderConfigAvgAggregateOutputType | null
+    _sum: ProviderConfigSumAggregateOutputType | null
     _min: ProviderConfigMinAggregateOutputType | null
     _max: ProviderConfigMaxAggregateOutputType | null
+  }
+
+  export type ProviderConfigAvgAggregateOutputType = {
+    defaultWarmupRuns: number | null
+    defaultContextTokens: number | null
+  }
+
+  export type ProviderConfigSumAggregateOutputType = {
+    defaultWarmupRuns: number | null
+    defaultContextTokens: number | null
   }
 
   export type ProviderConfigMinAggregateOutputType = {
@@ -10551,6 +10649,9 @@ export namespace Prisma {
     defaultModel: string | null
     capabilities: string | null
     enabled: boolean | null
+    defaultCacheMode: string | null
+    defaultWarmupRuns: number | null
+    defaultContextTokens: number | null
     createdAt: Date | null
   }
 
@@ -10565,6 +10666,9 @@ export namespace Prisma {
     defaultModel: string | null
     capabilities: string | null
     enabled: boolean | null
+    defaultCacheMode: string | null
+    defaultWarmupRuns: number | null
+    defaultContextTokens: number | null
     createdAt: Date | null
   }
 
@@ -10579,10 +10683,23 @@ export namespace Prisma {
     defaultModel: number
     capabilities: number
     enabled: number
+    defaultCacheMode: number
+    defaultWarmupRuns: number
+    defaultContextTokens: number
     createdAt: number
     _all: number
   }
 
+
+  export type ProviderConfigAvgAggregateInputType = {
+    defaultWarmupRuns?: true
+    defaultContextTokens?: true
+  }
+
+  export type ProviderConfigSumAggregateInputType = {
+    defaultWarmupRuns?: true
+    defaultContextTokens?: true
+  }
 
   export type ProviderConfigMinAggregateInputType = {
     id?: true
@@ -10595,6 +10712,9 @@ export namespace Prisma {
     defaultModel?: true
     capabilities?: true
     enabled?: true
+    defaultCacheMode?: true
+    defaultWarmupRuns?: true
+    defaultContextTokens?: true
     createdAt?: true
   }
 
@@ -10609,6 +10729,9 @@ export namespace Prisma {
     defaultModel?: true
     capabilities?: true
     enabled?: true
+    defaultCacheMode?: true
+    defaultWarmupRuns?: true
+    defaultContextTokens?: true
     createdAt?: true
   }
 
@@ -10623,6 +10746,9 @@ export namespace Prisma {
     defaultModel?: true
     capabilities?: true
     enabled?: true
+    defaultCacheMode?: true
+    defaultWarmupRuns?: true
+    defaultContextTokens?: true
     createdAt?: true
     _all?: true
   }
@@ -10665,6 +10791,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: ProviderConfigAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ProviderConfigSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: ProviderConfigMinAggregateInputType
@@ -10695,6 +10833,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: ProviderConfigCountAggregateInputType | true
+    _avg?: ProviderConfigAvgAggregateInputType
+    _sum?: ProviderConfigSumAggregateInputType
     _min?: ProviderConfigMinAggregateInputType
     _max?: ProviderConfigMaxAggregateInputType
   }
@@ -10710,8 +10850,13 @@ export namespace Prisma {
     defaultModel: string
     capabilities: string
     enabled: boolean
+    defaultCacheMode: string | null
+    defaultWarmupRuns: number | null
+    defaultContextTokens: number | null
     createdAt: Date
     _count: ProviderConfigCountAggregateOutputType | null
+    _avg: ProviderConfigAvgAggregateOutputType | null
+    _sum: ProviderConfigSumAggregateOutputType | null
     _min: ProviderConfigMinAggregateOutputType | null
     _max: ProviderConfigMaxAggregateOutputType | null
   }
@@ -10741,6 +10886,9 @@ export namespace Prisma {
     defaultModel?: boolean
     capabilities?: boolean
     enabled?: boolean
+    defaultCacheMode?: boolean
+    defaultWarmupRuns?: boolean
+    defaultContextTokens?: boolean
     createdAt?: boolean
   }, ExtArgs["result"]["providerConfig"]>
 
@@ -10755,6 +10903,9 @@ export namespace Prisma {
     defaultModel?: boolean
     capabilities?: boolean
     enabled?: boolean
+    defaultCacheMode?: boolean
+    defaultWarmupRuns?: boolean
+    defaultContextTokens?: boolean
     createdAt?: boolean
   }, ExtArgs["result"]["providerConfig"]>
 
@@ -10769,6 +10920,9 @@ export namespace Prisma {
     defaultModel?: boolean
     capabilities?: boolean
     enabled?: boolean
+    defaultCacheMode?: boolean
+    defaultWarmupRuns?: boolean
+    defaultContextTokens?: boolean
     createdAt?: boolean
   }
 
@@ -10787,6 +10941,9 @@ export namespace Prisma {
       defaultModel: string
       capabilities: string
       enabled: boolean
+      defaultCacheMode: string | null
+      defaultWarmupRuns: number | null
+      defaultContextTokens: number | null
       createdAt: Date
     }, ExtArgs["result"]["providerConfig"]>
     composites: {}
@@ -11191,6 +11348,9 @@ export namespace Prisma {
     readonly defaultModel: FieldRef<"ProviderConfig", 'String'>
     readonly capabilities: FieldRef<"ProviderConfig", 'String'>
     readonly enabled: FieldRef<"ProviderConfig", 'Boolean'>
+    readonly defaultCacheMode: FieldRef<"ProviderConfig", 'String'>
+    readonly defaultWarmupRuns: FieldRef<"ProviderConfig", 'Int'>
+    readonly defaultContextTokens: FieldRef<"ProviderConfig", 'Int'>
     readonly createdAt: FieldRef<"ProviderConfig", 'DateTime'>
   }
     
@@ -11477,6 +11637,1018 @@ export namespace Prisma {
      * Select specific fields to fetch from the ProviderConfig
      */
     select?: ProviderConfigSelect<ExtArgs> | null
+  }
+
+
+  /**
+   * Model LocalModelConfig
+   */
+
+  export type AggregateLocalModelConfig = {
+    _count: LocalModelConfigCountAggregateOutputType | null
+    _avg: LocalModelConfigAvgAggregateOutputType | null
+    _sum: LocalModelConfigSumAggregateOutputType | null
+    _min: LocalModelConfigMinAggregateOutputType | null
+    _max: LocalModelConfigMaxAggregateOutputType | null
+  }
+
+  export type LocalModelConfigAvgAggregateOutputType = {
+    warmupRuns: number | null
+    contextTokens: number | null
+  }
+
+  export type LocalModelConfigSumAggregateOutputType = {
+    warmupRuns: number | null
+    contextTokens: number | null
+  }
+
+  export type LocalModelConfigMinAggregateOutputType = {
+    id: string | null
+    name: string | null
+    baseUrl: string | null
+    model: string | null
+    cacheMode: string | null
+    warmupRuns: number | null
+    contextTokens: number | null
+    keepAlive: string | null
+    proxyEnabled: boolean | null
+    tokenHorizonUrl: string | null
+    enabled: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type LocalModelConfigMaxAggregateOutputType = {
+    id: string | null
+    name: string | null
+    baseUrl: string | null
+    model: string | null
+    cacheMode: string | null
+    warmupRuns: number | null
+    contextTokens: number | null
+    keepAlive: string | null
+    proxyEnabled: boolean | null
+    tokenHorizonUrl: string | null
+    enabled: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type LocalModelConfigCountAggregateOutputType = {
+    id: number
+    name: number
+    baseUrl: number
+    model: number
+    cacheMode: number
+    warmupRuns: number
+    contextTokens: number
+    keepAlive: number
+    proxyEnabled: number
+    tokenHorizonUrl: number
+    enabled: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type LocalModelConfigAvgAggregateInputType = {
+    warmupRuns?: true
+    contextTokens?: true
+  }
+
+  export type LocalModelConfigSumAggregateInputType = {
+    warmupRuns?: true
+    contextTokens?: true
+  }
+
+  export type LocalModelConfigMinAggregateInputType = {
+    id?: true
+    name?: true
+    baseUrl?: true
+    model?: true
+    cacheMode?: true
+    warmupRuns?: true
+    contextTokens?: true
+    keepAlive?: true
+    proxyEnabled?: true
+    tokenHorizonUrl?: true
+    enabled?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type LocalModelConfigMaxAggregateInputType = {
+    id?: true
+    name?: true
+    baseUrl?: true
+    model?: true
+    cacheMode?: true
+    warmupRuns?: true
+    contextTokens?: true
+    keepAlive?: true
+    proxyEnabled?: true
+    tokenHorizonUrl?: true
+    enabled?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type LocalModelConfigCountAggregateInputType = {
+    id?: true
+    name?: true
+    baseUrl?: true
+    model?: true
+    cacheMode?: true
+    warmupRuns?: true
+    contextTokens?: true
+    keepAlive?: true
+    proxyEnabled?: true
+    tokenHorizonUrl?: true
+    enabled?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type LocalModelConfigAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which LocalModelConfig to aggregate.
+     */
+    where?: LocalModelConfigWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of LocalModelConfigs to fetch.
+     */
+    orderBy?: LocalModelConfigOrderByWithRelationInput | LocalModelConfigOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: LocalModelConfigWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` LocalModelConfigs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` LocalModelConfigs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned LocalModelConfigs
+    **/
+    _count?: true | LocalModelConfigCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: LocalModelConfigAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: LocalModelConfigSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: LocalModelConfigMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: LocalModelConfigMaxAggregateInputType
+  }
+
+  export type GetLocalModelConfigAggregateType<T extends LocalModelConfigAggregateArgs> = {
+        [P in keyof T & keyof AggregateLocalModelConfig]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateLocalModelConfig[P]>
+      : GetScalarType<T[P], AggregateLocalModelConfig[P]>
+  }
+
+
+
+
+  export type LocalModelConfigGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: LocalModelConfigWhereInput
+    orderBy?: LocalModelConfigOrderByWithAggregationInput | LocalModelConfigOrderByWithAggregationInput[]
+    by: LocalModelConfigScalarFieldEnum[] | LocalModelConfigScalarFieldEnum
+    having?: LocalModelConfigScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: LocalModelConfigCountAggregateInputType | true
+    _avg?: LocalModelConfigAvgAggregateInputType
+    _sum?: LocalModelConfigSumAggregateInputType
+    _min?: LocalModelConfigMinAggregateInputType
+    _max?: LocalModelConfigMaxAggregateInputType
+  }
+
+  export type LocalModelConfigGroupByOutputType = {
+    id: string
+    name: string
+    baseUrl: string
+    model: string
+    cacheMode: string
+    warmupRuns: number
+    contextTokens: number | null
+    keepAlive: string
+    proxyEnabled: boolean
+    tokenHorizonUrl: string
+    enabled: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: LocalModelConfigCountAggregateOutputType | null
+    _avg: LocalModelConfigAvgAggregateOutputType | null
+    _sum: LocalModelConfigSumAggregateOutputType | null
+    _min: LocalModelConfigMinAggregateOutputType | null
+    _max: LocalModelConfigMaxAggregateOutputType | null
+  }
+
+  type GetLocalModelConfigGroupByPayload<T extends LocalModelConfigGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<LocalModelConfigGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof LocalModelConfigGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], LocalModelConfigGroupByOutputType[P]>
+            : GetScalarType<T[P], LocalModelConfigGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type LocalModelConfigSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    baseUrl?: boolean
+    model?: boolean
+    cacheMode?: boolean
+    warmupRuns?: boolean
+    contextTokens?: boolean
+    keepAlive?: boolean
+    proxyEnabled?: boolean
+    tokenHorizonUrl?: boolean
+    enabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["localModelConfig"]>
+
+  export type LocalModelConfigSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    baseUrl?: boolean
+    model?: boolean
+    cacheMode?: boolean
+    warmupRuns?: boolean
+    contextTokens?: boolean
+    keepAlive?: boolean
+    proxyEnabled?: boolean
+    tokenHorizonUrl?: boolean
+    enabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["localModelConfig"]>
+
+  export type LocalModelConfigSelectScalar = {
+    id?: boolean
+    name?: boolean
+    baseUrl?: boolean
+    model?: boolean
+    cacheMode?: boolean
+    warmupRuns?: boolean
+    contextTokens?: boolean
+    keepAlive?: boolean
+    proxyEnabled?: boolean
+    tokenHorizonUrl?: boolean
+    enabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+
+  export type $LocalModelConfigPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "LocalModelConfig"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      name: string
+      baseUrl: string
+      model: string
+      cacheMode: string
+      warmupRuns: number
+      contextTokens: number | null
+      keepAlive: string
+      proxyEnabled: boolean
+      tokenHorizonUrl: string
+      enabled: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["localModelConfig"]>
+    composites: {}
+  }
+
+  type LocalModelConfigGetPayload<S extends boolean | null | undefined | LocalModelConfigDefaultArgs> = $Result.GetResult<Prisma.$LocalModelConfigPayload, S>
+
+  type LocalModelConfigCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<LocalModelConfigFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: LocalModelConfigCountAggregateInputType | true
+    }
+
+  export interface LocalModelConfigDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['LocalModelConfig'], meta: { name: 'LocalModelConfig' } }
+    /**
+     * Find zero or one LocalModelConfig that matches the filter.
+     * @param {LocalModelConfigFindUniqueArgs} args - Arguments to find a LocalModelConfig
+     * @example
+     * // Get one LocalModelConfig
+     * const localModelConfig = await prisma.localModelConfig.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends LocalModelConfigFindUniqueArgs>(args: SelectSubset<T, LocalModelConfigFindUniqueArgs<ExtArgs>>): Prisma__LocalModelConfigClient<$Result.GetResult<Prisma.$LocalModelConfigPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one LocalModelConfig that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {LocalModelConfigFindUniqueOrThrowArgs} args - Arguments to find a LocalModelConfig
+     * @example
+     * // Get one LocalModelConfig
+     * const localModelConfig = await prisma.localModelConfig.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends LocalModelConfigFindUniqueOrThrowArgs>(args: SelectSubset<T, LocalModelConfigFindUniqueOrThrowArgs<ExtArgs>>): Prisma__LocalModelConfigClient<$Result.GetResult<Prisma.$LocalModelConfigPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first LocalModelConfig that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LocalModelConfigFindFirstArgs} args - Arguments to find a LocalModelConfig
+     * @example
+     * // Get one LocalModelConfig
+     * const localModelConfig = await prisma.localModelConfig.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends LocalModelConfigFindFirstArgs>(args?: SelectSubset<T, LocalModelConfigFindFirstArgs<ExtArgs>>): Prisma__LocalModelConfigClient<$Result.GetResult<Prisma.$LocalModelConfigPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first LocalModelConfig that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LocalModelConfigFindFirstOrThrowArgs} args - Arguments to find a LocalModelConfig
+     * @example
+     * // Get one LocalModelConfig
+     * const localModelConfig = await prisma.localModelConfig.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends LocalModelConfigFindFirstOrThrowArgs>(args?: SelectSubset<T, LocalModelConfigFindFirstOrThrowArgs<ExtArgs>>): Prisma__LocalModelConfigClient<$Result.GetResult<Prisma.$LocalModelConfigPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more LocalModelConfigs that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LocalModelConfigFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all LocalModelConfigs
+     * const localModelConfigs = await prisma.localModelConfig.findMany()
+     * 
+     * // Get first 10 LocalModelConfigs
+     * const localModelConfigs = await prisma.localModelConfig.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const localModelConfigWithIdOnly = await prisma.localModelConfig.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends LocalModelConfigFindManyArgs>(args?: SelectSubset<T, LocalModelConfigFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LocalModelConfigPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a LocalModelConfig.
+     * @param {LocalModelConfigCreateArgs} args - Arguments to create a LocalModelConfig.
+     * @example
+     * // Create one LocalModelConfig
+     * const LocalModelConfig = await prisma.localModelConfig.create({
+     *   data: {
+     *     // ... data to create a LocalModelConfig
+     *   }
+     * })
+     * 
+     */
+    create<T extends LocalModelConfigCreateArgs>(args: SelectSubset<T, LocalModelConfigCreateArgs<ExtArgs>>): Prisma__LocalModelConfigClient<$Result.GetResult<Prisma.$LocalModelConfigPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many LocalModelConfigs.
+     * @param {LocalModelConfigCreateManyArgs} args - Arguments to create many LocalModelConfigs.
+     * @example
+     * // Create many LocalModelConfigs
+     * const localModelConfig = await prisma.localModelConfig.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends LocalModelConfigCreateManyArgs>(args?: SelectSubset<T, LocalModelConfigCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many LocalModelConfigs and returns the data saved in the database.
+     * @param {LocalModelConfigCreateManyAndReturnArgs} args - Arguments to create many LocalModelConfigs.
+     * @example
+     * // Create many LocalModelConfigs
+     * const localModelConfig = await prisma.localModelConfig.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many LocalModelConfigs and only return the `id`
+     * const localModelConfigWithIdOnly = await prisma.localModelConfig.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends LocalModelConfigCreateManyAndReturnArgs>(args?: SelectSubset<T, LocalModelConfigCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LocalModelConfigPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a LocalModelConfig.
+     * @param {LocalModelConfigDeleteArgs} args - Arguments to delete one LocalModelConfig.
+     * @example
+     * // Delete one LocalModelConfig
+     * const LocalModelConfig = await prisma.localModelConfig.delete({
+     *   where: {
+     *     // ... filter to delete one LocalModelConfig
+     *   }
+     * })
+     * 
+     */
+    delete<T extends LocalModelConfigDeleteArgs>(args: SelectSubset<T, LocalModelConfigDeleteArgs<ExtArgs>>): Prisma__LocalModelConfigClient<$Result.GetResult<Prisma.$LocalModelConfigPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one LocalModelConfig.
+     * @param {LocalModelConfigUpdateArgs} args - Arguments to update one LocalModelConfig.
+     * @example
+     * // Update one LocalModelConfig
+     * const localModelConfig = await prisma.localModelConfig.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends LocalModelConfigUpdateArgs>(args: SelectSubset<T, LocalModelConfigUpdateArgs<ExtArgs>>): Prisma__LocalModelConfigClient<$Result.GetResult<Prisma.$LocalModelConfigPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more LocalModelConfigs.
+     * @param {LocalModelConfigDeleteManyArgs} args - Arguments to filter LocalModelConfigs to delete.
+     * @example
+     * // Delete a few LocalModelConfigs
+     * const { count } = await prisma.localModelConfig.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends LocalModelConfigDeleteManyArgs>(args?: SelectSubset<T, LocalModelConfigDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more LocalModelConfigs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LocalModelConfigUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many LocalModelConfigs
+     * const localModelConfig = await prisma.localModelConfig.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends LocalModelConfigUpdateManyArgs>(args: SelectSubset<T, LocalModelConfigUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one LocalModelConfig.
+     * @param {LocalModelConfigUpsertArgs} args - Arguments to update or create a LocalModelConfig.
+     * @example
+     * // Update or create a LocalModelConfig
+     * const localModelConfig = await prisma.localModelConfig.upsert({
+     *   create: {
+     *     // ... data to create a LocalModelConfig
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the LocalModelConfig we want to update
+     *   }
+     * })
+     */
+    upsert<T extends LocalModelConfigUpsertArgs>(args: SelectSubset<T, LocalModelConfigUpsertArgs<ExtArgs>>): Prisma__LocalModelConfigClient<$Result.GetResult<Prisma.$LocalModelConfigPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of LocalModelConfigs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LocalModelConfigCountArgs} args - Arguments to filter LocalModelConfigs to count.
+     * @example
+     * // Count the number of LocalModelConfigs
+     * const count = await prisma.localModelConfig.count({
+     *   where: {
+     *     // ... the filter for the LocalModelConfigs we want to count
+     *   }
+     * })
+    **/
+    count<T extends LocalModelConfigCountArgs>(
+      args?: Subset<T, LocalModelConfigCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], LocalModelConfigCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a LocalModelConfig.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LocalModelConfigAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends LocalModelConfigAggregateArgs>(args: Subset<T, LocalModelConfigAggregateArgs>): Prisma.PrismaPromise<GetLocalModelConfigAggregateType<T>>
+
+    /**
+     * Group by LocalModelConfig.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {LocalModelConfigGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends LocalModelConfigGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: LocalModelConfigGroupByArgs['orderBy'] }
+        : { orderBy?: LocalModelConfigGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, LocalModelConfigGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetLocalModelConfigGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the LocalModelConfig model
+   */
+  readonly fields: LocalModelConfigFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for LocalModelConfig.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__LocalModelConfigClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the LocalModelConfig model
+   */ 
+  interface LocalModelConfigFieldRefs {
+    readonly id: FieldRef<"LocalModelConfig", 'String'>
+    readonly name: FieldRef<"LocalModelConfig", 'String'>
+    readonly baseUrl: FieldRef<"LocalModelConfig", 'String'>
+    readonly model: FieldRef<"LocalModelConfig", 'String'>
+    readonly cacheMode: FieldRef<"LocalModelConfig", 'String'>
+    readonly warmupRuns: FieldRef<"LocalModelConfig", 'Int'>
+    readonly contextTokens: FieldRef<"LocalModelConfig", 'Int'>
+    readonly keepAlive: FieldRef<"LocalModelConfig", 'String'>
+    readonly proxyEnabled: FieldRef<"LocalModelConfig", 'Boolean'>
+    readonly tokenHorizonUrl: FieldRef<"LocalModelConfig", 'String'>
+    readonly enabled: FieldRef<"LocalModelConfig", 'Boolean'>
+    readonly createdAt: FieldRef<"LocalModelConfig", 'DateTime'>
+    readonly updatedAt: FieldRef<"LocalModelConfig", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * LocalModelConfig findUnique
+   */
+  export type LocalModelConfigFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LocalModelConfig
+     */
+    select?: LocalModelConfigSelect<ExtArgs> | null
+    /**
+     * Filter, which LocalModelConfig to fetch.
+     */
+    where: LocalModelConfigWhereUniqueInput
+  }
+
+  /**
+   * LocalModelConfig findUniqueOrThrow
+   */
+  export type LocalModelConfigFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LocalModelConfig
+     */
+    select?: LocalModelConfigSelect<ExtArgs> | null
+    /**
+     * Filter, which LocalModelConfig to fetch.
+     */
+    where: LocalModelConfigWhereUniqueInput
+  }
+
+  /**
+   * LocalModelConfig findFirst
+   */
+  export type LocalModelConfigFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LocalModelConfig
+     */
+    select?: LocalModelConfigSelect<ExtArgs> | null
+    /**
+     * Filter, which LocalModelConfig to fetch.
+     */
+    where?: LocalModelConfigWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of LocalModelConfigs to fetch.
+     */
+    orderBy?: LocalModelConfigOrderByWithRelationInput | LocalModelConfigOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for LocalModelConfigs.
+     */
+    cursor?: LocalModelConfigWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` LocalModelConfigs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` LocalModelConfigs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of LocalModelConfigs.
+     */
+    distinct?: LocalModelConfigScalarFieldEnum | LocalModelConfigScalarFieldEnum[]
+  }
+
+  /**
+   * LocalModelConfig findFirstOrThrow
+   */
+  export type LocalModelConfigFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LocalModelConfig
+     */
+    select?: LocalModelConfigSelect<ExtArgs> | null
+    /**
+     * Filter, which LocalModelConfig to fetch.
+     */
+    where?: LocalModelConfigWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of LocalModelConfigs to fetch.
+     */
+    orderBy?: LocalModelConfigOrderByWithRelationInput | LocalModelConfigOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for LocalModelConfigs.
+     */
+    cursor?: LocalModelConfigWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` LocalModelConfigs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` LocalModelConfigs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of LocalModelConfigs.
+     */
+    distinct?: LocalModelConfigScalarFieldEnum | LocalModelConfigScalarFieldEnum[]
+  }
+
+  /**
+   * LocalModelConfig findMany
+   */
+  export type LocalModelConfigFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LocalModelConfig
+     */
+    select?: LocalModelConfigSelect<ExtArgs> | null
+    /**
+     * Filter, which LocalModelConfigs to fetch.
+     */
+    where?: LocalModelConfigWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of LocalModelConfigs to fetch.
+     */
+    orderBy?: LocalModelConfigOrderByWithRelationInput | LocalModelConfigOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing LocalModelConfigs.
+     */
+    cursor?: LocalModelConfigWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` LocalModelConfigs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` LocalModelConfigs.
+     */
+    skip?: number
+    distinct?: LocalModelConfigScalarFieldEnum | LocalModelConfigScalarFieldEnum[]
+  }
+
+  /**
+   * LocalModelConfig create
+   */
+  export type LocalModelConfigCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LocalModelConfig
+     */
+    select?: LocalModelConfigSelect<ExtArgs> | null
+    /**
+     * The data needed to create a LocalModelConfig.
+     */
+    data: XOR<LocalModelConfigCreateInput, LocalModelConfigUncheckedCreateInput>
+  }
+
+  /**
+   * LocalModelConfig createMany
+   */
+  export type LocalModelConfigCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many LocalModelConfigs.
+     */
+    data: LocalModelConfigCreateManyInput | LocalModelConfigCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * LocalModelConfig createManyAndReturn
+   */
+  export type LocalModelConfigCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LocalModelConfig
+     */
+    select?: LocalModelConfigSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many LocalModelConfigs.
+     */
+    data: LocalModelConfigCreateManyInput | LocalModelConfigCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * LocalModelConfig update
+   */
+  export type LocalModelConfigUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LocalModelConfig
+     */
+    select?: LocalModelConfigSelect<ExtArgs> | null
+    /**
+     * The data needed to update a LocalModelConfig.
+     */
+    data: XOR<LocalModelConfigUpdateInput, LocalModelConfigUncheckedUpdateInput>
+    /**
+     * Choose, which LocalModelConfig to update.
+     */
+    where: LocalModelConfigWhereUniqueInput
+  }
+
+  /**
+   * LocalModelConfig updateMany
+   */
+  export type LocalModelConfigUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update LocalModelConfigs.
+     */
+    data: XOR<LocalModelConfigUpdateManyMutationInput, LocalModelConfigUncheckedUpdateManyInput>
+    /**
+     * Filter which LocalModelConfigs to update
+     */
+    where?: LocalModelConfigWhereInput
+  }
+
+  /**
+   * LocalModelConfig upsert
+   */
+  export type LocalModelConfigUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LocalModelConfig
+     */
+    select?: LocalModelConfigSelect<ExtArgs> | null
+    /**
+     * The filter to search for the LocalModelConfig to update in case it exists.
+     */
+    where: LocalModelConfigWhereUniqueInput
+    /**
+     * In case the LocalModelConfig found by the `where` argument doesn't exist, create a new LocalModelConfig with this data.
+     */
+    create: XOR<LocalModelConfigCreateInput, LocalModelConfigUncheckedCreateInput>
+    /**
+     * In case the LocalModelConfig was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<LocalModelConfigUpdateInput, LocalModelConfigUncheckedUpdateInput>
+  }
+
+  /**
+   * LocalModelConfig delete
+   */
+  export type LocalModelConfigDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LocalModelConfig
+     */
+    select?: LocalModelConfigSelect<ExtArgs> | null
+    /**
+     * Filter which LocalModelConfig to delete.
+     */
+    where: LocalModelConfigWhereUniqueInput
+  }
+
+  /**
+   * LocalModelConfig deleteMany
+   */
+  export type LocalModelConfigDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which LocalModelConfigs to delete
+     */
+    where?: LocalModelConfigWhereInput
+  }
+
+  /**
+   * LocalModelConfig without action
+   */
+  export type LocalModelConfigDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LocalModelConfig
+     */
+    select?: LocalModelConfigSelect<ExtArgs> | null
   }
 
 
@@ -26515,10 +27687,32 @@ export namespace Prisma {
     defaultModel: 'defaultModel',
     capabilities: 'capabilities',
     enabled: 'enabled',
+    defaultCacheMode: 'defaultCacheMode',
+    defaultWarmupRuns: 'defaultWarmupRuns',
+    defaultContextTokens: 'defaultContextTokens',
     createdAt: 'createdAt'
   };
 
   export type ProviderConfigScalarFieldEnum = (typeof ProviderConfigScalarFieldEnum)[keyof typeof ProviderConfigScalarFieldEnum]
+
+
+  export const LocalModelConfigScalarFieldEnum: {
+    id: 'id',
+    name: 'name',
+    baseUrl: 'baseUrl',
+    model: 'model',
+    cacheMode: 'cacheMode',
+    warmupRuns: 'warmupRuns',
+    contextTokens: 'contextTokens',
+    keepAlive: 'keepAlive',
+    proxyEnabled: 'proxyEnabled',
+    tokenHorizonUrl: 'tokenHorizonUrl',
+    enabled: 'enabled',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type LocalModelConfigScalarFieldEnum = (typeof LocalModelConfigScalarFieldEnum)[keyof typeof LocalModelConfigScalarFieldEnum]
 
 
   export const SkillArtifactScalarFieldEnum: {
@@ -27586,6 +28780,9 @@ export namespace Prisma {
     defaultModel?: StringFilter<"ProviderConfig"> | string
     capabilities?: StringFilter<"ProviderConfig"> | string
     enabled?: BoolFilter<"ProviderConfig"> | boolean
+    defaultCacheMode?: StringNullableFilter<"ProviderConfig"> | string | null
+    defaultWarmupRuns?: IntNullableFilter<"ProviderConfig"> | number | null
+    defaultContextTokens?: IntNullableFilter<"ProviderConfig"> | number | null
     createdAt?: DateTimeFilter<"ProviderConfig"> | Date | string
   }
 
@@ -27600,6 +28797,9 @@ export namespace Prisma {
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
+    defaultCacheMode?: SortOrderInput | SortOrder
+    defaultWarmupRuns?: SortOrderInput | SortOrder
+    defaultContextTokens?: SortOrderInput | SortOrder
     createdAt?: SortOrder
   }
 
@@ -27617,6 +28817,9 @@ export namespace Prisma {
     defaultModel?: StringFilter<"ProviderConfig"> | string
     capabilities?: StringFilter<"ProviderConfig"> | string
     enabled?: BoolFilter<"ProviderConfig"> | boolean
+    defaultCacheMode?: StringNullableFilter<"ProviderConfig"> | string | null
+    defaultWarmupRuns?: IntNullableFilter<"ProviderConfig"> | number | null
+    defaultContextTokens?: IntNullableFilter<"ProviderConfig"> | number | null
     createdAt?: DateTimeFilter<"ProviderConfig"> | Date | string
   }, "id" | "name">
 
@@ -27631,10 +28834,15 @@ export namespace Prisma {
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
+    defaultCacheMode?: SortOrderInput | SortOrder
+    defaultWarmupRuns?: SortOrderInput | SortOrder
+    defaultContextTokens?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     _count?: ProviderConfigCountOrderByAggregateInput
+    _avg?: ProviderConfigAvgOrderByAggregateInput
     _max?: ProviderConfigMaxOrderByAggregateInput
     _min?: ProviderConfigMinOrderByAggregateInput
+    _sum?: ProviderConfigSumOrderByAggregateInput
   }
 
   export type ProviderConfigScalarWhereWithAggregatesInput = {
@@ -27651,7 +28859,104 @@ export namespace Prisma {
     defaultModel?: StringWithAggregatesFilter<"ProviderConfig"> | string
     capabilities?: StringWithAggregatesFilter<"ProviderConfig"> | string
     enabled?: BoolWithAggregatesFilter<"ProviderConfig"> | boolean
+    defaultCacheMode?: StringNullableWithAggregatesFilter<"ProviderConfig"> | string | null
+    defaultWarmupRuns?: IntNullableWithAggregatesFilter<"ProviderConfig"> | number | null
+    defaultContextTokens?: IntNullableWithAggregatesFilter<"ProviderConfig"> | number | null
     createdAt?: DateTimeWithAggregatesFilter<"ProviderConfig"> | Date | string
+  }
+
+  export type LocalModelConfigWhereInput = {
+    AND?: LocalModelConfigWhereInput | LocalModelConfigWhereInput[]
+    OR?: LocalModelConfigWhereInput[]
+    NOT?: LocalModelConfigWhereInput | LocalModelConfigWhereInput[]
+    id?: StringFilter<"LocalModelConfig"> | string
+    name?: StringFilter<"LocalModelConfig"> | string
+    baseUrl?: StringFilter<"LocalModelConfig"> | string
+    model?: StringFilter<"LocalModelConfig"> | string
+    cacheMode?: StringFilter<"LocalModelConfig"> | string
+    warmupRuns?: IntFilter<"LocalModelConfig"> | number
+    contextTokens?: IntNullableFilter<"LocalModelConfig"> | number | null
+    keepAlive?: StringFilter<"LocalModelConfig"> | string
+    proxyEnabled?: BoolFilter<"LocalModelConfig"> | boolean
+    tokenHorizonUrl?: StringFilter<"LocalModelConfig"> | string
+    enabled?: BoolFilter<"LocalModelConfig"> | boolean
+    createdAt?: DateTimeFilter<"LocalModelConfig"> | Date | string
+    updatedAt?: DateTimeFilter<"LocalModelConfig"> | Date | string
+  }
+
+  export type LocalModelConfigOrderByWithRelationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    baseUrl?: SortOrder
+    model?: SortOrder
+    cacheMode?: SortOrder
+    warmupRuns?: SortOrder
+    contextTokens?: SortOrderInput | SortOrder
+    keepAlive?: SortOrder
+    proxyEnabled?: SortOrder
+    tokenHorizonUrl?: SortOrder
+    enabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type LocalModelConfigWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    name?: string
+    AND?: LocalModelConfigWhereInput | LocalModelConfigWhereInput[]
+    OR?: LocalModelConfigWhereInput[]
+    NOT?: LocalModelConfigWhereInput | LocalModelConfigWhereInput[]
+    baseUrl?: StringFilter<"LocalModelConfig"> | string
+    model?: StringFilter<"LocalModelConfig"> | string
+    cacheMode?: StringFilter<"LocalModelConfig"> | string
+    warmupRuns?: IntFilter<"LocalModelConfig"> | number
+    contextTokens?: IntNullableFilter<"LocalModelConfig"> | number | null
+    keepAlive?: StringFilter<"LocalModelConfig"> | string
+    proxyEnabled?: BoolFilter<"LocalModelConfig"> | boolean
+    tokenHorizonUrl?: StringFilter<"LocalModelConfig"> | string
+    enabled?: BoolFilter<"LocalModelConfig"> | boolean
+    createdAt?: DateTimeFilter<"LocalModelConfig"> | Date | string
+    updatedAt?: DateTimeFilter<"LocalModelConfig"> | Date | string
+  }, "id" | "name">
+
+  export type LocalModelConfigOrderByWithAggregationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    baseUrl?: SortOrder
+    model?: SortOrder
+    cacheMode?: SortOrder
+    warmupRuns?: SortOrder
+    contextTokens?: SortOrderInput | SortOrder
+    keepAlive?: SortOrder
+    proxyEnabled?: SortOrder
+    tokenHorizonUrl?: SortOrder
+    enabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: LocalModelConfigCountOrderByAggregateInput
+    _avg?: LocalModelConfigAvgOrderByAggregateInput
+    _max?: LocalModelConfigMaxOrderByAggregateInput
+    _min?: LocalModelConfigMinOrderByAggregateInput
+    _sum?: LocalModelConfigSumOrderByAggregateInput
+  }
+
+  export type LocalModelConfigScalarWhereWithAggregatesInput = {
+    AND?: LocalModelConfigScalarWhereWithAggregatesInput | LocalModelConfigScalarWhereWithAggregatesInput[]
+    OR?: LocalModelConfigScalarWhereWithAggregatesInput[]
+    NOT?: LocalModelConfigScalarWhereWithAggregatesInput | LocalModelConfigScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"LocalModelConfig"> | string
+    name?: StringWithAggregatesFilter<"LocalModelConfig"> | string
+    baseUrl?: StringWithAggregatesFilter<"LocalModelConfig"> | string
+    model?: StringWithAggregatesFilter<"LocalModelConfig"> | string
+    cacheMode?: StringWithAggregatesFilter<"LocalModelConfig"> | string
+    warmupRuns?: IntWithAggregatesFilter<"LocalModelConfig"> | number
+    contextTokens?: IntNullableWithAggregatesFilter<"LocalModelConfig"> | number | null
+    keepAlive?: StringWithAggregatesFilter<"LocalModelConfig"> | string
+    proxyEnabled?: BoolWithAggregatesFilter<"LocalModelConfig"> | boolean
+    tokenHorizonUrl?: StringWithAggregatesFilter<"LocalModelConfig"> | string
+    enabled?: BoolWithAggregatesFilter<"LocalModelConfig"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"LocalModelConfig"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"LocalModelConfig"> | Date | string
   }
 
   export type SkillArtifactWhereInput = {
@@ -29816,6 +31121,9 @@ export namespace Prisma {
     defaultModel: string
     capabilities: string
     enabled?: boolean
+    defaultCacheMode?: string | null
+    defaultWarmupRuns?: number | null
+    defaultContextTokens?: number | null
     createdAt?: Date | string
   }
 
@@ -29830,6 +31138,9 @@ export namespace Prisma {
     defaultModel: string
     capabilities: string
     enabled?: boolean
+    defaultCacheMode?: string | null
+    defaultWarmupRuns?: number | null
+    defaultContextTokens?: number | null
     createdAt?: Date | string
   }
 
@@ -29844,6 +31155,9 @@ export namespace Prisma {
     defaultModel?: StringFieldUpdateOperationsInput | string
     capabilities?: StringFieldUpdateOperationsInput | string
     enabled?: BoolFieldUpdateOperationsInput | boolean
+    defaultCacheMode?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWarmupRuns?: NullableIntFieldUpdateOperationsInput | number | null
+    defaultContextTokens?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -29858,6 +31172,9 @@ export namespace Prisma {
     defaultModel?: StringFieldUpdateOperationsInput | string
     capabilities?: StringFieldUpdateOperationsInput | string
     enabled?: BoolFieldUpdateOperationsInput | boolean
+    defaultCacheMode?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWarmupRuns?: NullableIntFieldUpdateOperationsInput | number | null
+    defaultContextTokens?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -29872,6 +31189,9 @@ export namespace Prisma {
     defaultModel: string
     capabilities: string
     enabled?: boolean
+    defaultCacheMode?: string | null
+    defaultWarmupRuns?: number | null
+    defaultContextTokens?: number | null
     createdAt?: Date | string
   }
 
@@ -29886,6 +31206,9 @@ export namespace Prisma {
     defaultModel?: StringFieldUpdateOperationsInput | string
     capabilities?: StringFieldUpdateOperationsInput | string
     enabled?: BoolFieldUpdateOperationsInput | boolean
+    defaultCacheMode?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWarmupRuns?: NullableIntFieldUpdateOperationsInput | number | null
+    defaultContextTokens?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -29900,7 +31223,122 @@ export namespace Prisma {
     defaultModel?: StringFieldUpdateOperationsInput | string
     capabilities?: StringFieldUpdateOperationsInput | string
     enabled?: BoolFieldUpdateOperationsInput | boolean
+    defaultCacheMode?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWarmupRuns?: NullableIntFieldUpdateOperationsInput | number | null
+    defaultContextTokens?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type LocalModelConfigCreateInput = {
+    id?: string
+    name: string
+    baseUrl?: string
+    model: string
+    cacheMode?: string
+    warmupRuns?: number
+    contextTokens?: number | null
+    keepAlive?: string
+    proxyEnabled?: boolean
+    tokenHorizonUrl?: string
+    enabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type LocalModelConfigUncheckedCreateInput = {
+    id?: string
+    name: string
+    baseUrl?: string
+    model: string
+    cacheMode?: string
+    warmupRuns?: number
+    contextTokens?: number | null
+    keepAlive?: string
+    proxyEnabled?: boolean
+    tokenHorizonUrl?: string
+    enabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type LocalModelConfigUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    model?: StringFieldUpdateOperationsInput | string
+    cacheMode?: StringFieldUpdateOperationsInput | string
+    warmupRuns?: IntFieldUpdateOperationsInput | number
+    contextTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    keepAlive?: StringFieldUpdateOperationsInput | string
+    proxyEnabled?: BoolFieldUpdateOperationsInput | boolean
+    tokenHorizonUrl?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type LocalModelConfigUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    model?: StringFieldUpdateOperationsInput | string
+    cacheMode?: StringFieldUpdateOperationsInput | string
+    warmupRuns?: IntFieldUpdateOperationsInput | number
+    contextTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    keepAlive?: StringFieldUpdateOperationsInput | string
+    proxyEnabled?: BoolFieldUpdateOperationsInput | boolean
+    tokenHorizonUrl?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type LocalModelConfigCreateManyInput = {
+    id?: string
+    name: string
+    baseUrl?: string
+    model: string
+    cacheMode?: string
+    warmupRuns?: number
+    contextTokens?: number | null
+    keepAlive?: string
+    proxyEnabled?: boolean
+    tokenHorizonUrl?: string
+    enabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type LocalModelConfigUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    model?: StringFieldUpdateOperationsInput | string
+    cacheMode?: StringFieldUpdateOperationsInput | string
+    warmupRuns?: IntFieldUpdateOperationsInput | number
+    contextTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    keepAlive?: StringFieldUpdateOperationsInput | string
+    proxyEnabled?: BoolFieldUpdateOperationsInput | boolean
+    tokenHorizonUrl?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type LocalModelConfigUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    model?: StringFieldUpdateOperationsInput | string
+    cacheMode?: StringFieldUpdateOperationsInput | string
+    warmupRuns?: IntFieldUpdateOperationsInput | number
+    contextTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    keepAlive?: StringFieldUpdateOperationsInput | string
+    proxyEnabled?: BoolFieldUpdateOperationsInput | boolean
+    tokenHorizonUrl?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type SkillArtifactCreateInput = {
@@ -32159,7 +33597,15 @@ export namespace Prisma {
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
+    defaultCacheMode?: SortOrder
+    defaultWarmupRuns?: SortOrder
+    defaultContextTokens?: SortOrder
     createdAt?: SortOrder
+  }
+
+  export type ProviderConfigAvgOrderByAggregateInput = {
+    defaultWarmupRuns?: SortOrder
+    defaultContextTokens?: SortOrder
   }
 
   export type ProviderConfigMaxOrderByAggregateInput = {
@@ -32173,6 +33619,9 @@ export namespace Prisma {
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
+    defaultCacheMode?: SortOrder
+    defaultWarmupRuns?: SortOrder
+    defaultContextTokens?: SortOrder
     createdAt?: SortOrder
   }
 
@@ -32187,7 +33636,73 @@ export namespace Prisma {
     defaultModel?: SortOrder
     capabilities?: SortOrder
     enabled?: SortOrder
+    defaultCacheMode?: SortOrder
+    defaultWarmupRuns?: SortOrder
+    defaultContextTokens?: SortOrder
     createdAt?: SortOrder
+  }
+
+  export type ProviderConfigSumOrderByAggregateInput = {
+    defaultWarmupRuns?: SortOrder
+    defaultContextTokens?: SortOrder
+  }
+
+  export type LocalModelConfigCountOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    baseUrl?: SortOrder
+    model?: SortOrder
+    cacheMode?: SortOrder
+    warmupRuns?: SortOrder
+    contextTokens?: SortOrder
+    keepAlive?: SortOrder
+    proxyEnabled?: SortOrder
+    tokenHorizonUrl?: SortOrder
+    enabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type LocalModelConfigAvgOrderByAggregateInput = {
+    warmupRuns?: SortOrder
+    contextTokens?: SortOrder
+  }
+
+  export type LocalModelConfigMaxOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    baseUrl?: SortOrder
+    model?: SortOrder
+    cacheMode?: SortOrder
+    warmupRuns?: SortOrder
+    contextTokens?: SortOrder
+    keepAlive?: SortOrder
+    proxyEnabled?: SortOrder
+    tokenHorizonUrl?: SortOrder
+    enabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type LocalModelConfigMinOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    baseUrl?: SortOrder
+    model?: SortOrder
+    cacheMode?: SortOrder
+    warmupRuns?: SortOrder
+    contextTokens?: SortOrder
+    keepAlive?: SortOrder
+    proxyEnabled?: SortOrder
+    tokenHorizonUrl?: SortOrder
+    enabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type LocalModelConfigSumOrderByAggregateInput = {
+    warmupRuns?: SortOrder
+    contextTokens?: SortOrder
   }
 
   export type SkillArtifactCountOrderByAggregateInput = {
@@ -38830,6 +40345,10 @@ export namespace Prisma {
      * @deprecated Use ProviderConfigDefaultArgs instead
      */
     export type ProviderConfigArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ProviderConfigDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use LocalModelConfigDefaultArgs instead
+     */
+    export type LocalModelConfigArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = LocalModelConfigDefaultArgs<ExtArgs>
     /**
      * @deprecated Use SkillArtifactDefaultArgs instead
      */

@@ -32,4 +32,32 @@ describe('skill resolver context bounds', () => {
       await rm(projectPath, { recursive: true, force: true });
     }
   });
+
+  it('does not inject reference patches into benchmark tasks', async () => {
+    const projectPath = await mkdtemp(path.join(os.tmpdir(), 'omega-skill-resolver-'));
+    try {
+      const prisma = {
+        skillArtifact: {
+          findMany: async () => [{
+            name: 'deepswe-example',
+            sourcePath: '/skills/deepswe-example/SKILL.md',
+            manifest: JSON.stringify({
+              name: 'deepswe-example',
+              description: 'A task-specific skill.',
+            instructions: 'Apply solution.patch and run the verifier.',
+            }),
+          }],
+        },
+      } as unknown as PrismaClient;
+
+      const skills = await resolveSkills(prisma, projectPath, 'Implement the benchmark task', [
+        'example',
+        'benchmark',
+      ]);
+
+      expect(skills).toEqual([]);
+    } finally {
+      await rm(projectPath, { recursive: true, force: true });
+    }
+  });
 });

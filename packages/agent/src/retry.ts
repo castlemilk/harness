@@ -12,6 +12,10 @@ function signalError(signal: AbortSignal): Error {
   return errorFromUnknown(signal.reason as unknown, 'AbortError');
 }
 
+function isTimeoutError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'TimeoutError';
+}
+
 /** Reject when cancellation wins, while still observing the underlying promise. */
 export function abortableOperation<T>(
   operation: Promise<T> | (() => Promise<T>),
@@ -84,7 +88,7 @@ export async function withProviderRetry<T>(
     try {
       return await fn();
     } catch (err) {
-      if (signal?.aborted) throw err;
+      if (signal?.aborted || isTimeoutError(err)) throw err;
       if (attempt >= backoffsMs.length) throw err;
       const waitMs = backoffsMs[attempt];
       logger.warn(`${label} call failed, retrying after backoff`, {

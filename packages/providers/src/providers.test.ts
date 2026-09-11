@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createProvider } from './index.js';
+import { warmupProvider } from './warmup.js';
 import type { ProviderConfig, Provider, ProviderEvent } from '@omega/core';
 
 function jsonResponse(body: unknown, status = 200) {
@@ -112,6 +113,38 @@ describe('createProvider', () => {
     );
   });
 
+  it('uses OLLAMA_BASE_URL for a local relay over the stored provider URL', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ message: { content: 'Relayed' } }));
+    const previous = process.env.OLLAMA_BASE_URL;
+    process.env.OLLAMA_BASE_URL = 'http://127.0.0.1:11435';
+    try {
+      await createProvider({ ...ollamaConfig, baseUrl: 'http://127.0.0.1:11434' }).send('hey');
+      expect(fetchSpy).toHaveBeenCalledWith(
+        'http://127.0.0.1:11435/api/chat',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    } finally {
+      if (previous === undefined) delete process.env.OLLAMA_BASE_URL;
+      else process.env.OLLAMA_BASE_URL = previous;
+    }
+  });
+
+  it('uses OLLAMA_BASE_URL for Ollama warmup probes', async () => {
+    fetchSpy
+      .mockResolvedValueOnce(jsonResponse({ models: [{ name: 'llama3' }] }))
+      .mockResolvedValueOnce(jsonResponse({ message: { content: 'pong' } }));
+    const previous = process.env.OLLAMA_BASE_URL;
+    process.env.OLLAMA_BASE_URL = 'http://127.0.0.1:11435';
+    try {
+      await warmupProvider({ ...ollamaConfig, baseUrl: 'http://127.0.0.1:11434' });
+      expect(fetchSpy.mock.calls[0]?.[0]).toBe('http://127.0.0.1:11435/api/tags');
+      expect(fetchSpy.mock.calls[1]?.[0]).toBe('http://127.0.0.1:11435/api/chat');
+    } finally {
+      if (previous === undefined) delete process.env.OLLAMA_BASE_URL;
+      else process.env.OLLAMA_BASE_URL = previous;
+    }
+  });
+
   it.each(['send', 'sendWithTools'] as const)('honors request timeout for Ollama %s', async (method) => {
     vi.useFakeTimers();
     try {
@@ -134,6 +167,23 @@ describe('createProvider', () => {
     }
   });
 
+  it('stops retrying an Ollama request when the caller aborts', async () => {
+    const controller = new AbortController();
+    fetchSpy.mockImplementation((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('cancelled', 'AbortError')), { once: true });
+    }));
+    const request = createProvider(ollamaConfig).send('hey', {
+      signal: controller.signal,
+      timeoutMs: 120_000,
+      maxRetries: 2,
+    });
+
+    controller.abort();
+
+    await expect(request).rejects.toThrow();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('enables native thinking for an Ollama tool request when requested', async () => {
     fetchSpy.mockResolvedValue(jsonResponse({
       message: {
@@ -150,6 +200,48 @@ describe('createProvider', () => {
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     expect(body.think).toBe(true);
     expect(JSON.parse(raw ?? '').reasoning_content).toBe('inspect the repository first');
+  });
+
+  it('warms the exact tool conversation and reports Ollama timings', async () => {
+    fetchSpy.mockImplementation(() => jsonResponse({
+      message: { content: 'done' },
+      prompt_eval_count: 12,
+      eval_count: 3,
+      prompt_eval_duration: 2_000_000_000,
+      eval_duration: 500_000_000,
+    }));
+    const onUsage = vi.fn();
+    const onEvent = vi.fn();
+    const provider = createProvider({
+      ...ollamaConfig,
+      defaultCacheMode: 'warm-ngram',
+      defaultWarmupRuns: 1,
+      defaultContextTokens: 8192,
+    });
+    await provider.sendWithTools?.('hey', [{
+      name: 'read_file',
+      description: 'Read a file',
+      parameters: { type: 'object' },
+    }], { keepAlive: '30m', onUsage, onEvent });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const warmupBody = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    const requestBody = JSON.parse(fetchSpy.mock.calls[1][1].body);
+    expect(warmupBody.messages.at(-1).content).toContain('ngram-cache warm');
+    expect(warmupBody.tools).toEqual(requestBody.tools);
+    expect(warmupBody.options).toEqual(expect.objectContaining({ num_ctx: 8192, num_predict: 1 }));
+    expect(requestBody.options).toEqual(expect.objectContaining({ num_ctx: 8192 }));
+    expect(requestBody.options.num_predict).toBeUndefined();
+    expect(requestBody.keep_alive).toBe('30m');
+    expect(onUsage).toHaveBeenCalledWith(expect.objectContaining({
+      promptTokens: 12,
+      completionTokens: 3,
+      promptDurationS: 2,
+      generationDurationS: 0.5,
+      ngramCacheHitRate: 0,
+    }));
+    expect(onEvent).toHaveBeenNthCalledWith(1, { type: 'request', model: 'llama3', attempt: 1 });
+    expect(onEvent).toHaveBeenLastCalledWith({ type: 'response', model: 'llama3', status: 200 });
   });
 
   it('echoes Qwen thinking in the next Ollama assistant message', async () => {

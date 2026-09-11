@@ -205,8 +205,56 @@ async function validateNodeProject(
   return { lint, test, build, allPassed: lint.passed && test.passed && build.passed };
 }
 
+async function validateGoProject(
+  projectPath: string,
+  options: ExecutionDeadlineOptions,
+): Promise<ValidationSummary> {
+  if (!(await commandExists('go', options))) {
+    return {
+      lint: pass(),
+      test: fail('go executable not found'),
+      build: pass(),
+      allPassed: false,
+    };
+  }
+
+  let packages: string[];
+  try {
+    const { stdout } = await execFileAsync('go', ['list', '-e', '-f', '{{.ImportPath}}', './...'], {
+      cwd: projectPath,
+      timeout: Math.max(
+        MIN_VALIDATION_STEP_TIMEOUT_MS,
+        boundedExecutionTimeoutMs(300_000, options),
+      ),
+      signal: options.signal,
+    });
+    packages = stdout
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0 && !item.endsWith('/js'));
+  } catch (err) {
+    const execErr = err as { stdout?: string; stderr?: string; message?: string };
+    const output = (execErr.stdout ?? '') + (execErr.stderr ?? '') || (execErr.message ?? String(err));
+    const failed = fail(`go list ./... failed:\n${output}`);
+    return { lint: pass(), test: failed, build: failed, allPassed: false };
+  }
+
+  if (packages.length === 0) {
+    const failed = fail('go list ./... returned no non-browser packages');
+    return { lint: pass(), test: failed, build: failed, allPassed: false };
+  }
+
+  const build = await runStep(projectPath, 'go', ['build', ...packages], options);
+  const test = await runStep(projectPath, 'go', ['test', ...packages], options);
+  return { lint: pass(), test, build, allPassed: test.passed && build.passed };
+}
+
 function pass(): { passed: boolean; output: string } {
   return { passed: true, output: 'skipped (no script or project marker)' };
+}
+
+function fail(output: string): { passed: boolean; output: string } {
+  return { passed: false, output };
 }
 
 export async function validateProject(
@@ -217,10 +265,11 @@ export async function validateProject(
   const managedOptions = validationExecutionOptions(options);
   try {
     const hasPackageJson = await pathExists(path.join(projectPath, 'package.json'));
-    // Non-Node projects currently have no imposed validation harness. Future
-    // work can add pytest, go test, cargo test, and similar checks here.
+    const hasGoMod = await pathExists(path.join(projectPath, 'go.mod'));
     const summary = hasPackageJson
       ? await validateNodeProject(projectPath, managedOptions.options)
+      : hasGoMod
+        ? await validateGoProject(projectPath, managedOptions.options)
       : { lint: pass(), test: pass(), build: pass(), allPassed: true };
     throwIfCallerCancelled(options);
     return summary;

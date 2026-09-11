@@ -255,6 +255,7 @@ export async function runOrchestratedTask(
             model: plannerModel,
             temperature: 0.2,
             onUsage: recordUsage,
+            signal: options.signal,
           }),
           options.signal,
         );
@@ -343,6 +344,7 @@ export async function runOrchestratedTask(
               model: plannerModel,
               temperature: 0.2,
               onUsage: recordUsage,
+              signal: options.signal,
             },
           ),
           options.signal,

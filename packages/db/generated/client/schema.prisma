@@ -154,17 +154,36 @@ model TraceSpan {
 }
 
 model ProviderConfig {
-  id             String    @id @default(uuid())
-  name           String    @unique
-  kind           String
-  baseUrl        String?
-  apiKey         String?
-  refreshToken   String?
-  tokenExpiresAt DateTime?
-  defaultModel   String
-  capabilities   String // JSON
-  enabled        Boolean   @default(true)
-  createdAt      DateTime  @default(now())
+  id                   String    @id @default(uuid())
+  name                 String    @unique
+  kind                 String
+  baseUrl              String?
+  apiKey               String?
+  refreshToken         String?
+  tokenExpiresAt       DateTime?
+  defaultModel         String
+  capabilities         String // JSON
+  enabled              Boolean   @default(true)
+  defaultCacheMode     String?
+  defaultWarmupRuns    Int?
+  defaultContextTokens Int?
+  createdAt            DateTime  @default(now())
+}
+
+model LocalModelConfig {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  baseUrl         String   @default("http://127.0.0.1:11435")
+  model           String
+  cacheMode       String   @default("cold")
+  warmupRuns      Int      @default(0)
+  contextTokens   Int?
+  keepAlive       String   @default("30m")
+  proxyEnabled    Boolean  @default(true)
+  tokenHorizonUrl String   @default("http://127.0.0.1:8765")
+  enabled         Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model SkillArtifact {

@@ -24,10 +24,13 @@ import {
   buildTokenBudgetTrace,
   executeAgentLoop,
   formatBudgetNotice,
+  isBuildCommand,
   shouldAllowTokenBudgetFinalization,
   shouldAllowFinalizationRepair,
   shouldEnterLowBudgetEditMode,
   shouldForceEditForTokenUsage,
+  shouldForceEditForWallClock,
+  shouldEnterWallClockVerificationMode,
 } from './agent-loop.js';
 import { Tracer } from './tracer.js';
 
@@ -60,6 +63,27 @@ describe('executeAgentLoop terminal disclosure', () => {
     expect(shouldForceEditForTokenUsage(41_000, 80_000, 1, 3)).toBe(false);
     expect(shouldForceEditForTokenUsage(41_000, 80_000, 0, 1)).toBe(false);
     expect(shouldForceEditForTokenUsage(41_000, undefined, 0, 3)).toBe(false);
+  });
+
+  it('forces edit-first mode after most of the wall-clock budget is spent without an edit', () => {
+    expect(shouldForceEditForWallClock(1_000, 11_000, 0, 3, 6_999)).toBe(false);
+    expect(shouldForceEditForWallClock(1_000, 11_000, 0, 3, 7_000)).toBe(true);
+    expect(shouldForceEditForWallClock(1_000, 11_000, 1, 3, 7_000)).toBe(false);
+    expect(shouldForceEditForWallClock(1_000, 11_000, 0, 1, 7_000)).toBe(false);
+  });
+
+  it('recognizes compile commands for the repair phase', () => {
+    expect(isBuildCommand('go build $(go list ./...)')).toBe(true);
+    expect(isBuildCommand('pnpm build')).toBe(true);
+    expect(isBuildCommand('npx tsc --noEmit')).toBe(true);
+    expect(isBuildCommand('go test ./...')).toBe(false);
+  });
+
+  it('enters verification mode late when an edit exists but no test has run', () => {
+    expect(shouldEnterWallClockVerificationMode(1_000, 11_000, 1, false, 6_999)).toBe(false);
+    expect(shouldEnterWallClockVerificationMode(1_000, 11_000, 1, false, 7_000)).toBe(true);
+    expect(shouldEnterWallClockVerificationMode(1_000, 11_000, 1, true, 7_000)).toBe(false);
+    expect(shouldEnterWallClockVerificationMode(1_000, 11_000, 0, false, 7_000)).toBe(false);
   });
 
   it('grants one repair turn for lint or typecheck rejection during finalization', () => {
@@ -158,10 +182,11 @@ describe('executeAgentLoop terminal disclosure', () => {
     const ctx: AgentContext = {
       prisma,
       task: {
-        id: taskRow.id,
-        projectId: taskRow.projectId,
-        title: taskRow.title,
-        status: 'todo',
+          id: taskRow.id,
+          projectId: taskRow.projectId,
+          title: taskRow.title,
+          description: 'BUILD GATE (critical): run checks',
+          status: 'todo',
         complexity: 'simple',
         tags: [],
         createdAt: now,
@@ -196,13 +221,14 @@ describe('executeAgentLoop terminal disclosure', () => {
       turnCount: 0,
       stepCount: 0,
       deadlineMs: Date.now() + 10 * 60_000,
+      thinking: true,
     };
 
     await executeAgentLoop(ctx, []);
 
     expect(provider.send).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ timeoutMs: 120_000 }),
+      expect.objectContaining({ timeoutMs: 180_000, thinking: true }),
     );
 
     const terminalWrite = taskUpdate.mock.calls

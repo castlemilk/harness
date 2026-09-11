@@ -119,6 +119,7 @@ export async function tryStuckSolve(ctx: AgentContext): Promise<boolean> {
       thinking: false,
       onUsage: (usage) => { recordUsage(ctx, usage); },
       timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
+      signal: ctx.signal,
     }), ctx.signal);
     const patch = extractPatch(raw);
     if (!patch) {
@@ -178,6 +179,7 @@ export async function reflectOnTrace(ctx: AgentContext, maxTurns: number): Promi
         system: ctx.systemPrompt,
         model: ctx.model,
         timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
+        signal: ctx.signal,
       },
     ), ctx.signal);
     reflectionSpan.addEvent('reflection.received');

@@ -7,6 +7,39 @@ import type { Tracer, Span } from './tracer.js';
 import { boundedProviderRequestTimeoutMs } from './project-utils.js';
 
 const AGENT_TOOL_NAMES = new Set(AGENT_TOOLS.map((t) => t.name));
+const MLX_TOOL_BATCH_SIZE = 2;
+const LARGE_MLX_MODEL = /(?:125b|180b)/i;
+
+function toolsForProvider(
+  ctx: ProviderContext,
+  allowedToolNames?: ReadonlySet<string>,
+): ToolDefinition[] {
+  const requestedNames = allowedToolNames
+    ? [...allowedToolNames]
+    : AGENT_TOOLS.map((tool) => tool.name);
+  const requested = new Set(requestedNames);
+  const tools = AGENT_TOOLS.filter((tool) => requested.has(tool.name));
+  if (
+    ctx.provider.config.kind !== 'ollama'
+    || !ctx.model.toLowerCase().includes('mlx')
+    || !LARGE_MLX_MODEL.test(ctx.model)
+  ) return tools;
+
+  // The large MLX model can OOM while compiling a broad Ollama tool schema.
+  // Keep the phase-selected window small without changing smaller models or
+  // other providers. Recovery needs an exact read before a line-based edit.
+  const preferredNames = requestedNames[0] === 'read_file' && requestedNames.includes('edit_lines')
+    ? ['read_file', 'edit_lines']
+    : requestedNames;
+  return preferredNames
+    .slice(0, MLX_TOOL_BATCH_SIZE)
+    .map((name) => tools.find((tool) => tool.name === name))
+    .filter((tool): tool is ToolDefinition => tool !== undefined);
+}
+
+function isRequestTimeout(error: unknown): boolean {
+  return error instanceof Error && error.name === 'TimeoutError';
+}
 
 // --- Types ---
 
@@ -100,34 +133,48 @@ export function trackProviderEvents(span: Span, telemetry?: ProviderTelemetry): 
 
 function truncateMessages(
   messages: Message[],
-  maxTotal = 40,
+  maxTotal = 16,
   fullWindow = 6,
-  truncateLength = 2_000
+  truncateLength = 1_000
 ): Message[] {
   const cleaned = messages.filter((m) => m.role !== 'system');
+  const taskMessage = cleaned.find((m) => m.role === 'user');
 
   const trimContent = (m: Message): Message => {
-    if (!m.content || m.content.length <= truncateLength) return m;
-    return { ...m, content: `${m.content.slice(0, truncateLength)}\n... [truncated]` };
+    const content = m.content && m.content.length > truncateLength
+      ? `${m.content.slice(0, truncateLength)}\n... [truncated]`
+      : m.content;
+    const reasoning = m.reasoning_content && m.reasoning_content.length > truncateLength
+      ? `${m.reasoning_content.slice(0, truncateLength)}\n... [truncated]`
+      : m.reasoning_content;
+    if (content === m.content && reasoning === m.reasoning_content) return m;
+    return { ...m, content, reasoning_content: reasoning };
   };
 
   let working = cleaned;
   if (cleaned.length > maxTotal) {
-    const toDrop = cleaned.length - maxTotal;
-    let keepFrom = toDrop;
-    while (keepFrom < cleaned.length) {
-      const m = cleaned[keepFrom];
-      if (m.role === 'assistant' && (keepFrom === 0 || cleaned[keepFrom - 1].role === 'user')) {
-        break;
-      }
-      keepFrom++;
+    const tailBudget = Math.max(maxTotal - (taskMessage ? 1 : 0), 1);
+    let keepFrom = Math.max(0, cleaned.length - tailBudget);
+    // Start at a user turn so retained assistant tool calls have their
+    // surrounding request context and old edit attempts fall out together.
+    while (keepFrom > 0 && cleaned[keepFrom].role !== 'user') {
+      keepFrom--;
     }
     working = cleaned.slice(keepFrom);
+    if (taskMessage && working[0] !== taskMessage) {
+      working.unshift(taskMessage);
+    }
   }
 
   const windowStart = Math.max(0, working.length - fullWindow);
   return working.map((m, idx) => {
-    if (idx >= windowStart) return m;
+    const boundedReasoning = trimContent({
+      ...m,
+      content: undefined,
+    });
+    if (idx >= windowStart) {
+      return { ...m, reasoning_content: boundedReasoning.reasoning_content };
+    }
     return trimContent(m);
   });
 }
@@ -137,10 +184,11 @@ function truncateMessages(
 export async function sendToProvider(
   ctx: ProviderContext,
   messages: Message[],
-  prompt?: string
+  prompt?: string,
+  allowedToolNames?: ReadonlySet<string>,
 ): Promise<{ content?: string; toolCalls?: string; reasoningContent?: string }> {
   const span = ctx.tracer.startSpan('provider.send', ctx.rootSpan.toContext());
-  span.setAttributes({ provider: ctx.provider.config.name, model: ctx.model });
+  span.setAttributes({ provider: ctx.provider.config.name, model: ctx.model, thinking: ctx.thinking === true });
   const onEvent = trackProviderEvents(span, ctx.providerTelemetry);
 
   if (ctx.signal?.aborted) {
@@ -166,11 +214,15 @@ export async function sendToProvider(
       promptTokens: usage.promptTokens,
       completionTokens: usage.completionTokens,
       totalTokens: usage.totalTokens,
+      promptDurationS: usage.promptDurationS,
+      generationDurationS: usage.generationDurationS,
+      ngramCacheHitRate: usage.ngramCacheHitRate,
     });
   };
 
   const baseMessages = truncateMessages(messages);
   const sendWithTools = provider.sendWithTools;
+  const tools = toolsForProvider(ctx, allowedToolNames);
 
   const TURN_BACKOFFS_MS = [30_000, 60_000, 90_000];
   for (let attempt = 0; ; attempt++) {
@@ -186,7 +238,7 @@ export async function sendToProvider(
       const sendMessages = prompt ? [...baseMessages, { role: 'user' as const, content: prompt }] : baseMessages;
       let raw: string;
       if (typeof sendWithTools === 'function') {
-        raw = await abortableOperation(() => sendWithTools.call(provider, prompt ?? 'Execute the next step.', AGENT_TOOLS, {
+        raw = await abortableOperation(() => sendWithTools.call(provider, prompt ?? 'Execute the next step.', tools, {
           system: ctx.systemPrompt,
           model: ctx.model,
           temperature: 0.3,
@@ -194,6 +246,7 @@ export async function sendToProvider(
           timeoutMs,
           onUsage,
           messages: sendMessages,
+          signal: ctx.signal,
           onEvent,
         }), ctx.signal);
       } else {
@@ -217,6 +270,7 @@ export async function sendToProvider(
           thinking: ctx.thinking,
           timeoutMs,
           onUsage,
+          signal: ctx.signal,
           onEvent,
         }), ctx.signal);
       }
@@ -226,7 +280,7 @@ export async function sendToProvider(
       await span.end('ok');
       return parsed;
     } catch (err) {
-      if (Date.now() >= ctx.deadlineMs || ctx.signal?.aborted) {
+      if (isRequestTimeout(err) || Date.now() >= ctx.deadlineMs || ctx.signal?.aborted) {
         span.recordError(err);
         await span.end('error');
         throw err;
@@ -421,6 +475,19 @@ function extractFilePathFromFence(text: string): string | undefined {
   return m?.[1]?.trim();
 }
 
+function normalizeToolArguments(name: string, args: Record<string, unknown>): Record<string, unknown> {
+  const normalized = { ...args };
+  if (normalized.path === undefined && typeof normalized.file === 'string') {
+    normalized.path = normalized.file;
+    delete normalized.file;
+  }
+  if (name === 'run_command' && normalized.command === undefined && typeof normalized.cmd === 'string') {
+    normalized.command = normalized.cmd;
+    delete normalized.cmd;
+  }
+  return normalized;
+}
+
 export function parseToolCalls(raw: string | undefined): ToolCall[] {
   if (!raw) return [];
   try {
@@ -463,7 +530,7 @@ export function parseToolCalls(raw: string | undefined): ToolCall[] {
             Object.entries(t).filter(([k]) => k !== 'id' && k !== 'tool_call_id' && k !== 'name' && k !== 'tool')
           );
         }
-        return { id, name, arguments: args };
+        return { id, name, arguments: normalizeToolArguments(name, args) };
       })
       .filter((t): t is ToolCall => t !== undefined);
   } catch {

@@ -13,6 +13,7 @@ import ErrorAnalysisPanel from './components/ErrorAnalysisPanel.js';
 import ProviderComparePanel from './components/ProviderComparePanel.js';
 import TraceTimelinePanel from './components/TraceTimelinePanel.js';
 import { ForemanApp } from './foreman/ForemanApp.js';
+import { LocalModelPanel } from './components/LocalModelPanel.js';
 
 /**
  * Foreman is the application shell. The pre-Foreman panels (benchmarks,
@@ -82,6 +83,10 @@ function App() {
       {view === 'benchmarks' ? (
         <main className="h-screen flex-1 overflow-y-auto bg-gray-50">
           <BenchmarkPanel />
+        </main>
+      ) : view === 'local-models' ? (
+        <main className="h-screen flex-1 overflow-y-auto bg-gray-50">
+          <LocalModelPanel />
         </main>
       ) : view === 'costs' ? (
         <main className="h-screen flex-1 overflow-y-auto bg-gray-50">

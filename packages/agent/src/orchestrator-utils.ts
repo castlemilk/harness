@@ -64,6 +64,9 @@ export async function loadProviderByName(
     defaultModel: row.defaultModel,
     capabilities: JSON.parse(row.capabilities) as ProviderConfig['capabilities'],
     enabled: row.enabled,
+    defaultCacheMode: row.defaultCacheMode as ProviderConfig['defaultCacheMode'] ?? undefined,
+    defaultWarmupRuns: row.defaultWarmupRuns ?? undefined,
+    defaultContextTokens: row.defaultContextTokens ?? undefined,
   };
   return createProvider(config);
 }

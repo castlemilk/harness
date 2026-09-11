@@ -4,6 +4,7 @@ import {
   boundedExecutionTimeoutMs,
   execFileAsync,
   isInsideProject,
+  isForbiddenWritePath,
   type ExecutionDeadlineOptions,
 } from './project-utils.js';
 import type { ToolResult } from './tool-types.js';
@@ -184,15 +185,20 @@ export async function applyPatch(projectPath: string, patch: string): Promise<To
       failures.push(`${file.newPath}: path traversal blocked`);
       continue;
     }
+    if (file.isNew && isForbiddenWritePath(file.newPath)) {
+      failures.push(`${file.newPath}: writing new test/spec paths is not allowed`);
+      continue;
+    }
 
     try {
       let contentLines: string[];
       let offset = 0;
+      let previousContent: string | undefined;
       if (file.isNew) {
         contentLines = [];
       } else {
-        const content = await fs.readFile(target, 'utf-8');
-        contentLines = content.split('\n');
+        previousContent = await fs.readFile(target, 'utf-8');
+        contentLines = previousContent.split('\n');
       }
 
       for (const hunk of file.hunks) {
@@ -211,6 +217,20 @@ export async function applyPatch(projectPath: string, patch: string): Promise<To
 
       await fs.mkdir(path.dirname(target), { recursive: true });
       await fs.writeFile(target, output, 'utf-8');
+      if (file.newPath.endsWith('.go')) {
+        try {
+          await execFileAsync('gofmt', ['-w', target], { cwd: targetRoot, timeout: 10_000 });
+        } catch (err) {
+          if (previousContent === undefined) {
+            await fs.rm(target, { force: true });
+          } else {
+            await fs.writeFile(target, previousContent, 'utf-8');
+          }
+          const detail = err instanceof Error ? err.message : String(err);
+          failures.push(`${file.newPath}: gofmt failed: ${detail}`);
+          continue;
+        }
+      }
       results.push(`${file.newPath}: applied ${String(file.hunks.length)} hunk(s)`);
     } catch (err) {
       failures.push(`${file.newPath}: ${err instanceof Error ? err.message : String(err)}`);

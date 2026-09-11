@@ -89,6 +89,9 @@ export interface UsageInfo {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  promptDurationS?: number;
+  generationDurationS?: number;
+  ngramCacheHitRate?: number;
 }
 
 export interface BenchmarkResult {

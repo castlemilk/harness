@@ -362,6 +362,9 @@ interface ProviderConfigRow {
   defaultModel: string;
   capabilities: string;
   enabled: boolean;
+  defaultCacheMode?: string | null;
+  defaultWarmupRuns?: number | null;
+  defaultContextTokens?: number | null;
 }
 
 function toConfig(row: ProviderConfigRow): ProviderConfig {
@@ -374,6 +377,12 @@ function toConfig(row: ProviderConfigRow): ProviderConfig {
     defaultModel: row.defaultModel,
     capabilities: safeJsonParse<Capability[]>(row.capabilities, []),
     enabled: row.enabled,
+    defaultCacheMode:
+      row.defaultCacheMode === 'cold' || row.defaultCacheMode === 'warm-prefix' || row.defaultCacheMode === 'warm-ngram'
+        ? row.defaultCacheMode
+        : undefined,
+    defaultWarmupRuns: row.defaultWarmupRuns ?? undefined,
+    defaultContextTokens: row.defaultContextTokens ?? undefined,
   };
 }
 

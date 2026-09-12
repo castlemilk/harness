@@ -5,6 +5,7 @@ import { TaskBoard } from './components/TaskBoard.js';
 import { ProviderSettings, type Provider } from './components/ProviderSettings.js';
 import { RouterPanel } from './components/RouterPanel.js';
 import { MetricsPanel } from './components/MetricsPanel.js';
+import { HotspotsPanel } from './components/HotspotsPanel.js';
 import { BenchmarkPanel } from './components/BenchmarkPanel.js';
 import { CostDashboard } from './components/CostDashboard.js';
 import StrategyLearningPanel from './components/StrategyLearningPanel.js';
@@ -134,6 +135,7 @@ function App() {
             }}
           />
           <RouterPanel />
+          <HotspotsPanel />
           <MetricsPanel />
         </aside>
       )}

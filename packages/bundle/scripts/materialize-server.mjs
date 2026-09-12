@@ -12,7 +12,9 @@ const workspacePackageNames = new Set([
   '@omega/agent',
   '@omega/bench',
   '@omega/core',
+  '@omega/cuttlefish',
   '@omega/db',
+  '@omega/mcp',
   '@omega/providers',
   '@omega/router',
   '@omega/skills',
@@ -22,7 +24,9 @@ const workspacePackages = [
   { name: '@omega/agent', src: 'packages/agent', extra: ['dist'] },
   { name: '@omega/bench', src: 'packages/bench', extra: ['dist'] },
   { name: '@omega/core', src: 'packages/core', extra: ['dist'] },
+  { name: '@omega/cuttlefish', src: 'packages/cuttlefish', extra: ['dist'] },
   { name: '@omega/db', src: 'packages/db', extra: ['dist', 'generated', 'prisma/migrations'] },
+  { name: '@omega/mcp', src: 'packages/mcp', extra: ['dist'] },
   { name: '@omega/providers', src: 'packages/providers', extra: ['dist'] },
   { name: '@omega/router', src: 'packages/router', extra: ['dist'] },
   { name: '@omega/skills', src: 'packages/skills', extra: ['dist'] },
@@ -113,15 +117,25 @@ async function copyWorkspacePackages() {
 async function main() {
   const serverPkg = await readJson(path.resolve(root, 'apps/server/package.json'));
 
-  // Determine external runtime dependencies (everything that is not a workspace package).
-  const externalDeps = Object.keys(serverPkg.dependencies ?? {}).filter(
+  // External runtime dependencies: everything the server or a bundled
+  // workspace package depends on that is not itself a workspace package.
+  const declaredRanges = { ...(serverPkg.dependencies ?? {}) };
+  for (const { src } of workspacePackages) {
+    const pkg = await readJson(path.resolve(root, src, 'package.json'));
+    for (const [dep, range] of Object.entries(pkg.dependencies ?? {})) {
+      if (!workspacePackageNames.has(dep) && declaredRanges[dep] === undefined) {
+        declaredRanges[dep] = range;
+      }
+    }
+  }
+  const externalDeps = Object.keys(declaredRanges).filter(
     (dep) => !workspacePackageNames.has(dep)
   );
 
   // Capture exact installed versions from the pnpm-deployed tree before we wipe node_modules.
   const exactVersions = await resolveExactVersions(externalDeps);
   const externalDepsWithVersions = Object.fromEntries(
-    externalDeps.map((dep) => [dep, exactVersions[dep] ?? serverPkg.dependencies[dep]])
+    externalDeps.map((dep) => [dep, exactVersions[dep] ?? declaredRanges[dep]])
   );
 
   // Wipe the pnpm node_modules tree so npm can create a physical, installable one.

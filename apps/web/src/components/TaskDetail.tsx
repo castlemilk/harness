@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import { TraceFlow } from './TraceFlow.js';
+import { DistributedTracePanel } from './DistributedTracePanel.js';
+import { LedgerPanel } from './LedgerPanel.js';
 import { TraceAnalysisPanel } from './TraceAnalysisPanel.js';
 import { LiveTaskConsole } from './LiveTaskConsole.js';
 import { DiffViewer } from './DiffViewer.js';
@@ -62,9 +64,10 @@ export function TaskDetail({ taskId, taskStatus, taskError, failureCategory, pro
   const [diffs, setDiffs] = useState<Diff[]>([]);
   const [agentRun, setAgentRun] = useState<AgentRun | null>(null);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<'steps' | 'traces' | 'diff' | 'trace' | 'analysis' | 'live' | 'orchestration'>('steps');
+  const [tab, setTab] = useState<'steps' | 'traces' | 'diff' | 'trace' | 'distributed' | 'ledger' | 'analysis' | 'live' | 'orchestration'>('steps');
   const isRunning = taskStatus === 'in_progress';
   const isOrchestrated = (tags ?? []).includes('orchestrate');
+  const isLedger = (tags ?? []).includes('ledger');
 
   async function load() {
     setLoading(true);
@@ -142,6 +145,12 @@ export function TaskDetail({ taskId, taskStatus, taskError, failureCategory, pro
           Trace flow
         </button>
         <button
+          onClick={() => { setTab('distributed'); }}
+          className={`px-2 py-1 rounded ${tab === 'distributed' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}
+        >
+          Distributed
+        </button>
+        <button
           onClick={() => { setTab('analysis'); }}
           className={`px-2 py-1 rounded ${tab === 'analysis' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}
         >
@@ -153,6 +162,14 @@ export function TaskDetail({ taskId, taskStatus, taskError, failureCategory, pro
             className={`px-2 py-1 rounded ${tab === 'orchestration' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}
           >
             Orchestration
+          </button>
+        )}
+        {isLedger && (
+          <button
+            onClick={() => { setTab('ledger'); }}
+            className={`px-2 py-1 rounded ${tab === 'ledger' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}
+          >
+            Ledger
           </button>
         )}
         <button
@@ -230,6 +247,8 @@ export function TaskDetail({ taskId, taskStatus, taskError, failureCategory, pro
       )}
 
       {tab === 'trace' && <TraceFlow taskId={taskId} />}
+      {tab === 'distributed' && <DistributedTracePanel taskId={taskId} />}
+      {tab === 'ledger' && <LedgerPanel taskId={taskId} />}
       {tab === 'analysis' && <TraceAnalysisPanel taskId={taskId} />}
       {tab === 'live' && <LiveTaskConsole taskId={taskId} />}
       {tab === 'orchestration' && projectId && <OrchestrationView taskId={taskId} projectId={projectId} />}

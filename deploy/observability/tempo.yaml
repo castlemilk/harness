@@ -1,0 +1,38 @@
+# Local Tempo for the harness distributed traces.
+#
+# Receives OTLP from the otel-collector (not exposed directly), stores blocks
+# on disk, and serves the query API on :3200 (mapped to the host as 13200).
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+  log_level: warn
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 24h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal
+    pool:
+      max_workers: 50
+      queue_depth: 2000
+
+usage_report:
+  reporting_enabled: false

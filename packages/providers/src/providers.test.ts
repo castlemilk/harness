@@ -47,6 +47,31 @@ describe('createProvider', () => {
     );
   });
 
+  it('passes maxOutputTokens and reports the OpenAI finish reason', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({
+      choices: [{ message: { content: 'truncated' }, finish_reason: 'length' }],
+      usage: { prompt_tokens: 5, completion_tokens: 2, total_tokens: 7 },
+    }));
+    const onFinishReason = vi.fn();
+    await createProvider(openaiConfig).send('hi', { maxOutputTokens: 32, onFinishReason });
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.max_tokens).toBe(32);
+    expect(body.max_completion_tokens).toBeUndefined();
+    expect(onFinishReason).toHaveBeenCalledWith('length', {
+      promptTokens: 5,
+      completionTokens: 2,
+      totalTokens: 7,
+    });
+  });
+
+  it('uses max_completion_tokens for gpt-5 models', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }] }));
+    await createProvider(openaiConfig).send('hi', { model: 'gpt-5-mini', maxOutputTokens: 16 });
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.max_completion_tokens).toBe(16);
+    expect(body.max_tokens).toBeUndefined();
+  });
+
   it('lists OpenAI models', async () => {
     fetchSpy.mockResolvedValue(jsonResponse({ data: [{ id: 'gpt-4o' }, { id: 'gpt-3.5' }] }));
     const models = await createProvider(openaiConfig).listModels();
@@ -87,7 +112,24 @@ describe('createProvider', () => {
     const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
     expect(body.system).toBe('You are helpful');
     expect(body.temperature).toBe(0.5);
-    expect(body.max_tokens).toBe(1024);
+    expect(body.max_tokens).toBe(4096);
+  });
+
+  it('passes maxOutputTokens and reports the Anthropic stop reason', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({
+      content: [{ type: 'text', text: 'truncated' }],
+      stop_reason: 'max_tokens',
+      usage: { input_tokens: 5, output_tokens: 2 },
+    }));
+    const onFinishReason = vi.fn();
+    await createProvider(anthropicConfig).send('hello', { maxOutputTokens: 64, onFinishReason });
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.max_tokens).toBe(64);
+    expect(onFinishReason).toHaveBeenCalledWith('max_tokens', {
+      promptTokens: 5,
+      completionTokens: 2,
+      totalTokens: 7,
+    });
   });
 
   const ollamaConfig: ProviderConfig = {
@@ -111,6 +153,24 @@ describe('createProvider', () => {
         body: expect.stringContaining('"stream":false'),
       })
     );
+  });
+
+  it('passes maxOutputTokens and reports the Ollama done reason', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({
+      message: { content: 'truncated' },
+      done_reason: 'length',
+      prompt_eval_count: 5,
+      eval_count: 2,
+    }));
+    const onFinishReason = vi.fn();
+    await createProvider(ollamaConfig).send('hey', { maxOutputTokens: 3, onFinishReason });
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.options.num_predict).toBe(3);
+    expect(onFinishReason).toHaveBeenCalledWith('length', expect.objectContaining({
+      promptTokens: 5,
+      completionTokens: 2,
+      totalTokens: 7,
+    }));
   });
 
   it('uses OLLAMA_BASE_URL for a local relay over the stored provider URL', async () => {
@@ -292,6 +352,22 @@ describe('createProvider', () => {
     expect(body.generationConfig).toEqual({ temperature: 0.7 });
   });
 
+  it('passes maxOutputTokens and reports the Gemini finish reason', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({
+      candidates: [{ content: { parts: [{ text: 'truncated' }] }, finishReason: 'MAX_TOKENS' }],
+      usageMetadata: { promptTokenCount: 4, candidatesTokenCount: 2, totalTokenCount: 6 },
+    }));
+    const onFinishReason = vi.fn();
+    await createProvider(geminiConfig).send('hello', { maxOutputTokens: 128, onFinishReason });
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.generationConfig).toEqual({ maxOutputTokens: 128 });
+    expect(onFinishReason).toHaveBeenCalledWith('MAX_TOKENS', {
+      promptTokens: 4,
+      completionTokens: 2,
+      totalTokens: 6,
+    });
+  });
+
   it('lists Gemini models', async () => {
     fetchSpy.mockResolvedValue(
       jsonResponse({
@@ -322,6 +398,43 @@ describe('createProvider', () => {
         headers: expect.objectContaining({ Authorization: 'Bearer generic-key' }),
       })
     );
+  });
+
+  it('disables OpenRouter reasoning when thinking is explicitly false', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ choices: [{ message: { content: 'ok' } }] }));
+    const openrouterConfig: ProviderConfig = {
+      id: 'openrouter',
+      name: 'OpenRouter',
+      kind: 'generic',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      apiKey: 'or-key',
+      defaultModel: 'qwen/qwen3.8-27b',
+      capabilities: [],
+      enabled: true,
+    };
+    await createProvider(openrouterConfig).send('hi', { thinking: false, temperature: 0.2 });
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+    expect(body.reasoning).toEqual({ enabled: false });
+    expect(body.temperature).toBe(0.2);
+  });
+
+  it('leaves OpenRouter reasoning untouched when thinking is not disabled', async () => {
+    fetchSpy.mockResolvedValue(jsonResponse({ choices: [{ message: { content: 'ok' } }] }));
+    const openrouterConfig: ProviderConfig = {
+      id: 'openrouter',
+      name: 'OpenRouter',
+      kind: 'generic',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      apiKey: 'or-key',
+      defaultModel: 'qwen/qwen3.8-27b',
+      capabilities: [],
+      enabled: true,
+    };
+    await createProvider(openrouterConfig).send('hi', { temperature: 0.2 });
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+    expect(body.reasoning).toBeUndefined();
   });
 
   it('throws for unknown provider kind', () => {
@@ -483,6 +596,32 @@ describe('OpenAIProvider (OAuth / Codex Responses API)', () => {
       },
     });
     expect(captured).toEqual({ promptTokens: 42, completionTokens: 7, totalTokens: 49 });
+  });
+
+  it('passes max_output_tokens and reports the Codex Responses stop reason', async () => {
+    fetchSpy.mockResolvedValue(
+      sseResponse([
+        { type: 'response.output_text.delta', delta: 'partial' },
+        {
+          type: 'response.incomplete',
+          response: {
+            status: 'incomplete',
+            incomplete_details: { reason: 'max_output_tokens' },
+            usage: { input_tokens: 5, output_tokens: 2, total_tokens: 7 },
+          },
+        },
+      ])
+    );
+    const onFinishReason = vi.fn();
+    const provider = createProvider(oauthConfig) as Provider & { sendWithTools: NonNullable<Provider['sendWithTools']> };
+    await provider.sendWithTools('step', [], { model: 'gpt-5.4-mini', maxOutputTokens: 16, onFinishReason });
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.max_output_tokens).toBe(16);
+    expect(onFinishReason).toHaveBeenCalledWith('max_output_tokens', {
+      promptTokens: 5,
+      completionTokens: 2,
+      totalTokens: 7,
+    });
   });
 });
 

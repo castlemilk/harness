@@ -1,5 +1,5 @@
 import { createProvider } from '@omega/providers';
-import { runAgentTask, runOrchestratedTask, type ExternalCli } from '@omega/agent';
+import { runAgentTask, runOrchestratedTask, runLedgerTask, type ExternalCli } from '@omega/agent';
 import type { PrismaClient } from '@omega/db';
 import type { Task } from '@omega/core';
 import { queue } from './task-queue.js';
@@ -16,6 +16,8 @@ import { getRouter, recordTaskOutcome } from './intelligent-router.js';
 import { startTrace, traceEvent, completeTrace } from './trace-log.js';
 import { toCoreConfig, isRateLimitError, isTimeoutError, isCredentialError, safeJsonParse } from './utils.js';
 import { runRoutedExternalAgentTask } from './external-agent-runner.js';
+import { resolveTaskRuntime } from './runtime-connections.js';
+import { cancelTaskFlow, startTaskFlow } from './cuttlefish-run.js';
 
 function firstNonEmpty(...values: (string | null | undefined)[]): string | undefined {
   for (const value of values) {
@@ -199,6 +201,70 @@ export async function runTask(
     if (activeTaskControllers.get(taskId) === controller) activeTaskControllers.delete(taskId);
   };
 
+  // Tasks routed to an external workflow runtime (cuttlefish) skip local
+  // execution entirely: the harness translates the task into a workflow,
+  // dispatches it to the fleet, and the flow sync loop mirrors the run back.
+  // Explicit flow tags must resolve; opportunistic auto-routing stays quiet
+  // when no runtime is configured.
+  let taskRuntime: Awaited<ReturnType<typeof resolveTaskRuntime>> = null;
+  try {
+    taskRuntime = await resolveTaskRuntime(prisma, task);
+  } catch (err) {
+    const explicitFlowTag = tags.some(
+      (t) => t.startsWith('flow:') || t.startsWith('flow-version:') || t.startsWith('runtime:')
+    );
+    if (explicitFlowTag) {
+      const message = err instanceof Error ? err.message : String(err);
+      const reason = await ensureFailedTaskReason(prisma, taskId, message);
+      releaseController();
+      throw new Error(reason, { cause: err });
+    }
+    console.warn('auto-routed runtime resolution skipped:', err instanceof Error ? err.message : String(err));
+  }
+  if (taskRuntime) {
+    const onAbort = () => {
+      void cancelTaskFlow(prisma, taskId).catch(console.error);
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    const start = () =>
+      startTaskFlow(prisma, taskId, taskRuntime, { signal, timeoutMs: options.timeoutMs });
+
+    if (options.detached) {
+      const result = queue.enqueue(taskId, 'cuttlefish', async () => {
+        try {
+          await start();
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          const reason = await ensureFailedTaskReason(prisma, taskId, message);
+          console.error(`Detached cuttlefish task ${taskId} failed:`, reason);
+          if (!signal.aborted) {
+            void notifyFailure(prisma, {
+              taskId, title: task.title, provider: 'cuttlefish', error: reason, tags,
+              timestamp: new Date().toISOString(),
+            }).catch(console.error);
+            void tryAutoRetry(prisma, taskId).catch(console.error);
+          }
+        } finally {
+          signal.removeEventListener('abort', onAbort);
+          releaseController();
+        }
+      });
+      return { status: 'in_progress', taskId, ...result };
+    }
+
+    try {
+      const started = await start();
+      return started.task;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await ensureFailedTaskReason(prisma, taskId, message);
+      throw err;
+    } finally {
+      signal.removeEventListener('abort', onAbort);
+      releaseController();
+    }
+  }
+
   // Tasks tagged external:<cli> are driven by an external coding-agent CLI
   // (Codex, Claude Code, Gemini CLI, OpenCode, Cursor CLI, Aider).
   const VALID_CLIS: ExternalCli[] = ['agy', 'claude-code', 'opencode', 'codex', 'gemini-cli', 'aider', 'cursor-cli'];
@@ -306,6 +372,60 @@ export async function runTask(
         }
       }
       return externalResult;
+    } finally {
+      releaseController();
+    }
+  }
+
+  // Tasks tagged 'ledger' run the manager-worker scaffold over a shared
+  // filesystem ledger instead of the tool-using agent loop.
+  if (tags.includes('ledger')) {
+    const trace = startTrace(taskId);
+    const run = () =>
+      runLedgerTask(prisma, taskId, {
+        maxIters: options.maxIterations,
+      });
+    if (options.detached) {
+      const result = queue.enqueue(taskId, 'ledger', async () => {
+        try {
+          const ledgerResult = await run();
+          if (ledgerResult.status === 'failed') {
+            const reason = await ensureFailedTaskReason(prisma, taskId, 'Ledger scaffold produced no solution.');
+            traceEvent(trace, 'llm.error', { error: reason });
+            completeTrace(trace, 'error');
+            if (!signal.aborted) {
+              void notifyFailure(prisma, {
+                taskId, title: task.title, provider: task.provider ?? undefined,
+                model: task.model ?? undefined, error: reason, tags,
+                timestamp: new Date().toISOString(),
+              }).catch(console.error);
+              void tryAutoRetry(prisma, taskId).catch(console.error);
+            }
+          } else {
+            traceEvent(trace, 'agent.loop.complete', { calls: ledgerResult.calls.length });
+            completeTrace(trace, 'success', task.provider ?? undefined, task.model ?? undefined);
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          const reason = await ensureFailedTaskReason(prisma, taskId, message);
+          traceEvent(trace, 'llm.error', { error: reason });
+          completeTrace(trace, 'error');
+          console.error(`Detached ledger task ${taskId} failed:`, reason);
+          if (!signal.aborted) {
+            void notifyFailure(prisma, {
+              taskId, title: task.title, error: reason, tags,
+              timestamp: new Date().toISOString(),
+            }).catch(console.error);
+            void tryAutoRetry(prisma, taskId).catch(console.error);
+          }
+        } finally {
+          releaseController();
+        }
+      });
+      return { status: 'in_progress', taskId, ...result };
+    }
+    try {
+      return await run();
     } finally {
       releaseController();
     }

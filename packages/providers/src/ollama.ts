@@ -14,6 +14,7 @@ interface OllamaToolResponse {
     thinking?: string;
     tool_calls?: { function?: { name?: string; arguments?: unknown } }[];
   };
+  done_reason?: string;
   prompt_eval_count?: number;
   eval_count?: number;
   prompt_eval_duration?: number;
@@ -132,7 +133,7 @@ export class OllamaProvider implements Provider {
     model: string,
     prompt: string,
     opts?: SendOptions,
-  ): Promise<{ content: string; promptTokens?: number; completionTokens?: number; promptDurationS?: number; generationDurationS?: number }> {
+  ): Promise<{ content: string; promptTokens?: number; completionTokens?: number; promptDurationS?: number; generationDurationS?: number; doneReason?: string }> {
     const contextTokens = opts?.contextTokens ?? this.config.defaultContextTokens;
     const body: Record<string, unknown> = {
       model,
@@ -141,10 +142,15 @@ export class OllamaProvider implements Provider {
         { role: 'user', content: prompt },
       ],
       stream: false,
-      ...(this.thinkingEnabled(model, opts) ? { think: true } : {}),
+      ...(opts?.thinking === false
+        ? { think: false }
+        : this.thinkingEnabled(model, opts)
+          ? { think: true }
+          : {}),
       options: {
         ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
         ...(contextTokens !== undefined ? { num_ctx: contextTokens } : {}),
+        ...(opts?.maxOutputTokens !== undefined ? { num_predict: opts.maxOutputTokens } : {}),
       },
       ...(opts?.keepAlive !== undefined ? { keep_alive: opts.keepAlive } : {}),
     };
@@ -168,6 +174,7 @@ export class OllamaProvider implements Provider {
     }
     const data = (await res.json()) as {
       message?: { content?: string };
+      done_reason?: string;
       prompt_eval_count?: number;
       eval_count?: number;
       prompt_eval_duration?: number;
@@ -179,6 +186,7 @@ export class OllamaProvider implements Provider {
       completionTokens: data.eval_count,
       promptDurationS: data.prompt_eval_duration !== undefined ? data.prompt_eval_duration / 1e9 : undefined,
       generationDurationS: data.eval_duration !== undefined ? data.eval_duration / 1e9 : undefined,
+      doneReason: data.done_reason,
     };
   }
 
@@ -209,6 +217,7 @@ export class OllamaProvider implements Provider {
       usage.ngramCacheHitRate = Math.round((1.0 - result.promptDurationS / warmupResult.promptDurationS) * 10000) / 10000;
     }
     opts?.onUsage?.(usage);
+    opts?.onFinishReason?.(result.doneReason, usage);
     return result.content;
   }
 
@@ -223,6 +232,7 @@ export class OllamaProvider implements Provider {
     const options: Record<string, unknown> = {
       ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
       ...(contextTokens !== undefined ? { num_ctx: contextTokens } : {}),
+      ...(opts?.maxOutputTokens !== undefined ? { num_predict: opts.maxOutputTokens } : {}),
       ...(warmup ? { num_predict: 1 } : {}),
     };
     return {
@@ -233,7 +243,11 @@ export class OllamaProvider implements Provider {
         function: { name: t.name, description: t.description, parameters: t.parameters },
       })),
       stream: false,
-      ...(this.thinkingEnabled(model, opts) && !warmup ? { think: true } : {}),
+      ...(opts?.thinking === false
+        ? { think: false }
+        : this.thinkingEnabled(model, opts) && !warmup
+          ? { think: true }
+          : {}),
       ...(Object.keys(options).length > 0 ? { options } : {}),
       ...(opts?.keepAlive !== undefined ? { keep_alive: opts.keepAlive } : {}),
     };
@@ -340,6 +354,7 @@ export class OllamaProvider implements Provider {
       usage.ngramCacheHitRate = Math.round((1.0 - usage.promptDurationS / warmupResult.promptDurationS) * 10000) / 10000;
     }
     opts?.onUsage?.(usage);
+    opts?.onFinishReason?.(data.done_reason, usage);
 
     const toolCalls = data.message?.tool_calls;
     if (toolCalls && toolCalls.length > 0) {

@@ -34,8 +34,15 @@ export class GeminiProvider implements Provider {
     if (opts?.system) {
       body.systemInstruction = { role: 'user', parts: [{ text: opts.system }] };
     }
+    const generationConfig: Record<string, unknown> = {};
     if (opts?.temperature !== undefined) {
-      body.generationConfig = { temperature: opts.temperature };
+      generationConfig.temperature = opts.temperature;
+    }
+    if (opts?.maxOutputTokens !== undefined) {
+      generationConfig.maxOutputTokens = opts.maxOutputTokens;
+    }
+    if (Object.keys(generationConfig).length > 0) {
+      body.generationConfig = generationConfig;
     }
 
     const res = await fetchWithRetry(
@@ -51,21 +58,23 @@ export class GeminiProvider implements Provider {
       throw new Error(`Gemini request failed: ${res.status.toString()} ${res.statusText}`);
     }
     const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
       usageMetadata?: {
         promptTokenCount?: number;
         candidatesTokenCount?: number;
         totalTokenCount?: number;
       };
     };
+    let usage: UsageInfo | undefined;
     if (data.usageMetadata) {
-      const usage: UsageInfo = {
+      usage = {
         promptTokens: data.usageMetadata.promptTokenCount,
         completionTokens: data.usageMetadata.candidatesTokenCount,
         totalTokens: data.usageMetadata.totalTokenCount,
       };
       opts?.onUsage?.(usage);
     }
+    opts?.onFinishReason?.(data.candidates?.[0]?.finishReason, usage);
     return data.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') ?? '';
   }
 }

@@ -55,6 +55,113 @@ export interface BenchmarkBaselineComparison {
   }[];
 }
 
+export interface TraceSpanView {
+  traceId: string;
+  spanId: string;
+  parentSpanId?: string;
+  name: string;
+  service: string;
+  kind: string;
+  startTimeMs: number;
+  endTimeMs: number;
+  durationMs: number;
+  status: 'ok' | 'error' | 'unset';
+  attributes: Record<string, unknown>;
+  events: { timeMs: number; name: string; attributes?: Record<string, unknown> }[];
+}
+
+export interface TraceView {
+  traceId: string;
+  source: 'tempo' | 'database';
+  services: string[];
+  spanCount: number;
+  startTimeMs: number;
+  durationMs: number;
+  spans: TraceSpanView[];
+}
+
+export interface FlowTraceResponse {
+  flowId: string;
+  traceId: string | null;
+  source: 'tempo' | 'database' | 'none';
+  trace: TraceView | null;
+  databaseSpans: {
+    traceId: string;
+    spanId: string;
+    parentId: string | null;
+    name: string;
+    startTime: string;
+    endTime: string | null;
+    status: string;
+    attributes: unknown;
+  }[];
+  runnerTrace: unknown;
+  flow: Record<string, unknown>;
+}
+
+export interface ObservabilityStatus {
+  tracing: { enabled: boolean; otlpEndpoint: string | null; serviceName: string; sampler: string };
+  tempo: { url: string; ok: boolean };
+  mimir: { url: string; ok: boolean };
+}
+
+export interface Hotspot {
+  service: string;
+  operation: string;
+  callsPerSec: number;
+  errorRate: number;
+  p50Ms: number;
+  p95Ms: number;
+  p99Ms: number;
+}
+
+export interface HotspotsResponse {
+  available: boolean;
+  reason?: string;
+  window: string;
+  queryUrl: string;
+  metrics: { calls?: string; duration?: string };
+  entries: Hotspot[];
+  byService: { service: string; callsPerSec: number; p95Ms: number; errorRate: number }[];
+  generatedAt: string;
+}
+
+export interface LedgerCallSummary {
+  index: number;
+  role: string;
+  startedAt: number | null;
+  durationMs: number | null;
+  finishReason: string | null;
+  truncated: boolean;
+  temperature: number | null;
+  promptTokens: number;
+  completionTokens: number;
+  costUsd: number | null;
+  responseChars: number;
+  responseExcerpt: string;
+}
+
+export interface LedgerRoleStats {
+  role: string;
+  calls: number;
+  truncated: number;
+  promptTokens: number;
+  completionTokens: number;
+  costUsd: number;
+  avgDurationMs: number;
+  maxDurationMs: number;
+}
+
+export interface LedgerInspectResponse {
+  taskId: string;
+  workspace: string;
+  exists: boolean;
+  files: Record<string, { path: string; bytes: number; content?: string }>;
+  calls: LedgerCallSummary[];
+  roles: LedgerRoleStats[];
+  totals: { calls: number; truncated: number; promptTokens: number; completionTokens: number; costUsd: number };
+}
+
 export const api = {
   getProjects: () => request<Project[]>('/projects'),
   createProject: (body: { name: string; path: string; repoUrl?: string; description?: string }) =>
@@ -129,8 +236,18 @@ export const api = {
   getTaskTraces: (id: string) => request(`/tasks/${id}/traces`),
   getTaskDiffs: (id: string) => request(`/tasks/${id}/diffs`),
   getTaskAgentRun: (id: string) => request(`/tasks/${id}/agent-run`),
+  getLedger: (id: string) => request<LedgerInspectResponse>(`/tasks/${id}/ledger`),
   getTraceFlow: (id: string) => request(`/tasks/${id}/trace-flow`),
   getTraceAnalysis: (id: string) => request(`/tasks/${id}/trace-analysis`),
+
+  listFlows: (taskId?: string) =>
+    request<{ flows: { id: string; status: string; externalRunId: string; traceId?: string | null; workflowName?: string | null; createdAt: string }[] }>(
+      `/flows${taskId ? `?taskId=${encodeURIComponent(taskId)}` : ''}`
+    ),
+  getFlowTrace: (flowId: string) => request<FlowTraceResponse>(`/flows/${flowId}/trace`),
+  getObservabilityStatus: () => request<ObservabilityStatus>('/observability/status'),
+  getObservabilityHotspots: (window = '15m', limit = 10) =>
+    request<HotspotsResponse>(`/observability/hotspots?window=${encodeURIComponent(window)}&limit=${String(limit)}`),
 
   getBenchmarkReports: () => request<{ benchmark: string[]; ab: string[] }>('/benchmarks/reports'),
   getBenchmarkReport: (file: string) => request<Record<string, unknown>>(`/benchmarks/reports/${encodeURIComponent(file)}`),

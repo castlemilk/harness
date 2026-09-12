@@ -485,6 +485,54 @@ exports.Prisma.HarnessToolRunScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.RuntimeConnectionScalarFieldEnum = {
+  id: 'id',
+  projectId: 'projectId',
+  name: 'name',
+  kind: 'kind',
+  baseUrl: 'baseUrl',
+  apiToken: 'apiToken',
+  externalProjectId: 'externalProjectId',
+  defaultWorkflowVersionId: 'defaultWorkflowVersionId',
+  workflowTemplate: 'workflowTemplate',
+  nodeImage: 'nodeImage',
+  nodeCommand: 'nodeCommand',
+  nodeTimeout: 'nodeTimeout',
+  nodeRetries: 'nodeRetries',
+  runnerPool: 'runnerPool',
+  runnerLabels: 'runnerLabels',
+  runnerCapabilities: 'runnerCapabilities',
+  dispatchMode: 'dispatchMode',
+  intentProfile: 'intentProfile',
+  candidateLimit: 'candidateLimit',
+  baseInputs: 'baseInputs',
+  autoRoute: 'autoRoute',
+  enabled: 'enabled',
+  lastHealthStatus: 'lastHealthStatus',
+  lastHealthAt: 'lastHealthAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.FlowRunScalarFieldEnum = {
+  id: 'id',
+  taskId: 'taskId',
+  runtimeId: 'runtimeId',
+  externalRunId: 'externalRunId',
+  workflowName: 'workflowName',
+  workflowVersionId: 'workflowVersionId',
+  traceId: 'traceId',
+  status: 'status',
+  inputs: 'inputs',
+  outputs: 'outputs',
+  artifacts: 'artifacts',
+  error: 'error',
+  lastSyncedAt: 'lastSyncedAt',
+  completedAt: 'completedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -524,7 +572,9 @@ exports.Prisma.ModelName = {
   Intervention: 'Intervention',
   Playbook: 'Playbook',
   HarnessTool: 'HarnessTool',
-  HarnessToolRun: 'HarnessToolRun'
+  HarnessToolRun: 'HarnessToolRun',
+  RuntimeConnection: 'RuntimeConnection',
+  FlowRun: 'FlowRun'
 };
 
 /**

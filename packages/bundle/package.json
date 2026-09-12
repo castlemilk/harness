@@ -35,6 +35,8 @@
   "devDependencies": {
     "@omega/bench": "workspace:*",
     "@omega/core": "workspace:*",
+    "@omega/cuttlefish": "workspace:*",
+    "@omega/mcp": "workspace:*",
     "@omega/providers": "workspace:*",
     "@omega/router": "workspace:*",
     "@types/cors": "^2.8.17",

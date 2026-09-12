@@ -10,15 +10,16 @@ datasource db {
 }
 
 model Project {
-  id          String      @id @default(uuid())
-  name        String
-  path        String      @unique
-  repoUrl     String?
-  description String?
-  env         String? // JSON
-  createdAt   DateTime    @default(now())
-  tasks       Task[]
-  objectives  Objective[]
+  id                 String              @id @default(uuid())
+  name               String
+  path               String              @unique
+  repoUrl            String?
+  description        String?
+  env                String? // JSON
+  createdAt          DateTime            @default(now())
+  tasks              Task[]
+  objectives         Objective[]
+  runtimeConnections RuntimeConnection[]
 }
 
 model Task {
@@ -45,6 +46,7 @@ model Task {
   diffs             TaskDiff[]
   agentRuns         AgentRun[]
   traceSpans        TraceSpan[]
+  flowRuns          FlowRun[]
 
   @@index([status, createdAt])
   @@index([projectId])
@@ -487,4 +489,75 @@ model HarnessToolRun {
 
   @@index([toolId, createdAt(sort: Desc)])
   @@index([harnessId, createdAt(sort: Desc)])
+}
+
+/// A connection to an external workflow runtime (currently cuttlefish) that
+/// the harness can translate tasks into and dispatch across a compute fleet.
+model RuntimeConnection {
+  id                       String    @id @default(uuid())
+  projectId                String?
+  project                  Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name                     String    @unique
+  kind                     String    @default("cuttlefish")
+  baseUrl                  String
+  apiToken                 String?
+  /// Cuttlefish project/tenant id sent as `x-cuttle-project`.
+  externalProjectId        String?
+  /// Pin every run to this published workflow version.
+  defaultWorkflowVersionId String?
+  /// YAML template with `{{task.*}}` / `{{project.*}}` placeholders.
+  workflowTemplate         String?
+  /// Inline-node container image used when generating a workflow.
+  nodeImage                String?
+  /// Inline-node shell command used when generating a workflow.
+  nodeCommand              String?
+  nodeTimeout              String?   @default("30m")
+  nodeRetries              Int?
+  runnerPool               String?
+  runnerLabels             String? // JSON object
+  runnerCapabilities       String? // JSON array
+  dispatchMode             String?   @default("autopilot")
+  intentProfile            String?
+  candidateLimit           Int?
+  /// Extra inputs merged into every generated run (JSON object).
+  baseInputs               String?
+  /// Route agent tasks through this runtime without requiring a flow: tag.
+  autoRoute                Boolean   @default(false)
+  enabled                  Boolean   @default(true)
+  lastHealthStatus         String?
+  lastHealthAt             DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  flowRuns                 FlowRun[]
+
+  @@index([projectId])
+}
+
+/// One dispatch of a harness task to an external runtime run.
+model FlowRun {
+  id                String             @id @default(uuid())
+  taskId            String?
+  task              Task?              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  runtimeId         String?
+  runtime           RuntimeConnection? @relation(fields: [runtimeId], references: [id], onDelete: SetNull)
+  externalRunId     String
+  workflowName      String?
+  workflowVersionId String?
+  /// OTel trace id of the distributed flow trace (harness -> cuttlefish).
+  traceId           String?
+  status            String             @default("QUEUED")
+  inputs            String? // JSON
+  outputs           String? // JSON
+  artifacts         String? // JSON
+  error             String?
+  lastSyncedAt      DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([taskId])
+  @@index([runtimeId])
+  @@index([externalRunId])
+  @@index([traceId])
+  @@index([status])
 }

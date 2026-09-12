@@ -110,6 +110,10 @@ export interface SendOptions {
   contextTokens?: number;
   /** Ollama keep-alive duration (e.g. "30m", "5m", 0). */
   keepAlive?: string | number;
+  /** Per-call output token cap. */
+  maxOutputTokens?: number;
+  /** Called once per completed provider response with the raw provider stop reason. */
+  onFinishReason?: (finishReason: string | undefined, usage?: UsageInfo) => void;
 }
 
 export interface ToolDefinition {

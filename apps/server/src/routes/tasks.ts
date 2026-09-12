@@ -2,6 +2,8 @@ import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import { z } from 'zod';
 import { cancelRunningTask, runTask } from '../lib/run-task.js';
+import { cancelTaskFlow } from '../lib/cuttlefish-run.js';
+import { inspectLedgerWorkspace } from '../lib/ledger-inspect.js';
 import { getNextStrategy, executeRetry, STRATEGIES_BY_NAME, type RetryAttempt, type RetryContext, type RetryRecord } from '../lib/retry-strategies.js';
 import { asyncHandler } from '../lib/async-handler.js';
 import { safeJsonParse } from '../lib/utils.js';
@@ -352,8 +354,13 @@ export function taskRoutes(prisma: PrismaClient): Router {
     if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
     if (task.status !== 'in_progress') { res.status(400).json({ error: `Task is ${task.status}, cannot cancel` }); return; }
     if (!cancelRunningTask(req.params.id)) {
-      res.status(409).json({ error: 'Task is not running in this server process' });
-      return;
+      // Flow tasks release their local controller once dispatched; cancel the
+      // remote cuttlefish run instead.
+      const flowCancelled = await cancelTaskFlow(prisma, task.id);
+      if (!flowCancelled) {
+        res.status(409).json({ error: 'Task is not running in this server process' });
+        return;
+      }
     }
     res.status(202).json({ cancelled: true });
   }));
@@ -468,6 +475,20 @@ export function taskRoutes(prisma: PrismaClient): Router {
       return;
     }
     res.json(run);
+  }));
+
+  r.get('/:id/ledger', asyncHandler(async (req, res) => {
+    const taskId = await resolveTaskId(prisma, req.params.id);
+    if (!taskId) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    const inspect = await inspectLedgerWorkspace(taskId);
+    if (!inspect.exists) {
+      res.status(404).json({ error: 'No ledger workspace for this task', workspace: inspect.workspace });
+      return;
+    }
+    res.json(inspect);
   }));
 
   r.get('/:id/trace-flow', asyncHandler(async (req, res) => {

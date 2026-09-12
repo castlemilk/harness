@@ -309,3 +309,20 @@ tasks:
     cmds:
       - rm -rf apps/*/dist packages/*/dist apps/web/dist
       - cmd: echo "Build output removed. Database at {{.DB_DIR}} left intact."
+
+  # ------------------------------------------------------------ cuttlefish --
+
+  cuttlefish:up:
+    desc: Start the harness in Docker (expects a cuttlefish control plane on the host)
+    cmds:
+      - docker compose up -d --build
+
+  cuttlefish:down:
+    desc: Stop the harness Docker stack and wipe its PGlite volume
+    cmds:
+      - docker compose down -v
+
+  cuttlefish:e2e:
+    desc: Dockerized harness -> cuttlefish hello-world e2e (tears down unless KEEP=1)
+    cmds:
+      - ./scripts/e2e/docker-e2e.sh {{.CLI_ARGS}}

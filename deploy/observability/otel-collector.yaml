@@ -1,0 +1,66 @@
+# OTel collector for the harness local stack.
+#
+# Pipeline:
+#   OTLP (harness + cuttlefish) -> traces -> Tempo            (span storage/query)
+#                                        -> spanmetrics      (derived metrics)
+#   OTLP metrics + spanmetrics  -> metrics -> Mimir remote write (hotspot queries)
+#
+# Mimir is metrics-only; traces live in Tempo. The spanmetrics connector turns
+# every span into call/latency/error series keyed by service + operation, which
+# is what the harness /v1/observability/hotspots endpoint queries.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+connectors:
+  spanmetrics:
+    namespace: traces_spanmetrics
+    histogram:
+      explicit:
+        buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2.5s, 5s, 10s, 30s, 60s]
+    dimensions:
+      - name: http.request.method
+      - name: http.response.status_code
+      - name: rpc.method
+    metrics_flush_interval: 15s
+
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 75
+    spike_limit_percentage: 20
+  batch:
+    timeout: 1s
+    send_batch_size: 512
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  prometheusremotewrite/mimir:
+    endpoint: ${env:MIMIR_REMOTE_WRITE_URL}
+    tls:
+      insecure: true
+    resource_to_telemetry_conversion:
+      enabled: true
+  debug:
+    verbosity: basic
+
+service:
+  telemetry:
+    logs:
+      level: warn
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/tempo, spanmetrics, debug]
+    metrics:
+      receivers: [otlp, spanmetrics]
+      processors: [memory_limiter, batch]
+      exporters: [prometheusremotewrite/mimir, debug]

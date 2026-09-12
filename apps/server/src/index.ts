@@ -14,6 +14,7 @@ process.on('uncaughtException', (err) => {
 });
 
 import { startForemanEngine } from './routes/foreman-engine.js';
+import { initTelemetry, shutdownTelemetry } from './lib/telemetry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,6 +33,10 @@ process.env.SKILLS_DIR =
 // PGlite recovers stale locks itself.
 
 async function bootstrap(): Promise<void> {
+  // Register the tracer/context manager before app.ts is evaluated so request
+  // middleware and outbound calls share one context.
+  initTelemetry();
+
   // Dynamic imports keep the @omega/db (and its transitive PGlite) module
   // graph out of the static import graph — its top-level await retry must run
   // before app.ts (which imports prisma statically) is evaluated.
@@ -42,6 +47,7 @@ async function bootstrap(): Promise<void> {
   const { getRouter, shutdownRouter } = await import('./lib/intelligent-router.js');
   const { checkThresholds } = await import('./lib/webhook-alerts.js');
   const { queue } = await import('./lib/task-queue.js');
+  const { stopAllFlowSyncs } = await import('./lib/cuttlefish-run.js');
 
   await applyMigrations();
   await seedDefaults();
@@ -108,6 +114,7 @@ async function bootstrap(): Promise<void> {
     try {
       clearInterval(alertInterval);
       foremanEngine?.stop();
+      stopAllFlowSyncs();
 
       const status = queue.status();
       console.log(`Queue: ${String(status.active)} active, ${String(status.queued)} queued`);
@@ -143,6 +150,8 @@ async function bootstrap(): Promise<void> {
       // disconnect must not stop the exit that is already overdue.
       console.error('Database disconnect failed:', err);
     }
+    // Flush pending spans before the process exits.
+    await shutdownTelemetry();
     process.exit(exitCode);
   };
 

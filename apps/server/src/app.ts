@@ -18,6 +18,12 @@ import { providerCompareRoutes } from './routes/provider-compare.js';
 import { foremanRoutes } from './routes/foreman.js';
 import { foremanEngineRoutes } from './routes/foreman-engine.js';
 import { localModelRoutes } from './routes/local-models.js';
+import { runtimeRoutes, flowRoutes } from './routes/runtime.js';
+import { observabilityRoutes } from './routes/observability.js';
+import { v1Routes } from './routes/v1.js';
+import { mcpRoutes } from './routes/mcp.js';
+import { apiAuth } from './lib/api-auth.js';
+import { httpSpanMiddleware } from './lib/telemetry-http.js';
 
 export const app: express.Express = express();
 
@@ -53,6 +59,7 @@ app.use(cors({
   },
 }));
 app.use(express.json());
+app.use(httpSpanMiddleware);
 
 app.use('/projects', projectRoutes(prisma));
 app.use('/tasks', taskRoutes(prisma));
@@ -71,6 +78,14 @@ app.use('/providers/compare', providerCompareRoutes(prisma));
 app.use('/foreman', foremanRoutes(prisma));
 app.use('/foreman', foremanEngineRoutes(prisma));
 app.use('/local-models', localModelRoutes(prisma));
+app.use('/runtime', runtimeRoutes(prisma));
+app.use('/flows', flowRoutes(prisma));
+app.use('/observability', observabilityRoutes());
+
+// Public, versioned agents API + MCP endpoint. Bearer auth is enforced only
+// when OMEGA_API_TOKEN is configured.
+app.use('/v1', apiAuth, v1Routes(prisma));
+app.use('/mcp', apiAuth, mcpRoutes());
 
 /**
  * An unknown API path is a 404, not the SPA.
@@ -84,7 +99,7 @@ app.use('/local-models', localModelRoutes(prisma));
  * every route in here already uses. Everything else still falls through to the
  * SPA — deep links have to keep working.
  */
-const API_PREFIXES = ['/api', '/foreman'];
+const API_PREFIXES = ['/api', '/foreman', '/v1', '/mcp'];
 
 app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
   const isApiPath = API_PREFIXES.some((p) => req.path === p || req.path.startsWith(p + '/'));

@@ -1,0 +1,74 @@
+[
+  {
+    "id": "arc196_b",
+    "difficulty": "hard",
+    "contestDate": "2025-04-06 00:00:00",
+    "platform": "Platform.ATCODER",
+    "statement": "### Question\nThere is a grid of H rows and W columns.\nThe rows are numbered 0,1,\\ldots,H-1 from top to bottom, and the columns are numbered 0,1,\\ldots,W-1 from left to right.\nLet (i,j) denote the cell at row i and column j.\nYou are given H strings S_0, S_1, \\ldots, S_{H-1}, each of which is of length W and consists of A and B.\nIn each cell, one of the following two types of tiles is placed.\nLet S_{ij} denote the (j+1)-th character (0 \\le j \\le W-1) of the string S_i. The type of tile placed in cell (i,j) is S_{ij}.\n\n- Type A: A single line segment is drawn on the tile\u2019s surface, connecting the midpoints of two adjacent edges.\n\n\n\n- Type B: A single line segment is drawn on the tile\u2019s surface, connecting the midpoints of two opposite edges.\n\n\nThese tiles can be freely rotated. When focusing only on the pattern formed by the line segments, there are four ways to rotate a Type-A tile and two ways to rotate a Type-B tile. Therefore, if we distinguish placements only by the pattern of line segments, the number of ways to place the tiles is 4^a \\times 2^b, where a is the number of Type-A tiles and b is the number of Type-B tiles.\nAmong these ways, print the number, modulo 998244353, of ways such that the line segments on the tiles have no dead ends when viewing the grid as a torus.\nHere, \"the line segments on the tiles have no dead ends when viewing the grid as a torus\" if and only if the following two conditions are satisfied for every cell (i,j):\n\n- Both of the following exist, or neither of the following exists:\n- the line segment drawn in the cell (i,j), whose endpoint is the midpoint of the right edge of the cell (i,j)\n- the line segment drawn in the cell (i,(j+1)\\bmod W), whose endpoint is the midpoint of the left edge of the cell (i,(j+1)\\bmod W)\n\n\n- Both of the following exist, or neither of the following exists:\n- the line segment drawn in the cell (i,j), whose endpoint is the midpoint of the bottom edge of the cell (i,j)\n- the line segment drawn in the cell ((i+1)\\bmod H,j), whose endpoint is the midpoint of the top edge of the cell ((i+1)\\bmod H,j)\n\n\n\nFor example, the following placement satisfies the condition:\n\nThe following placement does not satisfy the condition. Specifically, while there is no line segment whose endpoint is the midpoint of the right edge of the tile in cell (0,2), there is a line segment whose endpoint is the midpoint of the left edge of the tile in cell (0,0), so the condition is not satisfied.\n\nYou are given T test cases; solve each of them.\n\nInput\n\nThe input is given from Standard Input in the following format:\nT\ncase_1\ncase_2\n\\vdots\ncase_T\n\nEach case is given in the following format:\nH W\nS_0\nS_1\n\\vdots\nS_{H-1}\n\nOutput\n\nFor each test case, print the number, modulo 998244353, of placements that satisfies the condition, in separate lines.\n\nConstraints\n\n\n- 1 \\le T \\le 10^5\n- 2 \\le H,W\n- HW\\leq 10^6\n- S_i\\,(0\\le i\\le H-1) are length-W strings consisting of A and B.\n- The sum of H W over all test cases is at most 10^6.\n- T, H, and W are integers.\n\nSample Input 1\n\n3\n3 3\nAAB\nAAB\nBBB\n3 3\nBBA\nABA\nAAB\n3 4\nBAAB\nBABA\nBBAA\n\nSample Output 1\n\n2\n0\n2\n\nOne valid placement for the first test case is shown in the following image:\n\n### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.\n\n",
+    "tests": [
+      {
+        "input": "3\n3 3\nAAB\nAAB\nBBB\n3 3\nBBA\nABA\nAAB\n3 4\nBAAB\nBABA\nBBAA",
+        "output": "2\n0\n2"
+      }
+    ]
+  },
+  {
+    "id": "arc196_c",
+    "difficulty": "hard",
+    "contestDate": "2025-04-06 00:00:00",
+    "platform": "Platform.ATCODER",
+    "statement": "### Question\nThere is a directed graph with 2N vertices and 2N-1 edges.\r\nThe vertices are numbered 1, 2, \\ldots, 2N, and the i-th edge is a directed edge from vertex i to vertex i+1.\nYou are given a length-2N string S = S_1 S_2 \\ldots S_{2N} consisting of N Ws and N Bs.\r\nVertex i is colored white if S_i is W, and black if S_i is B.\nYou will perform the following series of operations:\n\n- Partition the 2N vertices into N pairs, each consisting of one white vertex and one black vertex.\n- For each pair, add a directed edge from the white vertex to the black vertex.\n\nPrint the number, modulo 998244353, of ways to partition the vertices into N pairs such that the final graph is strongly connected.\n Notes on strongly connectedness\nA directed graph is strongly connected if and only if it is possible to travel from any vertex to any vertex by following edges.\n\nInput\n\nThe input is given from Standard Input in the following format:\nN\r\nS\n\nOutput\n\nPrint the number, modulo 998244353, of ways to partition the vertices into N pairs so that the final graph is strongly connected.\n\nConstraints\n\n\n- 1 \\le N \\le 2\\times 10^5\n- S is a length 2N string consisting of N Ws and N Bs.\n- N is an integer.\n\nSample Input 1\n\n2\r\nBWBW\n\nSample Output 1\n\n1\r\n\nVertices 2,4 are white, and vertices 1,3 are black.\nLet (u,v) denote an edge from vertex u to vertex v.\nIf we pair up vertices as (2,1), (4,3), the final graph have the edges (1,2), (2,3), (3,4), (2,1), (4,3). In this case, for example, it is impossible to travel from vertex 3 to vertex 1 by following edges, so this graph is not strongly connected.\nIf we pair up vertices as (2,3), (4,1), the final graph have the edges (1,2), (2,3), (3,4), (2,3), (4,1). This graph is strongly connected.\nTherefore, there is exactly 1 way to pair up the vertices that satisfies the condition.\n\nSample Input 2\n\n4\r\nBWWBWBWB\n\nSample Output 2\n\n0\r\n\nNo matter how you pair up the vertices, you cannot satisfy the condition.\n\nSample Input 3\n\n9\r\nBWWBWBBBWWBWBBWWBW\n\nSample Output 3\n\n240792\n\n### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.\n\n",
+    "tests": [
+      {
+        "input": "2\nBWBW",
+        "output": "1"
+      },
+      {
+        "input": "4\nBWWBWBWB",
+        "output": "0"
+      },
+      {
+        "input": "9\nBWWBWBBBWWBWBBWWBW",
+        "output": "240792"
+      }
+    ]
+  },
+  {
+    "id": "arc196_a",
+    "difficulty": "hard",
+    "contestDate": "2025-04-06 00:00:00",
+    "platform": "Platform.ATCODER",
+    "statement": "### Question\nYou are given a length-N sequence A = (A_1, A_2, \\ldots, A_N).\nYou will repeatedly perform the following operation until the sequence has length at most 1: choose two adjacent numbers and remove both from the sequence.\nThe score obtained in one operation is the absolute difference of the two chosen numbers.\nFind the maximum possible total score obtained.\n\nInput\n\nThe input is given from Standard Input in the following format:\nN\nA_1 A_2 \\ldots A_N\n\nOutput\n\nPrint the maximum possible total score obtained.\n\nConstraints\n\n\n- 2 \\le N \\le 3 \\times 10^5\n- 1 \\le A_i \\le 10^9\n- All input values are integers.\n\nSample Input 1\n\n4\n1 2 5 3\n\nSample Output 1\n\n5\n\nFirst, remove A_2 and A_3. The score obtained is |A_2 - A_3| = 3.\nNext, remove A_1 and A_4. Note that, because of the previous operation, these two numbers are now adjacent. The score obtained is |A_1 - A_4| = 2.\nHence, the total score obtained is 5.\nIt is impossible to achieve a total score of 6 or greater, so print 5.\n\nSample Input 2\n\n7\n3 1 4 1 5 9 2\n\nSample Output 2\n\n14\n\nSample Input 3\n\n5\n1 1 1 1 1\n\nSample Output 3\n\n0\n\n### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.\n\n",
+    "tests": [
+      {
+        "input": "4\n1 2 5 3",
+        "output": "5"
+      },
+      {
+        "input": "7\n3 1 4 1 5 9 2",
+        "output": "14"
+      },
+      {
+        "input": "5\n1 1 1 1 1",
+        "output": "0"
+      }
+    ]
+  },
+  {
+    "id": "arc196_d",
+    "difficulty": "hard",
+    "contestDate": "2025-04-06 00:00:00",
+    "platform": "Platform.ATCODER",
+    "statement": "### Question\nThere are N towns, numbered 1,2,\\ldots,N, arranged in a line in this order.\nThere are N-1 roads connecting adjacent towns: road j\\,(1 \\leq j \\leq N-1) connects towns j and j+1. For each road j, you can set a strength w_j (an integer that may be negative).\nWhen a person travels along a road, their stamina changes. Specifically, if a person with stamina x travels along road j, their stamina becomes x + w_j.\nThere are M people who will now move between these towns.\nPerson i\\,(1 \\le i \\le M) starts with stamina 0 at town S_i and travels to town T_i via the shortest path.\r\nIt is guaranteed that |S_i - T_i| > 1. Also, (S_i, T_i) \\neq (S_j, T_j) if i \\neq j.\nPerson i\u2019s requirement is as follows:\n\nWhen departing Town S_i and when arriving at Town T_i, their stamina should be exactly 0. At every other town, their stamina should always be a positive integer.\n\nAssume that there are no changes to stamina other than those due to traveling along roads as described above.\nProcess Q queries. For the k-th query (1 \\le k \\le Q), if it is possible to set the strengths of the roads so that the requirements of all people L_k, L_k + 1, \\ldots, R_k are satisfied, print Yes; otherwise, print No.\n\nInput\n\nThe input is given from Standard Input in the following format:\nN M Q\r\nS_1 T_1\r\nS_2 T_2\r\n\\vdots\r\nS_M T_M\r\nL_1 R_1\r\nL_2 R_2\r\n\\vdots\r\nL_Q R_Q\n\nOutput\n\nPrint Q lines.\nThe k-th line should contain Yes if there is a way to set the strengths of the roads so that the requirements of all people L_k, L_k + 1, \\ldots, R_k are satisfied, and No otherwise.\n\nConstraints\n\n\n- 3 \\le N \\le 4 \\times 10^5\n- 1 \\le M \\le 2 \\times 10^5\n- 1 \\le Q \\le 2 \\times 10^5\n- 1 \\le S_i, T_i \\le N\n- |S_i - T_i| > 1\n- (S_i, T_i) \\neq (S_j, T_j)\\,(i \\neq j)\n- 1 \\le L_k \\le R_k \\le M\n- All input values are integers.\n\nSample Input 1\n\n5 4 2\r\n4 2\r\n1 3\r\n3 5\r\n2 4\r\n1 3\r\n2 4\n\nSample Output 1\n\nYes\r\nNo\r\n\nFor the first query, consider setting the strengths of roads 1, 2, 3, 4 to 1, -1, 1, -1, respectively.\n\n- Person 1 starts at town 4 with stamina 0, visits town 3 with stamina 1, and arrives at town 2 with stamina 0.\n- Person 2 starts at town 1 with stamina 0, visits town 2 with stamina 1, and arrives at town 3 with stamina 0.\n- Person 3 starts at town 3 with stamina 0, visits town 4 with stamina 1, and arrives at town 5 with stamina 0.\n\nThus, this configuration satisfies the requirements of persons 1,2,3, so print Yes on the first line.\nFor the second query, it is impossible to satisfy the requirements of persons 2,3,4 simultaneously, so print No.\n\nSample Input 2\n\n7 6 3\r\n1 5\r\n2 4\r\n4 6\r\n7 1\r\n5 3\r\n1 6\r\n1 6\r\n4 4\r\n2 5\n\nSample Output 2\n\nNo\r\nYes\r\nYes\n\n### Format: Read the inputs from stdin solve the problem and write the answer to stdout (do not directly test on the sample inputs). Enclose your code within delimiters as follows. Ensure that when the python program runs, it reads the inputs, runs the algorithm and writes output to STDOUT.\n\n",
+    "tests": [
+      {
+        "input": "5 4 2\n4 2\n1 3\n3 5\n2 4\n1 3\n2 4",
+        "output": "Yes\nNo"
+      },
+      {
+        "input": "7 6 3\n1 5\n2 4\n4 6\n7 1\n5 3\n1 6\n1 6\n4 4\n2 5",
+        "output": "No\nYes\nYes"
+      }
+    ]
+  }
+]

@@ -1,0 +1,28 @@
+apiVersion: cuttlefish.dev/v1alpha1
+kind: Workflow
+metadata:
+  name: hello-world
+  description: Minimal hello-world workflow for the harness -> cuttlefish e2e check.
+spec:
+  inputs:
+    schema:
+      type: object
+      properties:
+        who:
+          type: string
+      required: []
+    defaults:
+      who: omega
+  nodes:
+    - id: hello
+      kind: task
+      image: alpine:3.19
+      script: |
+        set -eu
+        echo "hello from cuttlefish"
+        echo "hello-world workflow executed"
+      run:
+        timeout: 2m
+  edges: []
+  triggers:
+    - kind: manual

@@ -129,6 +129,17 @@ export type HarnessTool = $Result.DefaultSelection<Prisma.$HarnessToolPayload>
  * This is the audit trail: it exists even when nothing ran.
  */
 export type HarnessToolRun = $Result.DefaultSelection<Prisma.$HarnessToolRunPayload>
+/**
+ * Model RuntimeConnection
+ * A connection to an external workflow runtime (currently cuttlefish) that
+ * the harness can translate tasks into and dispatch across a compute fleet.
+ */
+export type RuntimeConnection = $Result.DefaultSelection<Prisma.$RuntimeConnectionPayload>
+/**
+ * Model FlowRun
+ * One dispatch of a harness task to an external runtime run.
+ */
+export type FlowRun = $Result.DefaultSelection<Prisma.$FlowRunPayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -482,6 +493,26 @@ export class PrismaClient<
     * ```
     */
   get harnessToolRun(): Prisma.HarnessToolRunDelegate<ExtArgs>;
+
+  /**
+   * `prisma.runtimeConnection`: Exposes CRUD operations for the **RuntimeConnection** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RuntimeConnections
+    * const runtimeConnections = await prisma.runtimeConnection.findMany()
+    * ```
+    */
+  get runtimeConnection(): Prisma.RuntimeConnectionDelegate<ExtArgs>;
+
+  /**
+   * `prisma.flowRun`: Exposes CRUD operations for the **FlowRun** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more FlowRuns
+    * const flowRuns = await prisma.flowRun.findMany()
+    * ```
+    */
+  get flowRun(): Prisma.FlowRunDelegate<ExtArgs>;
 }
 
 export namespace Prisma {
@@ -945,7 +976,9 @@ export namespace Prisma {
     Intervention: 'Intervention',
     Playbook: 'Playbook',
     HarnessTool: 'HarnessTool',
-    HarnessToolRun: 'HarnessToolRun'
+    HarnessToolRun: 'HarnessToolRun',
+    RuntimeConnection: 'RuntimeConnection',
+    FlowRun: 'FlowRun'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -961,7 +994,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "localModelConfig" | "skillArtifact" | "promptVersion" | "benchmarkHistory" | "benchmarkRun" | "providerCircuitState" | "objective" | "objectivePhase" | "workstream" | "harness" | "pulse" | "intervention" | "playbook" | "harnessTool" | "harnessToolRun"
+      modelProps: "project" | "task" | "taskStep" | "taskTrace" | "taskDiff" | "agentRun" | "traceSpan" | "providerConfig" | "localModelConfig" | "skillArtifact" | "promptVersion" | "benchmarkHistory" | "benchmarkRun" | "providerCircuitState" | "objective" | "objectivePhase" | "workstream" | "harness" | "pulse" | "intervention" | "playbook" | "harnessTool" | "harnessToolRun" | "runtimeConnection" | "flowRun"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2575,6 +2608,146 @@ export namespace Prisma {
           }
         }
       }
+      RuntimeConnection: {
+        payload: Prisma.$RuntimeConnectionPayload<ExtArgs>
+        fields: Prisma.RuntimeConnectionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RuntimeConnectionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RuntimeConnectionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RuntimeConnectionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RuntimeConnectionPayload>
+          }
+          findFirst: {
+            args: Prisma.RuntimeConnectionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RuntimeConnectionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RuntimeConnectionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RuntimeConnectionPayload>
+          }
+          findMany: {
+            args: Prisma.RuntimeConnectionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RuntimeConnectionPayload>[]
+          }
+          create: {
+            args: Prisma.RuntimeConnectionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RuntimeConnectionPayload>
+          }
+          createMany: {
+            args: Prisma.RuntimeConnectionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.RuntimeConnectionCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RuntimeConnectionPayload>[]
+          }
+          delete: {
+            args: Prisma.RuntimeConnectionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RuntimeConnectionPayload>
+          }
+          update: {
+            args: Prisma.RuntimeConnectionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RuntimeConnectionPayload>
+          }
+          deleteMany: {
+            args: Prisma.RuntimeConnectionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RuntimeConnectionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.RuntimeConnectionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RuntimeConnectionPayload>
+          }
+          aggregate: {
+            args: Prisma.RuntimeConnectionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRuntimeConnection>
+          }
+          groupBy: {
+            args: Prisma.RuntimeConnectionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RuntimeConnectionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RuntimeConnectionCountArgs<ExtArgs>
+            result: $Utils.Optional<RuntimeConnectionCountAggregateOutputType> | number
+          }
+        }
+      }
+      FlowRun: {
+        payload: Prisma.$FlowRunPayload<ExtArgs>
+        fields: Prisma.FlowRunFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.FlowRunFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FlowRunPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.FlowRunFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FlowRunPayload>
+          }
+          findFirst: {
+            args: Prisma.FlowRunFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FlowRunPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.FlowRunFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FlowRunPayload>
+          }
+          findMany: {
+            args: Prisma.FlowRunFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FlowRunPayload>[]
+          }
+          create: {
+            args: Prisma.FlowRunCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FlowRunPayload>
+          }
+          createMany: {
+            args: Prisma.FlowRunCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.FlowRunCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FlowRunPayload>[]
+          }
+          delete: {
+            args: Prisma.FlowRunDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FlowRunPayload>
+          }
+          update: {
+            args: Prisma.FlowRunUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FlowRunPayload>
+          }
+          deleteMany: {
+            args: Prisma.FlowRunDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.FlowRunUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.FlowRunUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FlowRunPayload>
+          }
+          aggregate: {
+            args: Prisma.FlowRunAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateFlowRun>
+          }
+          groupBy: {
+            args: Prisma.FlowRunGroupByArgs<ExtArgs>
+            result: $Utils.Optional<FlowRunGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.FlowRunCountArgs<ExtArgs>
+            result: $Utils.Optional<FlowRunCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -2742,11 +2915,13 @@ export namespace Prisma {
   export type ProjectCountOutputType = {
     tasks: number
     objectives: number
+    runtimeConnections: number
   }
 
   export type ProjectCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     tasks?: boolean | ProjectCountOutputTypeCountTasksArgs
     objectives?: boolean | ProjectCountOutputTypeCountObjectivesArgs
+    runtimeConnections?: boolean | ProjectCountOutputTypeCountRuntimeConnectionsArgs
   }
 
   // Custom InputTypes
@@ -2774,6 +2949,13 @@ export namespace Prisma {
     where?: ObjectiveWhereInput
   }
 
+  /**
+   * ProjectCountOutputType without action
+   */
+  export type ProjectCountOutputTypeCountRuntimeConnectionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RuntimeConnectionWhereInput
+  }
+
 
   /**
    * Count Type TaskCountOutputType
@@ -2785,6 +2967,7 @@ export namespace Prisma {
     diffs: number
     agentRuns: number
     traceSpans: number
+    flowRuns: number
   }
 
   export type TaskCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -2793,6 +2976,7 @@ export namespace Prisma {
     diffs?: boolean | TaskCountOutputTypeCountDiffsArgs
     agentRuns?: boolean | TaskCountOutputTypeCountAgentRunsArgs
     traceSpans?: boolean | TaskCountOutputTypeCountTraceSpansArgs
+    flowRuns?: boolean | TaskCountOutputTypeCountFlowRunsArgs
   }
 
   // Custom InputTypes
@@ -2839,6 +3023,13 @@ export namespace Prisma {
    */
   export type TaskCountOutputTypeCountTraceSpansArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: TraceSpanWhereInput
+  }
+
+  /**
+   * TaskCountOutputType without action
+   */
+  export type TaskCountOutputTypeCountFlowRunsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: FlowRunWhereInput
   }
 
 
@@ -3043,6 +3234,37 @@ export namespace Prisma {
 
 
   /**
+   * Count Type RuntimeConnectionCountOutputType
+   */
+
+  export type RuntimeConnectionCountOutputType = {
+    flowRuns: number
+  }
+
+  export type RuntimeConnectionCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    flowRuns?: boolean | RuntimeConnectionCountOutputTypeCountFlowRunsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * RuntimeConnectionCountOutputType without action
+   */
+  export type RuntimeConnectionCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnectionCountOutputType
+     */
+    select?: RuntimeConnectionCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * RuntimeConnectionCountOutputType without action
+   */
+  export type RuntimeConnectionCountOutputTypeCountFlowRunsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: FlowRunWhereInput
+  }
+
+
+  /**
    * Models
    */
 
@@ -3228,6 +3450,7 @@ export namespace Prisma {
     createdAt?: boolean
     tasks?: boolean | Project$tasksArgs<ExtArgs>
     objectives?: boolean | Project$objectivesArgs<ExtArgs>
+    runtimeConnections?: boolean | Project$runtimeConnectionsArgs<ExtArgs>
     _count?: boolean | ProjectCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["project"]>
 
@@ -3254,6 +3477,7 @@ export namespace Prisma {
   export type ProjectInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     tasks?: boolean | Project$tasksArgs<ExtArgs>
     objectives?: boolean | Project$objectivesArgs<ExtArgs>
+    runtimeConnections?: boolean | Project$runtimeConnectionsArgs<ExtArgs>
     _count?: boolean | ProjectCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type ProjectIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -3263,6 +3487,7 @@ export namespace Prisma {
     objects: {
       tasks: Prisma.$TaskPayload<ExtArgs>[]
       objectives: Prisma.$ObjectivePayload<ExtArgs>[]
+      runtimeConnections: Prisma.$RuntimeConnectionPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -3638,6 +3863,7 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     tasks<T extends Project$tasksArgs<ExtArgs> = {}>(args?: Subset<T, Project$tasksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TaskPayload<ExtArgs>, T, "findMany"> | Null>
     objectives<T extends Project$objectivesArgs<ExtArgs> = {}>(args?: Subset<T, Project$objectivesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ObjectivePayload<ExtArgs>, T, "findMany"> | Null>
+    runtimeConnections<T extends Project$runtimeConnectionsArgs<ExtArgs> = {}>(args?: Subset<T, Project$runtimeConnectionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RuntimeConnectionPayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -4028,6 +4254,26 @@ export namespace Prisma {
   }
 
   /**
+   * Project.runtimeConnections
+   */
+  export type Project$runtimeConnectionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionInclude<ExtArgs> | null
+    where?: RuntimeConnectionWhereInput
+    orderBy?: RuntimeConnectionOrderByWithRelationInput | RuntimeConnectionOrderByWithRelationInput[]
+    cursor?: RuntimeConnectionWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: RuntimeConnectionScalarFieldEnum | RuntimeConnectionScalarFieldEnum[]
+  }
+
+  /**
    * Project without action
    */
   export type ProjectDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -4342,6 +4588,7 @@ export namespace Prisma {
     diffs?: boolean | Task$diffsArgs<ExtArgs>
     agentRuns?: boolean | Task$agentRunsArgs<ExtArgs>
     traceSpans?: boolean | Task$traceSpansArgs<ExtArgs>
+    flowRuns?: boolean | Task$flowRunsArgs<ExtArgs>
     _count?: boolean | TaskCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["task"]>
 
@@ -4393,6 +4640,7 @@ export namespace Prisma {
     diffs?: boolean | Task$diffsArgs<ExtArgs>
     agentRuns?: boolean | Task$agentRunsArgs<ExtArgs>
     traceSpans?: boolean | Task$traceSpansArgs<ExtArgs>
+    flowRuns?: boolean | Task$flowRunsArgs<ExtArgs>
     _count?: boolean | TaskCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type TaskIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -4408,6 +4656,7 @@ export namespace Prisma {
       diffs: Prisma.$TaskDiffPayload<ExtArgs>[]
       agentRuns: Prisma.$AgentRunPayload<ExtArgs>[]
       traceSpans: Prisma.$TraceSpanPayload<ExtArgs>[]
+      flowRuns: Prisma.$FlowRunPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -4797,6 +5046,7 @@ export namespace Prisma {
     diffs<T extends Task$diffsArgs<ExtArgs> = {}>(args?: Subset<T, Task$diffsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TaskDiffPayload<ExtArgs>, T, "findMany"> | Null>
     agentRuns<T extends Task$agentRunsArgs<ExtArgs> = {}>(args?: Subset<T, Task$agentRunsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AgentRunPayload<ExtArgs>, T, "findMany"> | Null>
     traceSpans<T extends Task$traceSpansArgs<ExtArgs> = {}>(args?: Subset<T, Task$traceSpansArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TraceSpanPayload<ExtArgs>, T, "findMany"> | Null>
+    flowRuns<T extends Task$flowRunsArgs<ExtArgs> = {}>(args?: Subset<T, Task$flowRunsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FlowRunPayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -5258,6 +5508,26 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: TraceSpanScalarFieldEnum | TraceSpanScalarFieldEnum[]
+  }
+
+  /**
+   * Task.flowRuns
+   */
+  export type Task$flowRunsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunInclude<ExtArgs> | null
+    where?: FlowRunWhereInput
+    orderBy?: FlowRunOrderByWithRelationInput | FlowRunOrderByWithRelationInput[]
+    cursor?: FlowRunWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: FlowRunScalarFieldEnum | FlowRunScalarFieldEnum[]
   }
 
   /**
@@ -27529,6 +27799,2395 @@ export namespace Prisma {
 
 
   /**
+   * Model RuntimeConnection
+   */
+
+  export type AggregateRuntimeConnection = {
+    _count: RuntimeConnectionCountAggregateOutputType | null
+    _avg: RuntimeConnectionAvgAggregateOutputType | null
+    _sum: RuntimeConnectionSumAggregateOutputType | null
+    _min: RuntimeConnectionMinAggregateOutputType | null
+    _max: RuntimeConnectionMaxAggregateOutputType | null
+  }
+
+  export type RuntimeConnectionAvgAggregateOutputType = {
+    nodeRetries: number | null
+    candidateLimit: number | null
+  }
+
+  export type RuntimeConnectionSumAggregateOutputType = {
+    nodeRetries: number | null
+    candidateLimit: number | null
+  }
+
+  export type RuntimeConnectionMinAggregateOutputType = {
+    id: string | null
+    projectId: string | null
+    name: string | null
+    kind: string | null
+    baseUrl: string | null
+    apiToken: string | null
+    externalProjectId: string | null
+    defaultWorkflowVersionId: string | null
+    workflowTemplate: string | null
+    nodeImage: string | null
+    nodeCommand: string | null
+    nodeTimeout: string | null
+    nodeRetries: number | null
+    runnerPool: string | null
+    runnerLabels: string | null
+    runnerCapabilities: string | null
+    dispatchMode: string | null
+    intentProfile: string | null
+    candidateLimit: number | null
+    baseInputs: string | null
+    autoRoute: boolean | null
+    enabled: boolean | null
+    lastHealthStatus: string | null
+    lastHealthAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type RuntimeConnectionMaxAggregateOutputType = {
+    id: string | null
+    projectId: string | null
+    name: string | null
+    kind: string | null
+    baseUrl: string | null
+    apiToken: string | null
+    externalProjectId: string | null
+    defaultWorkflowVersionId: string | null
+    workflowTemplate: string | null
+    nodeImage: string | null
+    nodeCommand: string | null
+    nodeTimeout: string | null
+    nodeRetries: number | null
+    runnerPool: string | null
+    runnerLabels: string | null
+    runnerCapabilities: string | null
+    dispatchMode: string | null
+    intentProfile: string | null
+    candidateLimit: number | null
+    baseInputs: string | null
+    autoRoute: boolean | null
+    enabled: boolean | null
+    lastHealthStatus: string | null
+    lastHealthAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type RuntimeConnectionCountAggregateOutputType = {
+    id: number
+    projectId: number
+    name: number
+    kind: number
+    baseUrl: number
+    apiToken: number
+    externalProjectId: number
+    defaultWorkflowVersionId: number
+    workflowTemplate: number
+    nodeImage: number
+    nodeCommand: number
+    nodeTimeout: number
+    nodeRetries: number
+    runnerPool: number
+    runnerLabels: number
+    runnerCapabilities: number
+    dispatchMode: number
+    intentProfile: number
+    candidateLimit: number
+    baseInputs: number
+    autoRoute: number
+    enabled: number
+    lastHealthStatus: number
+    lastHealthAt: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type RuntimeConnectionAvgAggregateInputType = {
+    nodeRetries?: true
+    candidateLimit?: true
+  }
+
+  export type RuntimeConnectionSumAggregateInputType = {
+    nodeRetries?: true
+    candidateLimit?: true
+  }
+
+  export type RuntimeConnectionMinAggregateInputType = {
+    id?: true
+    projectId?: true
+    name?: true
+    kind?: true
+    baseUrl?: true
+    apiToken?: true
+    externalProjectId?: true
+    defaultWorkflowVersionId?: true
+    workflowTemplate?: true
+    nodeImage?: true
+    nodeCommand?: true
+    nodeTimeout?: true
+    nodeRetries?: true
+    runnerPool?: true
+    runnerLabels?: true
+    runnerCapabilities?: true
+    dispatchMode?: true
+    intentProfile?: true
+    candidateLimit?: true
+    baseInputs?: true
+    autoRoute?: true
+    enabled?: true
+    lastHealthStatus?: true
+    lastHealthAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type RuntimeConnectionMaxAggregateInputType = {
+    id?: true
+    projectId?: true
+    name?: true
+    kind?: true
+    baseUrl?: true
+    apiToken?: true
+    externalProjectId?: true
+    defaultWorkflowVersionId?: true
+    workflowTemplate?: true
+    nodeImage?: true
+    nodeCommand?: true
+    nodeTimeout?: true
+    nodeRetries?: true
+    runnerPool?: true
+    runnerLabels?: true
+    runnerCapabilities?: true
+    dispatchMode?: true
+    intentProfile?: true
+    candidateLimit?: true
+    baseInputs?: true
+    autoRoute?: true
+    enabled?: true
+    lastHealthStatus?: true
+    lastHealthAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type RuntimeConnectionCountAggregateInputType = {
+    id?: true
+    projectId?: true
+    name?: true
+    kind?: true
+    baseUrl?: true
+    apiToken?: true
+    externalProjectId?: true
+    defaultWorkflowVersionId?: true
+    workflowTemplate?: true
+    nodeImage?: true
+    nodeCommand?: true
+    nodeTimeout?: true
+    nodeRetries?: true
+    runnerPool?: true
+    runnerLabels?: true
+    runnerCapabilities?: true
+    dispatchMode?: true
+    intentProfile?: true
+    candidateLimit?: true
+    baseInputs?: true
+    autoRoute?: true
+    enabled?: true
+    lastHealthStatus?: true
+    lastHealthAt?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type RuntimeConnectionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RuntimeConnection to aggregate.
+     */
+    where?: RuntimeConnectionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RuntimeConnections to fetch.
+     */
+    orderBy?: RuntimeConnectionOrderByWithRelationInput | RuntimeConnectionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RuntimeConnectionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RuntimeConnections from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RuntimeConnections.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RuntimeConnections
+    **/
+    _count?: true | RuntimeConnectionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: RuntimeConnectionAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RuntimeConnectionSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RuntimeConnectionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RuntimeConnectionMaxAggregateInputType
+  }
+
+  export type GetRuntimeConnectionAggregateType<T extends RuntimeConnectionAggregateArgs> = {
+        [P in keyof T & keyof AggregateRuntimeConnection]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRuntimeConnection[P]>
+      : GetScalarType<T[P], AggregateRuntimeConnection[P]>
+  }
+
+
+
+
+  export type RuntimeConnectionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RuntimeConnectionWhereInput
+    orderBy?: RuntimeConnectionOrderByWithAggregationInput | RuntimeConnectionOrderByWithAggregationInput[]
+    by: RuntimeConnectionScalarFieldEnum[] | RuntimeConnectionScalarFieldEnum
+    having?: RuntimeConnectionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RuntimeConnectionCountAggregateInputType | true
+    _avg?: RuntimeConnectionAvgAggregateInputType
+    _sum?: RuntimeConnectionSumAggregateInputType
+    _min?: RuntimeConnectionMinAggregateInputType
+    _max?: RuntimeConnectionMaxAggregateInputType
+  }
+
+  export type RuntimeConnectionGroupByOutputType = {
+    id: string
+    projectId: string | null
+    name: string
+    kind: string
+    baseUrl: string
+    apiToken: string | null
+    externalProjectId: string | null
+    defaultWorkflowVersionId: string | null
+    workflowTemplate: string | null
+    nodeImage: string | null
+    nodeCommand: string | null
+    nodeTimeout: string | null
+    nodeRetries: number | null
+    runnerPool: string | null
+    runnerLabels: string | null
+    runnerCapabilities: string | null
+    dispatchMode: string | null
+    intentProfile: string | null
+    candidateLimit: number | null
+    baseInputs: string | null
+    autoRoute: boolean
+    enabled: boolean
+    lastHealthStatus: string | null
+    lastHealthAt: Date | null
+    createdAt: Date
+    updatedAt: Date
+    _count: RuntimeConnectionCountAggregateOutputType | null
+    _avg: RuntimeConnectionAvgAggregateOutputType | null
+    _sum: RuntimeConnectionSumAggregateOutputType | null
+    _min: RuntimeConnectionMinAggregateOutputType | null
+    _max: RuntimeConnectionMaxAggregateOutputType | null
+  }
+
+  type GetRuntimeConnectionGroupByPayload<T extends RuntimeConnectionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RuntimeConnectionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RuntimeConnectionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RuntimeConnectionGroupByOutputType[P]>
+            : GetScalarType<T[P], RuntimeConnectionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RuntimeConnectionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    projectId?: boolean
+    name?: boolean
+    kind?: boolean
+    baseUrl?: boolean
+    apiToken?: boolean
+    externalProjectId?: boolean
+    defaultWorkflowVersionId?: boolean
+    workflowTemplate?: boolean
+    nodeImage?: boolean
+    nodeCommand?: boolean
+    nodeTimeout?: boolean
+    nodeRetries?: boolean
+    runnerPool?: boolean
+    runnerLabels?: boolean
+    runnerCapabilities?: boolean
+    dispatchMode?: boolean
+    intentProfile?: boolean
+    candidateLimit?: boolean
+    baseInputs?: boolean
+    autoRoute?: boolean
+    enabled?: boolean
+    lastHealthStatus?: boolean
+    lastHealthAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    project?: boolean | RuntimeConnection$projectArgs<ExtArgs>
+    flowRuns?: boolean | RuntimeConnection$flowRunsArgs<ExtArgs>
+    _count?: boolean | RuntimeConnectionCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["runtimeConnection"]>
+
+  export type RuntimeConnectionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    projectId?: boolean
+    name?: boolean
+    kind?: boolean
+    baseUrl?: boolean
+    apiToken?: boolean
+    externalProjectId?: boolean
+    defaultWorkflowVersionId?: boolean
+    workflowTemplate?: boolean
+    nodeImage?: boolean
+    nodeCommand?: boolean
+    nodeTimeout?: boolean
+    nodeRetries?: boolean
+    runnerPool?: boolean
+    runnerLabels?: boolean
+    runnerCapabilities?: boolean
+    dispatchMode?: boolean
+    intentProfile?: boolean
+    candidateLimit?: boolean
+    baseInputs?: boolean
+    autoRoute?: boolean
+    enabled?: boolean
+    lastHealthStatus?: boolean
+    lastHealthAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    project?: boolean | RuntimeConnection$projectArgs<ExtArgs>
+  }, ExtArgs["result"]["runtimeConnection"]>
+
+  export type RuntimeConnectionSelectScalar = {
+    id?: boolean
+    projectId?: boolean
+    name?: boolean
+    kind?: boolean
+    baseUrl?: boolean
+    apiToken?: boolean
+    externalProjectId?: boolean
+    defaultWorkflowVersionId?: boolean
+    workflowTemplate?: boolean
+    nodeImage?: boolean
+    nodeCommand?: boolean
+    nodeTimeout?: boolean
+    nodeRetries?: boolean
+    runnerPool?: boolean
+    runnerLabels?: boolean
+    runnerCapabilities?: boolean
+    dispatchMode?: boolean
+    intentProfile?: boolean
+    candidateLimit?: boolean
+    baseInputs?: boolean
+    autoRoute?: boolean
+    enabled?: boolean
+    lastHealthStatus?: boolean
+    lastHealthAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type RuntimeConnectionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    project?: boolean | RuntimeConnection$projectArgs<ExtArgs>
+    flowRuns?: boolean | RuntimeConnection$flowRunsArgs<ExtArgs>
+    _count?: boolean | RuntimeConnectionCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type RuntimeConnectionIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    project?: boolean | RuntimeConnection$projectArgs<ExtArgs>
+  }
+
+  export type $RuntimeConnectionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RuntimeConnection"
+    objects: {
+      project: Prisma.$ProjectPayload<ExtArgs> | null
+      flowRuns: Prisma.$FlowRunPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      projectId: string | null
+      name: string
+      kind: string
+      baseUrl: string
+      apiToken: string | null
+      /**
+       * Cuttlefish project/tenant id sent as `x-cuttle-project`.
+       */
+      externalProjectId: string | null
+      /**
+       * Pin every run to this published workflow version.
+       */
+      defaultWorkflowVersionId: string | null
+      /**
+       * YAML template with `{{task.*}}` / `{{project.*}}` placeholders.
+       */
+      workflowTemplate: string | null
+      /**
+       * Inline-node container image used when generating a workflow.
+       */
+      nodeImage: string | null
+      /**
+       * Inline-node shell command used when generating a workflow.
+       */
+      nodeCommand: string | null
+      nodeTimeout: string | null
+      nodeRetries: number | null
+      runnerPool: string | null
+      runnerLabels: string | null
+      runnerCapabilities: string | null
+      dispatchMode: string | null
+      intentProfile: string | null
+      candidateLimit: number | null
+      /**
+       * Extra inputs merged into every generated run (JSON object).
+       */
+      baseInputs: string | null
+      /**
+       * Route agent tasks through this runtime without requiring a flow: tag.
+       */
+      autoRoute: boolean
+      enabled: boolean
+      lastHealthStatus: string | null
+      lastHealthAt: Date | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["runtimeConnection"]>
+    composites: {}
+  }
+
+  type RuntimeConnectionGetPayload<S extends boolean | null | undefined | RuntimeConnectionDefaultArgs> = $Result.GetResult<Prisma.$RuntimeConnectionPayload, S>
+
+  type RuntimeConnectionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<RuntimeConnectionFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: RuntimeConnectionCountAggregateInputType | true
+    }
+
+  export interface RuntimeConnectionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RuntimeConnection'], meta: { name: 'RuntimeConnection' } }
+    /**
+     * Find zero or one RuntimeConnection that matches the filter.
+     * @param {RuntimeConnectionFindUniqueArgs} args - Arguments to find a RuntimeConnection
+     * @example
+     * // Get one RuntimeConnection
+     * const runtimeConnection = await prisma.runtimeConnection.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RuntimeConnectionFindUniqueArgs>(args: SelectSubset<T, RuntimeConnectionFindUniqueArgs<ExtArgs>>): Prisma__RuntimeConnectionClient<$Result.GetResult<Prisma.$RuntimeConnectionPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one RuntimeConnection that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {RuntimeConnectionFindUniqueOrThrowArgs} args - Arguments to find a RuntimeConnection
+     * @example
+     * // Get one RuntimeConnection
+     * const runtimeConnection = await prisma.runtimeConnection.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RuntimeConnectionFindUniqueOrThrowArgs>(args: SelectSubset<T, RuntimeConnectionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RuntimeConnectionClient<$Result.GetResult<Prisma.$RuntimeConnectionPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first RuntimeConnection that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RuntimeConnectionFindFirstArgs} args - Arguments to find a RuntimeConnection
+     * @example
+     * // Get one RuntimeConnection
+     * const runtimeConnection = await prisma.runtimeConnection.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RuntimeConnectionFindFirstArgs>(args?: SelectSubset<T, RuntimeConnectionFindFirstArgs<ExtArgs>>): Prisma__RuntimeConnectionClient<$Result.GetResult<Prisma.$RuntimeConnectionPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first RuntimeConnection that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RuntimeConnectionFindFirstOrThrowArgs} args - Arguments to find a RuntimeConnection
+     * @example
+     * // Get one RuntimeConnection
+     * const runtimeConnection = await prisma.runtimeConnection.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RuntimeConnectionFindFirstOrThrowArgs>(args?: SelectSubset<T, RuntimeConnectionFindFirstOrThrowArgs<ExtArgs>>): Prisma__RuntimeConnectionClient<$Result.GetResult<Prisma.$RuntimeConnectionPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more RuntimeConnections that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RuntimeConnectionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RuntimeConnections
+     * const runtimeConnections = await prisma.runtimeConnection.findMany()
+     * 
+     * // Get first 10 RuntimeConnections
+     * const runtimeConnections = await prisma.runtimeConnection.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const runtimeConnectionWithIdOnly = await prisma.runtimeConnection.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RuntimeConnectionFindManyArgs>(args?: SelectSubset<T, RuntimeConnectionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RuntimeConnectionPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a RuntimeConnection.
+     * @param {RuntimeConnectionCreateArgs} args - Arguments to create a RuntimeConnection.
+     * @example
+     * // Create one RuntimeConnection
+     * const RuntimeConnection = await prisma.runtimeConnection.create({
+     *   data: {
+     *     // ... data to create a RuntimeConnection
+     *   }
+     * })
+     * 
+     */
+    create<T extends RuntimeConnectionCreateArgs>(args: SelectSubset<T, RuntimeConnectionCreateArgs<ExtArgs>>): Prisma__RuntimeConnectionClient<$Result.GetResult<Prisma.$RuntimeConnectionPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many RuntimeConnections.
+     * @param {RuntimeConnectionCreateManyArgs} args - Arguments to create many RuntimeConnections.
+     * @example
+     * // Create many RuntimeConnections
+     * const runtimeConnection = await prisma.runtimeConnection.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RuntimeConnectionCreateManyArgs>(args?: SelectSubset<T, RuntimeConnectionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many RuntimeConnections and returns the data saved in the database.
+     * @param {RuntimeConnectionCreateManyAndReturnArgs} args - Arguments to create many RuntimeConnections.
+     * @example
+     * // Create many RuntimeConnections
+     * const runtimeConnection = await prisma.runtimeConnection.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many RuntimeConnections and only return the `id`
+     * const runtimeConnectionWithIdOnly = await prisma.runtimeConnection.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends RuntimeConnectionCreateManyAndReturnArgs>(args?: SelectSubset<T, RuntimeConnectionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RuntimeConnectionPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a RuntimeConnection.
+     * @param {RuntimeConnectionDeleteArgs} args - Arguments to delete one RuntimeConnection.
+     * @example
+     * // Delete one RuntimeConnection
+     * const RuntimeConnection = await prisma.runtimeConnection.delete({
+     *   where: {
+     *     // ... filter to delete one RuntimeConnection
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RuntimeConnectionDeleteArgs>(args: SelectSubset<T, RuntimeConnectionDeleteArgs<ExtArgs>>): Prisma__RuntimeConnectionClient<$Result.GetResult<Prisma.$RuntimeConnectionPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one RuntimeConnection.
+     * @param {RuntimeConnectionUpdateArgs} args - Arguments to update one RuntimeConnection.
+     * @example
+     * // Update one RuntimeConnection
+     * const runtimeConnection = await prisma.runtimeConnection.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RuntimeConnectionUpdateArgs>(args: SelectSubset<T, RuntimeConnectionUpdateArgs<ExtArgs>>): Prisma__RuntimeConnectionClient<$Result.GetResult<Prisma.$RuntimeConnectionPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more RuntimeConnections.
+     * @param {RuntimeConnectionDeleteManyArgs} args - Arguments to filter RuntimeConnections to delete.
+     * @example
+     * // Delete a few RuntimeConnections
+     * const { count } = await prisma.runtimeConnection.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RuntimeConnectionDeleteManyArgs>(args?: SelectSubset<T, RuntimeConnectionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RuntimeConnections.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RuntimeConnectionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RuntimeConnections
+     * const runtimeConnection = await prisma.runtimeConnection.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RuntimeConnectionUpdateManyArgs>(args: SelectSubset<T, RuntimeConnectionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one RuntimeConnection.
+     * @param {RuntimeConnectionUpsertArgs} args - Arguments to update or create a RuntimeConnection.
+     * @example
+     * // Update or create a RuntimeConnection
+     * const runtimeConnection = await prisma.runtimeConnection.upsert({
+     *   create: {
+     *     // ... data to create a RuntimeConnection
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RuntimeConnection we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RuntimeConnectionUpsertArgs>(args: SelectSubset<T, RuntimeConnectionUpsertArgs<ExtArgs>>): Prisma__RuntimeConnectionClient<$Result.GetResult<Prisma.$RuntimeConnectionPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of RuntimeConnections.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RuntimeConnectionCountArgs} args - Arguments to filter RuntimeConnections to count.
+     * @example
+     * // Count the number of RuntimeConnections
+     * const count = await prisma.runtimeConnection.count({
+     *   where: {
+     *     // ... the filter for the RuntimeConnections we want to count
+     *   }
+     * })
+    **/
+    count<T extends RuntimeConnectionCountArgs>(
+      args?: Subset<T, RuntimeConnectionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RuntimeConnectionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RuntimeConnection.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RuntimeConnectionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RuntimeConnectionAggregateArgs>(args: Subset<T, RuntimeConnectionAggregateArgs>): Prisma.PrismaPromise<GetRuntimeConnectionAggregateType<T>>
+
+    /**
+     * Group by RuntimeConnection.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RuntimeConnectionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RuntimeConnectionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RuntimeConnectionGroupByArgs['orderBy'] }
+        : { orderBy?: RuntimeConnectionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RuntimeConnectionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRuntimeConnectionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RuntimeConnection model
+   */
+  readonly fields: RuntimeConnectionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RuntimeConnection.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RuntimeConnectionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    project<T extends RuntimeConnection$projectArgs<ExtArgs> = {}>(args?: Subset<T, RuntimeConnection$projectArgs<ExtArgs>>): Prisma__ProjectClient<$Result.GetResult<Prisma.$ProjectPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    flowRuns<T extends RuntimeConnection$flowRunsArgs<ExtArgs> = {}>(args?: Subset<T, RuntimeConnection$flowRunsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FlowRunPayload<ExtArgs>, T, "findMany"> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RuntimeConnection model
+   */ 
+  interface RuntimeConnectionFieldRefs {
+    readonly id: FieldRef<"RuntimeConnection", 'String'>
+    readonly projectId: FieldRef<"RuntimeConnection", 'String'>
+    readonly name: FieldRef<"RuntimeConnection", 'String'>
+    readonly kind: FieldRef<"RuntimeConnection", 'String'>
+    readonly baseUrl: FieldRef<"RuntimeConnection", 'String'>
+    readonly apiToken: FieldRef<"RuntimeConnection", 'String'>
+    readonly externalProjectId: FieldRef<"RuntimeConnection", 'String'>
+    readonly defaultWorkflowVersionId: FieldRef<"RuntimeConnection", 'String'>
+    readonly workflowTemplate: FieldRef<"RuntimeConnection", 'String'>
+    readonly nodeImage: FieldRef<"RuntimeConnection", 'String'>
+    readonly nodeCommand: FieldRef<"RuntimeConnection", 'String'>
+    readonly nodeTimeout: FieldRef<"RuntimeConnection", 'String'>
+    readonly nodeRetries: FieldRef<"RuntimeConnection", 'Int'>
+    readonly runnerPool: FieldRef<"RuntimeConnection", 'String'>
+    readonly runnerLabels: FieldRef<"RuntimeConnection", 'String'>
+    readonly runnerCapabilities: FieldRef<"RuntimeConnection", 'String'>
+    readonly dispatchMode: FieldRef<"RuntimeConnection", 'String'>
+    readonly intentProfile: FieldRef<"RuntimeConnection", 'String'>
+    readonly candidateLimit: FieldRef<"RuntimeConnection", 'Int'>
+    readonly baseInputs: FieldRef<"RuntimeConnection", 'String'>
+    readonly autoRoute: FieldRef<"RuntimeConnection", 'Boolean'>
+    readonly enabled: FieldRef<"RuntimeConnection", 'Boolean'>
+    readonly lastHealthStatus: FieldRef<"RuntimeConnection", 'String'>
+    readonly lastHealthAt: FieldRef<"RuntimeConnection", 'DateTime'>
+    readonly createdAt: FieldRef<"RuntimeConnection", 'DateTime'>
+    readonly updatedAt: FieldRef<"RuntimeConnection", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RuntimeConnection findUnique
+   */
+  export type RuntimeConnectionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionInclude<ExtArgs> | null
+    /**
+     * Filter, which RuntimeConnection to fetch.
+     */
+    where: RuntimeConnectionWhereUniqueInput
+  }
+
+  /**
+   * RuntimeConnection findUniqueOrThrow
+   */
+  export type RuntimeConnectionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionInclude<ExtArgs> | null
+    /**
+     * Filter, which RuntimeConnection to fetch.
+     */
+    where: RuntimeConnectionWhereUniqueInput
+  }
+
+  /**
+   * RuntimeConnection findFirst
+   */
+  export type RuntimeConnectionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionInclude<ExtArgs> | null
+    /**
+     * Filter, which RuntimeConnection to fetch.
+     */
+    where?: RuntimeConnectionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RuntimeConnections to fetch.
+     */
+    orderBy?: RuntimeConnectionOrderByWithRelationInput | RuntimeConnectionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RuntimeConnections.
+     */
+    cursor?: RuntimeConnectionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RuntimeConnections from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RuntimeConnections.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RuntimeConnections.
+     */
+    distinct?: RuntimeConnectionScalarFieldEnum | RuntimeConnectionScalarFieldEnum[]
+  }
+
+  /**
+   * RuntimeConnection findFirstOrThrow
+   */
+  export type RuntimeConnectionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionInclude<ExtArgs> | null
+    /**
+     * Filter, which RuntimeConnection to fetch.
+     */
+    where?: RuntimeConnectionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RuntimeConnections to fetch.
+     */
+    orderBy?: RuntimeConnectionOrderByWithRelationInput | RuntimeConnectionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RuntimeConnections.
+     */
+    cursor?: RuntimeConnectionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RuntimeConnections from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RuntimeConnections.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RuntimeConnections.
+     */
+    distinct?: RuntimeConnectionScalarFieldEnum | RuntimeConnectionScalarFieldEnum[]
+  }
+
+  /**
+   * RuntimeConnection findMany
+   */
+  export type RuntimeConnectionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionInclude<ExtArgs> | null
+    /**
+     * Filter, which RuntimeConnections to fetch.
+     */
+    where?: RuntimeConnectionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RuntimeConnections to fetch.
+     */
+    orderBy?: RuntimeConnectionOrderByWithRelationInput | RuntimeConnectionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RuntimeConnections.
+     */
+    cursor?: RuntimeConnectionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RuntimeConnections from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RuntimeConnections.
+     */
+    skip?: number
+    distinct?: RuntimeConnectionScalarFieldEnum | RuntimeConnectionScalarFieldEnum[]
+  }
+
+  /**
+   * RuntimeConnection create
+   */
+  export type RuntimeConnectionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionInclude<ExtArgs> | null
+    /**
+     * The data needed to create a RuntimeConnection.
+     */
+    data: XOR<RuntimeConnectionCreateInput, RuntimeConnectionUncheckedCreateInput>
+  }
+
+  /**
+   * RuntimeConnection createMany
+   */
+  export type RuntimeConnectionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RuntimeConnections.
+     */
+    data: RuntimeConnectionCreateManyInput | RuntimeConnectionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RuntimeConnection createManyAndReturn
+   */
+  export type RuntimeConnectionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many RuntimeConnections.
+     */
+    data: RuntimeConnectionCreateManyInput | RuntimeConnectionCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * RuntimeConnection update
+   */
+  export type RuntimeConnectionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionInclude<ExtArgs> | null
+    /**
+     * The data needed to update a RuntimeConnection.
+     */
+    data: XOR<RuntimeConnectionUpdateInput, RuntimeConnectionUncheckedUpdateInput>
+    /**
+     * Choose, which RuntimeConnection to update.
+     */
+    where: RuntimeConnectionWhereUniqueInput
+  }
+
+  /**
+   * RuntimeConnection updateMany
+   */
+  export type RuntimeConnectionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RuntimeConnections.
+     */
+    data: XOR<RuntimeConnectionUpdateManyMutationInput, RuntimeConnectionUncheckedUpdateManyInput>
+    /**
+     * Filter which RuntimeConnections to update
+     */
+    where?: RuntimeConnectionWhereInput
+  }
+
+  /**
+   * RuntimeConnection upsert
+   */
+  export type RuntimeConnectionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionInclude<ExtArgs> | null
+    /**
+     * The filter to search for the RuntimeConnection to update in case it exists.
+     */
+    where: RuntimeConnectionWhereUniqueInput
+    /**
+     * In case the RuntimeConnection found by the `where` argument doesn't exist, create a new RuntimeConnection with this data.
+     */
+    create: XOR<RuntimeConnectionCreateInput, RuntimeConnectionUncheckedCreateInput>
+    /**
+     * In case the RuntimeConnection was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RuntimeConnectionUpdateInput, RuntimeConnectionUncheckedUpdateInput>
+  }
+
+  /**
+   * RuntimeConnection delete
+   */
+  export type RuntimeConnectionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionInclude<ExtArgs> | null
+    /**
+     * Filter which RuntimeConnection to delete.
+     */
+    where: RuntimeConnectionWhereUniqueInput
+  }
+
+  /**
+   * RuntimeConnection deleteMany
+   */
+  export type RuntimeConnectionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RuntimeConnections to delete
+     */
+    where?: RuntimeConnectionWhereInput
+  }
+
+  /**
+   * RuntimeConnection.project
+   */
+  export type RuntimeConnection$projectArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Project
+     */
+    select?: ProjectSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ProjectInclude<ExtArgs> | null
+    where?: ProjectWhereInput
+  }
+
+  /**
+   * RuntimeConnection.flowRuns
+   */
+  export type RuntimeConnection$flowRunsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunInclude<ExtArgs> | null
+    where?: FlowRunWhereInput
+    orderBy?: FlowRunOrderByWithRelationInput | FlowRunOrderByWithRelationInput[]
+    cursor?: FlowRunWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: FlowRunScalarFieldEnum | FlowRunScalarFieldEnum[]
+  }
+
+  /**
+   * RuntimeConnection without action
+   */
+  export type RuntimeConnectionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model FlowRun
+   */
+
+  export type AggregateFlowRun = {
+    _count: FlowRunCountAggregateOutputType | null
+    _min: FlowRunMinAggregateOutputType | null
+    _max: FlowRunMaxAggregateOutputType | null
+  }
+
+  export type FlowRunMinAggregateOutputType = {
+    id: string | null
+    taskId: string | null
+    runtimeId: string | null
+    externalRunId: string | null
+    workflowName: string | null
+    workflowVersionId: string | null
+    traceId: string | null
+    status: string | null
+    inputs: string | null
+    outputs: string | null
+    artifacts: string | null
+    error: string | null
+    lastSyncedAt: Date | null
+    completedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type FlowRunMaxAggregateOutputType = {
+    id: string | null
+    taskId: string | null
+    runtimeId: string | null
+    externalRunId: string | null
+    workflowName: string | null
+    workflowVersionId: string | null
+    traceId: string | null
+    status: string | null
+    inputs: string | null
+    outputs: string | null
+    artifacts: string | null
+    error: string | null
+    lastSyncedAt: Date | null
+    completedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type FlowRunCountAggregateOutputType = {
+    id: number
+    taskId: number
+    runtimeId: number
+    externalRunId: number
+    workflowName: number
+    workflowVersionId: number
+    traceId: number
+    status: number
+    inputs: number
+    outputs: number
+    artifacts: number
+    error: number
+    lastSyncedAt: number
+    completedAt: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type FlowRunMinAggregateInputType = {
+    id?: true
+    taskId?: true
+    runtimeId?: true
+    externalRunId?: true
+    workflowName?: true
+    workflowVersionId?: true
+    traceId?: true
+    status?: true
+    inputs?: true
+    outputs?: true
+    artifacts?: true
+    error?: true
+    lastSyncedAt?: true
+    completedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type FlowRunMaxAggregateInputType = {
+    id?: true
+    taskId?: true
+    runtimeId?: true
+    externalRunId?: true
+    workflowName?: true
+    workflowVersionId?: true
+    traceId?: true
+    status?: true
+    inputs?: true
+    outputs?: true
+    artifacts?: true
+    error?: true
+    lastSyncedAt?: true
+    completedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type FlowRunCountAggregateInputType = {
+    id?: true
+    taskId?: true
+    runtimeId?: true
+    externalRunId?: true
+    workflowName?: true
+    workflowVersionId?: true
+    traceId?: true
+    status?: true
+    inputs?: true
+    outputs?: true
+    artifacts?: true
+    error?: true
+    lastSyncedAt?: true
+    completedAt?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type FlowRunAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which FlowRun to aggregate.
+     */
+    where?: FlowRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FlowRuns to fetch.
+     */
+    orderBy?: FlowRunOrderByWithRelationInput | FlowRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: FlowRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FlowRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FlowRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned FlowRuns
+    **/
+    _count?: true | FlowRunCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: FlowRunMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: FlowRunMaxAggregateInputType
+  }
+
+  export type GetFlowRunAggregateType<T extends FlowRunAggregateArgs> = {
+        [P in keyof T & keyof AggregateFlowRun]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateFlowRun[P]>
+      : GetScalarType<T[P], AggregateFlowRun[P]>
+  }
+
+
+
+
+  export type FlowRunGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: FlowRunWhereInput
+    orderBy?: FlowRunOrderByWithAggregationInput | FlowRunOrderByWithAggregationInput[]
+    by: FlowRunScalarFieldEnum[] | FlowRunScalarFieldEnum
+    having?: FlowRunScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: FlowRunCountAggregateInputType | true
+    _min?: FlowRunMinAggregateInputType
+    _max?: FlowRunMaxAggregateInputType
+  }
+
+  export type FlowRunGroupByOutputType = {
+    id: string
+    taskId: string | null
+    runtimeId: string | null
+    externalRunId: string
+    workflowName: string | null
+    workflowVersionId: string | null
+    traceId: string | null
+    status: string
+    inputs: string | null
+    outputs: string | null
+    artifacts: string | null
+    error: string | null
+    lastSyncedAt: Date | null
+    completedAt: Date | null
+    createdAt: Date
+    updatedAt: Date
+    _count: FlowRunCountAggregateOutputType | null
+    _min: FlowRunMinAggregateOutputType | null
+    _max: FlowRunMaxAggregateOutputType | null
+  }
+
+  type GetFlowRunGroupByPayload<T extends FlowRunGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<FlowRunGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof FlowRunGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], FlowRunGroupByOutputType[P]>
+            : GetScalarType<T[P], FlowRunGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type FlowRunSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    taskId?: boolean
+    runtimeId?: boolean
+    externalRunId?: boolean
+    workflowName?: boolean
+    workflowVersionId?: boolean
+    traceId?: boolean
+    status?: boolean
+    inputs?: boolean
+    outputs?: boolean
+    artifacts?: boolean
+    error?: boolean
+    lastSyncedAt?: boolean
+    completedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    task?: boolean | FlowRun$taskArgs<ExtArgs>
+    runtime?: boolean | FlowRun$runtimeArgs<ExtArgs>
+  }, ExtArgs["result"]["flowRun"]>
+
+  export type FlowRunSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    taskId?: boolean
+    runtimeId?: boolean
+    externalRunId?: boolean
+    workflowName?: boolean
+    workflowVersionId?: boolean
+    traceId?: boolean
+    status?: boolean
+    inputs?: boolean
+    outputs?: boolean
+    artifacts?: boolean
+    error?: boolean
+    lastSyncedAt?: boolean
+    completedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    task?: boolean | FlowRun$taskArgs<ExtArgs>
+    runtime?: boolean | FlowRun$runtimeArgs<ExtArgs>
+  }, ExtArgs["result"]["flowRun"]>
+
+  export type FlowRunSelectScalar = {
+    id?: boolean
+    taskId?: boolean
+    runtimeId?: boolean
+    externalRunId?: boolean
+    workflowName?: boolean
+    workflowVersionId?: boolean
+    traceId?: boolean
+    status?: boolean
+    inputs?: boolean
+    outputs?: boolean
+    artifacts?: boolean
+    error?: boolean
+    lastSyncedAt?: boolean
+    completedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type FlowRunInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    task?: boolean | FlowRun$taskArgs<ExtArgs>
+    runtime?: boolean | FlowRun$runtimeArgs<ExtArgs>
+  }
+  export type FlowRunIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    task?: boolean | FlowRun$taskArgs<ExtArgs>
+    runtime?: boolean | FlowRun$runtimeArgs<ExtArgs>
+  }
+
+  export type $FlowRunPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "FlowRun"
+    objects: {
+      task: Prisma.$TaskPayload<ExtArgs> | null
+      runtime: Prisma.$RuntimeConnectionPayload<ExtArgs> | null
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      taskId: string | null
+      runtimeId: string | null
+      externalRunId: string
+      workflowName: string | null
+      workflowVersionId: string | null
+      /**
+       * OTel trace id of the distributed flow trace (harness -> cuttlefish).
+       */
+      traceId: string | null
+      status: string
+      inputs: string | null
+      outputs: string | null
+      artifacts: string | null
+      error: string | null
+      lastSyncedAt: Date | null
+      completedAt: Date | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["flowRun"]>
+    composites: {}
+  }
+
+  type FlowRunGetPayload<S extends boolean | null | undefined | FlowRunDefaultArgs> = $Result.GetResult<Prisma.$FlowRunPayload, S>
+
+  type FlowRunCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<FlowRunFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: FlowRunCountAggregateInputType | true
+    }
+
+  export interface FlowRunDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['FlowRun'], meta: { name: 'FlowRun' } }
+    /**
+     * Find zero or one FlowRun that matches the filter.
+     * @param {FlowRunFindUniqueArgs} args - Arguments to find a FlowRun
+     * @example
+     * // Get one FlowRun
+     * const flowRun = await prisma.flowRun.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends FlowRunFindUniqueArgs>(args: SelectSubset<T, FlowRunFindUniqueArgs<ExtArgs>>): Prisma__FlowRunClient<$Result.GetResult<Prisma.$FlowRunPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one FlowRun that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {FlowRunFindUniqueOrThrowArgs} args - Arguments to find a FlowRun
+     * @example
+     * // Get one FlowRun
+     * const flowRun = await prisma.flowRun.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends FlowRunFindUniqueOrThrowArgs>(args: SelectSubset<T, FlowRunFindUniqueOrThrowArgs<ExtArgs>>): Prisma__FlowRunClient<$Result.GetResult<Prisma.$FlowRunPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first FlowRun that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FlowRunFindFirstArgs} args - Arguments to find a FlowRun
+     * @example
+     * // Get one FlowRun
+     * const flowRun = await prisma.flowRun.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends FlowRunFindFirstArgs>(args?: SelectSubset<T, FlowRunFindFirstArgs<ExtArgs>>): Prisma__FlowRunClient<$Result.GetResult<Prisma.$FlowRunPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first FlowRun that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FlowRunFindFirstOrThrowArgs} args - Arguments to find a FlowRun
+     * @example
+     * // Get one FlowRun
+     * const flowRun = await prisma.flowRun.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends FlowRunFindFirstOrThrowArgs>(args?: SelectSubset<T, FlowRunFindFirstOrThrowArgs<ExtArgs>>): Prisma__FlowRunClient<$Result.GetResult<Prisma.$FlowRunPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more FlowRuns that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FlowRunFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all FlowRuns
+     * const flowRuns = await prisma.flowRun.findMany()
+     * 
+     * // Get first 10 FlowRuns
+     * const flowRuns = await prisma.flowRun.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const flowRunWithIdOnly = await prisma.flowRun.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends FlowRunFindManyArgs>(args?: SelectSubset<T, FlowRunFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FlowRunPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a FlowRun.
+     * @param {FlowRunCreateArgs} args - Arguments to create a FlowRun.
+     * @example
+     * // Create one FlowRun
+     * const FlowRun = await prisma.flowRun.create({
+     *   data: {
+     *     // ... data to create a FlowRun
+     *   }
+     * })
+     * 
+     */
+    create<T extends FlowRunCreateArgs>(args: SelectSubset<T, FlowRunCreateArgs<ExtArgs>>): Prisma__FlowRunClient<$Result.GetResult<Prisma.$FlowRunPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many FlowRuns.
+     * @param {FlowRunCreateManyArgs} args - Arguments to create many FlowRuns.
+     * @example
+     * // Create many FlowRuns
+     * const flowRun = await prisma.flowRun.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends FlowRunCreateManyArgs>(args?: SelectSubset<T, FlowRunCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many FlowRuns and returns the data saved in the database.
+     * @param {FlowRunCreateManyAndReturnArgs} args - Arguments to create many FlowRuns.
+     * @example
+     * // Create many FlowRuns
+     * const flowRun = await prisma.flowRun.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many FlowRuns and only return the `id`
+     * const flowRunWithIdOnly = await prisma.flowRun.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends FlowRunCreateManyAndReturnArgs>(args?: SelectSubset<T, FlowRunCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FlowRunPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a FlowRun.
+     * @param {FlowRunDeleteArgs} args - Arguments to delete one FlowRun.
+     * @example
+     * // Delete one FlowRun
+     * const FlowRun = await prisma.flowRun.delete({
+     *   where: {
+     *     // ... filter to delete one FlowRun
+     *   }
+     * })
+     * 
+     */
+    delete<T extends FlowRunDeleteArgs>(args: SelectSubset<T, FlowRunDeleteArgs<ExtArgs>>): Prisma__FlowRunClient<$Result.GetResult<Prisma.$FlowRunPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one FlowRun.
+     * @param {FlowRunUpdateArgs} args - Arguments to update one FlowRun.
+     * @example
+     * // Update one FlowRun
+     * const flowRun = await prisma.flowRun.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends FlowRunUpdateArgs>(args: SelectSubset<T, FlowRunUpdateArgs<ExtArgs>>): Prisma__FlowRunClient<$Result.GetResult<Prisma.$FlowRunPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more FlowRuns.
+     * @param {FlowRunDeleteManyArgs} args - Arguments to filter FlowRuns to delete.
+     * @example
+     * // Delete a few FlowRuns
+     * const { count } = await prisma.flowRun.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends FlowRunDeleteManyArgs>(args?: SelectSubset<T, FlowRunDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more FlowRuns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FlowRunUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many FlowRuns
+     * const flowRun = await prisma.flowRun.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends FlowRunUpdateManyArgs>(args: SelectSubset<T, FlowRunUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one FlowRun.
+     * @param {FlowRunUpsertArgs} args - Arguments to update or create a FlowRun.
+     * @example
+     * // Update or create a FlowRun
+     * const flowRun = await prisma.flowRun.upsert({
+     *   create: {
+     *     // ... data to create a FlowRun
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the FlowRun we want to update
+     *   }
+     * })
+     */
+    upsert<T extends FlowRunUpsertArgs>(args: SelectSubset<T, FlowRunUpsertArgs<ExtArgs>>): Prisma__FlowRunClient<$Result.GetResult<Prisma.$FlowRunPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of FlowRuns.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FlowRunCountArgs} args - Arguments to filter FlowRuns to count.
+     * @example
+     * // Count the number of FlowRuns
+     * const count = await prisma.flowRun.count({
+     *   where: {
+     *     // ... the filter for the FlowRuns we want to count
+     *   }
+     * })
+    **/
+    count<T extends FlowRunCountArgs>(
+      args?: Subset<T, FlowRunCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], FlowRunCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a FlowRun.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FlowRunAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends FlowRunAggregateArgs>(args: Subset<T, FlowRunAggregateArgs>): Prisma.PrismaPromise<GetFlowRunAggregateType<T>>
+
+    /**
+     * Group by FlowRun.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FlowRunGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends FlowRunGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: FlowRunGroupByArgs['orderBy'] }
+        : { orderBy?: FlowRunGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, FlowRunGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetFlowRunGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the FlowRun model
+   */
+  readonly fields: FlowRunFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for FlowRun.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__FlowRunClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    task<T extends FlowRun$taskArgs<ExtArgs> = {}>(args?: Subset<T, FlowRun$taskArgs<ExtArgs>>): Prisma__TaskClient<$Result.GetResult<Prisma.$TaskPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    runtime<T extends FlowRun$runtimeArgs<ExtArgs> = {}>(args?: Subset<T, FlowRun$runtimeArgs<ExtArgs>>): Prisma__RuntimeConnectionClient<$Result.GetResult<Prisma.$RuntimeConnectionPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the FlowRun model
+   */ 
+  interface FlowRunFieldRefs {
+    readonly id: FieldRef<"FlowRun", 'String'>
+    readonly taskId: FieldRef<"FlowRun", 'String'>
+    readonly runtimeId: FieldRef<"FlowRun", 'String'>
+    readonly externalRunId: FieldRef<"FlowRun", 'String'>
+    readonly workflowName: FieldRef<"FlowRun", 'String'>
+    readonly workflowVersionId: FieldRef<"FlowRun", 'String'>
+    readonly traceId: FieldRef<"FlowRun", 'String'>
+    readonly status: FieldRef<"FlowRun", 'String'>
+    readonly inputs: FieldRef<"FlowRun", 'String'>
+    readonly outputs: FieldRef<"FlowRun", 'String'>
+    readonly artifacts: FieldRef<"FlowRun", 'String'>
+    readonly error: FieldRef<"FlowRun", 'String'>
+    readonly lastSyncedAt: FieldRef<"FlowRun", 'DateTime'>
+    readonly completedAt: FieldRef<"FlowRun", 'DateTime'>
+    readonly createdAt: FieldRef<"FlowRun", 'DateTime'>
+    readonly updatedAt: FieldRef<"FlowRun", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * FlowRun findUnique
+   */
+  export type FlowRunFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunInclude<ExtArgs> | null
+    /**
+     * Filter, which FlowRun to fetch.
+     */
+    where: FlowRunWhereUniqueInput
+  }
+
+  /**
+   * FlowRun findUniqueOrThrow
+   */
+  export type FlowRunFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunInclude<ExtArgs> | null
+    /**
+     * Filter, which FlowRun to fetch.
+     */
+    where: FlowRunWhereUniqueInput
+  }
+
+  /**
+   * FlowRun findFirst
+   */
+  export type FlowRunFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunInclude<ExtArgs> | null
+    /**
+     * Filter, which FlowRun to fetch.
+     */
+    where?: FlowRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FlowRuns to fetch.
+     */
+    orderBy?: FlowRunOrderByWithRelationInput | FlowRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for FlowRuns.
+     */
+    cursor?: FlowRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FlowRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FlowRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of FlowRuns.
+     */
+    distinct?: FlowRunScalarFieldEnum | FlowRunScalarFieldEnum[]
+  }
+
+  /**
+   * FlowRun findFirstOrThrow
+   */
+  export type FlowRunFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunInclude<ExtArgs> | null
+    /**
+     * Filter, which FlowRun to fetch.
+     */
+    where?: FlowRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FlowRuns to fetch.
+     */
+    orderBy?: FlowRunOrderByWithRelationInput | FlowRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for FlowRuns.
+     */
+    cursor?: FlowRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FlowRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FlowRuns.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of FlowRuns.
+     */
+    distinct?: FlowRunScalarFieldEnum | FlowRunScalarFieldEnum[]
+  }
+
+  /**
+   * FlowRun findMany
+   */
+  export type FlowRunFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunInclude<ExtArgs> | null
+    /**
+     * Filter, which FlowRuns to fetch.
+     */
+    where?: FlowRunWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FlowRuns to fetch.
+     */
+    orderBy?: FlowRunOrderByWithRelationInput | FlowRunOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing FlowRuns.
+     */
+    cursor?: FlowRunWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FlowRuns from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FlowRuns.
+     */
+    skip?: number
+    distinct?: FlowRunScalarFieldEnum | FlowRunScalarFieldEnum[]
+  }
+
+  /**
+   * FlowRun create
+   */
+  export type FlowRunCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunInclude<ExtArgs> | null
+    /**
+     * The data needed to create a FlowRun.
+     */
+    data: XOR<FlowRunCreateInput, FlowRunUncheckedCreateInput>
+  }
+
+  /**
+   * FlowRun createMany
+   */
+  export type FlowRunCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many FlowRuns.
+     */
+    data: FlowRunCreateManyInput | FlowRunCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * FlowRun createManyAndReturn
+   */
+  export type FlowRunCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many FlowRuns.
+     */
+    data: FlowRunCreateManyInput | FlowRunCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * FlowRun update
+   */
+  export type FlowRunUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunInclude<ExtArgs> | null
+    /**
+     * The data needed to update a FlowRun.
+     */
+    data: XOR<FlowRunUpdateInput, FlowRunUncheckedUpdateInput>
+    /**
+     * Choose, which FlowRun to update.
+     */
+    where: FlowRunWhereUniqueInput
+  }
+
+  /**
+   * FlowRun updateMany
+   */
+  export type FlowRunUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update FlowRuns.
+     */
+    data: XOR<FlowRunUpdateManyMutationInput, FlowRunUncheckedUpdateManyInput>
+    /**
+     * Filter which FlowRuns to update
+     */
+    where?: FlowRunWhereInput
+  }
+
+  /**
+   * FlowRun upsert
+   */
+  export type FlowRunUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunInclude<ExtArgs> | null
+    /**
+     * The filter to search for the FlowRun to update in case it exists.
+     */
+    where: FlowRunWhereUniqueInput
+    /**
+     * In case the FlowRun found by the `where` argument doesn't exist, create a new FlowRun with this data.
+     */
+    create: XOR<FlowRunCreateInput, FlowRunUncheckedCreateInput>
+    /**
+     * In case the FlowRun was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<FlowRunUpdateInput, FlowRunUncheckedUpdateInput>
+  }
+
+  /**
+   * FlowRun delete
+   */
+  export type FlowRunDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunInclude<ExtArgs> | null
+    /**
+     * Filter which FlowRun to delete.
+     */
+    where: FlowRunWhereUniqueInput
+  }
+
+  /**
+   * FlowRun deleteMany
+   */
+  export type FlowRunDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which FlowRuns to delete
+     */
+    where?: FlowRunWhereInput
+  }
+
+  /**
+   * FlowRun.task
+   */
+  export type FlowRun$taskArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Task
+     */
+    select?: TaskSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: TaskInclude<ExtArgs> | null
+    where?: TaskWhereInput
+  }
+
+  /**
+   * FlowRun.runtime
+   */
+  export type FlowRun$runtimeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RuntimeConnection
+     */
+    select?: RuntimeConnectionSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RuntimeConnectionInclude<ExtArgs> | null
+    where?: RuntimeConnectionWhereInput
+  }
+
+  /**
+   * FlowRun without action
+   */
+  export type FlowRunDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FlowRun
+     */
+    select?: FlowRunSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: FlowRunInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -27974,6 +30633,60 @@ export namespace Prisma {
   export type HarnessToolRunScalarFieldEnum = (typeof HarnessToolRunScalarFieldEnum)[keyof typeof HarnessToolRunScalarFieldEnum]
 
 
+  export const RuntimeConnectionScalarFieldEnum: {
+    id: 'id',
+    projectId: 'projectId',
+    name: 'name',
+    kind: 'kind',
+    baseUrl: 'baseUrl',
+    apiToken: 'apiToken',
+    externalProjectId: 'externalProjectId',
+    defaultWorkflowVersionId: 'defaultWorkflowVersionId',
+    workflowTemplate: 'workflowTemplate',
+    nodeImage: 'nodeImage',
+    nodeCommand: 'nodeCommand',
+    nodeTimeout: 'nodeTimeout',
+    nodeRetries: 'nodeRetries',
+    runnerPool: 'runnerPool',
+    runnerLabels: 'runnerLabels',
+    runnerCapabilities: 'runnerCapabilities',
+    dispatchMode: 'dispatchMode',
+    intentProfile: 'intentProfile',
+    candidateLimit: 'candidateLimit',
+    baseInputs: 'baseInputs',
+    autoRoute: 'autoRoute',
+    enabled: 'enabled',
+    lastHealthStatus: 'lastHealthStatus',
+    lastHealthAt: 'lastHealthAt',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type RuntimeConnectionScalarFieldEnum = (typeof RuntimeConnectionScalarFieldEnum)[keyof typeof RuntimeConnectionScalarFieldEnum]
+
+
+  export const FlowRunScalarFieldEnum: {
+    id: 'id',
+    taskId: 'taskId',
+    runtimeId: 'runtimeId',
+    externalRunId: 'externalRunId',
+    workflowName: 'workflowName',
+    workflowVersionId: 'workflowVersionId',
+    traceId: 'traceId',
+    status: 'status',
+    inputs: 'inputs',
+    outputs: 'outputs',
+    artifacts: 'artifacts',
+    error: 'error',
+    lastSyncedAt: 'lastSyncedAt',
+    completedAt: 'completedAt',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type FlowRunScalarFieldEnum = (typeof FlowRunScalarFieldEnum)[keyof typeof FlowRunScalarFieldEnum]
+
+
   export const SortOrder: {
     asc: 'asc',
     desc: 'desc'
@@ -28082,6 +30795,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Project"> | Date | string
     tasks?: TaskListRelationFilter
     objectives?: ObjectiveListRelationFilter
+    runtimeConnections?: RuntimeConnectionListRelationFilter
   }
 
   export type ProjectOrderByWithRelationInput = {
@@ -28094,6 +30808,7 @@ export namespace Prisma {
     createdAt?: SortOrder
     tasks?: TaskOrderByRelationAggregateInput
     objectives?: ObjectiveOrderByRelationAggregateInput
+    runtimeConnections?: RuntimeConnectionOrderByRelationAggregateInput
   }
 
   export type ProjectWhereUniqueInput = Prisma.AtLeast<{
@@ -28109,6 +30824,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Project"> | Date | string
     tasks?: TaskListRelationFilter
     objectives?: ObjectiveListRelationFilter
+    runtimeConnections?: RuntimeConnectionListRelationFilter
   }, "id" | "path">
 
   export type ProjectOrderByWithAggregationInput = {
@@ -28164,6 +30880,7 @@ export namespace Prisma {
     diffs?: TaskDiffListRelationFilter
     agentRuns?: AgentRunListRelationFilter
     traceSpans?: TraceSpanListRelationFilter
+    flowRuns?: FlowRunListRelationFilter
   }
 
   export type TaskOrderByWithRelationInput = {
@@ -28190,6 +30907,7 @@ export namespace Prisma {
     diffs?: TaskDiffOrderByRelationAggregateInput
     agentRuns?: AgentRunOrderByRelationAggregateInput
     traceSpans?: TraceSpanOrderByRelationAggregateInput
+    flowRuns?: FlowRunOrderByRelationAggregateInput
   }
 
   export type TaskWhereUniqueInput = Prisma.AtLeast<{
@@ -28219,6 +30937,7 @@ export namespace Prisma {
     diffs?: TaskDiffListRelationFilter
     agentRuns?: AgentRunListRelationFilter
     traceSpans?: TraceSpanListRelationFilter
+    flowRuns?: FlowRunListRelationFilter
   }, "id">
 
   export type TaskOrderByWithAggregationInput = {
@@ -30298,6 +33017,284 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"HarnessToolRun"> | Date | string
   }
 
+  export type RuntimeConnectionWhereInput = {
+    AND?: RuntimeConnectionWhereInput | RuntimeConnectionWhereInput[]
+    OR?: RuntimeConnectionWhereInput[]
+    NOT?: RuntimeConnectionWhereInput | RuntimeConnectionWhereInput[]
+    id?: StringFilter<"RuntimeConnection"> | string
+    projectId?: StringNullableFilter<"RuntimeConnection"> | string | null
+    name?: StringFilter<"RuntimeConnection"> | string
+    kind?: StringFilter<"RuntimeConnection"> | string
+    baseUrl?: StringFilter<"RuntimeConnection"> | string
+    apiToken?: StringNullableFilter<"RuntimeConnection"> | string | null
+    externalProjectId?: StringNullableFilter<"RuntimeConnection"> | string | null
+    defaultWorkflowVersionId?: StringNullableFilter<"RuntimeConnection"> | string | null
+    workflowTemplate?: StringNullableFilter<"RuntimeConnection"> | string | null
+    nodeImage?: StringNullableFilter<"RuntimeConnection"> | string | null
+    nodeCommand?: StringNullableFilter<"RuntimeConnection"> | string | null
+    nodeTimeout?: StringNullableFilter<"RuntimeConnection"> | string | null
+    nodeRetries?: IntNullableFilter<"RuntimeConnection"> | number | null
+    runnerPool?: StringNullableFilter<"RuntimeConnection"> | string | null
+    runnerLabels?: StringNullableFilter<"RuntimeConnection"> | string | null
+    runnerCapabilities?: StringNullableFilter<"RuntimeConnection"> | string | null
+    dispatchMode?: StringNullableFilter<"RuntimeConnection"> | string | null
+    intentProfile?: StringNullableFilter<"RuntimeConnection"> | string | null
+    candidateLimit?: IntNullableFilter<"RuntimeConnection"> | number | null
+    baseInputs?: StringNullableFilter<"RuntimeConnection"> | string | null
+    autoRoute?: BoolFilter<"RuntimeConnection"> | boolean
+    enabled?: BoolFilter<"RuntimeConnection"> | boolean
+    lastHealthStatus?: StringNullableFilter<"RuntimeConnection"> | string | null
+    lastHealthAt?: DateTimeNullableFilter<"RuntimeConnection"> | Date | string | null
+    createdAt?: DateTimeFilter<"RuntimeConnection"> | Date | string
+    updatedAt?: DateTimeFilter<"RuntimeConnection"> | Date | string
+    project?: XOR<ProjectNullableRelationFilter, ProjectWhereInput> | null
+    flowRuns?: FlowRunListRelationFilter
+  }
+
+  export type RuntimeConnectionOrderByWithRelationInput = {
+    id?: SortOrder
+    projectId?: SortOrderInput | SortOrder
+    name?: SortOrder
+    kind?: SortOrder
+    baseUrl?: SortOrder
+    apiToken?: SortOrderInput | SortOrder
+    externalProjectId?: SortOrderInput | SortOrder
+    defaultWorkflowVersionId?: SortOrderInput | SortOrder
+    workflowTemplate?: SortOrderInput | SortOrder
+    nodeImage?: SortOrderInput | SortOrder
+    nodeCommand?: SortOrderInput | SortOrder
+    nodeTimeout?: SortOrderInput | SortOrder
+    nodeRetries?: SortOrderInput | SortOrder
+    runnerPool?: SortOrderInput | SortOrder
+    runnerLabels?: SortOrderInput | SortOrder
+    runnerCapabilities?: SortOrderInput | SortOrder
+    dispatchMode?: SortOrderInput | SortOrder
+    intentProfile?: SortOrderInput | SortOrder
+    candidateLimit?: SortOrderInput | SortOrder
+    baseInputs?: SortOrderInput | SortOrder
+    autoRoute?: SortOrder
+    enabled?: SortOrder
+    lastHealthStatus?: SortOrderInput | SortOrder
+    lastHealthAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    project?: ProjectOrderByWithRelationInput
+    flowRuns?: FlowRunOrderByRelationAggregateInput
+  }
+
+  export type RuntimeConnectionWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    name?: string
+    AND?: RuntimeConnectionWhereInput | RuntimeConnectionWhereInput[]
+    OR?: RuntimeConnectionWhereInput[]
+    NOT?: RuntimeConnectionWhereInput | RuntimeConnectionWhereInput[]
+    projectId?: StringNullableFilter<"RuntimeConnection"> | string | null
+    kind?: StringFilter<"RuntimeConnection"> | string
+    baseUrl?: StringFilter<"RuntimeConnection"> | string
+    apiToken?: StringNullableFilter<"RuntimeConnection"> | string | null
+    externalProjectId?: StringNullableFilter<"RuntimeConnection"> | string | null
+    defaultWorkflowVersionId?: StringNullableFilter<"RuntimeConnection"> | string | null
+    workflowTemplate?: StringNullableFilter<"RuntimeConnection"> | string | null
+    nodeImage?: StringNullableFilter<"RuntimeConnection"> | string | null
+    nodeCommand?: StringNullableFilter<"RuntimeConnection"> | string | null
+    nodeTimeout?: StringNullableFilter<"RuntimeConnection"> | string | null
+    nodeRetries?: IntNullableFilter<"RuntimeConnection"> | number | null
+    runnerPool?: StringNullableFilter<"RuntimeConnection"> | string | null
+    runnerLabels?: StringNullableFilter<"RuntimeConnection"> | string | null
+    runnerCapabilities?: StringNullableFilter<"RuntimeConnection"> | string | null
+    dispatchMode?: StringNullableFilter<"RuntimeConnection"> | string | null
+    intentProfile?: StringNullableFilter<"RuntimeConnection"> | string | null
+    candidateLimit?: IntNullableFilter<"RuntimeConnection"> | number | null
+    baseInputs?: StringNullableFilter<"RuntimeConnection"> | string | null
+    autoRoute?: BoolFilter<"RuntimeConnection"> | boolean
+    enabled?: BoolFilter<"RuntimeConnection"> | boolean
+    lastHealthStatus?: StringNullableFilter<"RuntimeConnection"> | string | null
+    lastHealthAt?: DateTimeNullableFilter<"RuntimeConnection"> | Date | string | null
+    createdAt?: DateTimeFilter<"RuntimeConnection"> | Date | string
+    updatedAt?: DateTimeFilter<"RuntimeConnection"> | Date | string
+    project?: XOR<ProjectNullableRelationFilter, ProjectWhereInput> | null
+    flowRuns?: FlowRunListRelationFilter
+  }, "id" | "name">
+
+  export type RuntimeConnectionOrderByWithAggregationInput = {
+    id?: SortOrder
+    projectId?: SortOrderInput | SortOrder
+    name?: SortOrder
+    kind?: SortOrder
+    baseUrl?: SortOrder
+    apiToken?: SortOrderInput | SortOrder
+    externalProjectId?: SortOrderInput | SortOrder
+    defaultWorkflowVersionId?: SortOrderInput | SortOrder
+    workflowTemplate?: SortOrderInput | SortOrder
+    nodeImage?: SortOrderInput | SortOrder
+    nodeCommand?: SortOrderInput | SortOrder
+    nodeTimeout?: SortOrderInput | SortOrder
+    nodeRetries?: SortOrderInput | SortOrder
+    runnerPool?: SortOrderInput | SortOrder
+    runnerLabels?: SortOrderInput | SortOrder
+    runnerCapabilities?: SortOrderInput | SortOrder
+    dispatchMode?: SortOrderInput | SortOrder
+    intentProfile?: SortOrderInput | SortOrder
+    candidateLimit?: SortOrderInput | SortOrder
+    baseInputs?: SortOrderInput | SortOrder
+    autoRoute?: SortOrder
+    enabled?: SortOrder
+    lastHealthStatus?: SortOrderInput | SortOrder
+    lastHealthAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: RuntimeConnectionCountOrderByAggregateInput
+    _avg?: RuntimeConnectionAvgOrderByAggregateInput
+    _max?: RuntimeConnectionMaxOrderByAggregateInput
+    _min?: RuntimeConnectionMinOrderByAggregateInput
+    _sum?: RuntimeConnectionSumOrderByAggregateInput
+  }
+
+  export type RuntimeConnectionScalarWhereWithAggregatesInput = {
+    AND?: RuntimeConnectionScalarWhereWithAggregatesInput | RuntimeConnectionScalarWhereWithAggregatesInput[]
+    OR?: RuntimeConnectionScalarWhereWithAggregatesInput[]
+    NOT?: RuntimeConnectionScalarWhereWithAggregatesInput | RuntimeConnectionScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"RuntimeConnection"> | string
+    projectId?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    name?: StringWithAggregatesFilter<"RuntimeConnection"> | string
+    kind?: StringWithAggregatesFilter<"RuntimeConnection"> | string
+    baseUrl?: StringWithAggregatesFilter<"RuntimeConnection"> | string
+    apiToken?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    externalProjectId?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    defaultWorkflowVersionId?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    workflowTemplate?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    nodeImage?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    nodeCommand?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    nodeTimeout?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    nodeRetries?: IntNullableWithAggregatesFilter<"RuntimeConnection"> | number | null
+    runnerPool?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    runnerLabels?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    runnerCapabilities?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    dispatchMode?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    intentProfile?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    candidateLimit?: IntNullableWithAggregatesFilter<"RuntimeConnection"> | number | null
+    baseInputs?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    autoRoute?: BoolWithAggregatesFilter<"RuntimeConnection"> | boolean
+    enabled?: BoolWithAggregatesFilter<"RuntimeConnection"> | boolean
+    lastHealthStatus?: StringNullableWithAggregatesFilter<"RuntimeConnection"> | string | null
+    lastHealthAt?: DateTimeNullableWithAggregatesFilter<"RuntimeConnection"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"RuntimeConnection"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"RuntimeConnection"> | Date | string
+  }
+
+  export type FlowRunWhereInput = {
+    AND?: FlowRunWhereInput | FlowRunWhereInput[]
+    OR?: FlowRunWhereInput[]
+    NOT?: FlowRunWhereInput | FlowRunWhereInput[]
+    id?: StringFilter<"FlowRun"> | string
+    taskId?: StringNullableFilter<"FlowRun"> | string | null
+    runtimeId?: StringNullableFilter<"FlowRun"> | string | null
+    externalRunId?: StringFilter<"FlowRun"> | string
+    workflowName?: StringNullableFilter<"FlowRun"> | string | null
+    workflowVersionId?: StringNullableFilter<"FlowRun"> | string | null
+    traceId?: StringNullableFilter<"FlowRun"> | string | null
+    status?: StringFilter<"FlowRun"> | string
+    inputs?: StringNullableFilter<"FlowRun"> | string | null
+    outputs?: StringNullableFilter<"FlowRun"> | string | null
+    artifacts?: StringNullableFilter<"FlowRun"> | string | null
+    error?: StringNullableFilter<"FlowRun"> | string | null
+    lastSyncedAt?: DateTimeNullableFilter<"FlowRun"> | Date | string | null
+    completedAt?: DateTimeNullableFilter<"FlowRun"> | Date | string | null
+    createdAt?: DateTimeFilter<"FlowRun"> | Date | string
+    updatedAt?: DateTimeFilter<"FlowRun"> | Date | string
+    task?: XOR<TaskNullableRelationFilter, TaskWhereInput> | null
+    runtime?: XOR<RuntimeConnectionNullableRelationFilter, RuntimeConnectionWhereInput> | null
+  }
+
+  export type FlowRunOrderByWithRelationInput = {
+    id?: SortOrder
+    taskId?: SortOrderInput | SortOrder
+    runtimeId?: SortOrderInput | SortOrder
+    externalRunId?: SortOrder
+    workflowName?: SortOrderInput | SortOrder
+    workflowVersionId?: SortOrderInput | SortOrder
+    traceId?: SortOrderInput | SortOrder
+    status?: SortOrder
+    inputs?: SortOrderInput | SortOrder
+    outputs?: SortOrderInput | SortOrder
+    artifacts?: SortOrderInput | SortOrder
+    error?: SortOrderInput | SortOrder
+    lastSyncedAt?: SortOrderInput | SortOrder
+    completedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    task?: TaskOrderByWithRelationInput
+    runtime?: RuntimeConnectionOrderByWithRelationInput
+  }
+
+  export type FlowRunWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: FlowRunWhereInput | FlowRunWhereInput[]
+    OR?: FlowRunWhereInput[]
+    NOT?: FlowRunWhereInput | FlowRunWhereInput[]
+    taskId?: StringNullableFilter<"FlowRun"> | string | null
+    runtimeId?: StringNullableFilter<"FlowRun"> | string | null
+    externalRunId?: StringFilter<"FlowRun"> | string
+    workflowName?: StringNullableFilter<"FlowRun"> | string | null
+    workflowVersionId?: StringNullableFilter<"FlowRun"> | string | null
+    traceId?: StringNullableFilter<"FlowRun"> | string | null
+    status?: StringFilter<"FlowRun"> | string
+    inputs?: StringNullableFilter<"FlowRun"> | string | null
+    outputs?: StringNullableFilter<"FlowRun"> | string | null
+    artifacts?: StringNullableFilter<"FlowRun"> | string | null
+    error?: StringNullableFilter<"FlowRun"> | string | null
+    lastSyncedAt?: DateTimeNullableFilter<"FlowRun"> | Date | string | null
+    completedAt?: DateTimeNullableFilter<"FlowRun"> | Date | string | null
+    createdAt?: DateTimeFilter<"FlowRun"> | Date | string
+    updatedAt?: DateTimeFilter<"FlowRun"> | Date | string
+    task?: XOR<TaskNullableRelationFilter, TaskWhereInput> | null
+    runtime?: XOR<RuntimeConnectionNullableRelationFilter, RuntimeConnectionWhereInput> | null
+  }, "id">
+
+  export type FlowRunOrderByWithAggregationInput = {
+    id?: SortOrder
+    taskId?: SortOrderInput | SortOrder
+    runtimeId?: SortOrderInput | SortOrder
+    externalRunId?: SortOrder
+    workflowName?: SortOrderInput | SortOrder
+    workflowVersionId?: SortOrderInput | SortOrder
+    traceId?: SortOrderInput | SortOrder
+    status?: SortOrder
+    inputs?: SortOrderInput | SortOrder
+    outputs?: SortOrderInput | SortOrder
+    artifacts?: SortOrderInput | SortOrder
+    error?: SortOrderInput | SortOrder
+    lastSyncedAt?: SortOrderInput | SortOrder
+    completedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: FlowRunCountOrderByAggregateInput
+    _max?: FlowRunMaxOrderByAggregateInput
+    _min?: FlowRunMinOrderByAggregateInput
+  }
+
+  export type FlowRunScalarWhereWithAggregatesInput = {
+    AND?: FlowRunScalarWhereWithAggregatesInput | FlowRunScalarWhereWithAggregatesInput[]
+    OR?: FlowRunScalarWhereWithAggregatesInput[]
+    NOT?: FlowRunScalarWhereWithAggregatesInput | FlowRunScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"FlowRun"> | string
+    taskId?: StringNullableWithAggregatesFilter<"FlowRun"> | string | null
+    runtimeId?: StringNullableWithAggregatesFilter<"FlowRun"> | string | null
+    externalRunId?: StringWithAggregatesFilter<"FlowRun"> | string
+    workflowName?: StringNullableWithAggregatesFilter<"FlowRun"> | string | null
+    workflowVersionId?: StringNullableWithAggregatesFilter<"FlowRun"> | string | null
+    traceId?: StringNullableWithAggregatesFilter<"FlowRun"> | string | null
+    status?: StringWithAggregatesFilter<"FlowRun"> | string
+    inputs?: StringNullableWithAggregatesFilter<"FlowRun"> | string | null
+    outputs?: StringNullableWithAggregatesFilter<"FlowRun"> | string | null
+    artifacts?: StringNullableWithAggregatesFilter<"FlowRun"> | string | null
+    error?: StringNullableWithAggregatesFilter<"FlowRun"> | string | null
+    lastSyncedAt?: DateTimeNullableWithAggregatesFilter<"FlowRun"> | Date | string | null
+    completedAt?: DateTimeNullableWithAggregatesFilter<"FlowRun"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"FlowRun"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"FlowRun"> | Date | string
+  }
+
   export type ProjectCreateInput = {
     id?: string
     name: string
@@ -30308,6 +33305,7 @@ export namespace Prisma {
     createdAt?: Date | string
     tasks?: TaskCreateNestedManyWithoutProjectInput
     objectives?: ObjectiveCreateNestedManyWithoutProjectInput
+    runtimeConnections?: RuntimeConnectionCreateNestedManyWithoutProjectInput
   }
 
   export type ProjectUncheckedCreateInput = {
@@ -30320,6 +33318,7 @@ export namespace Prisma {
     createdAt?: Date | string
     tasks?: TaskUncheckedCreateNestedManyWithoutProjectInput
     objectives?: ObjectiveUncheckedCreateNestedManyWithoutProjectInput
+    runtimeConnections?: RuntimeConnectionUncheckedCreateNestedManyWithoutProjectInput
   }
 
   export type ProjectUpdateInput = {
@@ -30332,6 +33331,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     tasks?: TaskUpdateManyWithoutProjectNestedInput
     objectives?: ObjectiveUpdateManyWithoutProjectNestedInput
+    runtimeConnections?: RuntimeConnectionUpdateManyWithoutProjectNestedInput
   }
 
   export type ProjectUncheckedUpdateInput = {
@@ -30344,6 +33344,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     tasks?: TaskUncheckedUpdateManyWithoutProjectNestedInput
     objectives?: ObjectiveUncheckedUpdateManyWithoutProjectNestedInput
+    runtimeConnections?: RuntimeConnectionUncheckedUpdateManyWithoutProjectNestedInput
   }
 
   export type ProjectCreateManyInput = {
@@ -30399,6 +33400,7 @@ export namespace Prisma {
     diffs?: TaskDiffCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
     traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateInput = {
@@ -30424,6 +33426,7 @@ export namespace Prisma {
     diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
     traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUpdateInput = {
@@ -30449,6 +33452,7 @@ export namespace Prisma {
     diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
     traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateInput = {
@@ -30474,6 +33478,7 @@ export namespace Prisma {
     diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
     traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskCreateManyInput = {
@@ -32890,6 +35895,343 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type RuntimeConnectionCreateInput = {
+    id?: string
+    name: string
+    kind?: string
+    baseUrl: string
+    apiToken?: string | null
+    externalProjectId?: string | null
+    defaultWorkflowVersionId?: string | null
+    workflowTemplate?: string | null
+    nodeImage?: string | null
+    nodeCommand?: string | null
+    nodeTimeout?: string | null
+    nodeRetries?: number | null
+    runnerPool?: string | null
+    runnerLabels?: string | null
+    runnerCapabilities?: string | null
+    dispatchMode?: string | null
+    intentProfile?: string | null
+    candidateLimit?: number | null
+    baseInputs?: string | null
+    autoRoute?: boolean
+    enabled?: boolean
+    lastHealthStatus?: string | null
+    lastHealthAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    project?: ProjectCreateNestedOneWithoutRuntimeConnectionsInput
+    flowRuns?: FlowRunCreateNestedManyWithoutRuntimeInput
+  }
+
+  export type RuntimeConnectionUncheckedCreateInput = {
+    id?: string
+    projectId?: string | null
+    name: string
+    kind?: string
+    baseUrl: string
+    apiToken?: string | null
+    externalProjectId?: string | null
+    defaultWorkflowVersionId?: string | null
+    workflowTemplate?: string | null
+    nodeImage?: string | null
+    nodeCommand?: string | null
+    nodeTimeout?: string | null
+    nodeRetries?: number | null
+    runnerPool?: string | null
+    runnerLabels?: string | null
+    runnerCapabilities?: string | null
+    dispatchMode?: string | null
+    intentProfile?: string | null
+    candidateLimit?: number | null
+    baseInputs?: string | null
+    autoRoute?: boolean
+    enabled?: boolean
+    lastHealthStatus?: string | null
+    lastHealthAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    flowRuns?: FlowRunUncheckedCreateNestedManyWithoutRuntimeInput
+  }
+
+  export type RuntimeConnectionUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    apiToken?: NullableStringFieldUpdateOperationsInput | string | null
+    externalProjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWorkflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowTemplate?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeImage?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeCommand?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeTimeout?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeRetries?: NullableIntFieldUpdateOperationsInput | number | null
+    runnerPool?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerLabels?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerCapabilities?: NullableStringFieldUpdateOperationsInput | string | null
+    dispatchMode?: NullableStringFieldUpdateOperationsInput | string | null
+    intentProfile?: NullableStringFieldUpdateOperationsInput | string | null
+    candidateLimit?: NullableIntFieldUpdateOperationsInput | number | null
+    baseInputs?: NullableStringFieldUpdateOperationsInput | string | null
+    autoRoute?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastHealthStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastHealthAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    project?: ProjectUpdateOneWithoutRuntimeConnectionsNestedInput
+    flowRuns?: FlowRunUpdateManyWithoutRuntimeNestedInput
+  }
+
+  export type RuntimeConnectionUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    apiToken?: NullableStringFieldUpdateOperationsInput | string | null
+    externalProjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWorkflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowTemplate?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeImage?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeCommand?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeTimeout?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeRetries?: NullableIntFieldUpdateOperationsInput | number | null
+    runnerPool?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerLabels?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerCapabilities?: NullableStringFieldUpdateOperationsInput | string | null
+    dispatchMode?: NullableStringFieldUpdateOperationsInput | string | null
+    intentProfile?: NullableStringFieldUpdateOperationsInput | string | null
+    candidateLimit?: NullableIntFieldUpdateOperationsInput | number | null
+    baseInputs?: NullableStringFieldUpdateOperationsInput | string | null
+    autoRoute?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastHealthStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastHealthAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    flowRuns?: FlowRunUncheckedUpdateManyWithoutRuntimeNestedInput
+  }
+
+  export type RuntimeConnectionCreateManyInput = {
+    id?: string
+    projectId?: string | null
+    name: string
+    kind?: string
+    baseUrl: string
+    apiToken?: string | null
+    externalProjectId?: string | null
+    defaultWorkflowVersionId?: string | null
+    workflowTemplate?: string | null
+    nodeImage?: string | null
+    nodeCommand?: string | null
+    nodeTimeout?: string | null
+    nodeRetries?: number | null
+    runnerPool?: string | null
+    runnerLabels?: string | null
+    runnerCapabilities?: string | null
+    dispatchMode?: string | null
+    intentProfile?: string | null
+    candidateLimit?: number | null
+    baseInputs?: string | null
+    autoRoute?: boolean
+    enabled?: boolean
+    lastHealthStatus?: string | null
+    lastHealthAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RuntimeConnectionUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    apiToken?: NullableStringFieldUpdateOperationsInput | string | null
+    externalProjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWorkflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowTemplate?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeImage?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeCommand?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeTimeout?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeRetries?: NullableIntFieldUpdateOperationsInput | number | null
+    runnerPool?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerLabels?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerCapabilities?: NullableStringFieldUpdateOperationsInput | string | null
+    dispatchMode?: NullableStringFieldUpdateOperationsInput | string | null
+    intentProfile?: NullableStringFieldUpdateOperationsInput | string | null
+    candidateLimit?: NullableIntFieldUpdateOperationsInput | number | null
+    baseInputs?: NullableStringFieldUpdateOperationsInput | string | null
+    autoRoute?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastHealthStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastHealthAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RuntimeConnectionUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    apiToken?: NullableStringFieldUpdateOperationsInput | string | null
+    externalProjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWorkflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowTemplate?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeImage?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeCommand?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeTimeout?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeRetries?: NullableIntFieldUpdateOperationsInput | number | null
+    runnerPool?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerLabels?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerCapabilities?: NullableStringFieldUpdateOperationsInput | string | null
+    dispatchMode?: NullableStringFieldUpdateOperationsInput | string | null
+    intentProfile?: NullableStringFieldUpdateOperationsInput | string | null
+    candidateLimit?: NullableIntFieldUpdateOperationsInput | number | null
+    baseInputs?: NullableStringFieldUpdateOperationsInput | string | null
+    autoRoute?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastHealthStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastHealthAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FlowRunCreateInput = {
+    id?: string
+    externalRunId: string
+    workflowName?: string | null
+    workflowVersionId?: string | null
+    traceId?: string | null
+    status?: string
+    inputs?: string | null
+    outputs?: string | null
+    artifacts?: string | null
+    error?: string | null
+    lastSyncedAt?: Date | string | null
+    completedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    task?: TaskCreateNestedOneWithoutFlowRunsInput
+    runtime?: RuntimeConnectionCreateNestedOneWithoutFlowRunsInput
+  }
+
+  export type FlowRunUncheckedCreateInput = {
+    id?: string
+    taskId?: string | null
+    runtimeId?: string | null
+    externalRunId: string
+    workflowName?: string | null
+    workflowVersionId?: string | null
+    traceId?: string | null
+    status?: string
+    inputs?: string | null
+    outputs?: string | null
+    artifacts?: string | null
+    error?: string | null
+    lastSyncedAt?: Date | string | null
+    completedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type FlowRunUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    externalRunId?: StringFieldUpdateOperationsInput | string
+    workflowName?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    traceId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    inputs?: NullableStringFieldUpdateOperationsInput | string | null
+    outputs?: NullableStringFieldUpdateOperationsInput | string | null
+    artifacts?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    task?: TaskUpdateOneWithoutFlowRunsNestedInput
+    runtime?: RuntimeConnectionUpdateOneWithoutFlowRunsNestedInput
+  }
+
+  export type FlowRunUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    runtimeId?: NullableStringFieldUpdateOperationsInput | string | null
+    externalRunId?: StringFieldUpdateOperationsInput | string
+    workflowName?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    traceId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    inputs?: NullableStringFieldUpdateOperationsInput | string | null
+    outputs?: NullableStringFieldUpdateOperationsInput | string | null
+    artifacts?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FlowRunCreateManyInput = {
+    id?: string
+    taskId?: string | null
+    runtimeId?: string | null
+    externalRunId: string
+    workflowName?: string | null
+    workflowVersionId?: string | null
+    traceId?: string | null
+    status?: string
+    inputs?: string | null
+    outputs?: string | null
+    artifacts?: string | null
+    error?: string | null
+    lastSyncedAt?: Date | string | null
+    completedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type FlowRunUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    externalRunId?: StringFieldUpdateOperationsInput | string
+    workflowName?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    traceId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    inputs?: NullableStringFieldUpdateOperationsInput | string | null
+    outputs?: NullableStringFieldUpdateOperationsInput | string | null
+    artifacts?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FlowRunUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    runtimeId?: NullableStringFieldUpdateOperationsInput | string | null
+    externalRunId?: StringFieldUpdateOperationsInput | string
+    workflowName?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    traceId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    inputs?: NullableStringFieldUpdateOperationsInput | string | null
+    outputs?: NullableStringFieldUpdateOperationsInput | string | null
+    artifacts?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -32943,6 +36285,12 @@ export namespace Prisma {
     none?: ObjectiveWhereInput
   }
 
+  export type RuntimeConnectionListRelationFilter = {
+    every?: RuntimeConnectionWhereInput
+    some?: RuntimeConnectionWhereInput
+    none?: RuntimeConnectionWhereInput
+  }
+
   export type SortOrderInput = {
     sort: SortOrder
     nulls?: NullsOrder
@@ -32953,6 +36301,10 @@ export namespace Prisma {
   }
 
   export type ObjectiveOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type RuntimeConnectionOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -33093,6 +36445,12 @@ export namespace Prisma {
     none?: TraceSpanWhereInput
   }
 
+  export type FlowRunListRelationFilter = {
+    every?: FlowRunWhereInput
+    some?: FlowRunWhereInput
+    none?: FlowRunWhereInput
+  }
+
   export type TaskStepOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -33110,6 +36468,10 @@ export namespace Prisma {
   }
 
   export type TraceSpanOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type FlowRunOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -34632,6 +37994,170 @@ export namespace Prisma {
     durationMs?: SortOrder
   }
 
+  export type ProjectNullableRelationFilter = {
+    is?: ProjectWhereInput | null
+    isNot?: ProjectWhereInput | null
+  }
+
+  export type RuntimeConnectionCountOrderByAggregateInput = {
+    id?: SortOrder
+    projectId?: SortOrder
+    name?: SortOrder
+    kind?: SortOrder
+    baseUrl?: SortOrder
+    apiToken?: SortOrder
+    externalProjectId?: SortOrder
+    defaultWorkflowVersionId?: SortOrder
+    workflowTemplate?: SortOrder
+    nodeImage?: SortOrder
+    nodeCommand?: SortOrder
+    nodeTimeout?: SortOrder
+    nodeRetries?: SortOrder
+    runnerPool?: SortOrder
+    runnerLabels?: SortOrder
+    runnerCapabilities?: SortOrder
+    dispatchMode?: SortOrder
+    intentProfile?: SortOrder
+    candidateLimit?: SortOrder
+    baseInputs?: SortOrder
+    autoRoute?: SortOrder
+    enabled?: SortOrder
+    lastHealthStatus?: SortOrder
+    lastHealthAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RuntimeConnectionAvgOrderByAggregateInput = {
+    nodeRetries?: SortOrder
+    candidateLimit?: SortOrder
+  }
+
+  export type RuntimeConnectionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    projectId?: SortOrder
+    name?: SortOrder
+    kind?: SortOrder
+    baseUrl?: SortOrder
+    apiToken?: SortOrder
+    externalProjectId?: SortOrder
+    defaultWorkflowVersionId?: SortOrder
+    workflowTemplate?: SortOrder
+    nodeImage?: SortOrder
+    nodeCommand?: SortOrder
+    nodeTimeout?: SortOrder
+    nodeRetries?: SortOrder
+    runnerPool?: SortOrder
+    runnerLabels?: SortOrder
+    runnerCapabilities?: SortOrder
+    dispatchMode?: SortOrder
+    intentProfile?: SortOrder
+    candidateLimit?: SortOrder
+    baseInputs?: SortOrder
+    autoRoute?: SortOrder
+    enabled?: SortOrder
+    lastHealthStatus?: SortOrder
+    lastHealthAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RuntimeConnectionMinOrderByAggregateInput = {
+    id?: SortOrder
+    projectId?: SortOrder
+    name?: SortOrder
+    kind?: SortOrder
+    baseUrl?: SortOrder
+    apiToken?: SortOrder
+    externalProjectId?: SortOrder
+    defaultWorkflowVersionId?: SortOrder
+    workflowTemplate?: SortOrder
+    nodeImage?: SortOrder
+    nodeCommand?: SortOrder
+    nodeTimeout?: SortOrder
+    nodeRetries?: SortOrder
+    runnerPool?: SortOrder
+    runnerLabels?: SortOrder
+    runnerCapabilities?: SortOrder
+    dispatchMode?: SortOrder
+    intentProfile?: SortOrder
+    candidateLimit?: SortOrder
+    baseInputs?: SortOrder
+    autoRoute?: SortOrder
+    enabled?: SortOrder
+    lastHealthStatus?: SortOrder
+    lastHealthAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RuntimeConnectionSumOrderByAggregateInput = {
+    nodeRetries?: SortOrder
+    candidateLimit?: SortOrder
+  }
+
+  export type RuntimeConnectionNullableRelationFilter = {
+    is?: RuntimeConnectionWhereInput | null
+    isNot?: RuntimeConnectionWhereInput | null
+  }
+
+  export type FlowRunCountOrderByAggregateInput = {
+    id?: SortOrder
+    taskId?: SortOrder
+    runtimeId?: SortOrder
+    externalRunId?: SortOrder
+    workflowName?: SortOrder
+    workflowVersionId?: SortOrder
+    traceId?: SortOrder
+    status?: SortOrder
+    inputs?: SortOrder
+    outputs?: SortOrder
+    artifacts?: SortOrder
+    error?: SortOrder
+    lastSyncedAt?: SortOrder
+    completedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type FlowRunMaxOrderByAggregateInput = {
+    id?: SortOrder
+    taskId?: SortOrder
+    runtimeId?: SortOrder
+    externalRunId?: SortOrder
+    workflowName?: SortOrder
+    workflowVersionId?: SortOrder
+    traceId?: SortOrder
+    status?: SortOrder
+    inputs?: SortOrder
+    outputs?: SortOrder
+    artifacts?: SortOrder
+    error?: SortOrder
+    lastSyncedAt?: SortOrder
+    completedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type FlowRunMinOrderByAggregateInput = {
+    id?: SortOrder
+    taskId?: SortOrder
+    runtimeId?: SortOrder
+    externalRunId?: SortOrder
+    workflowName?: SortOrder
+    workflowVersionId?: SortOrder
+    traceId?: SortOrder
+    status?: SortOrder
+    inputs?: SortOrder
+    outputs?: SortOrder
+    artifacts?: SortOrder
+    error?: SortOrder
+    lastSyncedAt?: SortOrder
+    completedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
   export type TaskCreateNestedManyWithoutProjectInput = {
     create?: XOR<TaskCreateWithoutProjectInput, TaskUncheckedCreateWithoutProjectInput> | TaskCreateWithoutProjectInput[] | TaskUncheckedCreateWithoutProjectInput[]
     connectOrCreate?: TaskCreateOrConnectWithoutProjectInput | TaskCreateOrConnectWithoutProjectInput[]
@@ -34646,6 +38172,13 @@ export namespace Prisma {
     connect?: ObjectiveWhereUniqueInput | ObjectiveWhereUniqueInput[]
   }
 
+  export type RuntimeConnectionCreateNestedManyWithoutProjectInput = {
+    create?: XOR<RuntimeConnectionCreateWithoutProjectInput, RuntimeConnectionUncheckedCreateWithoutProjectInput> | RuntimeConnectionCreateWithoutProjectInput[] | RuntimeConnectionUncheckedCreateWithoutProjectInput[]
+    connectOrCreate?: RuntimeConnectionCreateOrConnectWithoutProjectInput | RuntimeConnectionCreateOrConnectWithoutProjectInput[]
+    createMany?: RuntimeConnectionCreateManyProjectInputEnvelope
+    connect?: RuntimeConnectionWhereUniqueInput | RuntimeConnectionWhereUniqueInput[]
+  }
+
   export type TaskUncheckedCreateNestedManyWithoutProjectInput = {
     create?: XOR<TaskCreateWithoutProjectInput, TaskUncheckedCreateWithoutProjectInput> | TaskCreateWithoutProjectInput[] | TaskUncheckedCreateWithoutProjectInput[]
     connectOrCreate?: TaskCreateOrConnectWithoutProjectInput | TaskCreateOrConnectWithoutProjectInput[]
@@ -34658,6 +38191,13 @@ export namespace Prisma {
     connectOrCreate?: ObjectiveCreateOrConnectWithoutProjectInput | ObjectiveCreateOrConnectWithoutProjectInput[]
     createMany?: ObjectiveCreateManyProjectInputEnvelope
     connect?: ObjectiveWhereUniqueInput | ObjectiveWhereUniqueInput[]
+  }
+
+  export type RuntimeConnectionUncheckedCreateNestedManyWithoutProjectInput = {
+    create?: XOR<RuntimeConnectionCreateWithoutProjectInput, RuntimeConnectionUncheckedCreateWithoutProjectInput> | RuntimeConnectionCreateWithoutProjectInput[] | RuntimeConnectionUncheckedCreateWithoutProjectInput[]
+    connectOrCreate?: RuntimeConnectionCreateOrConnectWithoutProjectInput | RuntimeConnectionCreateOrConnectWithoutProjectInput[]
+    createMany?: RuntimeConnectionCreateManyProjectInputEnvelope
+    connect?: RuntimeConnectionWhereUniqueInput | RuntimeConnectionWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -34700,6 +38240,20 @@ export namespace Prisma {
     deleteMany?: ObjectiveScalarWhereInput | ObjectiveScalarWhereInput[]
   }
 
+  export type RuntimeConnectionUpdateManyWithoutProjectNestedInput = {
+    create?: XOR<RuntimeConnectionCreateWithoutProjectInput, RuntimeConnectionUncheckedCreateWithoutProjectInput> | RuntimeConnectionCreateWithoutProjectInput[] | RuntimeConnectionUncheckedCreateWithoutProjectInput[]
+    connectOrCreate?: RuntimeConnectionCreateOrConnectWithoutProjectInput | RuntimeConnectionCreateOrConnectWithoutProjectInput[]
+    upsert?: RuntimeConnectionUpsertWithWhereUniqueWithoutProjectInput | RuntimeConnectionUpsertWithWhereUniqueWithoutProjectInput[]
+    createMany?: RuntimeConnectionCreateManyProjectInputEnvelope
+    set?: RuntimeConnectionWhereUniqueInput | RuntimeConnectionWhereUniqueInput[]
+    disconnect?: RuntimeConnectionWhereUniqueInput | RuntimeConnectionWhereUniqueInput[]
+    delete?: RuntimeConnectionWhereUniqueInput | RuntimeConnectionWhereUniqueInput[]
+    connect?: RuntimeConnectionWhereUniqueInput | RuntimeConnectionWhereUniqueInput[]
+    update?: RuntimeConnectionUpdateWithWhereUniqueWithoutProjectInput | RuntimeConnectionUpdateWithWhereUniqueWithoutProjectInput[]
+    updateMany?: RuntimeConnectionUpdateManyWithWhereWithoutProjectInput | RuntimeConnectionUpdateManyWithWhereWithoutProjectInput[]
+    deleteMany?: RuntimeConnectionScalarWhereInput | RuntimeConnectionScalarWhereInput[]
+  }
+
   export type TaskUncheckedUpdateManyWithoutProjectNestedInput = {
     create?: XOR<TaskCreateWithoutProjectInput, TaskUncheckedCreateWithoutProjectInput> | TaskCreateWithoutProjectInput[] | TaskUncheckedCreateWithoutProjectInput[]
     connectOrCreate?: TaskCreateOrConnectWithoutProjectInput | TaskCreateOrConnectWithoutProjectInput[]
@@ -34726,6 +38280,20 @@ export namespace Prisma {
     update?: ObjectiveUpdateWithWhereUniqueWithoutProjectInput | ObjectiveUpdateWithWhereUniqueWithoutProjectInput[]
     updateMany?: ObjectiveUpdateManyWithWhereWithoutProjectInput | ObjectiveUpdateManyWithWhereWithoutProjectInput[]
     deleteMany?: ObjectiveScalarWhereInput | ObjectiveScalarWhereInput[]
+  }
+
+  export type RuntimeConnectionUncheckedUpdateManyWithoutProjectNestedInput = {
+    create?: XOR<RuntimeConnectionCreateWithoutProjectInput, RuntimeConnectionUncheckedCreateWithoutProjectInput> | RuntimeConnectionCreateWithoutProjectInput[] | RuntimeConnectionUncheckedCreateWithoutProjectInput[]
+    connectOrCreate?: RuntimeConnectionCreateOrConnectWithoutProjectInput | RuntimeConnectionCreateOrConnectWithoutProjectInput[]
+    upsert?: RuntimeConnectionUpsertWithWhereUniqueWithoutProjectInput | RuntimeConnectionUpsertWithWhereUniqueWithoutProjectInput[]
+    createMany?: RuntimeConnectionCreateManyProjectInputEnvelope
+    set?: RuntimeConnectionWhereUniqueInput | RuntimeConnectionWhereUniqueInput[]
+    disconnect?: RuntimeConnectionWhereUniqueInput | RuntimeConnectionWhereUniqueInput[]
+    delete?: RuntimeConnectionWhereUniqueInput | RuntimeConnectionWhereUniqueInput[]
+    connect?: RuntimeConnectionWhereUniqueInput | RuntimeConnectionWhereUniqueInput[]
+    update?: RuntimeConnectionUpdateWithWhereUniqueWithoutProjectInput | RuntimeConnectionUpdateWithWhereUniqueWithoutProjectInput[]
+    updateMany?: RuntimeConnectionUpdateManyWithWhereWithoutProjectInput | RuntimeConnectionUpdateManyWithWhereWithoutProjectInput[]
+    deleteMany?: RuntimeConnectionScalarWhereInput | RuntimeConnectionScalarWhereInput[]
   }
 
   export type ProjectCreateNestedOneWithoutTasksInput = {
@@ -34769,6 +38337,13 @@ export namespace Prisma {
     connect?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
   }
 
+  export type FlowRunCreateNestedManyWithoutTaskInput = {
+    create?: XOR<FlowRunCreateWithoutTaskInput, FlowRunUncheckedCreateWithoutTaskInput> | FlowRunCreateWithoutTaskInput[] | FlowRunUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: FlowRunCreateOrConnectWithoutTaskInput | FlowRunCreateOrConnectWithoutTaskInput[]
+    createMany?: FlowRunCreateManyTaskInputEnvelope
+    connect?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+  }
+
   export type TaskStepUncheckedCreateNestedManyWithoutTaskInput = {
     create?: XOR<TaskStepCreateWithoutTaskInput, TaskStepUncheckedCreateWithoutTaskInput> | TaskStepCreateWithoutTaskInput[] | TaskStepUncheckedCreateWithoutTaskInput[]
     connectOrCreate?: TaskStepCreateOrConnectWithoutTaskInput | TaskStepCreateOrConnectWithoutTaskInput[]
@@ -34802,6 +38377,13 @@ export namespace Prisma {
     connectOrCreate?: TraceSpanCreateOrConnectWithoutTaskInput | TraceSpanCreateOrConnectWithoutTaskInput[]
     createMany?: TraceSpanCreateManyTaskInputEnvelope
     connect?: TraceSpanWhereUniqueInput | TraceSpanWhereUniqueInput[]
+  }
+
+  export type FlowRunUncheckedCreateNestedManyWithoutTaskInput = {
+    create?: XOR<FlowRunCreateWithoutTaskInput, FlowRunUncheckedCreateWithoutTaskInput> | FlowRunCreateWithoutTaskInput[] | FlowRunUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: FlowRunCreateOrConnectWithoutTaskInput | FlowRunCreateOrConnectWithoutTaskInput[]
+    createMany?: FlowRunCreateManyTaskInputEnvelope
+    connect?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
   }
 
   export type IntFieldUpdateOperationsInput = {
@@ -34894,6 +38476,20 @@ export namespace Prisma {
     deleteMany?: TraceSpanScalarWhereInput | TraceSpanScalarWhereInput[]
   }
 
+  export type FlowRunUpdateManyWithoutTaskNestedInput = {
+    create?: XOR<FlowRunCreateWithoutTaskInput, FlowRunUncheckedCreateWithoutTaskInput> | FlowRunCreateWithoutTaskInput[] | FlowRunUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: FlowRunCreateOrConnectWithoutTaskInput | FlowRunCreateOrConnectWithoutTaskInput[]
+    upsert?: FlowRunUpsertWithWhereUniqueWithoutTaskInput | FlowRunUpsertWithWhereUniqueWithoutTaskInput[]
+    createMany?: FlowRunCreateManyTaskInputEnvelope
+    set?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    disconnect?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    delete?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    connect?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    update?: FlowRunUpdateWithWhereUniqueWithoutTaskInput | FlowRunUpdateWithWhereUniqueWithoutTaskInput[]
+    updateMany?: FlowRunUpdateManyWithWhereWithoutTaskInput | FlowRunUpdateManyWithWhereWithoutTaskInput[]
+    deleteMany?: FlowRunScalarWhereInput | FlowRunScalarWhereInput[]
+  }
+
   export type TaskStepUncheckedUpdateManyWithoutTaskNestedInput = {
     create?: XOR<TaskStepCreateWithoutTaskInput, TaskStepUncheckedCreateWithoutTaskInput> | TaskStepCreateWithoutTaskInput[] | TaskStepUncheckedCreateWithoutTaskInput[]
     connectOrCreate?: TaskStepCreateOrConnectWithoutTaskInput | TaskStepCreateOrConnectWithoutTaskInput[]
@@ -34962,6 +38558,20 @@ export namespace Prisma {
     update?: TraceSpanUpdateWithWhereUniqueWithoutTaskInput | TraceSpanUpdateWithWhereUniqueWithoutTaskInput[]
     updateMany?: TraceSpanUpdateManyWithWhereWithoutTaskInput | TraceSpanUpdateManyWithWhereWithoutTaskInput[]
     deleteMany?: TraceSpanScalarWhereInput | TraceSpanScalarWhereInput[]
+  }
+
+  export type FlowRunUncheckedUpdateManyWithoutTaskNestedInput = {
+    create?: XOR<FlowRunCreateWithoutTaskInput, FlowRunUncheckedCreateWithoutTaskInput> | FlowRunCreateWithoutTaskInput[] | FlowRunUncheckedCreateWithoutTaskInput[]
+    connectOrCreate?: FlowRunCreateOrConnectWithoutTaskInput | FlowRunCreateOrConnectWithoutTaskInput[]
+    upsert?: FlowRunUpsertWithWhereUniqueWithoutTaskInput | FlowRunUpsertWithWhereUniqueWithoutTaskInput[]
+    createMany?: FlowRunCreateManyTaskInputEnvelope
+    set?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    disconnect?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    delete?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    connect?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    update?: FlowRunUpdateWithWhereUniqueWithoutTaskInput | FlowRunUpdateWithWhereUniqueWithoutTaskInput[]
+    updateMany?: FlowRunUpdateManyWithWhereWithoutTaskInput | FlowRunUpdateManyWithWhereWithoutTaskInput[]
+    deleteMany?: FlowRunScalarWhereInput | FlowRunScalarWhereInput[]
   }
 
   export type TaskCreateNestedOneWithoutStepsInput = {
@@ -35644,6 +39254,96 @@ export namespace Prisma {
     update?: XOR<XOR<HarnessToolUpdateToOneWithWhereWithoutRunsInput, HarnessToolUpdateWithoutRunsInput>, HarnessToolUncheckedUpdateWithoutRunsInput>
   }
 
+  export type ProjectCreateNestedOneWithoutRuntimeConnectionsInput = {
+    create?: XOR<ProjectCreateWithoutRuntimeConnectionsInput, ProjectUncheckedCreateWithoutRuntimeConnectionsInput>
+    connectOrCreate?: ProjectCreateOrConnectWithoutRuntimeConnectionsInput
+    connect?: ProjectWhereUniqueInput
+  }
+
+  export type FlowRunCreateNestedManyWithoutRuntimeInput = {
+    create?: XOR<FlowRunCreateWithoutRuntimeInput, FlowRunUncheckedCreateWithoutRuntimeInput> | FlowRunCreateWithoutRuntimeInput[] | FlowRunUncheckedCreateWithoutRuntimeInput[]
+    connectOrCreate?: FlowRunCreateOrConnectWithoutRuntimeInput | FlowRunCreateOrConnectWithoutRuntimeInput[]
+    createMany?: FlowRunCreateManyRuntimeInputEnvelope
+    connect?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+  }
+
+  export type FlowRunUncheckedCreateNestedManyWithoutRuntimeInput = {
+    create?: XOR<FlowRunCreateWithoutRuntimeInput, FlowRunUncheckedCreateWithoutRuntimeInput> | FlowRunCreateWithoutRuntimeInput[] | FlowRunUncheckedCreateWithoutRuntimeInput[]
+    connectOrCreate?: FlowRunCreateOrConnectWithoutRuntimeInput | FlowRunCreateOrConnectWithoutRuntimeInput[]
+    createMany?: FlowRunCreateManyRuntimeInputEnvelope
+    connect?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+  }
+
+  export type ProjectUpdateOneWithoutRuntimeConnectionsNestedInput = {
+    create?: XOR<ProjectCreateWithoutRuntimeConnectionsInput, ProjectUncheckedCreateWithoutRuntimeConnectionsInput>
+    connectOrCreate?: ProjectCreateOrConnectWithoutRuntimeConnectionsInput
+    upsert?: ProjectUpsertWithoutRuntimeConnectionsInput
+    disconnect?: ProjectWhereInput | boolean
+    delete?: ProjectWhereInput | boolean
+    connect?: ProjectWhereUniqueInput
+    update?: XOR<XOR<ProjectUpdateToOneWithWhereWithoutRuntimeConnectionsInput, ProjectUpdateWithoutRuntimeConnectionsInput>, ProjectUncheckedUpdateWithoutRuntimeConnectionsInput>
+  }
+
+  export type FlowRunUpdateManyWithoutRuntimeNestedInput = {
+    create?: XOR<FlowRunCreateWithoutRuntimeInput, FlowRunUncheckedCreateWithoutRuntimeInput> | FlowRunCreateWithoutRuntimeInput[] | FlowRunUncheckedCreateWithoutRuntimeInput[]
+    connectOrCreate?: FlowRunCreateOrConnectWithoutRuntimeInput | FlowRunCreateOrConnectWithoutRuntimeInput[]
+    upsert?: FlowRunUpsertWithWhereUniqueWithoutRuntimeInput | FlowRunUpsertWithWhereUniqueWithoutRuntimeInput[]
+    createMany?: FlowRunCreateManyRuntimeInputEnvelope
+    set?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    disconnect?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    delete?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    connect?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    update?: FlowRunUpdateWithWhereUniqueWithoutRuntimeInput | FlowRunUpdateWithWhereUniqueWithoutRuntimeInput[]
+    updateMany?: FlowRunUpdateManyWithWhereWithoutRuntimeInput | FlowRunUpdateManyWithWhereWithoutRuntimeInput[]
+    deleteMany?: FlowRunScalarWhereInput | FlowRunScalarWhereInput[]
+  }
+
+  export type FlowRunUncheckedUpdateManyWithoutRuntimeNestedInput = {
+    create?: XOR<FlowRunCreateWithoutRuntimeInput, FlowRunUncheckedCreateWithoutRuntimeInput> | FlowRunCreateWithoutRuntimeInput[] | FlowRunUncheckedCreateWithoutRuntimeInput[]
+    connectOrCreate?: FlowRunCreateOrConnectWithoutRuntimeInput | FlowRunCreateOrConnectWithoutRuntimeInput[]
+    upsert?: FlowRunUpsertWithWhereUniqueWithoutRuntimeInput | FlowRunUpsertWithWhereUniqueWithoutRuntimeInput[]
+    createMany?: FlowRunCreateManyRuntimeInputEnvelope
+    set?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    disconnect?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    delete?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    connect?: FlowRunWhereUniqueInput | FlowRunWhereUniqueInput[]
+    update?: FlowRunUpdateWithWhereUniqueWithoutRuntimeInput | FlowRunUpdateWithWhereUniqueWithoutRuntimeInput[]
+    updateMany?: FlowRunUpdateManyWithWhereWithoutRuntimeInput | FlowRunUpdateManyWithWhereWithoutRuntimeInput[]
+    deleteMany?: FlowRunScalarWhereInput | FlowRunScalarWhereInput[]
+  }
+
+  export type TaskCreateNestedOneWithoutFlowRunsInput = {
+    create?: XOR<TaskCreateWithoutFlowRunsInput, TaskUncheckedCreateWithoutFlowRunsInput>
+    connectOrCreate?: TaskCreateOrConnectWithoutFlowRunsInput
+    connect?: TaskWhereUniqueInput
+  }
+
+  export type RuntimeConnectionCreateNestedOneWithoutFlowRunsInput = {
+    create?: XOR<RuntimeConnectionCreateWithoutFlowRunsInput, RuntimeConnectionUncheckedCreateWithoutFlowRunsInput>
+    connectOrCreate?: RuntimeConnectionCreateOrConnectWithoutFlowRunsInput
+    connect?: RuntimeConnectionWhereUniqueInput
+  }
+
+  export type TaskUpdateOneWithoutFlowRunsNestedInput = {
+    create?: XOR<TaskCreateWithoutFlowRunsInput, TaskUncheckedCreateWithoutFlowRunsInput>
+    connectOrCreate?: TaskCreateOrConnectWithoutFlowRunsInput
+    upsert?: TaskUpsertWithoutFlowRunsInput
+    disconnect?: TaskWhereInput | boolean
+    delete?: TaskWhereInput | boolean
+    connect?: TaskWhereUniqueInput
+    update?: XOR<XOR<TaskUpdateToOneWithWhereWithoutFlowRunsInput, TaskUpdateWithoutFlowRunsInput>, TaskUncheckedUpdateWithoutFlowRunsInput>
+  }
+
+  export type RuntimeConnectionUpdateOneWithoutFlowRunsNestedInput = {
+    create?: XOR<RuntimeConnectionCreateWithoutFlowRunsInput, RuntimeConnectionUncheckedCreateWithoutFlowRunsInput>
+    connectOrCreate?: RuntimeConnectionCreateOrConnectWithoutFlowRunsInput
+    upsert?: RuntimeConnectionUpsertWithoutFlowRunsInput
+    disconnect?: RuntimeConnectionWhereInput | boolean
+    delete?: RuntimeConnectionWhereInput | boolean
+    connect?: RuntimeConnectionWhereUniqueInput
+    update?: XOR<XOR<RuntimeConnectionUpdateToOneWithWhereWithoutFlowRunsInput, RuntimeConnectionUpdateWithoutFlowRunsInput>, RuntimeConnectionUncheckedUpdateWithoutFlowRunsInput>
+  }
+
   export type NestedStringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -35899,6 +39599,7 @@ export namespace Prisma {
     diffs?: TaskDiffCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
     traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateWithoutProjectInput = {
@@ -35923,6 +39624,7 @@ export namespace Prisma {
     diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
     traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskCreateOrConnectWithoutProjectInput = {
@@ -35976,6 +39678,74 @@ export namespace Prisma {
 
   export type ObjectiveCreateManyProjectInputEnvelope = {
     data: ObjectiveCreateManyProjectInput | ObjectiveCreateManyProjectInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RuntimeConnectionCreateWithoutProjectInput = {
+    id?: string
+    name: string
+    kind?: string
+    baseUrl: string
+    apiToken?: string | null
+    externalProjectId?: string | null
+    defaultWorkflowVersionId?: string | null
+    workflowTemplate?: string | null
+    nodeImage?: string | null
+    nodeCommand?: string | null
+    nodeTimeout?: string | null
+    nodeRetries?: number | null
+    runnerPool?: string | null
+    runnerLabels?: string | null
+    runnerCapabilities?: string | null
+    dispatchMode?: string | null
+    intentProfile?: string | null
+    candidateLimit?: number | null
+    baseInputs?: string | null
+    autoRoute?: boolean
+    enabled?: boolean
+    lastHealthStatus?: string | null
+    lastHealthAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    flowRuns?: FlowRunCreateNestedManyWithoutRuntimeInput
+  }
+
+  export type RuntimeConnectionUncheckedCreateWithoutProjectInput = {
+    id?: string
+    name: string
+    kind?: string
+    baseUrl: string
+    apiToken?: string | null
+    externalProjectId?: string | null
+    defaultWorkflowVersionId?: string | null
+    workflowTemplate?: string | null
+    nodeImage?: string | null
+    nodeCommand?: string | null
+    nodeTimeout?: string | null
+    nodeRetries?: number | null
+    runnerPool?: string | null
+    runnerLabels?: string | null
+    runnerCapabilities?: string | null
+    dispatchMode?: string | null
+    intentProfile?: string | null
+    candidateLimit?: number | null
+    baseInputs?: string | null
+    autoRoute?: boolean
+    enabled?: boolean
+    lastHealthStatus?: string | null
+    lastHealthAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    flowRuns?: FlowRunUncheckedCreateNestedManyWithoutRuntimeInput
+  }
+
+  export type RuntimeConnectionCreateOrConnectWithoutProjectInput = {
+    where: RuntimeConnectionWhereUniqueInput
+    create: XOR<RuntimeConnectionCreateWithoutProjectInput, RuntimeConnectionUncheckedCreateWithoutProjectInput>
+  }
+
+  export type RuntimeConnectionCreateManyProjectInputEnvelope = {
+    data: RuntimeConnectionCreateManyProjectInput | RuntimeConnectionCreateManyProjectInput[]
     skipDuplicates?: boolean
   }
 
@@ -36051,6 +39821,54 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Objective"> | Date | string
   }
 
+  export type RuntimeConnectionUpsertWithWhereUniqueWithoutProjectInput = {
+    where: RuntimeConnectionWhereUniqueInput
+    update: XOR<RuntimeConnectionUpdateWithoutProjectInput, RuntimeConnectionUncheckedUpdateWithoutProjectInput>
+    create: XOR<RuntimeConnectionCreateWithoutProjectInput, RuntimeConnectionUncheckedCreateWithoutProjectInput>
+  }
+
+  export type RuntimeConnectionUpdateWithWhereUniqueWithoutProjectInput = {
+    where: RuntimeConnectionWhereUniqueInput
+    data: XOR<RuntimeConnectionUpdateWithoutProjectInput, RuntimeConnectionUncheckedUpdateWithoutProjectInput>
+  }
+
+  export type RuntimeConnectionUpdateManyWithWhereWithoutProjectInput = {
+    where: RuntimeConnectionScalarWhereInput
+    data: XOR<RuntimeConnectionUpdateManyMutationInput, RuntimeConnectionUncheckedUpdateManyWithoutProjectInput>
+  }
+
+  export type RuntimeConnectionScalarWhereInput = {
+    AND?: RuntimeConnectionScalarWhereInput | RuntimeConnectionScalarWhereInput[]
+    OR?: RuntimeConnectionScalarWhereInput[]
+    NOT?: RuntimeConnectionScalarWhereInput | RuntimeConnectionScalarWhereInput[]
+    id?: StringFilter<"RuntimeConnection"> | string
+    projectId?: StringNullableFilter<"RuntimeConnection"> | string | null
+    name?: StringFilter<"RuntimeConnection"> | string
+    kind?: StringFilter<"RuntimeConnection"> | string
+    baseUrl?: StringFilter<"RuntimeConnection"> | string
+    apiToken?: StringNullableFilter<"RuntimeConnection"> | string | null
+    externalProjectId?: StringNullableFilter<"RuntimeConnection"> | string | null
+    defaultWorkflowVersionId?: StringNullableFilter<"RuntimeConnection"> | string | null
+    workflowTemplate?: StringNullableFilter<"RuntimeConnection"> | string | null
+    nodeImage?: StringNullableFilter<"RuntimeConnection"> | string | null
+    nodeCommand?: StringNullableFilter<"RuntimeConnection"> | string | null
+    nodeTimeout?: StringNullableFilter<"RuntimeConnection"> | string | null
+    nodeRetries?: IntNullableFilter<"RuntimeConnection"> | number | null
+    runnerPool?: StringNullableFilter<"RuntimeConnection"> | string | null
+    runnerLabels?: StringNullableFilter<"RuntimeConnection"> | string | null
+    runnerCapabilities?: StringNullableFilter<"RuntimeConnection"> | string | null
+    dispatchMode?: StringNullableFilter<"RuntimeConnection"> | string | null
+    intentProfile?: StringNullableFilter<"RuntimeConnection"> | string | null
+    candidateLimit?: IntNullableFilter<"RuntimeConnection"> | number | null
+    baseInputs?: StringNullableFilter<"RuntimeConnection"> | string | null
+    autoRoute?: BoolFilter<"RuntimeConnection"> | boolean
+    enabled?: BoolFilter<"RuntimeConnection"> | boolean
+    lastHealthStatus?: StringNullableFilter<"RuntimeConnection"> | string | null
+    lastHealthAt?: DateTimeNullableFilter<"RuntimeConnection"> | Date | string | null
+    createdAt?: DateTimeFilter<"RuntimeConnection"> | Date | string
+    updatedAt?: DateTimeFilter<"RuntimeConnection"> | Date | string
+  }
+
   export type ProjectCreateWithoutTasksInput = {
     id?: string
     name: string
@@ -36060,6 +39878,7 @@ export namespace Prisma {
     env?: string | null
     createdAt?: Date | string
     objectives?: ObjectiveCreateNestedManyWithoutProjectInput
+    runtimeConnections?: RuntimeConnectionCreateNestedManyWithoutProjectInput
   }
 
   export type ProjectUncheckedCreateWithoutTasksInput = {
@@ -36071,6 +39890,7 @@ export namespace Prisma {
     env?: string | null
     createdAt?: Date | string
     objectives?: ObjectiveUncheckedCreateNestedManyWithoutProjectInput
+    runtimeConnections?: RuntimeConnectionUncheckedCreateNestedManyWithoutProjectInput
   }
 
   export type ProjectCreateOrConnectWithoutTasksInput = {
@@ -36284,6 +40104,52 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type FlowRunCreateWithoutTaskInput = {
+    id?: string
+    externalRunId: string
+    workflowName?: string | null
+    workflowVersionId?: string | null
+    traceId?: string | null
+    status?: string
+    inputs?: string | null
+    outputs?: string | null
+    artifacts?: string | null
+    error?: string | null
+    lastSyncedAt?: Date | string | null
+    completedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    runtime?: RuntimeConnectionCreateNestedOneWithoutFlowRunsInput
+  }
+
+  export type FlowRunUncheckedCreateWithoutTaskInput = {
+    id?: string
+    runtimeId?: string | null
+    externalRunId: string
+    workflowName?: string | null
+    workflowVersionId?: string | null
+    traceId?: string | null
+    status?: string
+    inputs?: string | null
+    outputs?: string | null
+    artifacts?: string | null
+    error?: string | null
+    lastSyncedAt?: Date | string | null
+    completedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type FlowRunCreateOrConnectWithoutTaskInput = {
+    where: FlowRunWhereUniqueInput
+    create: XOR<FlowRunCreateWithoutTaskInput, FlowRunUncheckedCreateWithoutTaskInput>
+  }
+
+  export type FlowRunCreateManyTaskInputEnvelope = {
+    data: FlowRunCreateManyTaskInput | FlowRunCreateManyTaskInput[]
+    skipDuplicates?: boolean
+  }
+
   export type ProjectUpsertWithoutTasksInput = {
     update: XOR<ProjectUpdateWithoutTasksInput, ProjectUncheckedUpdateWithoutTasksInput>
     create: XOR<ProjectCreateWithoutTasksInput, ProjectUncheckedCreateWithoutTasksInput>
@@ -36304,6 +40170,7 @@ export namespace Prisma {
     env?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     objectives?: ObjectiveUpdateManyWithoutProjectNestedInput
+    runtimeConnections?: RuntimeConnectionUpdateManyWithoutProjectNestedInput
   }
 
   export type ProjectUncheckedUpdateWithoutTasksInput = {
@@ -36315,6 +40182,7 @@ export namespace Prisma {
     env?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     objectives?: ObjectiveUncheckedUpdateManyWithoutProjectNestedInput
+    runtimeConnections?: RuntimeConnectionUncheckedUpdateManyWithoutProjectNestedInput
   }
 
   export type TaskStepUpsertWithWhereUniqueWithoutTaskInput = {
@@ -36495,6 +40363,44 @@ export namespace Prisma {
     events?: StringNullableFilter<"TraceSpan"> | string | null
   }
 
+  export type FlowRunUpsertWithWhereUniqueWithoutTaskInput = {
+    where: FlowRunWhereUniqueInput
+    update: XOR<FlowRunUpdateWithoutTaskInput, FlowRunUncheckedUpdateWithoutTaskInput>
+    create: XOR<FlowRunCreateWithoutTaskInput, FlowRunUncheckedCreateWithoutTaskInput>
+  }
+
+  export type FlowRunUpdateWithWhereUniqueWithoutTaskInput = {
+    where: FlowRunWhereUniqueInput
+    data: XOR<FlowRunUpdateWithoutTaskInput, FlowRunUncheckedUpdateWithoutTaskInput>
+  }
+
+  export type FlowRunUpdateManyWithWhereWithoutTaskInput = {
+    where: FlowRunScalarWhereInput
+    data: XOR<FlowRunUpdateManyMutationInput, FlowRunUncheckedUpdateManyWithoutTaskInput>
+  }
+
+  export type FlowRunScalarWhereInput = {
+    AND?: FlowRunScalarWhereInput | FlowRunScalarWhereInput[]
+    OR?: FlowRunScalarWhereInput[]
+    NOT?: FlowRunScalarWhereInput | FlowRunScalarWhereInput[]
+    id?: StringFilter<"FlowRun"> | string
+    taskId?: StringNullableFilter<"FlowRun"> | string | null
+    runtimeId?: StringNullableFilter<"FlowRun"> | string | null
+    externalRunId?: StringFilter<"FlowRun"> | string
+    workflowName?: StringNullableFilter<"FlowRun"> | string | null
+    workflowVersionId?: StringNullableFilter<"FlowRun"> | string | null
+    traceId?: StringNullableFilter<"FlowRun"> | string | null
+    status?: StringFilter<"FlowRun"> | string
+    inputs?: StringNullableFilter<"FlowRun"> | string | null
+    outputs?: StringNullableFilter<"FlowRun"> | string | null
+    artifacts?: StringNullableFilter<"FlowRun"> | string | null
+    error?: StringNullableFilter<"FlowRun"> | string | null
+    lastSyncedAt?: DateTimeNullableFilter<"FlowRun"> | Date | string | null
+    completedAt?: DateTimeNullableFilter<"FlowRun"> | Date | string | null
+    createdAt?: DateTimeFilter<"FlowRun"> | Date | string
+    updatedAt?: DateTimeFilter<"FlowRun"> | Date | string
+  }
+
   export type TaskCreateWithoutStepsInput = {
     id?: string
     title: string
@@ -36517,6 +40423,7 @@ export namespace Prisma {
     diffs?: TaskDiffCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
     traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateWithoutStepsInput = {
@@ -36541,6 +40448,7 @@ export namespace Prisma {
     diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
     traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskCreateOrConnectWithoutStepsInput = {
@@ -36581,6 +40489,7 @@ export namespace Prisma {
     diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
     traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateWithoutStepsInput = {
@@ -36605,6 +40514,7 @@ export namespace Prisma {
     diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
     traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskCreateWithoutTracesInput = {
@@ -36629,6 +40539,7 @@ export namespace Prisma {
     diffs?: TaskDiffCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
     traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateWithoutTracesInput = {
@@ -36653,6 +40564,7 @@ export namespace Prisma {
     diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
     traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskCreateOrConnectWithoutTracesInput = {
@@ -36693,6 +40605,7 @@ export namespace Prisma {
     diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
     traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateWithoutTracesInput = {
@@ -36717,6 +40630,7 @@ export namespace Prisma {
     diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
     traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskCreateWithoutDiffsInput = {
@@ -36741,6 +40655,7 @@ export namespace Prisma {
     traces?: TaskTraceCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
     traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateWithoutDiffsInput = {
@@ -36765,6 +40680,7 @@ export namespace Prisma {
     traces?: TaskTraceUncheckedCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
     traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskCreateOrConnectWithoutDiffsInput = {
@@ -36805,6 +40721,7 @@ export namespace Prisma {
     traces?: TaskTraceUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
     traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateWithoutDiffsInput = {
@@ -36829,6 +40746,7 @@ export namespace Prisma {
     traces?: TaskTraceUncheckedUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
     traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskCreateWithoutAgentRunsInput = {
@@ -36853,6 +40771,7 @@ export namespace Prisma {
     traces?: TaskTraceCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffCreateNestedManyWithoutTaskInput
     traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateWithoutAgentRunsInput = {
@@ -36877,6 +40796,7 @@ export namespace Prisma {
     traces?: TaskTraceUncheckedCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
     traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskCreateOrConnectWithoutAgentRunsInput = {
@@ -36950,6 +40870,7 @@ export namespace Prisma {
     traces?: TaskTraceUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
     traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateWithoutAgentRunsInput = {
@@ -36974,6 +40895,7 @@ export namespace Prisma {
     traces?: TaskTraceUncheckedUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
     traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type PromptVersionUpsertWithoutAgentRunsInput = {
@@ -37037,6 +40959,7 @@ export namespace Prisma {
     traces?: TaskTraceCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunCreateNestedManyWithoutTaskInput
   }
 
   export type TaskUncheckedCreateWithoutTraceSpansInput = {
@@ -37061,6 +40984,7 @@ export namespace Prisma {
     traces?: TaskTraceUncheckedCreateNestedManyWithoutTaskInput
     diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
     agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
+    flowRuns?: FlowRunUncheckedCreateNestedManyWithoutTaskInput
   }
 
   export type TaskCreateOrConnectWithoutTraceSpansInput = {
@@ -37101,6 +41025,7 @@ export namespace Prisma {
     traces?: TaskTraceUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateWithoutTraceSpansInput = {
@@ -37125,6 +41050,7 @@ export namespace Prisma {
     traces?: TaskTraceUncheckedUpdateManyWithoutTaskNestedInput
     diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type AgentRunCreateWithoutPromptVersionInput = {
@@ -37234,6 +41160,7 @@ export namespace Prisma {
     env?: string | null
     createdAt?: Date | string
     tasks?: TaskCreateNestedManyWithoutProjectInput
+    runtimeConnections?: RuntimeConnectionCreateNestedManyWithoutProjectInput
   }
 
   export type ProjectUncheckedCreateWithoutObjectivesInput = {
@@ -37245,6 +41172,7 @@ export namespace Prisma {
     env?: string | null
     createdAt?: Date | string
     tasks?: TaskUncheckedCreateNestedManyWithoutProjectInput
+    runtimeConnections?: RuntimeConnectionUncheckedCreateNestedManyWithoutProjectInput
   }
 
   export type ProjectCreateOrConnectWithoutObjectivesInput = {
@@ -37450,6 +41378,7 @@ export namespace Prisma {
     env?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     tasks?: TaskUpdateManyWithoutProjectNestedInput
+    runtimeConnections?: RuntimeConnectionUpdateManyWithoutProjectNestedInput
   }
 
   export type ProjectUncheckedUpdateWithoutObjectivesInput = {
@@ -37461,6 +41390,7 @@ export namespace Prisma {
     env?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     tasks?: TaskUncheckedUpdateManyWithoutProjectNestedInput
+    runtimeConnections?: RuntimeConnectionUncheckedUpdateManyWithoutProjectNestedInput
   }
 
   export type ObjectivePhaseUpsertWithWhereUniqueWithoutObjectiveInput = {
@@ -38964,6 +42894,380 @@ export namespace Prisma {
     approvedInterventionId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
+  export type ProjectCreateWithoutRuntimeConnectionsInput = {
+    id?: string
+    name: string
+    path: string
+    repoUrl?: string | null
+    description?: string | null
+    env?: string | null
+    createdAt?: Date | string
+    tasks?: TaskCreateNestedManyWithoutProjectInput
+    objectives?: ObjectiveCreateNestedManyWithoutProjectInput
+  }
+
+  export type ProjectUncheckedCreateWithoutRuntimeConnectionsInput = {
+    id?: string
+    name: string
+    path: string
+    repoUrl?: string | null
+    description?: string | null
+    env?: string | null
+    createdAt?: Date | string
+    tasks?: TaskUncheckedCreateNestedManyWithoutProjectInput
+    objectives?: ObjectiveUncheckedCreateNestedManyWithoutProjectInput
+  }
+
+  export type ProjectCreateOrConnectWithoutRuntimeConnectionsInput = {
+    where: ProjectWhereUniqueInput
+    create: XOR<ProjectCreateWithoutRuntimeConnectionsInput, ProjectUncheckedCreateWithoutRuntimeConnectionsInput>
+  }
+
+  export type FlowRunCreateWithoutRuntimeInput = {
+    id?: string
+    externalRunId: string
+    workflowName?: string | null
+    workflowVersionId?: string | null
+    traceId?: string | null
+    status?: string
+    inputs?: string | null
+    outputs?: string | null
+    artifacts?: string | null
+    error?: string | null
+    lastSyncedAt?: Date | string | null
+    completedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    task?: TaskCreateNestedOneWithoutFlowRunsInput
+  }
+
+  export type FlowRunUncheckedCreateWithoutRuntimeInput = {
+    id?: string
+    taskId?: string | null
+    externalRunId: string
+    workflowName?: string | null
+    workflowVersionId?: string | null
+    traceId?: string | null
+    status?: string
+    inputs?: string | null
+    outputs?: string | null
+    artifacts?: string | null
+    error?: string | null
+    lastSyncedAt?: Date | string | null
+    completedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type FlowRunCreateOrConnectWithoutRuntimeInput = {
+    where: FlowRunWhereUniqueInput
+    create: XOR<FlowRunCreateWithoutRuntimeInput, FlowRunUncheckedCreateWithoutRuntimeInput>
+  }
+
+  export type FlowRunCreateManyRuntimeInputEnvelope = {
+    data: FlowRunCreateManyRuntimeInput | FlowRunCreateManyRuntimeInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type ProjectUpsertWithoutRuntimeConnectionsInput = {
+    update: XOR<ProjectUpdateWithoutRuntimeConnectionsInput, ProjectUncheckedUpdateWithoutRuntimeConnectionsInput>
+    create: XOR<ProjectCreateWithoutRuntimeConnectionsInput, ProjectUncheckedCreateWithoutRuntimeConnectionsInput>
+    where?: ProjectWhereInput
+  }
+
+  export type ProjectUpdateToOneWithWhereWithoutRuntimeConnectionsInput = {
+    where?: ProjectWhereInput
+    data: XOR<ProjectUpdateWithoutRuntimeConnectionsInput, ProjectUncheckedUpdateWithoutRuntimeConnectionsInput>
+  }
+
+  export type ProjectUpdateWithoutRuntimeConnectionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    path?: StringFieldUpdateOperationsInput | string
+    repoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    env?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    tasks?: TaskUpdateManyWithoutProjectNestedInput
+    objectives?: ObjectiveUpdateManyWithoutProjectNestedInput
+  }
+
+  export type ProjectUncheckedUpdateWithoutRuntimeConnectionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    path?: StringFieldUpdateOperationsInput | string
+    repoUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    env?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    tasks?: TaskUncheckedUpdateManyWithoutProjectNestedInput
+    objectives?: ObjectiveUncheckedUpdateManyWithoutProjectNestedInput
+  }
+
+  export type FlowRunUpsertWithWhereUniqueWithoutRuntimeInput = {
+    where: FlowRunWhereUniqueInput
+    update: XOR<FlowRunUpdateWithoutRuntimeInput, FlowRunUncheckedUpdateWithoutRuntimeInput>
+    create: XOR<FlowRunCreateWithoutRuntimeInput, FlowRunUncheckedCreateWithoutRuntimeInput>
+  }
+
+  export type FlowRunUpdateWithWhereUniqueWithoutRuntimeInput = {
+    where: FlowRunWhereUniqueInput
+    data: XOR<FlowRunUpdateWithoutRuntimeInput, FlowRunUncheckedUpdateWithoutRuntimeInput>
+  }
+
+  export type FlowRunUpdateManyWithWhereWithoutRuntimeInput = {
+    where: FlowRunScalarWhereInput
+    data: XOR<FlowRunUpdateManyMutationInput, FlowRunUncheckedUpdateManyWithoutRuntimeInput>
+  }
+
+  export type TaskCreateWithoutFlowRunsInput = {
+    id?: string
+    title: string
+    description?: string | null
+    status?: string
+    complexity?: string
+    tags?: string | null
+    provider?: string | null
+    model?: string | null
+    result?: string | null
+    error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
+    orchestratorState?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    project: ProjectCreateNestedOneWithoutTasksInput
+    steps?: TaskStepCreateNestedManyWithoutTaskInput
+    traces?: TaskTraceCreateNestedManyWithoutTaskInput
+    diffs?: TaskDiffCreateNestedManyWithoutTaskInput
+    agentRuns?: AgentRunCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanCreateNestedManyWithoutTaskInput
+  }
+
+  export type TaskUncheckedCreateWithoutFlowRunsInput = {
+    id?: string
+    projectId: string
+    title: string
+    description?: string | null
+    status?: string
+    complexity?: string
+    tags?: string | null
+    provider?: string | null
+    model?: string | null
+    result?: string | null
+    error?: string | null
+    retryCount?: number
+    lastRetryAt?: Date | string | null
+    retryHistory?: string | null
+    orchestratorState?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    steps?: TaskStepUncheckedCreateNestedManyWithoutTaskInput
+    traces?: TaskTraceUncheckedCreateNestedManyWithoutTaskInput
+    diffs?: TaskDiffUncheckedCreateNestedManyWithoutTaskInput
+    agentRuns?: AgentRunUncheckedCreateNestedManyWithoutTaskInput
+    traceSpans?: TraceSpanUncheckedCreateNestedManyWithoutTaskInput
+  }
+
+  export type TaskCreateOrConnectWithoutFlowRunsInput = {
+    where: TaskWhereUniqueInput
+    create: XOR<TaskCreateWithoutFlowRunsInput, TaskUncheckedCreateWithoutFlowRunsInput>
+  }
+
+  export type RuntimeConnectionCreateWithoutFlowRunsInput = {
+    id?: string
+    name: string
+    kind?: string
+    baseUrl: string
+    apiToken?: string | null
+    externalProjectId?: string | null
+    defaultWorkflowVersionId?: string | null
+    workflowTemplate?: string | null
+    nodeImage?: string | null
+    nodeCommand?: string | null
+    nodeTimeout?: string | null
+    nodeRetries?: number | null
+    runnerPool?: string | null
+    runnerLabels?: string | null
+    runnerCapabilities?: string | null
+    dispatchMode?: string | null
+    intentProfile?: string | null
+    candidateLimit?: number | null
+    baseInputs?: string | null
+    autoRoute?: boolean
+    enabled?: boolean
+    lastHealthStatus?: string | null
+    lastHealthAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    project?: ProjectCreateNestedOneWithoutRuntimeConnectionsInput
+  }
+
+  export type RuntimeConnectionUncheckedCreateWithoutFlowRunsInput = {
+    id?: string
+    projectId?: string | null
+    name: string
+    kind?: string
+    baseUrl: string
+    apiToken?: string | null
+    externalProjectId?: string | null
+    defaultWorkflowVersionId?: string | null
+    workflowTemplate?: string | null
+    nodeImage?: string | null
+    nodeCommand?: string | null
+    nodeTimeout?: string | null
+    nodeRetries?: number | null
+    runnerPool?: string | null
+    runnerLabels?: string | null
+    runnerCapabilities?: string | null
+    dispatchMode?: string | null
+    intentProfile?: string | null
+    candidateLimit?: number | null
+    baseInputs?: string | null
+    autoRoute?: boolean
+    enabled?: boolean
+    lastHealthStatus?: string | null
+    lastHealthAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RuntimeConnectionCreateOrConnectWithoutFlowRunsInput = {
+    where: RuntimeConnectionWhereUniqueInput
+    create: XOR<RuntimeConnectionCreateWithoutFlowRunsInput, RuntimeConnectionUncheckedCreateWithoutFlowRunsInput>
+  }
+
+  export type TaskUpsertWithoutFlowRunsInput = {
+    update: XOR<TaskUpdateWithoutFlowRunsInput, TaskUncheckedUpdateWithoutFlowRunsInput>
+    create: XOR<TaskCreateWithoutFlowRunsInput, TaskUncheckedCreateWithoutFlowRunsInput>
+    where?: TaskWhereInput
+  }
+
+  export type TaskUpdateToOneWithWhereWithoutFlowRunsInput = {
+    where?: TaskWhereInput
+    data: XOR<TaskUpdateWithoutFlowRunsInput, TaskUncheckedUpdateWithoutFlowRunsInput>
+  }
+
+  export type TaskUpdateWithoutFlowRunsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    complexity?: StringFieldUpdateOperationsInput | string
+    tags?: NullableStringFieldUpdateOperationsInput | string | null
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    result?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    project?: ProjectUpdateOneRequiredWithoutTasksNestedInput
+    steps?: TaskStepUpdateManyWithoutTaskNestedInput
+    traces?: TaskTraceUpdateManyWithoutTaskNestedInput
+    diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
+    agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
+  }
+
+  export type TaskUncheckedUpdateWithoutFlowRunsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    complexity?: StringFieldUpdateOperationsInput | string
+    tags?: NullableStringFieldUpdateOperationsInput | string | null
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    result?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    retryCount?: IntFieldUpdateOperationsInput | number
+    lastRetryAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    retryHistory?: NullableStringFieldUpdateOperationsInput | string | null
+    orchestratorState?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    steps?: TaskStepUncheckedUpdateManyWithoutTaskNestedInput
+    traces?: TaskTraceUncheckedUpdateManyWithoutTaskNestedInput
+    diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
+    agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
+    traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
+  }
+
+  export type RuntimeConnectionUpsertWithoutFlowRunsInput = {
+    update: XOR<RuntimeConnectionUpdateWithoutFlowRunsInput, RuntimeConnectionUncheckedUpdateWithoutFlowRunsInput>
+    create: XOR<RuntimeConnectionCreateWithoutFlowRunsInput, RuntimeConnectionUncheckedCreateWithoutFlowRunsInput>
+    where?: RuntimeConnectionWhereInput
+  }
+
+  export type RuntimeConnectionUpdateToOneWithWhereWithoutFlowRunsInput = {
+    where?: RuntimeConnectionWhereInput
+    data: XOR<RuntimeConnectionUpdateWithoutFlowRunsInput, RuntimeConnectionUncheckedUpdateWithoutFlowRunsInput>
+  }
+
+  export type RuntimeConnectionUpdateWithoutFlowRunsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    apiToken?: NullableStringFieldUpdateOperationsInput | string | null
+    externalProjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWorkflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowTemplate?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeImage?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeCommand?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeTimeout?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeRetries?: NullableIntFieldUpdateOperationsInput | number | null
+    runnerPool?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerLabels?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerCapabilities?: NullableStringFieldUpdateOperationsInput | string | null
+    dispatchMode?: NullableStringFieldUpdateOperationsInput | string | null
+    intentProfile?: NullableStringFieldUpdateOperationsInput | string | null
+    candidateLimit?: NullableIntFieldUpdateOperationsInput | number | null
+    baseInputs?: NullableStringFieldUpdateOperationsInput | string | null
+    autoRoute?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastHealthStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastHealthAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    project?: ProjectUpdateOneWithoutRuntimeConnectionsNestedInput
+  }
+
+  export type RuntimeConnectionUncheckedUpdateWithoutFlowRunsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    projectId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    apiToken?: NullableStringFieldUpdateOperationsInput | string | null
+    externalProjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWorkflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowTemplate?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeImage?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeCommand?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeTimeout?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeRetries?: NullableIntFieldUpdateOperationsInput | number | null
+    runnerPool?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerLabels?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerCapabilities?: NullableStringFieldUpdateOperationsInput | string | null
+    dispatchMode?: NullableStringFieldUpdateOperationsInput | string | null
+    intentProfile?: NullableStringFieldUpdateOperationsInput | string | null
+    candidateLimit?: NullableIntFieldUpdateOperationsInput | number | null
+    baseInputs?: NullableStringFieldUpdateOperationsInput | string | null
+    autoRoute?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastHealthStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastHealthAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type TaskCreateManyProjectInput = {
     id?: string
     title: string
@@ -38996,6 +43300,34 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
+  export type RuntimeConnectionCreateManyProjectInput = {
+    id?: string
+    name: string
+    kind?: string
+    baseUrl: string
+    apiToken?: string | null
+    externalProjectId?: string | null
+    defaultWorkflowVersionId?: string | null
+    workflowTemplate?: string | null
+    nodeImage?: string | null
+    nodeCommand?: string | null
+    nodeTimeout?: string | null
+    nodeRetries?: number | null
+    runnerPool?: string | null
+    runnerLabels?: string | null
+    runnerCapabilities?: string | null
+    dispatchMode?: string | null
+    intentProfile?: string | null
+    candidateLimit?: number | null
+    baseInputs?: string | null
+    autoRoute?: boolean
+    enabled?: boolean
+    lastHealthStatus?: string | null
+    lastHealthAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
   export type TaskUpdateWithoutProjectInput = {
     id?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
@@ -39018,6 +43350,7 @@ export namespace Prisma {
     diffs?: TaskDiffUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUpdateManyWithoutTaskNestedInput
     traceSpans?: TraceSpanUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateWithoutProjectInput = {
@@ -39042,6 +43375,7 @@ export namespace Prisma {
     diffs?: TaskDiffUncheckedUpdateManyWithoutTaskNestedInput
     agentRuns?: AgentRunUncheckedUpdateManyWithoutTaskNestedInput
     traceSpans?: TraceSpanUncheckedUpdateManyWithoutTaskNestedInput
+    flowRuns?: FlowRunUncheckedUpdateManyWithoutTaskNestedInput
   }
 
   export type TaskUncheckedUpdateManyWithoutProjectInput = {
@@ -39106,6 +43440,92 @@ export namespace Prisma {
     instructions?: NullableStringFieldUpdateOperationsInput | string | null
     targetDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     spendCapUsd?: NullableFloatFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RuntimeConnectionUpdateWithoutProjectInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    apiToken?: NullableStringFieldUpdateOperationsInput | string | null
+    externalProjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWorkflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowTemplate?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeImage?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeCommand?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeTimeout?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeRetries?: NullableIntFieldUpdateOperationsInput | number | null
+    runnerPool?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerLabels?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerCapabilities?: NullableStringFieldUpdateOperationsInput | string | null
+    dispatchMode?: NullableStringFieldUpdateOperationsInput | string | null
+    intentProfile?: NullableStringFieldUpdateOperationsInput | string | null
+    candidateLimit?: NullableIntFieldUpdateOperationsInput | number | null
+    baseInputs?: NullableStringFieldUpdateOperationsInput | string | null
+    autoRoute?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastHealthStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastHealthAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    flowRuns?: FlowRunUpdateManyWithoutRuntimeNestedInput
+  }
+
+  export type RuntimeConnectionUncheckedUpdateWithoutProjectInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    apiToken?: NullableStringFieldUpdateOperationsInput | string | null
+    externalProjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWorkflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowTemplate?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeImage?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeCommand?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeTimeout?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeRetries?: NullableIntFieldUpdateOperationsInput | number | null
+    runnerPool?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerLabels?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerCapabilities?: NullableStringFieldUpdateOperationsInput | string | null
+    dispatchMode?: NullableStringFieldUpdateOperationsInput | string | null
+    intentProfile?: NullableStringFieldUpdateOperationsInput | string | null
+    candidateLimit?: NullableIntFieldUpdateOperationsInput | number | null
+    baseInputs?: NullableStringFieldUpdateOperationsInput | string | null
+    autoRoute?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastHealthStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastHealthAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    flowRuns?: FlowRunUncheckedUpdateManyWithoutRuntimeNestedInput
+  }
+
+  export type RuntimeConnectionUncheckedUpdateManyWithoutProjectInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    kind?: StringFieldUpdateOperationsInput | string
+    baseUrl?: StringFieldUpdateOperationsInput | string
+    apiToken?: NullableStringFieldUpdateOperationsInput | string | null
+    externalProjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    defaultWorkflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowTemplate?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeImage?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeCommand?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeTimeout?: NullableStringFieldUpdateOperationsInput | string | null
+    nodeRetries?: NullableIntFieldUpdateOperationsInput | number | null
+    runnerPool?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerLabels?: NullableStringFieldUpdateOperationsInput | string | null
+    runnerCapabilities?: NullableStringFieldUpdateOperationsInput | string | null
+    dispatchMode?: NullableStringFieldUpdateOperationsInput | string | null
+    intentProfile?: NullableStringFieldUpdateOperationsInput | string | null
+    candidateLimit?: NullableIntFieldUpdateOperationsInput | number | null
+    baseInputs?: NullableStringFieldUpdateOperationsInput | string | null
+    autoRoute?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    lastHealthStatus?: NullableStringFieldUpdateOperationsInput | string | null
+    lastHealthAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -39186,6 +43606,24 @@ export namespace Prisma {
     status?: string
     attributes?: string | null
     events?: string | null
+  }
+
+  export type FlowRunCreateManyTaskInput = {
+    id?: string
+    runtimeId?: string | null
+    externalRunId: string
+    workflowName?: string | null
+    workflowVersionId?: string | null
+    traceId?: string | null
+    status?: string
+    inputs?: string | null
+    outputs?: string | null
+    artifacts?: string | null
+    error?: string | null
+    lastSyncedAt?: Date | string | null
+    completedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
   }
 
   export type TaskStepUpdateWithoutTaskInput = {
@@ -39420,6 +43858,60 @@ export namespace Prisma {
     status?: StringFieldUpdateOperationsInput | string
     attributes?: NullableStringFieldUpdateOperationsInput | string | null
     events?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type FlowRunUpdateWithoutTaskInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    externalRunId?: StringFieldUpdateOperationsInput | string
+    workflowName?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    traceId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    inputs?: NullableStringFieldUpdateOperationsInput | string | null
+    outputs?: NullableStringFieldUpdateOperationsInput | string | null
+    artifacts?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    runtime?: RuntimeConnectionUpdateOneWithoutFlowRunsNestedInput
+  }
+
+  export type FlowRunUncheckedUpdateWithoutTaskInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    runtimeId?: NullableStringFieldUpdateOperationsInput | string | null
+    externalRunId?: StringFieldUpdateOperationsInput | string
+    workflowName?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    traceId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    inputs?: NullableStringFieldUpdateOperationsInput | string | null
+    outputs?: NullableStringFieldUpdateOperationsInput | string | null
+    artifacts?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FlowRunUncheckedUpdateManyWithoutTaskInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    runtimeId?: NullableStringFieldUpdateOperationsInput | string | null
+    externalRunId?: StringFieldUpdateOperationsInput | string
+    workflowName?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    traceId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    inputs?: NullableStringFieldUpdateOperationsInput | string | null
+    outputs?: NullableStringFieldUpdateOperationsInput | string | null
+    artifacts?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type AgentRunCreateManyPromptVersionInput = {
@@ -40280,6 +44772,78 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type FlowRunCreateManyRuntimeInput = {
+    id?: string
+    taskId?: string | null
+    externalRunId: string
+    workflowName?: string | null
+    workflowVersionId?: string | null
+    traceId?: string | null
+    status?: string
+    inputs?: string | null
+    outputs?: string | null
+    artifacts?: string | null
+    error?: string | null
+    lastSyncedAt?: Date | string | null
+    completedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type FlowRunUpdateWithoutRuntimeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    externalRunId?: StringFieldUpdateOperationsInput | string
+    workflowName?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    traceId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    inputs?: NullableStringFieldUpdateOperationsInput | string | null
+    outputs?: NullableStringFieldUpdateOperationsInput | string | null
+    artifacts?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    task?: TaskUpdateOneWithoutFlowRunsNestedInput
+  }
+
+  export type FlowRunUncheckedUpdateWithoutRuntimeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    externalRunId?: StringFieldUpdateOperationsInput | string
+    workflowName?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    traceId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    inputs?: NullableStringFieldUpdateOperationsInput | string | null
+    outputs?: NullableStringFieldUpdateOperationsInput | string | null
+    artifacts?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FlowRunUncheckedUpdateManyWithoutRuntimeInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    taskId?: NullableStringFieldUpdateOperationsInput | string | null
+    externalRunId?: StringFieldUpdateOperationsInput | string
+    workflowName?: NullableStringFieldUpdateOperationsInput | string | null
+    workflowVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    traceId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    inputs?: NullableStringFieldUpdateOperationsInput | string | null
+    outputs?: NullableStringFieldUpdateOperationsInput | string | null
+    artifacts?: NullableStringFieldUpdateOperationsInput | string | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    lastSyncedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
 
 
   /**
@@ -40313,6 +44877,10 @@ export namespace Prisma {
      * @deprecated Use HarnessToolCountOutputTypeDefaultArgs instead
      */
     export type HarnessToolCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = HarnessToolCountOutputTypeDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use RuntimeConnectionCountOutputTypeDefaultArgs instead
+     */
+    export type RuntimeConnectionCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = RuntimeConnectionCountOutputTypeDefaultArgs<ExtArgs>
     /**
      * @deprecated Use ProjectDefaultArgs instead
      */
@@ -40405,6 +44973,14 @@ export namespace Prisma {
      * @deprecated Use HarnessToolRunDefaultArgs instead
      */
     export type HarnessToolRunArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = HarnessToolRunDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use RuntimeConnectionDefaultArgs instead
+     */
+    export type RuntimeConnectionArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = RuntimeConnectionDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use FlowRunDefaultArgs instead
+     */
+    export type FlowRunArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = FlowRunDefaultArgs<ExtArgs>
 
   /**
    * Batch Payload for updateMany & deleteMany & createMany

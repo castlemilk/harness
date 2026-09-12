@@ -20,6 +20,7 @@ import process from 'node:process';
 import * as agent from '../packages/agent/dist/index.js';
 import { createProvider } from '../packages/providers/dist/index.js';
 import { estimateCostUsd } from '../packages/core/dist/index.js';
+import { discordantCounts, mcnemarExact, meanCi95, signFlipPermutation } from '../packages/bench/dist/index.js';
 
 const DEFAULT_SOLVER_SYSTEM =
   'You are an elite competitive programmer. Solve the given problem in Python. ' +
@@ -36,6 +37,8 @@ function parseArgs(argv) {
     modes: 'single,ledger',
     n: 4,
     maxOutput: 4096,
+    hidden: false,
+    fresh: false,
     maxIters: 6,
     contextTokens: 65536,
     timeoutMs: 600000,
@@ -59,6 +62,8 @@ function parseArgs(argv) {
       case '--context-tokens': args.contextTokens = Number(value); take(); break;
       case '--timeout-ms': args.timeoutMs = Number(value); take(); break;
       case '--think': args.think = true; break;
+      case '--hidden': args.hidden = true; break;
+      case '--fresh': args.fresh = true; break;
       case '--api-key': args.apiKey = value; take(); break;
       case '--out': args.out = value; take(); break;
       default: break;
@@ -143,23 +148,29 @@ await mkdir(root, { recursive: true });
 
 const problems = JSON.parse(await readFile(args.problems, 'utf-8')).slice(0, args.n);
 console.log(`loaded ${problems.length} problems from ${args.problems}`);
-console.log(`model=${args.model} modes=${modes.join(',')} maxOutput=${args.maxOutput} maxIters=${args.maxIters} think=${args.think}`);
+console.log(
+  `model=${args.model} modes=${modes.join(',')} maxOutput=${args.maxOutput} maxIters=${args.maxIters} ` +
+    `think=${args.think} grading=${args.hidden ? 'hidden' : 'public'}`
+);
 
 const report = { startedAt: new Date().toISOString(), model: args.model, config: args, results: [] };
 
 for (const problem of problems) {
-  console.log(`\n=== ${problem.id} (${problem.tests.length} public tests, ${problem.contestDate?.slice(0, 10)}) ===`);
+  const gradeTests = args.hidden && problem.hiddenTests?.length > 0 ? problem.hiddenTests : problem.tests;
+  console.log(
+    `\n=== ${problem.id} (${gradeTests.length} ${args.hidden ? 'hidden' : 'public'} tests, ${problem.contestDate?.slice(0, 10)}) ===`
+  );
   for (const mode of modes) {
     const workspaceDir = path.join(root, mode, problem.id);
     const started = Date.now();
-    const row = { problem: problem.id, mode, tests: problem.tests.length };
+    const row = { problem: problem.id, mode, tests: gradeTests.length, grading: args.hidden ? 'hidden' : 'public' };
     try {
       if (mode === 'single') {
         const result = await agent.runSingleCall(send, problem, spec, { maxOutputTokens: args.maxOutput });
         row.calls = 1;
         row.truncatedCalls = result.finishReason === 'length' ? 1 : 0;
         row.usage = result.usage ?? null;
-        const verdict = await grade(path.join(workspaceDir, 'grade'), result.code, problem.tests);
+        const verdict = await grade(path.join(workspaceDir, 'grade'), result.code, gradeTests);
         Object.assign(row, verdict);
         row.durationMs = Date.now() - started;
       } else if (mode === 'ledger') {
@@ -167,6 +178,7 @@ for (const problem of problems) {
           workspaceDir,
           maxIters: args.maxIters,
           maxOutputTokens: args.maxOutput,
+          freshPerspective: args.fresh,
         });
         row.calls = result.calls.length;
         row.truncatedCalls = result.truncatedCalls;
@@ -182,7 +194,7 @@ for (const problem of problems) {
           entry.maxDurationMs = Math.max(entry.maxDurationMs, call.durationMs ?? 0);
         }
         row.roles = roleStats;
-        Object.assign(row, await grade(path.join(workspaceDir, 'grade'), result.solution, problem.tests));
+        Object.assign(row, await grade(path.join(workspaceDir, 'grade'), result.solution, gradeTests));
         row.durationMs = Date.now() - started;
       } else {
         throw new Error(`unknown mode ${mode}`);
@@ -192,7 +204,7 @@ for (const problem of problems) {
     }
     const mark = row.error ? 'ERR' : row.correct ? 'PASS' : 'fail';
     console.log(
-      `  ${mode.padEnd(6)} ${mark} tests=${row.passed ?? 0}/${row.total ?? problem.tests.length}` +
+      `  ${mode.padEnd(6)} ${mark} tests=${row.passed ?? 0}/${row.total ?? gradeTests.length}` +
         ` calls=${row.calls ?? 0} truncated=${row.truncatedCalls ?? 0} tokens=${row.usage?.completionTokens ?? '?'}` +
         ` ${(((row.durationMs ?? 0) / 1000)).toFixed(1)}s${row.error ? ` error=${row.error}` : ''}`
     );
@@ -226,8 +238,7 @@ for (const [mode, s] of Object.entries(summary)) {
   );
 }
 
-const ledgerRows = report.results.filter((r) => r.mode === 'ledger' && r.roles);
-if (ledgerRows.length > 0) {
+const ledgerRows = report.results.filter((r) => r.mode === 'ledger' && r.roles);if (ledgerRows.length > 0) {
   const totals = {};
   for (const row of ledgerRows) {
     for (const [role, entry] of Object.entries(row.roles)) {
@@ -248,5 +259,24 @@ if (ledgerRows.length > 0) {
         `${(agg.maxDurationMs / 1000).toFixed(1).padStart(6)}s`
     );
   }
+}
+
+if (modes.includes('single') && modes.includes('ledger')) {
+  const problemIds = [...new Set(report.results.map((r) => r.problem))];
+  const singleVec = problemIds.map((id) => Boolean(report.results.find((r) => r.problem === id && r.mode === 'single')?.correct));
+  const ledgerVec = problemIds.map((id) => Boolean(report.results.find((r) => r.problem === id && r.mode === 'ledger')?.correct));
+  const deltas = problemIds.map((_, index) => (ledgerVec[index] ? 1 : 0) - (singleVec[index] ? 1 : 0));
+  const flip = signFlipPermutation(deltas);
+  const disc = discordantCounts(singleVec, ledgerVec);
+  const singleCi = meanCi95(singleVec.map(Number));
+  const ledgerCi = meanCi95(ledgerVec.map(Number));
+  console.log(`\npaired comparison (n=${problemIds.length} problems, ${args.hidden ? 'hidden' : 'public'} grading):`);
+  console.log(`  single pass@1 = ${(singleCi.mean * 100).toFixed(1)}% [${(singleCi.low * 100).toFixed(1)}, ${(singleCi.high * 100).toFixed(1)}]`);
+  console.log(`  ledger pass@1 = ${(ledgerCi.mean * 100).toFixed(1)}% [${(ledgerCi.low * 100).toFixed(1)}, ${(ledgerCi.high * 100).toFixed(1)}]`);
+  console.log(`  mean delta = ${(flip.meanDelta * 100).toFixed(1)} pp, sign-flip p=${flip.pValue.toFixed(4)} (${flip.method})`);
+  console.log(
+    `  discordants: single-only ${disc.a}, ledger-only ${disc.b}, both ${disc.both}, neither ${disc.neither}` +
+      ` (McNemar p=${mcnemarExact(disc.a, disc.b).toFixed(4)})`
+  );
 }
 console.log(`\nreport: ${args.out}`);

@@ -303,3 +303,32 @@ describe('runSingleCall', () => {
     expect(result.text).toContain('intro');
   });
 });
+describe('fresh perspective', () => {
+  it('runs an independent worker and never overwrites solution.py', async () => {
+    const dir = await makeWorkspace();
+    const problem: LedgerProblem = { id: 'p-fresh', statement: 'Print X.' };
+    const { send, requests } = scripted([
+      reply('### PLAN\nPlan.\n### TASKS\n- [todo] do it\n'),
+      reply('### NOTES\n- idea\n### NEXT\n- approach\n'),
+      reply(
+        '### CODE\n```python\nprint("fresh")\n```\n### NOTES\n- fresh notes\n### NEXT\n- none\n### STATUS\ncontinue\n'
+      ),
+      reply('### STATUS\ncontinue\n### NEXT\nDo it\n### TASKS\n- [todo] Do it\n'),
+      reply(
+        '### CODE\n```python\nprint("worker")\n```\n### NOTES\n- worker notes\n### NEXT\n- none\n### STATUS\nsolved\n'
+      ),
+      reply('### STATUS\ndone\n### TASKS\n- [done] Do it\n'),
+    ]);
+
+    await runLedgerLoop(send, problem, spec, { workspaceDir: dir, freshPerspective: true });
+
+    expect(requests[2].role).toBe('fresh_worker');
+    const fresh = await fs.readFile(path.join(dir, 'solution-fresh.py'), 'utf-8');
+    const solution = await fs.readFile(path.join(dir, 'solution.py'), 'utf-8');
+    expect(fresh).toContain('print("fresh")');
+    expect(solution).toContain('print("worker")');
+    // The manager sees the fresh section in its first call; the worker's
+    // wholesale notes rewrite then replaces it.
+    expect(requests[3].user).toContain('## fresh perspective');
+  });
+});

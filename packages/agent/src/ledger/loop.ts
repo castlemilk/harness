@@ -2,6 +2,7 @@ import { bullets, extractPython, hasAnswer, parseTasks, sections, stripThink, ty
 import {
   FALLBACK_NEXT_TASK,
   FINALIZE_GOAL,
+  FRESH_GOAL,
   cutoffSystem,
   cutoffUser,
   ideationSystem,
@@ -102,6 +103,42 @@ export async function runLedgerLoop(
 
   let proposals: string[] = bullets(ideationSections.NEXT ?? '');
   let tasks: ParsedTask[] = [];
+
+  // Fresh-perspective arm from the paper's discussion: one worker attempts the
+  // problem with no plan and no notes, so the manager has an independent
+  // candidate to compare against the evolving one. It never overwrites
+  // solution.py; its code lands in solution-fresh.py.
+  if (opts.freshPerspective) {
+    const freshCall = await call(
+      'fresh_worker',
+      workerSystem(spec.solverSystem),
+      workerUser({
+        problem: problem.statement,
+        plan: '(none - independent attempt)',
+        notes: '(none - independent attempt)',
+        current: '(none)',
+        goal: FRESH_GOAL,
+      }),
+      0.2,
+    );
+    const freshText = stripThink(freshCall.text);
+    const freshSections = sections(freshText, ['CODE', 'NOTES', 'NEXT', 'STATUS']);
+    const freshCode = extractPython(freshText);
+    if (freshCode.trim().length > 0) {
+      await writeText(dir, 'solution-fresh.py', freshCode);
+    }
+    const freshNotes = (freshSections.NOTES ?? '').slice(0, 2000);
+    if (freshNotes) {
+      const notesNow = await readText(dir, 'notes.md');
+      await writeText(dir, 'notes.md', `${notesNow}\n## fresh perspective\n${freshNotes}\n`);
+    }
+    proposals = [
+      freshCode.trim().length > 0
+        ? 'fresh perspective wrote an independent candidate to solution-fresh.py'
+        : 'fresh perspective attempted an independent solution (see notes)',
+      ...proposals,
+    ];
+  }
 
   const manage = async (
     lastSummary: string,

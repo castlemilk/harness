@@ -1,5 +1,6 @@
 export * from './types.js';
 export * from './api-client.js';
+export * from './stats.js';
 export { runBenchmark } from './runner.js';
 export { writeReport, printSummary } from './report.js';
 export { compareReports, writeCompareReport } from './compare.js';

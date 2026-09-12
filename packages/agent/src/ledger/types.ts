@@ -37,6 +37,8 @@ export interface LedgerOptions {
   maxIters?: number;
   maxTasks?: number;
   maxOutputTokens?: number;
+  /** Run one independent worker (raw problem, no plan/notes) before managing. */
+  freshPerspective?: boolean;
   now?: () => Date;
 }
 

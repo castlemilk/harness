@@ -44,6 +44,13 @@ Worker calls are **single provider calls** with `maxOutputTokens` (short,
 bounded) — not the repo tool loop. Sample verification only runs for tasks that
 provide `tests` (used by the eval harness, below).
 
+The paper's proposed **fresh-perspective** worker is available via
+`freshPerspective` (eval `--fresh`): before managing, one worker attempts the
+raw problem with no plan/notes, and its candidate is written to
+`solution-fresh.py` (never overwriting `solution.py`) with a summary in the
+notes the manager sees. The paper suggests this hedges against a bad
+decomposition framing.
+
 ## Evaluating effectiveness
 
 `scripts/eval-ledger.mjs` runs single-call vs ledger on the same problems with
@@ -62,6 +69,14 @@ node scripts/eval-ledger.mjs \
   --model qwen3.8:27b-mlx-64k --base-url http://localhost:11434 \
   --max-output 4096 --max-iters 4 --n 2 --out /tmp/ledger-eval.json
 ```
+
+Flags: `--think` enables reasoning, `--hidden` grades against the private LCB
+tests (exported by the fetcher as `hiddenTests`), `--fresh` enables the
+fresh-perspective worker, and `--max-output/--max-iters/--timeout-ms` bound the
+run. Reports include per-problem rows, per-role stats, and — when both `single`
+and `ledger` run — a paired comparison with mean 95% CIs, an exact sign-flip
+permutation p-value, and an exact McNemar test on discordant problems
+(`packages/bench/src/stats.ts`).
 
 Both arms are graded with `runSampleTests` (stdin public tests). The report
 records pass@1, calls, truncated calls, tokens and wall time per problem/mode.
@@ -100,6 +115,16 @@ on disk, and produced a passing solution. That is the paper's central claim
 reproduced on the harness at smoke scale; the full-conditions run (128k cap,
 reasoning on, five paired passes, hidden tests via the patched LCB evaluator)
 is the next step.
+
+### Full-conditions attempt (reasoning on, 8192 cap)
+
+Running the same pair with `--think --hidden` at an 8192 cap (closer to the
+paper's condition, but far below their 128k) puts both arms below the
+capability floor: `arc196_b` single failed on a truncated generation, and the
+ledger failed too (7 calls, 6 truncated, 49.7k completion tokens) because
+reasoning consumed the budget in every worker call. The paper's own result at
+this model needed a 128k cap; the full condition (128k, reasoning on, five
+paired passes) remains the outstanding run.
 
 ## Debugging a ledger run
 

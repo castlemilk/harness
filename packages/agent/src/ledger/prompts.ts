@@ -4,6 +4,9 @@ export const FALLBACK_NEXT_TASK =
 export const FINALIZE_GOAL =
   'Produce the DEFINITIVE final solution now, using all notes and current work.';
 
+export const FRESH_GOAL =
+  'Produce a complete independent solution now, ignoring any prior plan or notes. You have only the problem statement.';
+
 export const DEFAULT_SOLVER_SYSTEM =
   'You are an elite competitive programmer. Solve the given problem in Python. Think carefully about algorithmic complexity and edge cases. Output EXACTLY ONE complete, self-contained Python program inside a single ```python ...``` fenced block, and nothing else after it.';
 

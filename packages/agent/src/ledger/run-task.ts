@@ -12,6 +12,7 @@ export interface LedgerTaskOptions {
   maxOutputTokens?: number;
   provider?: string;
   model?: string;
+  freshPerspective?: boolean;
 }
 
 /**
@@ -131,7 +132,7 @@ export async function runLedgerTask(
       send,
       { id: task.id, statement, tests: [] },
       { kind: 'code', solverSystem: DEFAULT_SOLVER_SYSTEM },
-      { workspaceDir, maxIters: options.maxIters, maxOutputTokens: options.maxOutputTokens }
+      { workspaceDir, maxIters: options.maxIters, maxOutputTokens: options.maxOutputTokens, freshPerspective: options.freshPerspective }
     );
 
     for (const call of result.calls) {

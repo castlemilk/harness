@@ -21,6 +21,22 @@ import os
 import sys
 
 
+def stdin_tests(raw_tests):
+    tests = []
+    if isinstance(raw_tests, str):
+        raw_tests = json.loads(raw_tests)
+    for test in raw_tests or []:
+        if isinstance(test, dict):
+            stdin, expected, testtype = test.get("input", ""), test.get("output", ""), test.get("testtype")
+        else:
+            stdin, expected, testtype = test.input, test.output, getattr(test, "testtype", None)
+        testtype_value = getattr(testtype, "value", testtype)
+        if str(testtype_value).lower() != "stdin":
+            continue
+        tests.append({"input": stdin or "", "output": expected or ""})
+    return tests
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--lcb-root", required=True, help="path to GVS5H/codebase/livecodebench")
@@ -42,19 +58,8 @@ def main() -> None:
         problem = by_id.get(qid)
         if problem is None:
             continue
-        raw_tests = problem.public_test_cases
-        if isinstance(raw_tests, str):
-            raw_tests = json.loads(raw_tests)
-        tests = []
-        for test in raw_tests or []:
-            if isinstance(test, dict):
-                stdin, expected, testtype = test.get("input", ""), test.get("output", ""), test.get("testtype")
-            else:
-                stdin, expected, testtype = test.input, test.output, getattr(test, "testtype", None)
-            testtype_value = getattr(testtype, "value", testtype)
-            if str(testtype_value).lower() != "stdin":
-                continue
-            tests.append({"input": stdin or "", "output": expected or ""})
+        tests = stdin_tests(problem.public_test_cases)
+        hidden = stdin_tests(getattr(problem, "private_test_cases", None))
 
         statement = f"### Question\n{problem.question_content}\n\n"
         if problem.starter_code:
@@ -79,6 +84,7 @@ def main() -> None:
             "platform": str(getattr(problem, "platform", "")),
             "statement": statement,
             "tests": tests,
+            "hiddenTests": hidden,
         })
         if len(picked) >= args.n:
             break
@@ -88,7 +94,10 @@ def main() -> None:
         json.dump(picked, handle, indent=2)
     print(f"wrote {len(picked)} problems to {args.out}")
     for item in picked:
-        print(f"  {item['id']:20s} tests={len(item['tests']):2d} {item['contestDate'][:10]} {item['platform']}")
+        print(
+            f"  {item['id']:20s} public={len(item['tests']):2d} hidden={len(item['hiddenTests']):2d} "
+            f"{item['contestDate'][:10]} {item['platform']}"
+        )
 
 
 if __name__ == "__main__":

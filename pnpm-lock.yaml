@@ -314,12 +314,18 @@ importers:
 
   packages/bench:
     dependencies:
+      '@omega/agent':
+        specifier: workspace:*
+        version: link:../agent
       '@omega/core':
         specifier: workspace:*
         version: link:../core
       '@omega/db':
         specifier: workspace:*
         version: link:../db
+      '@omega/providers':
+        specifier: workspace:*
+        version: link:../providers
     devDependencies:
       '@types/node':
         specifier: ^20.0.0

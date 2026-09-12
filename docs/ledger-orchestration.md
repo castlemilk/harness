@@ -78,6 +78,17 @@ and `ledger` run — a paired comparison with mean 95% CIs, an exact sign-flip
 permutation p-value, and an exact McNemar test on discordant problems
 (`packages/bench/src/stats.ts`).
 
+The same runner is available from the CLI and as a library:
+
+```bash
+harness ledger eval --problems scripts/fixtures/lcb-hard-sample.json \
+  --kind generic --base-url https://openrouter.ai/api/v1 \
+  --model qwen/qwen3.8-27b --max-output 8192 --think --hidden
+
+# library
+import { runLedgerEval, formatLedgerEvalSummary } from '@omega/bench';
+```
+
 Both arms are graded with `runSampleTests` (stdin public tests). The report
 records pass@1, calls, truncated calls, tokens and wall time per problem/mode.
 

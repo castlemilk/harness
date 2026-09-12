@@ -221,7 +221,10 @@ export async function runLedgerLoop(
 
     let wroteSolution = false;
     const code = extractPython(workerText);
-    if (workerSections.CODE !== undefined && code.trim()) {
+    // Accept any fenced Python block, not only one under a `### CODE` header:
+    // models frequently omit the header and the reference scaffold's extractor
+    // falls back to the first fence the same way.
+    if (code.trim()) {
       await writeText(dir, 'solution.py', code);
       wroteSolution = true;
     }

@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { constants } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
@@ -138,18 +139,24 @@ async function packageHasDependencies(projectPath: string): Promise<boolean> {
 }
 
 async function commandExists(cmd: string, options: ExecutionDeadlineOptions): Promise<boolean> {
-  try {
-    await execFileAsync('command', ['-v', cmd], {
-      // Floored for the same reason `runStep` is: past the deadline an
-      // unfloored budget collapses to 1ms, and this probe silently reporting
-      // "missing" makes the whole dependency install get skipped.
-      timeout: Math.max(5_000, boundedExecutionTimeoutMs(10_000, options)),
-      signal: options.signal,
-    });
-    return true;
-  } catch {
-    return false;
+  if (options.signal?.aborted) return false;
+  // `command` is a shell builtin and missing on Linux CI images; probe PATH
+  // directly so tool detection matches what a shell would find.
+  const candidates = cmd.includes(path.sep)
+    ? [cmd]
+    : (process.env.PATH ?? '')
+        .split(path.delimiter)
+        .filter(Boolean)
+        .map((dir) => path.join(dir, cmd));
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate, constants.X_OK);
+      return true;
+    } catch {
+      // Keep looking.
+    }
   }
+  return false;
 }
 
 async function validateNodeProject(

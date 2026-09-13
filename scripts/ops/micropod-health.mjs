@@ -32,11 +32,40 @@ const API_TIMEOUT_MS = Number(process.env.MICROPOD_HEALTH_TIMEOUT_MS ?? 15_000);
 const CRASH_WINDOW_MS = Number(process.env.MICROPOD_CRASH_WINDOW_MS ?? 120_000);
 const CRASH_THRESHOLD = 3;
 
+// launchd runs periodic jobs with a minimal PATH; resolve the CLIs explicitly.
+const BIN_CANDIDATES = {
+  container: ['/usr/local/bin/container', '/opt/homebrew/bin/container'],
+  docker: [
+    '/usr/local/bin/docker',
+    '/opt/homebrew/bin/docker',
+    '/Applications/Docker.app/Contents/Resources/bin/docker',
+  ],
+};
+const CHILD_PATH = [
+  '/usr/local/bin',
+  '/opt/homebrew/bin',
+  '/usr/bin',
+  '/bin',
+  '/usr/sbin',
+  '/sbin',
+  process.env.PATH ?? '',
+].filter(Boolean).join(':');
+
+function resolveBin(name) {
+  for (const candidate of BIN_CANDIDATES[name] ?? []) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return name;
+}
+
+const CONTAINER = resolveBin('container');
+const DOCKER = resolveBin('docker');
+
 function run(cmd, timeoutMs, env = {}) {
   const started = Date.now();
   const result = spawnSync(cmd[0], cmd.slice(1), {
     timeout: timeoutMs,
-    env: { ...process.env, ...env },
+    env: { ...process.env, PATH: CHILD_PATH, ...env },
     encoding: 'utf-8',
     maxBuffer: 8 * 1024 * 1024,
   });
@@ -78,12 +107,12 @@ function diskFreeBytes() {
 
 const socketPresent = fs.existsSync(SOCKET);
 const docker = socketPresent
-  ? run(['docker', 'ps', '--format', '{{.Names}}'], 10_000, { DOCKER_HOST: `unix://${SOCKET}` })
+  ? run([DOCKER, 'ps', '--format', '{{.Names}}'], 10_000, { DOCKER_HOST: `unix://${SOCKET}` })
   : { ok: false, timedOut: false, stdout: '', stderr: 'socket missing', status: null, durationMs: 0 };
 const containerList = socketPresent
-  ? run(['container', 'list'], API_TIMEOUT_MS)
+  ? run([CONTAINER, 'list'], API_TIMEOUT_MS)
   : { ok: false, timedOut: false, stdout: '', stderr: 'socket missing', status: null, durationMs: 0 };
-const systemLogs = run(['container', 'system', 'logs'], 15_000);
+const systemLogs = run([CONTAINER, 'system', 'logs'], 15_000);
 
 const crashLoops = systemLogs.ok ? recentNetworkFailures(systemLogs.stdout) : [];
 const apiResponsive = containerList.ok && containerList.stdout.includes('ID');

@@ -16,6 +16,11 @@ LABEL="dev.omega.micropod-health"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 INTERVAL="${INTERVAL:-120}"
 STORAGE_ROOT="${OMEGA_STORAGE_ROOT:-$HOME/.omega}"
+NODE_BIN="$(command -v node || true)"
+if [ -z "$NODE_BIN" ]; then
+  echo "node not found on PATH; install Node 20+ first" >&2
+  exit 1
+fi
 
 case "${1:-install}" in
   install)
@@ -29,8 +34,8 @@ case "${1:-install}" in
   <string>$LABEL</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/bin/bash</string>
-    <string>$ROOT/scripts/ops/micropod-watchdog.sh</string>
+    <string>$NODE_BIN</string>
+    <string>$ROOT/scripts/ops/micropod-watchdog.mjs</string>
   </array>
   <key>StartInterval</key>
   <integer>$INTERVAL</integer>

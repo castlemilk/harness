@@ -104,3 +104,18 @@ These actions caused or worsened the wedge and are forbidden in this repo:
   and they recreate only the controlplane (`--no-deps`), never the database.
 - `scripts/e2e/docker-e2e.sh` keeps the harness stack in Docker Desktop, so
   harness work does not depend on the Micropod runtime being healthy.
+
+### Early-warning watchdog
+
+A detect-only LaunchAgent checks the runtime every two minutes and posts a
+macOS notification when it is unhealthy, so the crash loop is caught before a
+session starts piling operations onto it:
+
+```bash
+scripts/ops/install-micropod-watchdog.sh install    # INTERVAL=120 by default
+scripts/ops/install-micropod-watchdog.sh status
+scripts/ops/install-micropod-watchdog.sh uninstall
+```
+
+The latest report lands in `$OMEGA_STORAGE_ROOT/recovery/micropod/health.json`;
+alerts append to `alerts.log`. The watchdog never mutates the runtime.

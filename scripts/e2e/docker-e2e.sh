@@ -45,7 +45,13 @@ cleanup() {
 trap cleanup EXIT
 
 log "building and starting harness (docker compose)"
-docker compose up -d --build
+if [ "${OMEGA_E2E_NO_BUILD:-0}" = "1" ]; then
+  # Docker's context sender fails on unreadable root-owned files (e.g. a stray
+  # nohup.out); reuse the existing image instead of rebuilding.
+  docker compose up -d
+else
+  docker compose up -d --build
+fi
 
 log "waiting for harness health on :$OMEGA_PORT"
 for _ in $(seq 1 90); do

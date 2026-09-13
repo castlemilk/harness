@@ -1,4 +1,7 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
+import { constants } from 'node:fs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { promisify } from 'node:util';
 import type { PrismaClient } from '@omega/db';
 import type { AgentOptions } from '@omega/core';
@@ -482,12 +485,25 @@ function cliSpec(cli: ExternalCli, model?: string): CliSpec {
 }
 
 async function commandExists(cmd: string, signal?: AbortSignal): Promise<boolean> {
-  try {
-    await execFileAsync('command', ['-v', cmd], { timeout: 10_000, signal });
-    return true;
-  } catch {
-    return false;
+  if (signal?.aborted) return false;
+  // `command` is a shell builtin: execFile('command', ...) works on macOS only
+  // because /usr/bin/command happens to exist there. Probe PATH directly so
+  // Linux CI (and minimal containers) see the same tools the shell does.
+  const candidates = cmd.includes(path.sep)
+    ? [cmd]
+    : (process.env.PATH ?? '')
+        .split(path.delimiter)
+        .filter(Boolean)
+        .map((dir) => path.join(dir, cmd));
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate, constants.X_OK);
+      return true;
+    } catch {
+      // Keep looking.
+    }
   }
+  return false;
 }
 
 /**
@@ -604,7 +620,7 @@ export async function runExternalAgentTask(
 
   let codexPrompt = '';
   if (options.cli === 'codex') {
-    const verificationCommand = await deriveVerificationCommand(options.projectPath);
+    const verificationCommand = await deriveVerificationCommand(options.projectPath, task.description ?? undefined);
     codexPrompt = buildCodexTaskPrompt({
       title: task.title,
       description: [task.description, deadlineNotice].filter(Boolean).join('\n\n'),

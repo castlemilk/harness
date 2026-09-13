@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "omega-harness": {
+      "command": "node",
+      "args": ["apps/cli/dist/index.js", "mcp"],
+      "env": {
+        "OMEGA_API_URL": "http://127.0.0.1:4000"
+      }
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { waitForTask, withRetry, ApiError } from '../api-client.js';
+import { runTask, waitForTask, withRetry, ApiError } from '../api-client.js';
 
 describe('waitForTask transient-failure resilience', () => {
   beforeEach(() => {
@@ -60,5 +60,38 @@ describe('withRetry retry policy', () => {
     const result = await withRetry(() => fetch('http://x'), { attempts: 3, baseDelayMs: 1 });
     expect(calls).toBe(3);
     expect(result).toBeDefined();
+  });
+});
+
+describe('runTask options', () => {
+  it('forwards the task timeout to the server run request', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({ id: 't1' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await runTask('http://x', 't1', 1_000_000, 1_800_000);
+
+    expect(fetchMock).toHaveBeenCalledWith('http://x/tasks/t1/run', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ tokenBudget: 1_000_000, timeoutMs: 1_800_000 }),
+    }));
+  });
+
+  it('forwards an explicit thinking request to the server run request', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({ id: 't1' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await runTask('http://x', 't1', 1_000_000, 1_800_000, true);
+
+    expect(fetchMock).toHaveBeenCalledWith('http://x/tasks/t1/run', expect.objectContaining({
+      body: JSON.stringify({ tokenBudget: 1_000_000, thinking: true, timeoutMs: 1_800_000 }),
+    }));
   });
 });

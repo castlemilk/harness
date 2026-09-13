@@ -15,8 +15,10 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@omega/agent": "workspace:*",
     "@omega/core": "workspace:*",
-    "@omega/db": "workspace:*"
+    "@omega/db": "workspace:*",
+    "@omega/providers": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

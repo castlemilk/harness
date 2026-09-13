@@ -287,6 +287,7 @@ const runCmd = new Command('run')
   .option('--project-prefix <prefix>', 'project name prefix for created harness projects', 'bench')
   .option('--provider <name>', 'provider to use for benchmark tasks')
   .option('--model <model>', 'model to use for benchmark tasks')
+  .option('--thinking', 'enable provider-native thinking/reasoning mode')
   .option('--docker', 'run DeepSWE verifiers in Docker (required for most Node.js tasks)')
   .option('--token-budget <n>', 'per-task token cap; free models commonly need 50k+', parseInt)
   .option('--agent <name>', 'Pier agent to use (e.g. mini-swe-agent)', 'mini-swe-agent')
@@ -312,6 +313,7 @@ const runCmd = new Command('run')
     projectPrefix: string;
     provider?: string;
     model?: string;
+    thinking?: boolean;
     docker?: boolean;
     tokenBudget?: number;
     agent?: string;
@@ -431,6 +433,7 @@ const runCmd = new Command('run')
       provider: opts.provider,
       model: opts.model,
       tokenBudget: opts.tokenBudget,
+      thinking: opts.thinking,
       onProgress: (result) => {
         const symbol = result.evaluation.passed ? '✓' : '✗';
         const status = result.evaluation.passed && result.status !== 'done'

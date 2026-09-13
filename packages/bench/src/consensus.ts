@@ -267,7 +267,7 @@ export async function runConsensusEval(
     await Promise.all(
       runs.map(async (r) => {
         try {
-          await runTask(apiUrl, r.harnessTaskId, tokenBudget);
+          await runTask(apiUrl, r.harnessTaskId, tokenBudget, timeoutMs);
         } catch (err) {
           console.warn('consensus: runTask failed', {
             taskId: r.harnessTaskId,

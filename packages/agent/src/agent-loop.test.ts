@@ -21,8 +21,16 @@ vi.mock('./git.js', () => gitMocks);
 
 import {
   budgetNoticeExperiments,
+  buildTokenBudgetTrace,
   executeAgentLoop,
   formatBudgetNotice,
+  isBuildCommand,
+  shouldAllowTokenBudgetFinalization,
+  shouldAllowFinalizationRepair,
+  shouldEnterLowBudgetEditMode,
+  shouldForceEditForTokenUsage,
+  shouldForceEditForWallClock,
+  shouldEnterWallClockVerificationMode,
 } from './agent-loop.js';
 import { Tracer } from './tracer.js';
 
@@ -30,6 +38,72 @@ const GRADED_PATCH = 'diff --git a/src/value.ts b/src/value.ts\n';
 const GRADED_PATCH_SHA256 = createHash('sha256').update(GRADED_PATCH).digest('hex');
 
 describe('executeAgentLoop terminal disclosure', () => {
+  it('builds a per-turn token budget trace with bounded remaining headroom', () => {
+    expect(buildTokenBudgetTrace(3, 18_000, 24_000)).toEqual({
+      turn: 3,
+      usedTokens: 18_000,
+      budgetTokens: 24_000,
+      remainingTokens: 6_000,
+      ratio: 0.75,
+      stopReason: 'within-budget',
+    });
+    expect(buildTokenBudgetTrace(4, 25_000, 24_000).stopReason).toBe('exceeded');
+  });
+
+  it('enters edit-first mode before another exploration turn on a low token budget', () => {
+    expect(shouldEnterLowBudgetEditMode(24_000, 0, 2)).toBe(true);
+    expect(shouldEnterLowBudgetEditMode(24_000, 1, 2)).toBe(false);
+    expect(shouldEnterLowBudgetEditMode(60_000, 0, 2)).toBe(false);
+    expect(shouldEnterLowBudgetEditMode(24_000, 0, 1)).toBe(false);
+  });
+
+  it('forces edit-first mode once half the token budget is spent without an edit', () => {
+    expect(shouldForceEditForTokenUsage(41_000, 80_000, 0, 3)).toBe(true);
+    expect(shouldForceEditForTokenUsage(40_000, 80_000, 0, 3)).toBe(false);
+    expect(shouldForceEditForTokenUsage(41_000, 80_000, 1, 3)).toBe(false);
+    expect(shouldForceEditForTokenUsage(41_000, 80_000, 0, 1)).toBe(false);
+    expect(shouldForceEditForTokenUsage(41_000, undefined, 0, 3)).toBe(false);
+  });
+
+  it('forces edit-first mode after most of the wall-clock budget is spent without an edit', () => {
+    expect(shouldForceEditForWallClock(1_000, 11_000, 0, 3, 6_999)).toBe(false);
+    expect(shouldForceEditForWallClock(1_000, 11_000, 0, 3, 7_000)).toBe(true);
+    expect(shouldForceEditForWallClock(1_000, 11_000, 1, 3, 7_000)).toBe(false);
+    expect(shouldForceEditForWallClock(1_000, 11_000, 0, 1, 7_000)).toBe(false);
+  });
+
+  it('recognizes compile commands for the repair phase', () => {
+    expect(isBuildCommand('go build $(go list ./...)')).toBe(true);
+    expect(isBuildCommand('pnpm build')).toBe(true);
+    expect(isBuildCommand('npx tsc --noEmit')).toBe(true);
+    expect(isBuildCommand('go test ./...')).toBe(false);
+  });
+
+  it('enters verification mode late when an edit exists but no test has run', () => {
+    expect(shouldEnterWallClockVerificationMode(1_000, 11_000, 1, false, 6_999)).toBe(false);
+    expect(shouldEnterWallClockVerificationMode(1_000, 11_000, 1, false, 7_000)).toBe(true);
+    expect(shouldEnterWallClockVerificationMode(1_000, 11_000, 1, true, 7_000)).toBe(false);
+    expect(shouldEnterWallClockVerificationMode(1_000, 11_000, 0, false, 7_000)).toBe(false);
+  });
+
+  it('grants one repair turn for lint or typecheck rejection during finalization', () => {
+    expect(shouldAllowFinalizationRepair(true, 1, 'lint', false)).toBe(true);
+    expect(shouldAllowFinalizationRepair(true, 1, 'typecheck', false)).toBe(true);
+    expect(shouldAllowFinalizationRepair(true, 1, 'test', false)).toBe(false);
+    expect(shouldAllowFinalizationRepair(true, 1, 'build', false)).toBe(false);
+    expect(shouldAllowFinalizationRepair(true, 1, undefined, false)).toBe(false);
+    expect(shouldAllowFinalizationRepair(true, 1, 'lint', true)).toBe(false);
+    expect(shouldAllowFinalizationRepair(true, 0, 'lint', false)).toBe(false);
+    expect(shouldAllowFinalizationRepair(false, 1, 'lint', false)).toBe(false);
+  });
+
+  it('allows one finalization turn only after an edit and test', () => {
+    expect(shouldAllowTokenBudgetFinalization(40_001, 40_000, 1, true, false)).toBe(true);
+    expect(shouldAllowTokenBudgetFinalization(40_001, 40_000, 0, true, false)).toBe(false);
+    expect(shouldAllowTokenBudgetFinalization(40_001, 40_000, 1, false, false)).toBe(false);
+    expect(shouldAllowTokenBudgetFinalization(40_001, 40_000, 1, true, true)).toBe(false);
+  });
+
   it('reports both remaining steps and remaining wall-clock in budget notices', () => {
     const notice = formatBudgetNotice(12, 8 * 60_000 + 12_000);
     expect(notice).toContain('12 steps remain');
@@ -108,10 +182,11 @@ describe('executeAgentLoop terminal disclosure', () => {
     const ctx: AgentContext = {
       prisma,
       task: {
-        id: taskRow.id,
-        projectId: taskRow.projectId,
-        title: taskRow.title,
-        status: 'todo',
+          id: taskRow.id,
+          projectId: taskRow.projectId,
+          title: taskRow.title,
+          description: 'BUILD GATE (critical): run checks',
+          status: 'todo',
         complexity: 'simple',
         tags: [],
         createdAt: now,
@@ -146,13 +221,14 @@ describe('executeAgentLoop terminal disclosure', () => {
       turnCount: 0,
       stepCount: 0,
       deadlineMs: Date.now() + 10 * 60_000,
+      thinking: true,
     };
 
     await executeAgentLoop(ctx, []);
 
     expect(provider.send).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ timeoutMs: 120_000 }),
+      expect.objectContaining({ timeoutMs: 180_000, thinking: true }),
     );
 
     const terminalWrite = taskUpdate.mock.calls

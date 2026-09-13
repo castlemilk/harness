@@ -136,7 +136,7 @@ const STRATEGY_WEIGHTS: Record<RoutingStrategy, StrategyWeights> = {
 const CAP_LEVEL: Record<CapabilityLevel, number> = { fast: 1, capable: 2, advanced: 3 };
 const COMPLEXITY_LEVEL: Record<Complexity, number> = { simple: 1, medium: 2, complex: 3 };
 
-function scoreCapability(cap: Capability, classification: TaskClassification): number {
+function scoreCapability(cap: Capability, classification: TaskClassification, providerKind?: string): number {
   let score = CAP_LEVEL[cap.level];
 
   // Penalize under-powered models for complex tasks
@@ -156,6 +156,11 @@ function scoreCapability(cap: Capability, classification: TaskClassification): n
   if (classification.requiredCapabilities.includes('long-context')) {
     if (cap.contextWindow && cap.contextWindow >= 32_000) score += 1;
     else if (cap.contextWindow && cap.contextWindow < 8_000) score -= 3;
+  }
+
+  // Local models get a latency bonus for simple/medium tasks (no network round-trip)
+  if (providerKind === 'ollama' && classification.complexity !== 'complex') {
+    score += 1;
   }
 
   return Math.max(0, Math.min(10, score));
@@ -236,7 +241,7 @@ export class IntelligentRouter {
         const key = `${provider.name}/${cap.name}`;
         const perfScore = this.performance.getScore(key);
         const health = this.health.getHealth(provider.name);
-        const capScore = scoreCapability(cap, classification);
+        const capScore = scoreCapability(cap, classification, provider.kind);
         const useCount = this.useCount.get(key) ?? 0;
 
         // --- Score breakdown ---
@@ -251,8 +256,11 @@ export class IntelligentRouter {
         }
 
         // Cost: inverse of cost-per-pass-rate, normalized to 0-10
+        // Local models (Ollama) have zero cost — give them max cost score
         let cost = 5;
-        if (perfScore && perfScore.costPerPass < Infinity) {
+        if (provider.kind === 'ollama') {
+          cost = 10;
+        } else if (perfScore && perfScore.costPerPass < Infinity) {
           // $0 → 10, $1 → 5, $5+ → 0
           cost = Math.max(0, 10 - perfScore.costPerPass * 10);
         }
@@ -353,7 +361,7 @@ export class IntelligentRouter {
         const key = `${provider.name}/${cap.name}`;
         const perfScore = this.performance.getScore(key);
         const health = this.health.getHealth(provider.name);
-        const capScore = scoreCapability(cap, classification);
+        const capScore = scoreCapability(cap, classification, provider.kind);
 
         const capability = capScore;
         let performance = 5;

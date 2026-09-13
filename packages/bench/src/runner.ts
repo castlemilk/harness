@@ -27,6 +27,7 @@ export interface RunnerOptions {
   provider?: string;
   model?: string;
   tokenBudget?: number;
+  thinking?: boolean;
   /** Run tasks via an external coding-agent CLI (e.g. codex, claude-code) instead of an internal model. */
   externalCli?: string;
   onProgress?: (result: BenchmarkResult) => void;
@@ -106,7 +107,7 @@ export async function runBenchmark(
         );
       }
 
-      await runTask(apiUrl, harnessTask.id, options.tokenBudget);
+      await runTask(apiUrl, harnessTask.id, options.tokenBudget, timeoutMs, options.thinking);
       const finished = await waitForTask(apiUrl, harnessTask.id, timeoutMs + SETUP_BUFFER_MS);
       taskError = finished.error;
       status = finished.status === 'timeout' ? 'timeout' : (finished.status as BenchmarkResult['status']);

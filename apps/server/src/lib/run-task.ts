@@ -1,5 +1,5 @@
 import { createProvider } from '@omega/providers';
-import { runAgentTask, runOrchestratedTask, type ExternalCli } from '@omega/agent';
+import { runAgentTask, runOrchestratedTask, runLedgerTask, type ExternalCli } from '@omega/agent';
 import type { PrismaClient } from '@omega/db';
 import type { Task } from '@omega/core';
 import { queue } from './task-queue.js';
@@ -16,6 +16,8 @@ import { getRouter, recordTaskOutcome } from './intelligent-router.js';
 import { startTrace, traceEvent, completeTrace } from './trace-log.js';
 import { toCoreConfig, isRateLimitError, isTimeoutError, isCredentialError, safeJsonParse } from './utils.js';
 import { runRoutedExternalAgentTask } from './external-agent-runner.js';
+import { resolveTaskRuntime } from './runtime-connections.js';
+import { cancelTaskFlow, startTaskFlow } from './cuttlefish-run.js';
 
 function firstNonEmpty(...values: (string | null | undefined)[]): string | undefined {
   for (const value of values) {
@@ -23,6 +25,15 @@ function firstNonEmpty(...values: (string | null | undefined)[]): string | undef
     if (trimmed !== undefined && trimmed.length > 0) return trimmed;
   }
   return undefined;
+}
+
+const activeTaskControllers = new Map<string, AbortController>();
+
+export function cancelRunningTask(taskId: string): boolean {
+  const controller = activeTaskControllers.get(taskId);
+  if (!controller) return false;
+  controller.abort(new DOMException('Task cancelled', 'AbortError'));
+  return true;
 }
 
 async function tryAutoRetry(
@@ -158,6 +169,7 @@ export async function runTask(
   options: {
     detached?: boolean;
     tokenBudget?: number;
+    thinking?: boolean;
     maxSubtasks?: number;
     maxIterations?: number;
     concurrency?: number;
@@ -180,6 +192,78 @@ export async function runTask(
   });
 
   const tags = safeJsonParse<string[]>(task.tags, []);
+  const controller = new AbortController();
+  const signal = options.signal
+    ? AbortSignal.any([options.signal, controller.signal])
+    : controller.signal;
+  activeTaskControllers.set(taskId, controller);
+  const releaseController = () => {
+    if (activeTaskControllers.get(taskId) === controller) activeTaskControllers.delete(taskId);
+  };
+
+  // Tasks routed to an external workflow runtime (cuttlefish) skip local
+  // execution entirely: the harness translates the task into a workflow,
+  // dispatches it to the fleet, and the flow sync loop mirrors the run back.
+  // Explicit flow tags must resolve; opportunistic auto-routing stays quiet
+  // when no runtime is configured.
+  let taskRuntime: Awaited<ReturnType<typeof resolveTaskRuntime>> = null;
+  try {
+    taskRuntime = await resolveTaskRuntime(prisma, task);
+  } catch (err) {
+    const explicitFlowTag = tags.some(
+      (t) => t.startsWith('flow:') || t.startsWith('flow-version:') || t.startsWith('runtime:')
+    );
+    if (explicitFlowTag) {
+      const message = err instanceof Error ? err.message : String(err);
+      const reason = await ensureFailedTaskReason(prisma, taskId, message);
+      releaseController();
+      throw new Error(reason, { cause: err });
+    }
+    console.warn('auto-routed runtime resolution skipped:', err instanceof Error ? err.message : String(err));
+  }
+  if (taskRuntime) {
+    const onAbort = () => {
+      void cancelTaskFlow(prisma, taskId).catch(console.error);
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    const start = () =>
+      startTaskFlow(prisma, taskId, taskRuntime, { signal, timeoutMs: options.timeoutMs });
+
+    if (options.detached) {
+      const result = queue.enqueue(taskId, 'cuttlefish', async () => {
+        try {
+          await start();
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          const reason = await ensureFailedTaskReason(prisma, taskId, message);
+          console.error(`Detached cuttlefish task ${taskId} failed:`, reason);
+          if (!signal.aborted) {
+            void notifyFailure(prisma, {
+              taskId, title: task.title, provider: 'cuttlefish', error: reason, tags,
+              timestamp: new Date().toISOString(),
+            }).catch(console.error);
+            void tryAutoRetry(prisma, taskId).catch(console.error);
+          }
+        } finally {
+          signal.removeEventListener('abort', onAbort);
+          releaseController();
+        }
+      });
+      return { status: 'in_progress', taskId, ...result };
+    }
+
+    try {
+      const started = await start();
+      return started.task;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await ensureFailedTaskReason(prisma, taskId, message);
+      throw err;
+    } finally {
+      signal.removeEventListener('abort', onAbort);
+      releaseController();
+    }
+  }
 
   // Tasks tagged external:<cli> are driven by an external coding-agent CLI
   // (Codex, Claude Code, Gemini CLI, OpenCode, Cursor CLI, Aider).
@@ -193,6 +277,7 @@ export async function runTask(
         where: { id: taskId },
         data: { status: 'failed', error: reason, result: reason },
       });
+      releaseController();
       // No retry before rethrowing: the caller is about to receive a failure,
       // and a blocking chain here could mark the task done while still throwing.
       throw new Error(reason);
@@ -222,7 +307,7 @@ export async function runTask(
         model,
         effort,
         timeoutMs: options.timeoutMs,
-        signal: options.signal,
+        signal,
       });
     if (options.detached) {
       const result = queue.enqueue(taskId, cli, async () => {
@@ -235,7 +320,7 @@ export async function runTask(
               firstNonEmpty(externalResult.output) ?? `External CLI ${cli} returned failed.`,
             );
             console.error(`Detached external agent task ${taskId} failed:`, reason);
-            if (!options.signal?.aborted) {
+            if (!signal.aborted) {
               void notifyFailure(prisma, {
                 taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
                 timestamp: new Date().toISOString(),
@@ -243,7 +328,7 @@ export async function runTask(
             }
             // Detached: the caller already returned, so a blocking retry chain
             // would hold this queue slot for up to four sequential runs.
-            if (!options.signal?.aborted) {
+            if (!signal.aborted) {
               void tryAutoRetry(prisma, taskId).catch(console.error);
             }
           }
@@ -251,7 +336,7 @@ export async function runTask(
           const message = err instanceof Error ? err.message : String(err);
           const reason = await ensureFailedTaskReason(prisma, taskId, message);
           console.error(`Detached external agent task ${taskId} failed:`, message);
-          if (!options.signal?.aborted) {
+          if (!signal.aborted) {
             void notifyFailure(prisma, {
               taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
               timestamp: new Date().toISOString(),
@@ -259,31 +344,91 @@ export async function runTask(
           }
           // Detached: the caller already returned, so a blocking retry chain
           // would hold this queue slot for up to four sequential runs.
-          if (!options.signal?.aborted) {
+          if (!signal.aborted) {
             void tryAutoRetry(prisma, taskId).catch(console.error);
           }
+        } finally {
+          releaseController();
         }
       });
       return { status: 'in_progress', taskId, ...result };
     }
-    const externalResult = await run();
-    if (externalResult.status === 'failed') {
-      const reason = await ensureFailedTaskReason(
-        prisma,
-        taskId,
-        firstNonEmpty(externalResult.output) ?? `External CLI ${cli} returned failed.`,
-      );
-      if (!options.signal?.aborted) {
-        void notifyFailure(prisma, {
-          taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
-          timestamp: new Date().toISOString(),
-        }).catch(console.error);
+    try {
+      const externalResult = await run();
+      if (externalResult.status === 'failed') {
+        const reason = await ensureFailedTaskReason(
+          prisma,
+          taskId,
+          firstNonEmpty(externalResult.output) ?? `External CLI ${cli} returned failed.`,
+        );
+        if (!signal.aborted) {
+          void notifyFailure(prisma, {
+            taskId, title: task.title, provider: `external:${cli}`, model, error: reason, tags,
+            timestamp: new Date().toISOString(),
+          }).catch(console.error);
+        }
+        if (!signal.aborted) {
+          await tryAutoRetry(prisma, taskId);
+        }
       }
-      if (!options.signal?.aborted) {
-        await tryAutoRetry(prisma, taskId);
-      }
+      return externalResult;
+    } finally {
+      releaseController();
     }
-    return externalResult;
+  }
+
+  // Tasks tagged 'ledger' run the manager-worker scaffold over a shared
+  // filesystem ledger instead of the tool-using agent loop.
+  if (tags.includes('ledger')) {
+    const trace = startTrace(taskId);
+    const run = () =>
+      runLedgerTask(prisma, taskId, {
+        maxIters: options.maxIterations,
+      });
+    if (options.detached) {
+      const result = queue.enqueue(taskId, 'ledger', async () => {
+        try {
+          const ledgerResult = await run();
+          if (ledgerResult.status === 'failed') {
+            const reason = await ensureFailedTaskReason(prisma, taskId, 'Ledger scaffold produced no solution.');
+            traceEvent(trace, 'llm.error', { error: reason });
+            completeTrace(trace, 'error');
+            if (!signal.aborted) {
+              void notifyFailure(prisma, {
+                taskId, title: task.title, provider: task.provider ?? undefined,
+                model: task.model ?? undefined, error: reason, tags,
+                timestamp: new Date().toISOString(),
+              }).catch(console.error);
+              void tryAutoRetry(prisma, taskId).catch(console.error);
+            }
+          } else {
+            traceEvent(trace, 'agent.loop.complete', { calls: ledgerResult.calls.length });
+            completeTrace(trace, 'success', task.provider ?? undefined, task.model ?? undefined);
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          const reason = await ensureFailedTaskReason(prisma, taskId, message);
+          traceEvent(trace, 'llm.error', { error: reason });
+          completeTrace(trace, 'error');
+          console.error(`Detached ledger task ${taskId} failed:`, reason);
+          if (!signal.aborted) {
+            void notifyFailure(prisma, {
+              taskId, title: task.title, error: reason, tags,
+              timestamp: new Date().toISOString(),
+            }).catch(console.error);
+            void tryAutoRetry(prisma, taskId).catch(console.error);
+          }
+        } finally {
+          releaseController();
+        }
+      });
+      return { status: 'in_progress', taskId, ...result };
+    }
+    try {
+      return await run();
+    } finally {
+      releaseController();
+    }
   }
 
   if (tags.includes('agent') || tags.includes('self-improve') || tags.includes('orchestrate')) {
@@ -342,6 +487,7 @@ export async function runTask(
         taskId,
         `Internal agent setup failed before its first model turn: ${firstNonEmpty(message) ?? 'router unavailable'}`,
       );
+      releaseController();
       // No retry before rethrowing: the caller is about to receive a failure,
       // and a blocking chain here could mark the task done while still throwing.
       throw new Error(reason, { cause: err });
@@ -358,7 +504,7 @@ export async function runTask(
             concurrency: options.concurrency,
             complexity: task.complexity,
             timeoutMs: options.timeoutMs,
-            signal: options.signal,
+            signal,
             intelligentRouter: router,
           })
         : runAgentTask(prisma, taskId, {
@@ -367,9 +513,10 @@ export async function runTask(
             autoPublish: tags.includes('publish'),
             isolated: true,
             tokenBudget,
+            thinking: options.thinking,
             complexity: task.complexity,
             timeoutMs: options.timeoutMs,
-            signal: options.signal,
+            signal,
           }, router);
 
     if (options.detached) {
@@ -388,7 +535,7 @@ export async function runTask(
             );
             traceEvent(trace, 'llm.error', { error: reason });
             completeTrace(trace, 'error', task.provider ?? undefined, task.model ?? undefined);
-            if (!options.signal?.aborted) {
+            if (!signal.aborted) {
               void notifyFailure(prisma, {
                 taskId, title: task.title, provider: task.provider ?? undefined,
                 model: task.model ?? undefined, error: reason, tags,
@@ -397,7 +544,7 @@ export async function runTask(
             }
             // Detached: the caller already returned, so a blocking retry chain
             // would hold this queue slot for up to four sequential runs.
-            if (!options.signal?.aborted) {
+            if (!signal.aborted) {
               void tryAutoRetry(prisma, taskId).catch(console.error);
             }
           } else {
@@ -409,7 +556,7 @@ export async function runTask(
           traceEvent(trace, 'llm.error', { error: reason });
           completeTrace(trace, 'error');
           console.error(`Detached agent task ${taskId} failed:`, reason);
-          if (!options.signal?.aborted) {
+          if (!signal.aborted) {
             void notifyFailure(prisma, {
               taskId, title: task.title, error: reason, tags,
               timestamp: new Date().toISOString(),
@@ -417,9 +564,11 @@ export async function runTask(
           }
           // Detached: the caller already returned, so a blocking retry chain
           // would hold this queue slot for up to four sequential runs.
-          if (!options.signal?.aborted) {
+          if (!signal.aborted) {
             void tryAutoRetry(prisma, taskId).catch(console.error);
           }
+        } finally {
+          releaseController();
         }
       });
       return { status: 'in_progress', taskId, ...result };
@@ -429,7 +578,7 @@ export async function runTask(
       traceEvent(trace, 'route.selected', { provider: task.provider ?? undefined, model: task.model ?? undefined });
       // Record health/performance for the intelligent router after agent completion
       const finalTask = 'task' in agentResult ? agentResult.task : await prisma.task.findUnique({ where: { id: taskId } });
-      if (finalTask && !options.signal?.aborted) {
+      if (finalTask && !signal.aborted) {
         const provider = (finalTask as Record<string, unknown>).provider as string | undefined;
         const model = (finalTask as Record<string, unknown>).model as string | undefined;
         if (provider && model) {
@@ -448,14 +597,14 @@ export async function runTask(
         );
         traceEvent(trace, 'llm.error', { error: reason });
         completeTrace(trace, 'error', task.provider ?? undefined, task.model ?? undefined);
-        if (!options.signal?.aborted) {
+        if (!signal.aborted) {
           void notifyFailure(prisma, {
             taskId, title: task.title, provider: task.provider ?? undefined,
             model: task.model ?? undefined, error: reason, tags,
             timestamp: new Date().toISOString(),
           }).catch(console.error);
         }
-        if (!options.signal?.aborted) {
+        if (!signal.aborted) {
           await tryAutoRetry(prisma, taskId);
         }
       } else {
@@ -470,6 +619,8 @@ export async function runTask(
       // No retry before rethrowing: the caller is about to receive a failure,
       // and a blocking chain here could mark the task done while still throwing.
       throw err;
+    } finally {
+      releaseController();
     }
   }
 
@@ -579,9 +730,24 @@ export async function runTask(
     const remaining = CASCADE_TIMEOUT_MS - (Date.now() - cascadeStart);
     const attemptTimeoutMs = Math.min(perProviderTimeoutMs, Math.max(10_000, remaining / 2));
     const maxAttempts = Math.max(0, Math.min(3, Math.floor(remaining / attemptTimeoutMs) - 1));
+
+    // For Ollama with repeated prompts (variance/benchmark runs), use n-gram warmup
+    const isOllama = config.kind === 'ollama';
+    const isRepeatedTask = (task.retryCount || 0) > 0 || safeJsonParse<string[]>(task.tags ?? '[]', []).includes('variance');
+    const sendOptions: Parameters<typeof provider.send>[1] = {
+      model: modelName,
+      timeoutMs: attemptTimeoutMs,
+      maxRetries: maxAttempts,
+    };
+    if (isOllama && isRepeatedTask) {
+      sendOptions.cacheMode = 'warm-ngram';
+      sendOptions.warmupRuns = 1;
+      sendOptions.keepAlive = '30m';
+    }
+
     traceEvent(trace, 'cascade.budget', { provider: providerName, remainingMs: remaining, timeoutMs: attemptTimeoutMs, maxRetries: maxAttempts });
     try {
-      const result = await provider.send(prompt, { model: modelName, timeoutMs: attemptTimeoutMs, maxRetries: maxAttempts });
+      const result = await provider.send(prompt, sendOptions);
       const durationMs = Date.now() - startMs;
 
       traceEvent(trace, 'llm.response', { provider: providerName, model: modelName, durationMs, resultLen: result.length });
@@ -652,7 +818,7 @@ export async function runTask(
       model: candidates[0].model,
     },
   });
-  if (!options.signal?.aborted) {
+  if (!signal.aborted) {
     void tryAutoRetry(prisma, taskId).catch(console.error);
   }
   return updated;
@@ -666,10 +832,16 @@ export async function runTask(
         const message = err instanceof Error ? err.message : String(err);
         await ensureFailedTaskReason(prisma, taskId, message);
         console.error(`Detached generic task ${taskId} failed:`, message);
+      } finally {
+        releaseController();
       }
     });
     return { status: 'in_progress', taskId, ...result };
   }
 
-  return runGenericTask();
+  try {
+    return await runGenericTask();
+  } finally {
+    releaseController();
+  }
 }

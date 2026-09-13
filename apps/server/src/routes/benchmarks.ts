@@ -19,6 +19,14 @@ const runSchema = z.object({
   timeout: z.number().int().positive().optional(),
 });
 
+// Local model evaluation presets for common Ollama workloads
+const LOCAL_PRESETS: Record<string, { suite: string; nTasks?: number; timeout: number; description: string }> = {
+  'local-smoke': { suite: 'fast', nTasks: 3, timeout: 60_000, description: 'Quick smoke test with 3 fast tasks' },
+  'local-bakeoff': { suite: 'synthetic', timeout: 300_000, description: 'Full synthetic benchmark across all models' },
+  'local-long-context': { suite: 'synthetic', timeout: 600_000, description: 'Long-context evaluation with warm-ngram' },
+  'local-variance': { suite: 'synthetic', timeout: 600_000, description: 'Variance test with repeated prompts' },
+};
+
 interface RunStatus {
   running: boolean;
   pid?: number;
@@ -89,6 +97,10 @@ async function listReports(prefix: string): Promise<string[]> {
 
 export function benchmarkRoutes(_prisma: PrismaClient): Router {
   const r = Router();
+
+  r.get('/presets', asyncHandler((_req, res) => {
+    res.json(LOCAL_PRESETS);
+  }));
 
   r.get('/reports', asyncHandler(async (_req, res) => {
     const [benchmark, ab] = await Promise.all([

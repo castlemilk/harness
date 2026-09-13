@@ -289,7 +289,7 @@ export async function runStrategyEval(
       let traceSummary: TraceSummary | undefined;
 
       try {
-        await runTask(apiUrl, harnessTask.id, tokenBudget);
+        await runTask(apiUrl, harnessTask.id, tokenBudget, timeoutMs);
         const finished = await waitForTask(apiUrl, harnessTask.id, timeoutMs);
         const diffs =
           finished.status === 'timeout'

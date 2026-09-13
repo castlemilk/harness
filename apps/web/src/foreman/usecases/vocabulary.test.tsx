@@ -4,8 +4,14 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CommandPalette } from '../surfaces/CommandPalette.js';
 import type { Harness } from '../types.js';
-import { getUseCase } from './index.js';
+import { getUseCase, getUseCases } from './index.js';
 import { caps, pluralise, vocabularyTerms, VocabularyProvider } from './vocabulary.js';
+
+// Victoria lives in the sibling omega repo and is configured OPTIONAL: it
+// joins the roster only where that checkout exists (see roster.test.ts). Its
+// vocabulary assertions run wherever the shell does and skip where it doesn't.
+const installed = new Set(getUseCases().map((s) => s.id));
+const ifVictoriaInstalled = installed.has('victoria') ? it : it.skip;
 
 /**
  * The vocabulary seam: a shell renames a display term, and the chrome-level
@@ -28,7 +34,7 @@ describe('vocabularyTerms', () => {
     });
   });
 
-  it('applies the active shell’s renames and leaves the rest alone', () => {
+  ifVictoriaInstalled('applies the active shell’s renames and leaves the rest alone', () => {
     // Read off the registered Victoria manifest, not a hand-written copy.
     const terms = vocabularyTerms(getUseCase('victoria')?.vocabulary);
     expect(terms.harness).toBe('desk agent');
@@ -96,7 +102,7 @@ function palette(vocabulary?: Record<string, string>): string {
 }
 
 describe('the chrome labels', () => {
-  it('says the shell’s word with victoria active', () => {
+  ifVictoriaInstalled('says the shell’s word with victoria active', () => {
     const markup = palette(getUseCase('victoria')?.vocabulary);
     expect(markup).toContain('Desk agents');
     expect(markup).toContain('Jump to a desk agent or ticket, or type a verb…');

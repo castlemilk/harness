@@ -25,6 +25,9 @@ import {
   getCurrentCommit,
   createBranch,
   hasChanges,
+  stageAllChanges,
+  commit,
+  getGradedDiff,
   checkoutBranch,
   stashAll,
   popStash,
@@ -61,6 +64,9 @@ export async function runAgentTask(
     defaultModel: cfg.defaultModel,
     capabilities: JSON.parse(cfg.capabilities) as ProviderConfig['capabilities'],
     enabled: cfg.enabled,
+    defaultCacheMode: cfg.defaultCacheMode as ProviderConfig['defaultCacheMode'] ?? undefined,
+    defaultWarmupRuns: cfg.defaultWarmupRuns ?? undefined,
+    defaultContextTokens: cfg.defaultContextTokens ?? undefined,
   }));
   // Use intelligent router when available, fallback to blind rules-based selection
   let selection: Awaited<ReturnType<typeof selectProvider>>;
@@ -293,6 +299,7 @@ export async function runAgentTask(
     maxSteps: options.maxSteps ?? maxStepsForComplexity(task.complexity),
     explorationBudget: explorationBudgetForComplexity(task.complexity),
     tokenBudget: options.tokenBudget,
+    thinking: options.thinking,
     modifiedFiles: new Set<string>(),
     consecutiveThinks: 0,
     explorationCount: 0,
@@ -369,8 +376,36 @@ export async function runAgentTask(
       turnCount: ctx.turnCount,
       lastToolError: ctx.lastToolError,
     });
-    rootSpan.recordError(err);
-    await rootSpan.end('error');
+    try {
+      rootSpan.recordError(err);
+      await rootSpan.end('error');
+    } catch (spanErr) {
+      logger.warn('Could not close failed agent root span', {
+        taskId: ctx.task.id,
+        err: spanErr instanceof Error ? spanErr.message : String(spanErr),
+      });
+    }
+    try {
+      if (await hasChanges(ctx.projectPath)) {
+        await stageAllChanges(ctx.projectPath);
+        await commit(ctx.projectPath, `agent: ${ctx.task.title} (failed attempt)`, true);
+      }
+      const diff = await getGradedDiff(ctx.projectPath, ctx.baseCommit);
+      if (diff.success && diff.output) {
+        await prisma.taskDiff.create({
+          data: {
+            taskId: ctx.task.id,
+            branch: ctx.branch,
+            patch: diff.output,
+          },
+        });
+      }
+    } catch (diffError) {
+      logger.warn('Could not persist failed agent patch', {
+        taskId: ctx.task.id,
+        error: diffError instanceof Error ? diffError.message : String(diffError),
+      });
+    }
     logger.error('Agent task failed', {
       taskId,
       agentRunId: agentRun.id,

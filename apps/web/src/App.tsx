@@ -5,6 +5,7 @@ import { TaskBoard } from './components/TaskBoard.js';
 import { ProviderSettings, type Provider } from './components/ProviderSettings.js';
 import { RouterPanel } from './components/RouterPanel.js';
 import { MetricsPanel } from './components/MetricsPanel.js';
+import { HotspotsPanel } from './components/HotspotsPanel.js';
 import { BenchmarkPanel } from './components/BenchmarkPanel.js';
 import { CostDashboard } from './components/CostDashboard.js';
 import StrategyLearningPanel from './components/StrategyLearningPanel.js';
@@ -13,6 +14,7 @@ import ErrorAnalysisPanel from './components/ErrorAnalysisPanel.js';
 import ProviderComparePanel from './components/ProviderComparePanel.js';
 import TraceTimelinePanel from './components/TraceTimelinePanel.js';
 import { ForemanApp } from './foreman/ForemanApp.js';
+import { LocalModelPanel } from './components/LocalModelPanel.js';
 
 /**
  * Foreman is the application shell. The pre-Foreman panels (benchmarks,
@@ -83,6 +85,10 @@ function App() {
         <main className="h-screen flex-1 overflow-y-auto bg-gray-50">
           <BenchmarkPanel />
         </main>
+      ) : view === 'local-models' ? (
+        <main className="h-screen flex-1 overflow-y-auto bg-gray-50">
+          <LocalModelPanel />
+        </main>
       ) : view === 'costs' ? (
         <main className="h-screen flex-1 overflow-y-auto bg-gray-50">
           <CostDashboard />
@@ -129,6 +135,7 @@ function App() {
             }}
           />
           <RouterPanel />
+          <HotspotsPanel />
           <MetricsPanel />
         </aside>
       )}

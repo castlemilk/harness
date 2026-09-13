@@ -3,7 +3,8 @@ import type { ResolvedSkill } from './skill-resolver.js';
 import type { AgentContext } from './agent-types.js';
 import { logger } from './logger.js';
 import { sanitizeForDb } from './utils.js';
-import { parseProviderResponse, parseToolCalls } from './provider-client.js';
+import { parseProviderResponse, parseToolCalls, recordUsage } from './provider-client.js';
+import { applyPatch } from './patch-utils.js';
 import { buildReflectionPrompt } from './prompts.js';
 import { hasChanges, stageAllChanges, commit, getDiff } from './git.js';
 import {
@@ -113,36 +114,36 @@ export async function tryStuckSolve(ctx: AgentContext): Promise<boolean> {
       system: 'You are a senior software engineer. Output ONLY a unified diff patch in git apply format. No explanation, no markdown fences.',
       model: ctx.model,
       temperature: 0.2,
+      // Patch extraction needs the model's final content, not a reasoning-only
+      // response from native thinking mode.
+      thinking: false,
+      onUsage: (usage) => { recordUsage(ctx, usage); },
       timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
+      signal: ctx.signal,
     }), ctx.signal);
     const patch = extractPatch(raw);
-    if (!patch) return false;
-    const tmp = path.join(ctx.projectPath, '.stuck-solve.patch');
-    await fs.writeFile(tmp, patch, 'utf-8');
-    try {
-      // Try strict apply first (fast, catches real conflicts).
-      await execFileAsync('git', ['-C', ctx.projectPath, 'apply', '--whitespace=nowarn', tmp]);
+    if (!patch) {
+      ctx.rootSpan.addEvent('agent.low_budget_stuck_solve_failed', {
+        reason: 'no-patch',
+        outputLength: raw.length,
+      });
+      return false;
+    }
+    const applied = await applyPatch(ctx.projectPath, patch);
+    if (applied.success) {
       logger.info('Stuck-solver applied a draft patch', { taskId: ctx.task.id, agentRunId: ctx.agentRunId });
       return true;
-    } catch {
-      // Fallback: --3way uses merge-based application which is more forgiving
-      // when the working tree has drifted from the patch context — mirrors the
-      // bench evaluator's applyLatestPatch pattern.
-      try {
-        await execFileAsync('git', ['-C', ctx.projectPath, 'apply', '--3way', '--whitespace=nowarn', tmp]);
-        logger.info('Stuck-solver applied a draft patch (3way)', { taskId: ctx.task.id, agentRunId: ctx.agentRunId });
-        return true;
-      } catch (err) {
-        logger.warn('Stuck-solver patch failed to apply', {
-          taskId: ctx.task.id,
-          agentRunId: ctx.agentRunId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-        return false;
-      }
-    } finally {
-      await fs.rm(tmp, { force: true }).catch(() => undefined);
     }
+    ctx.rootSpan.addEvent('agent.low_budget_stuck_solve_failed', {
+      reason: 'patch-apply',
+      output: applied.output.slice(0, 500),
+    });
+    logger.warn('Stuck-solver patch failed to apply', {
+      taskId: ctx.task.id,
+      agentRunId: ctx.agentRunId,
+      error: applied.output,
+    });
+    return false;
   } catch (err) {
     logger.warn('Stuck-solver provider call failed', {
       taskId: ctx.task.id,
@@ -178,6 +179,7 @@ export async function reflectOnTrace(ctx: AgentContext, maxTurns: number): Promi
         system: ctx.systemPrompt,
         model: ctx.model,
         timeoutMs: boundedProviderRequestTimeoutMs(ctx.deadlineMs),
+        signal: ctx.signal,
       },
     ), ctx.signal);
     reflectionSpan.addEvent('reflection.received');

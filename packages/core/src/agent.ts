@@ -58,6 +58,7 @@ export interface AgentOptions {
   baseBranch?: string;
   isolated?: boolean;
   tokenBudget?: number; // abort the agent loop if total tokens exceed this cap
+  thinking?: boolean; // enable provider-native reasoning/thinking mode
   retainWorktree?: boolean; // keep isolated worktree after the run for debugging
   complexity?: string; // used for adaptive timeouts and resource limits
   timeoutMs?: number; // total wall-clock budget for one agent attempt

@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import type { PrismaClient } from '@omega/db';
 import { z } from 'zod';
-import { runTask } from '../lib/run-task.js';
+import { cancelRunningTask, runTask } from '../lib/run-task.js';
+import { cancelTaskFlow } from '../lib/cuttlefish-run.js';
+import { inspectLedgerWorkspace } from '../lib/ledger-inspect.js';
 import { getNextStrategy, executeRetry, STRATEGIES_BY_NAME, type RetryAttempt, type RetryContext, type RetryRecord } from '../lib/retry-strategies.js';
 import { asyncHandler } from '../lib/async-handler.js';
 import { safeJsonParse } from '../lib/utils.js';
@@ -26,6 +28,8 @@ const updateSchema = z.object({
 
 const runSchema = z.object({
   tokenBudget: z.number().optional(),
+  thinking: z.boolean().optional(),
+  timeoutMs: z.number().int().positive().optional(),
   maxSubtasks: z.number().int().min(1).max(20).optional(),
   maxIterations: z.number().int().min(1).max(10).optional(),
   concurrency: z.number().int().min(1).max(5).optional(),
@@ -332,6 +336,8 @@ export function taskRoutes(prisma: PrismaClient): Router {
       const result = await runTask(prisma, req.params.id, {
         detached: true,
         tokenBudget: body.tokenBudget,
+        thinking: body.thinking,
+        timeoutMs: body.timeoutMs,
         maxSubtasks: body.maxSubtasks,
         maxIterations: body.maxIterations,
         concurrency: body.concurrency,
@@ -341,6 +347,22 @@ export function taskRoutes(prisma: PrismaClient): Router {
       const message = err instanceof Error ? err.message : String(err);
       res.status(500).json({ error: message });
     }
+  }));
+
+  r.post('/:id/cancel', asyncHandler(async (req, res) => {
+    const task = await prisma.task.findUnique({ where: { id: req.params.id } });
+    if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
+    if (task.status !== 'in_progress') { res.status(400).json({ error: `Task is ${task.status}, cannot cancel` }); return; }
+    if (!cancelRunningTask(req.params.id)) {
+      // Flow tasks release their local controller once dispatched; cancel the
+      // remote cuttlefish run instead.
+      const flowCancelled = await cancelTaskFlow(prisma, task.id);
+      if (!flowCancelled) {
+        res.status(409).json({ error: 'Task is not running in this server process' });
+        return;
+      }
+    }
+    res.status(202).json({ cancelled: true });
   }));
 
   r.post('/:id/retry', asyncHandler(async (req, res) => {
@@ -453,6 +475,20 @@ export function taskRoutes(prisma: PrismaClient): Router {
       return;
     }
     res.json(run);
+  }));
+
+  r.get('/:id/ledger', asyncHandler(async (req, res) => {
+    const taskId = await resolveTaskId(prisma, req.params.id);
+    if (!taskId) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    const inspect = await inspectLedgerWorkspace(taskId);
+    if (!inspect.exists) {
+      res.status(404).json({ error: 'No ledger workspace for this task', workspace: inspect.workspace });
+      return;
+    }
+    res.json(inspect);
   }));
 
   r.get('/:id/trace-flow', asyncHandler(async (req, res) => {

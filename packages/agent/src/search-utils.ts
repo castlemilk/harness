@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { isInsideProject } from './project-utils.js';
+import { isInsideProject, resolveExistingProjectPath } from './project-utils.js';
 import type { ToolResult } from './tool-types.js';
 
 const execFileAsync = promisify(execFile);
@@ -16,7 +16,8 @@ export async function listFiles(
   filePath: string,
   recursive = false
 ): Promise<ToolResult> {
-  const target = path.resolve(projectPath, filePath);
+  const resolved = await resolveExistingProjectPath(projectPath, filePath, 'directory');
+  const target = resolved?.absolutePath ?? path.resolve(projectPath, filePath);
   if (!isInsideProject(projectPath, target)) {
     return { success: false, output: 'Path traversal blocked' };
   }
@@ -101,7 +102,8 @@ export async function searchFiles(
   pattern: string,
   dirPath = '.'
 ): Promise<ToolResult> {
-  const target = path.resolve(projectPath, dirPath);
+  const resolved = await resolveExistingProjectPath(projectPath, dirPath, 'directory');
+  const target = resolved?.absolutePath ?? path.resolve(projectPath, dirPath);
   if (!isInsideProject(projectPath, target)) {
     return { success: false, output: 'Path traversal blocked' };
   }
@@ -196,12 +198,24 @@ async function exists(filePath: string): Promise<boolean> {
 }
 
 export async function codeOverview(projectPath: string, dirPath = '.'): Promise<ToolResult> {
-  const target = path.resolve(projectPath, dirPath);
+  const resolved = await resolveExistingProjectPath(projectPath, dirPath, 'directory');
+  const target = resolved?.absolutePath ?? path.resolve(projectPath, dirPath);
   if (!isInsideProject(projectPath, target)) {
     return { success: false, output: 'Path traversal blocked' };
   }
 
   const lines: string[] = [];
+  let isGoProject = false;
+
+  try {
+    const goMod = await fs.readFile(path.join(target, 'go.mod'), 'utf-8');
+    const moduleName = /^\s*module\s+(\S+)/m.exec(goMod)?.[1];
+    isGoProject = true;
+    lines.push('language: go');
+    if (moduleName) lines.push(`module: ${moduleName}`);
+  } catch {
+    // ignore missing go.mod
+  }
 
   try {
     const pkgRaw = await fs.readFile(path.join(target, 'package.json'), 'utf-8');
@@ -242,6 +256,16 @@ export async function codeOverview(projectPath: string, dirPath = '.'): Promise<
   for (const root of sourceRoots) {
     if (await exists(path.join(target, root))) foundRoots.push(root);
   }
+  if (isGoProject) {
+    const entries = await fs.readdir(target, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith('.') || SKIPPED_DIRS.has(entry.name)) continue;
+      const children = await fs.readdir(path.join(target, entry.name), { withFileTypes: true }).catch(() => []);
+      if (children.some((child) => child.isFile() && child.name.endsWith('.go')) && !foundRoots.includes(entry.name)) {
+        foundRoots.push(entry.name);
+      }
+    }
+  }
   if (foundRoots.length > 0) lines.push(`source roots: ${foundRoots.join(', ')}`);
 
   const testFiles: string[] = [];
@@ -257,7 +281,7 @@ export async function codeOverview(projectPath: string, dirPath = '.'): Promise<
           testFiles.push(`[d] ${rel}`);
         }
         await findTests(full, depth + 1);
-      } else if (/\.(test|spec)\.(ts|tsx|js|jsx)$/.test(entry.name)) {
+      } else if (/\.(test|spec)\.(ts|tsx|js|jsx)$/.test(entry.name) || entry.name.endsWith('_test.go')) {
         testFiles.push(`[f] ${rel}`);
       }
     }

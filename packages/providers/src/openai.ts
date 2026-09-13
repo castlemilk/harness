@@ -63,6 +63,19 @@ export class OpenAIProvider implements Provider {
     return { enabled: true, effort: cap.reasoningEffort ?? 'high' };
   }
 
+  /** OpenRouter exposes a documented reasoning disable switch. */
+  protected isOpenRouter(): boolean {
+    return (this.config.baseUrl ?? '').includes('openrouter.ai');
+  }
+
+  private outputTokenFields(model: string, opts?: SendOptions): Record<string, number> {
+    if (opts?.maxOutputTokens === undefined) return {};
+    // Chat Completions renamed this field to max_completion_tokens on gpt-5+.
+    return model.startsWith('gpt-5')
+      ? { max_completion_tokens: opts.maxOutputTokens }
+      : { max_tokens: opts.maxOutputTokens };
+  }
+
   protected async ensureTokenFresh(): Promise<void> {
     const { refreshToken, tokenExpiresAt } = this.config;
     if (!refreshToken || !tokenExpiresAt) return;
@@ -166,11 +179,17 @@ export class OpenAIProvider implements Provider {
         body: JSON.stringify({
           model,
           messages: this.buildMessages(prompt, opts),
-          ...(thinking
-            ? { thinking: { type: 'enabled' }, reasoning_effort: thinking.effort }
-            : this.supportsTemperature && opts?.temperature !== undefined
-              ? { temperature: opts.temperature }
-              : {}),
+          ...this.outputTokenFields(model, opts),
+          ...(opts?.thinking === false && this.isOpenRouter()
+            ? {
+                reasoning: { enabled: false },
+                ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
+              }
+            : thinking
+              ? { thinking: { type: 'enabled' }, reasoning_effort: thinking.effort }
+              : this.supportsTemperature && opts?.temperature !== undefined
+                ? { temperature: opts.temperature }
+                : {}),
         }),
       },
       'OpenAI',
@@ -189,12 +208,20 @@ export class OpenAIProvider implements Provider {
       throw new Error(`${prefix}${res.status.toString()} ${res.statusText} — ${body.slice(0, 500)}`);
     }
     const data = (await res.json()) as {
-      choices?: { message?: { content?: string; tool_calls?: unknown[] } }[];
+      choices?: {
+        message?: { content?: string; reasoning?: string; reasoning_content?: string; tool_calls?: unknown[] };
+        finish_reason?: string | null;
+      }[];
       usage?: Record<string, unknown>;
     };
     opts?.onEvent?.({ type: 'response', model, status: res.status });
-    opts?.onUsage?.(extractUsage(data) ?? {});
-    return data.choices?.[0]?.message?.content ?? '';
+    const usage = extractUsage(data);
+    opts?.onUsage?.(usage ?? {});
+    opts?.onFinishReason?.(data.choices?.[0]?.finish_reason ?? undefined, usage);
+    const message = data.choices?.[0]?.message;
+    // Reasoning models can hit the output cap mid-thought with an empty
+    // `content`; the streamed reasoning is then the only text there is.
+    return message?.content || message?.reasoning || message?.reasoning_content || '';
   }
 
   /**
@@ -238,17 +265,23 @@ export class OpenAIProvider implements Provider {
       const requestBody = JSON.stringify({
         model,
         messages: this.buildMessages(prompt, opts),
+        ...this.outputTokenFields(model, opts),
         tools: tools.map((t) => ({
           type: 'function',
           function: { name: t.name, description: t.description, parameters: t.parameters },
         })),
         tool_choice: 'auto',
         parallel_tool_calls: false,
-        ...(thinking
-          ? { thinking: { type: 'enabled' }, reasoning_effort: thinking.effort }
-          : this.supportsTemperature && opts?.temperature !== undefined
-            ? { temperature: opts.temperature }
-            : {}),
+        ...(opts?.thinking === false && this.isOpenRouter()
+          ? {
+              reasoning: { enabled: false },
+              ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
+            }
+          : thinking
+            ? { thinking: { type: 'enabled' }, reasoning_effort: thinking.effort }
+            : this.supportsTemperature && opts?.temperature !== undefined
+              ? { temperature: opts.temperature }
+              : {}),
       });
       const res = await fetchWithRetry(
         `${this.baseUrl}/chat/completions`,
@@ -272,17 +305,21 @@ export class OpenAIProvider implements Provider {
           choices?: {
             message?: {
               content?: string;
+              reasoning?: string;
               reasoning_content?: string;
               tool_calls?: {
                 id?: string;
                 function?: { name?: string; arguments?: string };
               }[];
             };
+            finish_reason?: string | null;
           }[];
           usage?: Record<string, unknown>;
         };
         opts?.onEvent?.({ type: 'response', model, status: res.status });
-        opts?.onUsage?.(extractUsage(data) ?? {});
+        const usage = extractUsage(data);
+        opts?.onUsage?.(usage ?? {});
+        opts?.onFinishReason?.(data.choices?.[0]?.finish_reason ?? undefined, usage);
         const message = data.choices?.[0]?.message;
         // A rotation is invisible to the caller's telemetry — the run says it
         // used the pinned model — so the fact must at least be recoverable
@@ -312,7 +349,7 @@ export class OpenAIProvider implements Provider {
             reasoning_content: message.reasoning_content ?? '',
           });
         }
-        return message?.content ?? '';
+        return message?.content || message?.reasoning || message?.reasoning_content || '';
       }
 
       const body = await res.text().catch(() => '');
@@ -417,6 +454,7 @@ export class OpenAIProvider implements Provider {
       input: this.buildCodexInput(prompt, opts),
       stream: true,
       store: false,
+      ...(opts?.maxOutputTokens !== undefined ? { max_output_tokens: opts.maxOutputTokens } : {}),
       ...(tools && tools.length > 0
         ? {
             tools: tools.map((t) => ({
@@ -451,11 +489,12 @@ export class OpenAIProvider implements Provider {
       throw new Error(`Codex request failed: ${res.status.toString()} ${res.statusText} — ${errBody.slice(0, 500)}`);
     }
 
-    const { text, toolCalls, usage } = await this.parseCodexSSE(res);
+    const { text, toolCalls, usage, stopReason } = await this.parseCodexSSE(res);
 
     if (usage) {
       opts?.onUsage?.(usage);
     }
+    opts?.onFinishReason?.(stopReason, usage);
 
     if (toolCalls.length > 0) {
       return JSON.stringify({ tool_calls: toolCalls });
@@ -468,6 +507,7 @@ export class OpenAIProvider implements Provider {
     text: string;
     toolCalls: { id: string; name: string; arguments: Record<string, unknown> }[];
     usage?: UsageInfo;
+    stopReason?: string;
   }> {
     if (!res.body) {
       throw new Error('Codex SSE response has no body');
@@ -480,6 +520,7 @@ export class OpenAIProvider implements Provider {
     const toolCalls: { id: string; name: string; arguments: Record<string, unknown> }[] = [];
     let currentToolCall: { id: string; name: string; arguments: string } | null = null;
     let usage: UsageInfo | undefined;
+    let stopReason: string | undefined;
 
     const processLine = (line: string) => {
       if (!line.startsWith('data: ')) return;
@@ -527,12 +568,19 @@ export class OpenAIProvider implements Provider {
           }
           break;
         }
-        case 'response.completed': {
+        case 'response.completed':
+        case 'response.incomplete': {
           const response = data.response as Record<string, unknown> | undefined;
           const responseUsage = response?.usage as Record<string, unknown> | undefined;
           if (responseUsage) {
             usage = extractUsage({ usage: responseUsage });
           }
+          const incomplete = response?.incomplete_details as Record<string, unknown> | undefined;
+          stopReason = typeof incomplete?.reason === 'string'
+            ? incomplete.reason
+            : typeof response?.status === 'string'
+              ? response.status
+              : undefined;
           break;
         }
       }
@@ -555,7 +603,7 @@ export class OpenAIProvider implements Provider {
       processLine(buffer);
     }
 
-    return { text, toolCalls, usage };
+    return { text, toolCalls, usage, stopReason };
   }
 
   protected authHeaders(): Record<string, string> {

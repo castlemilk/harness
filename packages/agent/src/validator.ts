@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { constants } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
@@ -138,18 +139,24 @@ async function packageHasDependencies(projectPath: string): Promise<boolean> {
 }
 
 async function commandExists(cmd: string, options: ExecutionDeadlineOptions): Promise<boolean> {
-  try {
-    await execFileAsync('command', ['-v', cmd], {
-      // Floored for the same reason `runStep` is: past the deadline an
-      // unfloored budget collapses to 1ms, and this probe silently reporting
-      // "missing" makes the whole dependency install get skipped.
-      timeout: Math.max(5_000, boundedExecutionTimeoutMs(10_000, options)),
-      signal: options.signal,
-    });
-    return true;
-  } catch {
-    return false;
+  if (options.signal?.aborted) return false;
+  // `command` is a shell builtin and missing on Linux CI images; probe PATH
+  // directly so tool detection matches what a shell would find.
+  const candidates = cmd.includes(path.sep)
+    ? [cmd]
+    : (process.env.PATH ?? '')
+        .split(path.delimiter)
+        .filter(Boolean)
+        .map((dir) => path.join(dir, cmd));
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate, constants.X_OK);
+      return true;
+    } catch {
+      // Keep looking.
+    }
   }
+  return false;
 }
 
 async function validateNodeProject(
@@ -187,21 +194,74 @@ async function validateNodeProject(
     return [script];
   };
 
+  // Build first: type-aware lint rules and test runners resolve workspace
+  // package types from their build output, so a fresh worktree fails lint
+  // with hundreds of "could not be resolved" errors until the workspace is
+  // built. Building before validating keeps finish-time validation honest
+  // for agents working in freshly checked-out worktrees.
+  const build = (await fileHasScript(projectPath, 'build'))
+    ? await runStep(projectPath, pm.command, scriptArgs('build'), options)
+    : pass();
   const lint = (await fileHasScript(projectPath, 'lint'))
     ? await runStep(projectPath, pm.command, scriptArgs('lint'), options)
     : pass();
   const test = (await fileHasScript(projectPath, 'test'))
     ? await runStep(projectPath, pm.command, scriptArgs('test'), options)
     : pass();
-  const build = (await fileHasScript(projectPath, 'build'))
-    ? await runStep(projectPath, pm.command, scriptArgs('build'), options)
-    : pass();
 
   return { lint, test, build, allPassed: lint.passed && test.passed && build.passed };
 }
 
+async function validateGoProject(
+  projectPath: string,
+  options: ExecutionDeadlineOptions,
+): Promise<ValidationSummary> {
+  if (!(await commandExists('go', options))) {
+    return {
+      lint: pass(),
+      test: fail('go executable not found'),
+      build: pass(),
+      allPassed: false,
+    };
+  }
+
+  let packages: string[];
+  try {
+    const { stdout } = await execFileAsync('go', ['list', '-e', '-f', '{{.ImportPath}}', './...'], {
+      cwd: projectPath,
+      timeout: Math.max(
+        MIN_VALIDATION_STEP_TIMEOUT_MS,
+        boundedExecutionTimeoutMs(300_000, options),
+      ),
+      signal: options.signal,
+    });
+    packages = stdout
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0 && !item.endsWith('/js'));
+  } catch (err) {
+    const execErr = err as { stdout?: string; stderr?: string; message?: string };
+    const output = (execErr.stdout ?? '') + (execErr.stderr ?? '') || (execErr.message ?? String(err));
+    const failed = fail(`go list ./... failed:\n${output}`);
+    return { lint: pass(), test: failed, build: failed, allPassed: false };
+  }
+
+  if (packages.length === 0) {
+    const failed = fail('go list ./... returned no non-browser packages');
+    return { lint: pass(), test: failed, build: failed, allPassed: false };
+  }
+
+  const build = await runStep(projectPath, 'go', ['build', ...packages], options);
+  const test = await runStep(projectPath, 'go', ['test', ...packages], options);
+  return { lint: pass(), test, build, allPassed: test.passed && build.passed };
+}
+
 function pass(): { passed: boolean; output: string } {
   return { passed: true, output: 'skipped (no script or project marker)' };
+}
+
+function fail(output: string): { passed: boolean; output: string } {
+  return { passed: false, output };
 }
 
 export async function validateProject(
@@ -212,10 +272,11 @@ export async function validateProject(
   const managedOptions = validationExecutionOptions(options);
   try {
     const hasPackageJson = await pathExists(path.join(projectPath, 'package.json'));
-    // Non-Node projects currently have no imposed validation harness. Future
-    // work can add pytest, go test, cargo test, and similar checks here.
+    const hasGoMod = await pathExists(path.join(projectPath, 'go.mod'));
     const summary = hasPackageJson
       ? await validateNodeProject(projectPath, managedOptions.options)
+      : hasGoMod
+        ? await validateGoProject(projectPath, managedOptions.options)
       : { lint: pass(), test: pass(), build: pass(), allPassed: true };
     throwIfCallerCancelled(options);
     return summary;

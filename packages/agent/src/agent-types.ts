@@ -50,6 +50,7 @@ export interface AgentContext {
   /** Most recent failed tool result, retained for terminal disclosure. */
   lastToolError?: { name: string; output: string };
   tokenBudget?: number;
+  thinking?: boolean;
   repoOverview?: string;
   stuckSolveAttempted?: boolean;
   deadlineMs: number;

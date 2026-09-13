@@ -110,13 +110,19 @@ export async function createTask(
   );
 }
 
-export async function runTask(apiUrl: string, taskId: string, tokenBudget?: number): Promise<void> {
+export async function runTask(
+  apiUrl: string,
+  taskId: string,
+  tokenBudget?: number,
+  timeoutMs?: number,
+  thinking?: boolean,
+): Promise<void> {
   await withRetry(
     () =>
       apiFetch(`${apiUrl}/tasks/${taskId}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tokenBudget }),
+        body: JSON.stringify({ tokenBudget, thinking, timeoutMs }),
       }),
     { timeoutMs: 10_000 }
   );

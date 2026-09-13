@@ -13,19 +13,20 @@ export const PROMPT_ROLE = xml('role', 'You are Omega, an autonomous software en
 export const PROMPT_SKILLS = xml('skills', 'If the context below contains a relevant skill with a verified reference patch (e.g. a solution.patch file) and a one-shot "apply patch then verify" workflow, FOLLOW IT EXACTLY before doing any exploration or manual edits. Run the patch command from the skill verbatim using run_command, run the skill\'s verification command, and call finish with success=true if verification passes. Only deviate from the skill instructions if the skill\'s verification command fails after a retry; then make the smallest possible fix. Skill verification commands override the generic "use the project\'s test script" rule when they are more specific.', { priority: 'highest' });
 
 export const PROMPT_WORKFLOW = xml('workflow',
-  xml('step', 'Think once to create a concise plan.', { number: '1' }) + '\n' +
-  xml('step', 'Explore briefly: code_overview once, then read_file/search only the files you need.', { number: '2' }) + '\n' +
+  xml('step', 'Think once to create a concise plan. If the task names a source file, start with that file instead of broad repository discovery.', { number: '1' }) + '\n' +
+  xml('step', 'Explore briefly: read the exact target lines, then edit. Use code_overview/list_files only when the target is genuinely unknown.', { number: '2' }) + '\n' +
   xml('step', 'Implement: use edit_file for small changes to existing files; use apply_patch for coordinated multi-file edits; write_file only for brand-new files.', { number: '3' }) + '\n' +
   xml('step', 'Verify: run the project\'s build/compile command, then run the project\'s test command. Read the output and fix any failures.', { number: '4' }) + '\n' +
   xml('step', 'Finish only when build and tests pass. Before finish, call validate_patch. If public APIs are mentioned, also call verify_api_surface.', { number: '5' })
 );
 
 export const PROMPT_TOOL_RULES = xml('tool-rules',
-  ['Start with think, then read only the files you need. Use code_overview once for unfamiliar codebases.',
+  ['Start with one concise think call, then take a targeted read or edit action. Do not repeat planning after the planner summary.',
+    'If the task names a file or symbol, read that target directly before searching the wider repository.',
     'When reading large files, use read_file with line_offset and line_count to fetch just the section you need. Avoid re-reading the whole file.',
     'Use edit_file for small, targeted changes; use apply_patch for coordinated multi-file changes; write_file only for brand-new files. Never use write_file to overwrite an existing file.',
     'If edit_file fails because old_string is not found or appears multiple times, use edit_lines with line numbers instead (read_file line_numbers=true first), or apply_patch with a unified diff.',
-    'For large refactors that touch several files, prefer apply_patch with a clean git unified diff over many individual edit_file calls.',
+    'For large refactors that touch several files, prefer apply_patch with a clean git unified diff over many individual edit_file calls. For Go changes spanning functions or files, prefer apply_patch; edit_lines ranges become stale after edits, so reread line-numbered content immediately before every use and replace complete syntactic blocks.',
     'After every source edit the harness automatically runs "tsc --noEmit" (for TypeScript projects). If typecheck errors appear, fix them immediately before making further edits.',
     'Run the project\'s test command after each wiring step and review output.',
     'Before finish, call publish to run the full validation (lint/test/build). If validation fails, fix the issues and call publish again.',
@@ -53,7 +54,7 @@ export const PROMPT_IMPLEMENTATION = xml('implementation-rules',
   ['Only edit task-related source files. Do not touch tests, CI/CD configs, docs, or build/config files unless required.',
     'Do not run destructive commands or expose secrets.',
     'Use the project\'s exact test script (pnpm test / npm test / go test ./... / cargo test / python3 -m pytest -q). Never run test files directly with node.',
-    'Preserve existing style and formatting, including import extensions (e.g. \'.js\' on relative imports in ESM packages).',
+    'Preserve existing style and formatting, including import extensions (e.g. \'.js\' on relative imports in ESM packages). After every Go edit, run gofmt on the touched file and fix any syntax error before making another edit.',
     'Prefer the smallest edit_file change that advances the task. Do not wholesale rewrite existing files.',
   ].map((r) => `  <rule>${r}</rule>`).join('\n'));
 
@@ -61,7 +62,7 @@ export const AGENT_SYSTEM_PROMPT =
   loadPromptFromEnv('OMEGA_SYSTEM_PROMPT') ??
   [PROMPT_ROLE, PROMPT_SKILLS, PROMPT_WORKFLOW, PROMPT_TOOL_RULES, PROMPT_FORBIDDEN, PROMPT_BUDGET, PROMPT_TYPE, PROMPT_IMPLEMENTATION].join('\n\n');
 
-export const FORCE_ACTION_PROMPT = `EDIT-FIRST MODE: You have been exploring without making progress. read_file, search, and think are still allowed, but you must make a concrete source change very soon. run_command, list_files, code_overview, lsp_*, finish, publish, validate_patch, and verify_api_surface are rejected until you edit. If edit_file old_string matching keeps failing, use edit_lines with line numbers (read_file line_numbers=true first) or apply_patch with a unified diff. edit_lines and apply_patch count as concrete edits and will exit this mode. Pick the smallest source-file change that advances the task and execute it now.`;
+export const FORCE_ACTION_PROMPT = `EDIT-FIRST MODE: You have been exploring without making progress. Make a concrete source change now. In the initial forced step, one targeted read_file is allowed only to obtain exact lines; then use edit_file, edit_lines, apply_patch, or write_file. run_command, list_files, code_overview, lsp_*, think, finish, publish, validate_patch, and verify_api_surface are rejected until you edit. If edit_file old_string matching fails, use edit_lines with line numbers or apply_patch with a complete unified diff. Do not explain or restart exploration.`;
 
 export const TEXT_TOOLS_SYSTEM_PROMPT =
   loadPromptFromEnv('OMEGA_TEXT_TOOLS_PROMPT') ??

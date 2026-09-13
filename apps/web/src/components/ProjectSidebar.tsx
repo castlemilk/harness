@@ -9,7 +9,7 @@ export interface Project {
   _count?: { tasks: number };
 }
 
-export type View = 'tasks' | 'benchmarks' | 'costs' | 'router' | 'errors' | 'traces' | 'compare';
+export type View = 'tasks' | 'benchmarks' | 'costs' | 'router' | 'errors' | 'traces' | 'compare' | 'local-models';
 
 interface Props {
   projects: Project[];
@@ -128,6 +128,7 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onChange, view 
         {([
           ['tasks', 'Tasks'],
           ['benchmarks', 'Benchmarks'],
+          ['local-models', 'Local Models'],
           ['costs', 'Costs'],
           ['router', 'Router'],
           ['errors', 'Errors'],

@@ -23,8 +23,13 @@ A local-first, model-agnostic harness for scheduling work across projects, routi
 - **Prompt-version benchmarking** – every agent run is tagged with the prompt version/hash; the web UI compares pass rates across versions.
 - **Token usage tracking** – provider responses record prompt/completion/total tokens and store them on each `AgentRun`.
 - **Multi-agent orchestration** – tasks tagged `orchestrate` are decomposed by a high-tier planner model, implemented by smaller-model sub-agents, and closed by a review/feedback loop. See [docs/orchestration.md](docs/orchestration.md), the [roadmap](docs/roadmap.md), and the [reference corpus](docs/references.md).
+- **Ledger orchestration** – tasks tagged `ledger` run a training-free manager–worker scaffold over a shared filesystem ledger (plan/notes/tasks/solution) with fresh-context short calls, output caps, truncation handling and sample-test veto. See [docs/ledger-orchestration.md](docs/ledger-orchestration.md).
 - **External agent harnesses** – control Codex, Claude Code, Gemini CLI, OpenCode, Cursor CLI, or Aider by tagging a task `external:<cli>`. See [docs/external-agents.md](docs/external-agents.md).
 - **Self-improvement loop** – run isolated candidate iterations with trace/diff reflection, build/lint/test validation, benchmark regression gates, and fast-forward promotion. See [docs/self-improvement-loop.md](docs/self-improvement-loop.md).
+- **Agents API (`/v1`)** – versioned HTTP surface for projects, tasks, runs, traces, runtime connections and flows, with optional bearer auth (`OMEGA_API_TOKEN`).
+- **MCP server** – `harness mcp` (stdio) and `POST /mcp` (Streamable HTTP) expose project/task/run management and cuttlefish runtime tools to MCP clients.
+- **Cuttlefish workflow execution** – translate tasks into `cuttlefish.dev/v1alpha1` workflows, dispatch runs across the compute fleet, and mirror run status, logs, artifacts and node attempts back into task steps and trace spans.
+- **Distributed tracing + hotspots** – OTel spans for HTTP requests and flow dispatch join cuttlefish's spans in Tempo; a spanmetrics pipeline feeds Mimir for p95/p99 hotspot ranking, queryable from the API, MCP and web UI. See [docs/observability.md](docs/observability.md).
 
 ## Architecture
 
@@ -41,6 +46,8 @@ packages/
   skills/     SKILL.md parser & adapter generator
   agent/      autonomous agent executor with tracing
   bench/      benchmark runner, synthetic suite, DeepSWE adapter
+  cuttlefish/ typed client + task→workflow translator for cuttlefish
+  mcp/        MCP server (stdio + Streamable HTTP) over the harness API
   bundle/     npm-publishable CLI package (@castlemilk/omega)
 ```
 
@@ -64,6 +71,42 @@ npx @castlemilk/omega ui --no-tui
 ```
 
 > The npm package name is `@castlemilk/omega`, but the command it installs is `harness`.
+
+## Docker (local stack)
+
+Run the harness API + web UI as a Docker container. Workflow execution expects
+a cuttlefish control plane running separately (in its own Docker stack):
+
+```bash
+# 1. cuttlefish (from its repo)
+(cd ~/projects/cuttlefish && make up)
+
+# 2. harness
+docker compose up -d --build     # http://localhost:4000 (API + web UI)
+docker compose logs -f harness
+docker compose down              # stop, keep PGlite data
+docker compose down -v           # stop and wipe PGlite data
+```
+
+Inside the container the harness reaches cuttlefish through
+`host.docker.internal:4444` (configured in `docker-compose.yml`). When running
+the harness natively, set `RUNTIME_BASE_URL=http://localhost:4444` instead.
+
+One-command validation — publishes `deploy/cuttlefish/hello-world.yaml` through
+the harness API, runs a task tagged `flow:hello-world`, then asserts the
+cuttlefish run succeeded and its logs contain the hello-world marker:
+
+```bash
+scripts/e2e/docker-e2e.sh        # build, test, tear down
+KEEP=1 scripts/e2e/docker-e2e.sh # leave the stack running
+task cuttlefish:e2e              # same via task
+```
+
+With tracing enabled (`CUTTLEFISH_OTEL=1`, the default) the same run also
+asserts a single distributed trace across `omega-harness` and
+`cuttlefish-controlplane` in Tempo, and that spanmetrics reached Mimir for
+hotspot queries. Full topology and troubleshooting: [docs/docker-e2e.md](docs/docker-e2e.md);
+the trace/metrics pipeline and query API: [docs/observability.md](docs/observability.md).
 
 ### Multi-agent orchestration
 
@@ -193,6 +236,9 @@ harness ui
 # TUI console only
 harness console
 
+# MCP server over stdio (for Claude Code, Codex, Cursor, ...)
+harness mcp
+
 # Web UI only
 harness ui --no-tui
 
@@ -264,6 +310,87 @@ npx @castlemilk/omega task feed \
 Without `--auto-run`, the task is created with status `todo` and can be run later from the UI or CLI. With `--auto-run`, the router picks a provider immediately and executes the task.
 
 The gRPC proto is defined in `proto/tasks.proto`.
+
+## Agents API (`/v1`)
+
+The versioned API is the stable surface for external clients and MCP. It mirrors the existing routes (projects, tasks, providers, router, traces) and adds runtime connections and flows.
+
+```bash
+# Capabilities + health
+curl http://localhost:4000/v1
+curl http://localhost:4000/v1/health
+
+# Register a cuttlefish control plane
+curl -X POST http://localhost:4000/v1/runtimes \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"local-cuttlefish","baseUrl":"http://localhost:4444","autoRoute":false}'
+
+# Create + run a task through the runtime (tag selects the connection)
+curl -X POST http://localhost:4000/v1/tasks \
+  -H 'Content-Type: application/json' \
+  -d '{"projectId":"<id>","title":"Add a greet util","tags":["runtime:local-cuttlefish"]}'
+curl -X POST http://localhost:4000/v1/tasks/<id>/run
+
+# Inspect runs and flows
+curl http://localhost:4000/v1/runs
+curl "http://localhost:4000/v1/flows?taskId=<id>"
+curl http://localhost:4000/v1/flows/<flow-id>/logs
+```
+
+Set `OMEGA_API_TOKEN` to require `Authorization: Bearer <token>` (or `x-omega-token`) on `/v1` and `/mcp`. `/v1/health` stays open for liveness probes.
+
+## MCP server
+
+The harness exposes the same API as an MCP server: stdio for local agent hosts, Streamable HTTP on the server itself.
+
+```jsonc
+// .mcp.json (this repo)
+{
+  "mcpServers": {
+    "omega-harness": {
+      "command": "node",
+      "args": ["apps/cli/dist/index.js", "mcp"],
+      "env": { "OMEGA_API_URL": "http://127.0.0.1:4000" }
+    }
+  }
+}
+```
+
+```bash
+pnpm --filter @omega/cli build
+node apps/cli/dist/index.js mcp                  # stdio
+curl -X POST http://localhost:4000/mcp ...       # Streamable HTTP
+```
+
+Tools are namespaced `omega_*`: project/task CRUD and execution, run/trace lookup, provider/router preview, `omega_runtime_*` for cuttlefish connections and `omega_flow_*` for dispatched runs.
+
+## Cuttlefish workflow execution
+
+`packages/cuttlefish` translates a harness task into a `cuttlefish.dev/v1alpha1` workflow and dispatches it to a fleet. Tasks opt in with tags:
+
+| Tag | Effect |
+| --- | --- |
+| `runtime:<connection-name>` | Use a named runtime connection (project-scoped or global). |
+| `flow:<workflow-name-or-id>` | Run that workflow from its latest published version. |
+| `flow-version:<version-id>` | Pin a published workflow version. |
+| `flow-off` | Disable routing even when the connection has `autoRoute`. |
+
+Connections with `autoRoute: true` take over tasks that carry no flow tags. Workflow generation modes, in priority order:
+
+1. `workflowTemplate` on the connection — a YAML template with `{{task.id}}`, `{{project.name}}`, … placeholders.
+2. `nodeImage` + `nodeCommand` — a single inline node running the command in the image.
+3. A default smoke workflow (`examples/echo` → `examples/write-file`) useful for verifying the wiring.
+
+While a run executes, the harness mirrors cuttlefish state into the task: one `TaskStep` per node, one `TraceSpan` per attempt (with timings and outputs), and terminal status, logs and artifact names into the task result. `POST /tasks/:id/cancel` cancels the remote run; the sync loop is bounded by `OMEGA_FLOW_TIMEOUT_MS`.
+
+Workflows are managed through the harness too — `POST /v1/runtimes/:id/workflows` validates, creates-or-updates and publishes a workflow. `deploy/cuttlefish/hello-world.yaml` is a minimal inline-node workflow used by the Docker e2e:
+
+```bash
+curl -X POST http://localhost:4000/v1/runtimes/<runtime-id>/workflows \
+  -H 'Content-Type: application/json' \
+  -d "$(python3 -c 'import json; print(json.dumps({"name":"hello-world","workflowYAML":open("deploy/cuttlefish/hello-world.yaml").read()}))')"
+```
+
 
 ## Adding skills
 

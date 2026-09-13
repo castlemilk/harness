@@ -1,11 +1,23 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createLoopConfig, runTask, submitSelfImproveTask } from './omega-loop.mjs';
+import { cancelTask, createLoopConfig, runTask, submitSelfImproveTask } from './omega-loop.mjs';
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 describe('omega self-improve loop configuration', () => {
+  it('gives the default agent a focused prompt scoped to packages/agent source files', () => {
+    const config = createLoopConfig({}, '/home/test', '/repo');
+
+    expect(config.defaultPrompt).toContain('packages/agent');
+    expect(config.defaultPrompt).toContain('SOURCE file');
+    expect(config.defaultPrompt).toContain('do NOT run full-repo build/test/lint');
+    expect(config.defaultPrompt).toContain('promotion gate');
+    expect(config.defaultPrompt).toContain('agent-helpers.ts');
+    expect(config.defaultPrompt).toContain('AVOID');
+    expect(config.defaultPrompt).toContain('fix the lint with edit_file BEFORE calling finish');
+  });
+
   it('maps provider, model, budget, and orchestration controls from the environment', () => {
     const config = createLoopConfig({
       OMEGA_STORAGE_ROOT: '/tmp/omega-test',
@@ -13,6 +25,7 @@ describe('omega self-improve loop configuration', () => {
       OMEGA_LOOP_PROVIDER: 'ollama-local',
       OMEGA_LOOP_MODEL: 'qwen3:8b',
       OMEGA_LOOP_TOKEN_BUDGET: '30000',
+      OMEGA_LOOP_THINKING: 'true',
     }, '/home/test', '/repo');
 
     expect(config).toEqual(expect.objectContaining({
@@ -22,6 +35,7 @@ describe('omega self-improve loop configuration', () => {
       provider: 'ollama-local',
       model: 'qwen3:8b',
       tokenBudget: 30000,
+      thinking: true,
     }));
     expect(config.iterationsDir).toBe('/tmp/omega-test/iterations');
   });
@@ -32,6 +46,7 @@ describe('omega self-improve loop configuration', () => {
       OMEGA_LOOP_PROVIDER: 'ollama-local',
       OMEGA_LOOP_MODEL: 'qwen3:8b',
       OMEGA_LOOP_TOKEN_BUDGET: '30000',
+      OMEGA_LOOP_THINKING: 'true',
       OMEGA_LOOP_PROMPT: 'Improve one thing.',
     }, '/home/test', '/repo');
     const task = { id: 'task-1', status: 'todo' };
@@ -53,7 +68,7 @@ describe('omega self-improve loop configuration', () => {
           projectId: 'project-1',
           title: 'Improve one thing.',
           description: 'Improve one thing.',
-          complexity: 'complex',
+          complexity: 'simple',
           tags: ['self-improve'],
         }),
       }),
@@ -71,8 +86,21 @@ describe('omega self-improve loop configuration', () => {
       'http://localhost:4400/tasks/task-1/run',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ tokenBudget: 30000 }),
+        body: JSON.stringify({ tokenBudget: 30000, thinking: true, timeoutMs: 1800000 }),
       }),
+    );
+  });
+
+  it('cancels a timed-out task through the server', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ cancelled: true }), { status: 202 }),
+    );
+
+    await expect(cancelTask('task-1', createLoopConfig({ OMEGA_LOOP_API_URL: 'http://localhost:4400' })))
+      .resolves.toEqual({ cancelled: true });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:4400/tasks/task-1/cancel',
+      expect.objectContaining({ method: 'POST' }),
     );
   });
 
@@ -90,7 +118,7 @@ describe('omega self-improve loop configuration', () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       'http://localhost:4000/tasks/task-1/run',
-      expect.objectContaining({ body: '{}' }),
+      expect.objectContaining({ body: JSON.stringify({ timeoutMs: 1800000 }) }),
     );
   });
 });

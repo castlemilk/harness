@@ -4,12 +4,14 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "DATABASE_URL='postgresql://localhost:5432/omega' DATABASE_DIR=${DATABASE_DIR:-../../pglite-data} tsx watch src/index.ts",
     "start": "DATABASE_URL='postgresql://localhost:5432/omega' DATABASE_DIR=${DATABASE_DIR:-../../pglite-data} node dist/index.js",
-    "test": "DATABASE_URL='postgresql://localhost:5432/omega' DATABASE_DIR=\"$(mktemp -d)/pglite\" vitest run"
+    "test": "DATABASE_URL='postgresql://localhost:5432/omega' DATABASE_DIR=\"$(mktemp -d)/pglite\" vitest run --no-file-parallelism"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.3",
@@ -18,10 +20,17 @@
     "@omega/agent": "workspace:*",
     "@omega/bench": "workspace:*",
     "@omega/core": "workspace:*",
+    "@omega/cuttlefish": "workspace:*",
     "@omega/db": "workspace:*",
+    "@omega/mcp": "workspace:*",
     "@omega/providers": "workspace:*",
     "@omega/router": "workspace:*",
     "@omega/skills": "workspace:*",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.222.0",
+    "@opentelemetry/resources": "^2.11.0",
+    "@opentelemetry/sdk-node": "^0.222.0",
+    "@opentelemetry/semantic-conventions": "^1.43.0",
     "@prisma/client": "^5.14.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",

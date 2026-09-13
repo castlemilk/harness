@@ -11,6 +11,8 @@ import { agentCmd } from './commands/agent.js';
 import { benchCmd } from './commands/bench.js';
 import { traceCmd } from './commands/trace.js';
 import { providerCmd } from './commands/provider.js';
+import { mcpCmd } from './commands/mcp.js';
+import { ledgerCmd } from './commands/ledger.js';
 
 program
   .name('harness')
@@ -29,5 +31,7 @@ program.addCommand(agentCmd);
 program.addCommand(benchCmd);
 program.addCommand(traceCmd);
 program.addCommand(providerCmd);
+program.addCommand(mcpCmd);
+program.addCommand(ledgerCmd);
 
 program.parse();

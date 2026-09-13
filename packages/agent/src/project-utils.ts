@@ -270,12 +270,20 @@ export function remainingDeadlineMs(deadlineMs: number, nowMs: number = Date.now
   return Math.max(1, deadlineMs - nowMs);
 }
 
+const DEFAULT_PROVIDER_REQUEST_TIMEOUT_MS = 180_000;
+const MIN_PROVIDER_REQUEST_TIMEOUT_MS = 5_000;
+
 /** Bound one provider transport request without defeating the outer deadline signal. */
 export function boundedProviderRequestTimeoutMs(
   deadlineMs: number,
   nowMs: number = Date.now(),
+  environment: NodeJS.ProcessEnv = process.env,
 ): number {
-  return Math.min(120_000, Math.max(5_000, remainingDeadlineMs(deadlineMs, nowMs)));
+  const configured = Number(environment.OMEGA_PROVIDER_REQUEST_TIMEOUT_MS);
+  const ceiling = Number.isFinite(configured) && configured > 0
+    ? Math.max(MIN_PROVIDER_REQUEST_TIMEOUT_MS, configured)
+    : DEFAULT_PROVIDER_REQUEST_TIMEOUT_MS;
+  return Math.min(ceiling, Math.max(MIN_PROVIDER_REQUEST_TIMEOUT_MS, remainingDeadlineMs(deadlineMs, nowMs)));
 }
 
 export function boundedExecutionTimeoutMs(
@@ -289,10 +297,10 @@ export function boundedExecutionTimeoutMs(
 
 export function explorationBudgetForComplexity(complexity: string | undefined): { beforeFirstEdit: number; betweenEdits: number } {
   switch (complexity) {
-    case 'simple': return { beforeFirstEdit: 8, betweenEdits: 4 };
-    case 'medium': return { beforeFirstEdit: 12, betweenEdits: 6 };
-    case 'complex': return { beforeFirstEdit: 20, betweenEdits: 8 };
-    default: return { beforeFirstEdit: 10, betweenEdits: 5 };
+    case 'simple': return { beforeFirstEdit: 3, betweenEdits: 5 };
+    case 'medium': return { beforeFirstEdit: 3, betweenEdits: 5 };
+    case 'complex': return { beforeFirstEdit: 3, betweenEdits: 5 };
+    default: return { beforeFirstEdit: 3, betweenEdits: 5 };
   }
 }
 
@@ -304,6 +312,12 @@ export function taskMentionsPublicApi(task: Task): boolean {
 export function taskLikelyHasTests(task: Task, skillContext?: string): boolean {
   const text = `${task.title} ${task.description ?? ''} ${skillContext ?? ''}`.toLowerCase();
   return /\b(test|spec|assert|should |verify)\b/.test(text);
+}
+
+export function taskLikelyRequiresChanges(task: Task): boolean {
+  if (task.tags.some((tag) => tag === 'benchmark' || tag === 'self-improve')) return true;
+  const text = `${task.title} ${task.description ?? ''}`.toLowerCase();
+  return /\b(add|allow|change|create|enable|extend|feature|fix|implement|improve|introduce|migrate|modify|refactor|remove|rename|replace|support|update)\b/.test(text);
 }
 
 export async function projectHasTestableArtifacts(projectPath: string): Promise<boolean> {
@@ -337,6 +351,55 @@ export function looksLikeTestCommand(command: string): boolean {
   return TEST_COMMAND_PATTERNS.some((pattern) => pattern.test(command));
 }
 
+/**
+ * A test command can only satisfy a verification gate when its exit status is
+ * visible to the runner. Pipes and command separators at the top level can
+ * replace a failed test status with the status of `head`, `tee`, or another
+ * follow-up command. Operators inside `$(...)` are safe here because the
+ * outer test process still supplies the command's exit status.
+ */
+export function isReliableTestCommand(command: string): boolean {
+  if (!looksLikeTestCommand(command)) return false;
+
+  let quote: "'" | '"' | null = null;
+  let substitutionDepth = 0;
+  for (let index = 0; index < command.length; index++) {
+    const char = command[index];
+    if (char === '\\' && quote === null) {
+      index++;
+      continue;
+    }
+    if (quote === null && (char === "'" || char === '"')) {
+      quote = char;
+      continue;
+    }
+    if (quote !== null) {
+      if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '$' && command[index + 1] === '(') {
+      substitutionDepth++;
+      index++;
+      continue;
+    }
+    if (char === ')' && substitutionDepth > 0) {
+      substitutionDepth--;
+      continue;
+    }
+    if (substitutionDepth > 0) continue;
+    if (char === '|' || char === ';') return false;
+    if (char === '&') {
+      if (command[index - 1] === '>' || command[index + 1] === '>') continue;
+      if (command[index + 1] === '&') {
+        index++;
+        continue;
+      }
+      return false;
+    }
+  }
+  return true;
+}
+
 async function packageManagerPrefix(projectPath: string, pkg: { packageManager?: string }): Promise<string> {
   if (await pathExists(path.join(projectPath, 'pnpm-lock.yaml'))) return 'pnpm';
   if (await pathExists(path.join(projectPath, 'yarn.lock'))) return 'yarn';
@@ -346,7 +409,35 @@ async function packageManagerPrefix(projectPath: string, pkg: { packageManager?:
   return 'npm';
 }
 
-export async function deriveVerificationCommand(projectPath: string): Promise<string | undefined> {
+function commandFromGuidanceLine(
+  description: string | undefined,
+  pattern: RegExp,
+): string | undefined {
+  if (!description) return undefined;
+  for (const line of description.split(/\r?\n/)) {
+    const match = pattern.exec(line);
+    const command = match?.[1]?.trim();
+    if (!command) continue;
+    // DeepSWE guidance may append a prose parenthetical after the command.
+    return command.replace(/\s{2,}\([^)]*\)\s*$/, '').replace(/^`|`$/g, '').trim();
+  }
+  return undefined;
+}
+
+export function verificationCommandFromDescription(description: string | undefined): string | undefined {
+  const build = commandFromGuidanceLine(description, /^\s*-\s*Build\/compile check[^:]*:\s*(.+)$/i);
+  const test = commandFromGuidanceLine(description, /^\s*-\s*Run existing tests:\s*(.+)$/i);
+  if (build && test) return `${build} && ${test}`;
+  return test ?? build;
+}
+
+export async function deriveVerificationCommand(
+  projectPath: string,
+  taskDescription?: string,
+): Promise<string | undefined> {
+  const guided = verificationCommandFromDescription(taskDescription);
+  if (guided) return guided;
+
   try {
     const pkgRaw = await fs.readFile(path.join(projectPath, 'package.json'), 'utf-8');
     const pkg = JSON.parse(pkgRaw) as { scripts?: Record<string, string>; packageManager?: string };
@@ -365,7 +456,10 @@ export async function deriveVerificationCommand(projectPath: string): Promise<st
   }
 
   if (await pathExists(path.join(projectPath, 'Cargo.toml'))) return 'cargo test';
-  if (await pathExists(path.join(projectPath, 'go.mod'))) return 'go test ./...';
+  if (await pathExists(path.join(projectPath, 'go.mod'))) {
+    const packages = "$(go list -e -f '{{.ImportPath}}' ./... | grep -v '/js$')";
+    return `go build ${packages} && go test ${packages}`;
+  }
   if (await pathExists(path.join(projectPath, 'pyproject.toml'))) return 'python3 -m pytest -q';
 
   return undefined;
@@ -417,9 +511,98 @@ export function isInsideProject(projectPath: string, target: string): boolean {
   return target === root || target.startsWith(root + path.sep);
 }
 
+type ProjectPathKind = 'file' | 'directory';
+
+export interface ResolvedProjectPath {
+  absolutePath: string;
+  relativePath: string;
+}
+
+const PATH_RESOLUTION_SKIPPED_DIRS = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.omega']);
+const PATH_RESOLUTION_ENTRY_LIMIT = 5_000;
+
+async function existingPath(target: string, kind: ProjectPathKind): Promise<boolean> {
+  try {
+    const stats = await fs.stat(target);
+    return kind === 'file' ? stats.isFile() : stats.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+async function goModulePath(projectPath: string): Promise<string | undefined> {
+  try {
+    const goMod = await fs.readFile(path.join(projectPath, 'go.mod'), 'utf-8');
+    return /^\s*module\s+(\S+)/m.exec(goMod)?.[1];
+  } catch {
+    return undefined;
+  }
+}
+
+async function findUniqueBasename(projectPath: string, basename: string): Promise<string | undefined> {
+  let entriesVisited = 0;
+  let match: string | undefined;
+  let matches = 0;
+
+  async function walk(directory: string): Promise<void> {
+    if (matches > 1 || entriesVisited >= PATH_RESOLUTION_ENTRY_LIMIT) return;
+    const entries = await fs.readdir(directory, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      if (matches > 1 || entriesVisited >= PATH_RESOLUTION_ENTRY_LIMIT) return;
+      entriesVisited++;
+      if (entry.name.startsWith('.') || PATH_RESOLUTION_SKIPPED_DIRS.has(entry.name)) continue;
+      const target = path.join(directory, entry.name);
+      if (entry.isFile() && entry.name === basename) {
+        matches++;
+        match = target;
+        continue;
+      }
+      if (entry.isDirectory()) await walk(target);
+    }
+  }
+
+  await walk(path.resolve(projectPath));
+  return matches === 1 ? match : undefined;
+}
+
+export async function resolveExistingProjectPath(
+  projectPath: string,
+  requestedPath: string,
+  kind: ProjectPathKind,
+): Promise<ResolvedProjectPath | undefined> {
+  const root = path.resolve(projectPath);
+  const normalized = requestedPath.replace(/\\/g, path.sep);
+  const directTarget = path.resolve(root, normalized);
+  if (!isInsideProject(root, directTarget)) return undefined;
+
+  let target = directTarget;
+  if (!(await existingPath(target, kind))) {
+    const moduleName = await goModulePath(root);
+    if (moduleName && (normalized === moduleName || normalized.startsWith(`${moduleName}/`))) {
+      const moduleRelativePath = normalized.slice(moduleName.length).replace(/^[/\\]+/, '');
+      const moduleTarget = path.resolve(root, moduleRelativePath);
+      if (isInsideProject(root, moduleTarget) && (await existingPath(moduleTarget, kind))) {
+        target = moduleTarget;
+      }
+    }
+  }
+
+  if (!(await existingPath(target, kind)) && kind === 'file' && !normalized.includes('/')) {
+    const basenameMatch = await findUniqueBasename(root, path.basename(normalized));
+    if (basenameMatch) target = basenameMatch;
+  }
+
+  if (!(await existingPath(target, kind))) return undefined;
+  return {
+    absolutePath: target,
+    relativePath: path.relative(root, target) || '.',
+  };
+}
+
 const FORBIDDEN_WRITE_PATTERNS = [
   /\/(test|tests)\//,
   /\.(test|spec)\.[cm]?[jt]sx?$/i,
+  /(^|\/)(test_[^/]+|[^/]+_test)\.[^/]+$/i,
   /^(test|tests)\//,
   /[/](test|tests)$/i,
 ];

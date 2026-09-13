@@ -15,6 +15,7 @@
     "@omega/bench": "workspace:*",
     "@omega/core": "workspace:*",
     "@omega/db": "workspace:*",
+    "@omega/mcp": "workspace:*",
     "@omega/providers": "workspace:*",
     "@omega/skills": "workspace:*",
     "commander": "^12.1.0",

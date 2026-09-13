@@ -14,6 +14,11 @@ function parseInteger(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function parseBoolean(value) {
+  if (value === undefined) return undefined;
+  return value.toLowerCase() === 'true';
+}
+
 export function createLoopConfig(env = process.env, homeDir = os.homedir(), projectRoot = root) {
   const storageRoot = env.OMEGA_STORAGE_ROOT ?? path.join(homeDir, '.omega');
   return {
@@ -29,13 +34,14 @@ export function createLoopConfig(env = process.env, homeDir = os.homedir(), proj
     provider: env.OMEGA_LOOP_PROVIDER,
     model: env.OMEGA_LOOP_MODEL,
     tokenBudget: parseInteger(env.OMEGA_LOOP_TOKEN_BUDGET, undefined),
+    thinking: parseBoolean(env.OMEGA_LOOP_THINKING),
     autoPublish: env.OMEGA_LOOP_AUTO_PUBLISH === 'true',
     validate: env.OMEGA_LOOP_VALIDATE !== 'false',
     maxConsecutiveFailures: parseInteger(env.OMEGA_LOOP_MAX_CONSECUTIVE_FAILURES, 2),
     promotionBranch: env.OMEGA_LOOP_PROMOTION_BRANCH ?? 'main',
     defaultPrompt:
       env.OMEGA_LOOP_PROMPT ??
-    'Review the Omega harness codebase. Run lint and the e2e tests. Identify the highest-impact improvement you can make, implement it with the available tools, run validation, and finish with a concise summary of what changed.',
+    'Improve packages/agent in the Omega harness with one small, high-confidence change to a SOURCE file. The promotion gate re-runs install, build, lint, and the full test suite on your diff automatically, so do NOT run full-repo build/test/lint yourself. Recommended targets (in order of how safely the small local model handles them): packages/agent/src/agent-helpers.ts, packages/agent/src/tool-definitions.ts, packages/agent/src/agent-types.ts. AVOID packages/agent/src/retry.ts and packages/agent/src/agent-loop.ts on this iteration — both have recent churn and the small model has repeatedly introduced prefer-const / no-unused-expressions regressions there. Examples of good changes: tighten a small helper, add a regression for an existing branch, simplify a redundant check, or fix an obvious code smell. To add a new regression, edit an EXISTING test file with edit_file (write_file to test paths is rejected). Run only the focused test covering your change (for example `pnpm --filter @omega/agent test -- --run <file>`) and finish with success=true and a concise summary if it passes. Keep the diff to a single file and minimal. If lint complains after the edit (e.g. prefer-const on a `let` that became effectively constant), fix the lint with edit_file BEFORE calling finish again — re-calling finish without fixing will just be rejected.',
   };
 }
 
@@ -91,7 +97,10 @@ export async function submitSelfImproveTask(projectId, loopConfig = config) {
       projectId,
       title,
       description: loopConfig.defaultPrompt,
-      complexity: 'complex',
+      // One focused improvement per iteration: 'simple' keeps the agent's
+      // exploration budget (beforeFirstEdit=8) matched to the focused prompt,
+      // so wandering is curbed before a small local model exhausts its tokens.
+      complexity: 'simple',
       tags,
     }),
   });
@@ -114,12 +123,23 @@ export async function submitSelfImproveTask(projectId, loopConfig = config) {
 export async function runTask(taskId, loopConfig = config) {
   const body = {};
   if (loopConfig.tokenBudget !== undefined) body.tokenBudget = loopConfig.tokenBudget;
+  if (loopConfig.thinking !== undefined) body.thinking = loopConfig.thinking;
+  if (loopConfig.taskTimeoutMs !== undefined) body.timeoutMs = loopConfig.taskTimeoutMs;
   const res = await fetch(`${loopConfig.apiUrl}/tasks/${taskId}/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Could not run task: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+export async function cancelTask(taskId, loopConfig = config) {
+  const res = await fetch(`${loopConfig.apiUrl}/tasks/${taskId}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Could not cancel task: ${res.status} ${await res.text()}`);
   return res.json();
 }
 
@@ -267,6 +287,14 @@ async function main() {
     } catch (err) {
       consecutiveFailures++;
       console.error(`Iteration ${i} failed:`, err);
+      if (task?.id) {
+        try {
+          await cancelTask(task.id, config);
+          console.warn(`Cancelled timed-out task ${task.id}`);
+        } catch (cancelErr) {
+          console.warn(`Could not cancel task ${task.id}:`, cancelErr);
+        }
+      }
       task = task ?? { id: 'unknown', status: 'failed', error: String(err) };
     }
 

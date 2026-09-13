@@ -1,0 +1,85 @@
+# Local harness stack.
+#
+#   docker compose up -d --build     # start harness on :4000
+#   docker compose logs -f harness
+#   docker compose down              # stop (keep data volume)
+#   docker compose down -v           # stop and wipe PGlite data
+#
+# Workflow execution expects a cuttlefish control plane. When cuttlefish runs
+# in another Docker daemon on this host (e.g. `make up` in the cuttlefish repo
+# via micropod), the container reaches it through host.docker.internal.
+name: omega-harness
+
+services:
+  harness:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: omega-harness:local
+    ports:
+      - "${OMEGA_PORT:-4000}:4000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: "4000"
+      DATABASE_URL: postgresql://localhost:5432/omega
+      DATABASE_DIR: /data/pglite
+      WEB_DIST_DIR: /app/apps/web/dist
+      # Optional bearer auth for /v1 and /mcp.
+      OMEGA_API_TOKEN: ${OMEGA_API_TOKEN:-}
+      # Default cuttlefish connection for `flow:*` tasks without a stored
+      # RuntimeConnection. RuntimeConnection rows always win.
+      CUTTLEFISH_BASE_URL: ${CUTTLEFISH_BASE_URL:-http://host.docker.internal:4444}
+      CUTTLEFISH_TOKEN: ${CUTTLEFISH_TOKEN:-}
+      CUTTLEFISH_PROJECT: ${CUTTLEFISH_PROJECT:-}
+      OMEGA_FLOW_POLL_MS: ${OMEGA_FLOW_POLL_MS:-2000}
+      # Distributed tracing. The harness exports OTLP to the collector, which
+      # stores spans in Tempo and ships span-derived metrics to Mimir.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-omega-harness}
+      OTEL_TRACES_SAMPLER: ${OTEL_TRACES_SAMPLER:-parentbased_always_on}
+      TEMPO_QUERY_URL: ${TEMPO_QUERY_URL:-http://tempo:3200}
+      MIMIR_QUERY_URL: ${MIMIR_QUERY_URL:-http://host.docker.internal:9009}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - harness-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4000/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./deploy/observability/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "${TEMPO_QUERY_PORT:-13200}:3200"
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    environment:
+      MIMIR_REMOTE_WRITE_URL: ${MIMIR_REMOTE_WRITE_URL:-http://host.docker.internal:9009/api/v1/push}
+    volumes:
+      - ./deploy/observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "${OTEL_GRPC_PORT:-14317}:4317"
+      - "${OTEL_HTTP_PORT:-14318}:4318"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - tempo
+    restart: unless-stopped
+
+volumes:
+  harness-data:
+  tempo-data:

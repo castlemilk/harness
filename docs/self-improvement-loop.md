@@ -38,13 +38,26 @@ The implementation is in:
 
 ## Start Safely
 
-Build the source tree and start the API server first:
+Build the source tree and start both local services first. Token Horizon must
+be running before the harness so the Ollama provider can use its relay:
 
 ```bash
 pnpm install
 pnpm -r build
-pnpm --filter @omega/server start
+# In a separate terminal, start Token Horizon with Ollama still on 11434.
+(cd ../token-horizon && \
+  TOKEN_HORIZON_OLLAMA_UPSTREAM=127.0.0.1:11434 \
+  TOKEN_HORIZON_OLLAMA_PROXY_PORT=11435 \
+  ./scripts/make-app.sh)
+curl -s http://127.0.0.1:8765/health
+curl -s http://127.0.0.1:11435/api/tags
+OLLAMA_BASE_URL=http://127.0.0.1:11435 pnpm --filter @omega/server start
 ```
+
+The configured harness provider name is `ollama-local`, not `ollama`. Set
+`OLLAMA_BASE_URL` to the relay URL when starting the server. If Token Horizon
+selects another port because `11435` is occupied, read `ollama_proxy_port`
+from `/health` and use that port instead.
 
 Run one iteration before enabling a longer run:
 
@@ -86,6 +99,7 @@ artifact collection.
 | `OMEGA_LOOP_PROVIDER` | unset | Provider to pin for each self-improvement task. Set with `OMEGA_LOOP_MODEL`. |
 | `OMEGA_LOOP_MODEL` | unset | Model to pin for each self-improvement task. Set with `OMEGA_LOOP_PROVIDER`. |
 | `OMEGA_LOOP_TOKEN_BUDGET` | unset | Token cap forwarded to each task run. |
+| `OMEGA_PROVIDER_REQUEST_TIMEOUT_MS` | `180000` | Maximum duration of one provider transport request. Increase this for slow local models, while also increasing the task `--timeout`. |
 | `OMEGA_LOOP_MAX_CONSECUTIVE_FAILURES` | `2` | Stop threshold for failed tasks or gates. |
 | `OMEGA_LOOP_VALIDATE` | `true` | Required switch for candidate validation and promotion. `false` refuses promotion. |
 | `OMEGA_LOOP_PROMOTION_BRANCH` | `main` | Branch whose unchanged base is required for promotion. |

@@ -20,7 +20,7 @@ vi.mock('./project-utils.js', async (importOriginal) => {
   };
 });
 
-import { validatePatch } from './patch-utils.js';
+import { applyPatch, validatePatch } from './patch-utils.js';
 
 const execFileAsync = promisify(execFile);
 const roots: string[] = [];
@@ -87,5 +87,44 @@ describe('validatePatch index transaction', () => {
       output: expect.stringContaining('cannot snapshot index'),
     });
     expect(mocks.execFileAsync.mock.calls.some(([, args]) => args[0] === 'add')).toBe(false);
+  });
+});
+
+describe('applyPatch Go formatting', () => {
+  it('rolls back a Go patch rejected by gofmt', async () => {
+    const root = await makeRepo();
+    const original = 'package main\n\nfunc main() {}\n';
+    await fs.writeFile(path.join(root, 'main.go'), original, 'utf-8');
+    mocks.execFileAsync.mockImplementation(async (command: string, _args: string[]) => {
+      if (command === 'gofmt') throw new Error('syntax error');
+      return { stdout: '', stderr: '' };
+    });
+
+    const result = await applyPatch(root, [
+      '--- a/main.go',
+      '+++ b/main.go',
+      '@@ -3,1 +3,1 @@',
+      '-func main() {}',
+      '+func main( {',
+    ].join('\n'));
+
+    expect(result.success).toBe(false);
+    expect(result.output).toContain('gofmt failed');
+    await expect(fs.readFile(path.join(root, 'main.go'), 'utf-8')).resolves.toBe(original);
+  });
+
+  it('rejects a new language-specific test file', async () => {
+    const root = await makeRepo();
+
+    const result = await applyPatch(root, [
+      '--- /dev/null',
+      '+++ b/evaluator/stepped_temp_test.go',
+      '@@ -0,0 +1,1 @@',
+      '+package evaluator',
+    ].join('\n'));
+
+    expect(result.success).toBe(false);
+    expect(result.output).toContain('new test/spec paths is not allowed');
+    await expect(fs.access(path.join(root, 'evaluator', 'stepped_temp_test.go'))).rejects.toThrow();
   });
 });

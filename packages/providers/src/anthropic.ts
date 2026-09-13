@@ -27,7 +27,7 @@ export class AnthropicProvider implements Provider {
     const body: Record<string, unknown> = {
       model: opts?.model ?? this.config.defaultModel,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 1024,
+      max_tokens: opts?.maxOutputTokens ?? 4096,
     };
     if (opts?.system) body.system = opts.system;
     if (opts?.temperature !== undefined) body.temperature = opts.temperature;
@@ -49,10 +49,12 @@ export class AnthropicProvider implements Provider {
     }
     const data = (await res.json()) as {
       content?: { type: string; text?: string }[];
+      stop_reason?: string;
       usage?: { input_tokens?: number; output_tokens?: number };
     };
+    let usage: UsageInfo | undefined;
     if (data.usage) {
-      const usage: UsageInfo = {
+      usage = {
         promptTokens: data.usage.input_tokens,
         completionTokens: data.usage.output_tokens,
       };
@@ -61,6 +63,7 @@ export class AnthropicProvider implements Provider {
       }
       opts?.onUsage?.(usage);
     }
+    opts?.onFinishReason?.(data.stop_reason, usage);
     return data.content?.find((c) => c.type === 'text')?.text ?? '';
   }
 

@@ -31,3 +31,5 @@ graphify-out/
 /kimi-export-*.md
 /2026-*-*.txt
 /tmp_check_*.mjs
+
+nohup.out

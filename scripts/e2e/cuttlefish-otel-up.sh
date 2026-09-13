@@ -44,6 +44,15 @@ if [ -z "$CUTTLEFISH_DIR" ]; then
 fi
 [ -n "$CUTTLEFISH_DIR" ] && [ -f "$CUTTLEFISH_DIR/Makefile" ] || die "cuttlefish repo not found (set CUTTLEFISH_DIR)"
 
+# A wedged Micropod runtime makes every container op hang; refuse to pile more
+# operations onto it. See docs/micropod-recovery.md.
+if [ "${MICROPOD_HEALTH_SKIP:-0}" != "1" ]; then
+  if ! node "$HARNESS_ROOT/scripts/ops/micropod-health.mjs" --quiet; then
+    node "$HARNESS_ROOT/scripts/ops/micropod-health.mjs" --json || true
+    die "micropod runtime is unhealthy; refusing to mutate it (set MICROPOD_HEALTH_SKIP=1 to override)"
+  fi
+fi
+
 MICROPOD_DOCKER="${CUTTLEFISH_DOCKER_HOST:-unix://$HOME/.micropod/docker.sock}"
 OTEL_HTTP_PORT="${CUTTLEFISH_OTEL_HTTP_PORT:-14318}"
 IMAGE="${CUTTLEFISH_OTEL_IMAGE:-cuttlefish-controlplane:otel}"

@@ -72,3 +72,20 @@ Tasks that describe public API requirements (methods, properties, exports) must 
 ## 9. If in doubt, ask
 
 When a requested action would violate any rule above, stop and ask the user for explicit approval rather than proceeding.
+
+## 10. Micropod / Apple Container safety
+
+The cuttlefish runtime can run under Micropod (Apple Container). Its plugins
+wedge in ways that hang every container operation, and some recovery attempts
+make it worse. Rules:
+
+- Run `node scripts/ops/micropod-health.mjs` before any operation that mutates
+  the Micropod runtime. The cuttlefish OTLP helper does this automatically.
+- Never `launchctl kickstart`/`bootout` `com.apple.container.*` network plugins,
+  and never `pkill`/`kill -9` `containermanagerd`, `containermanagerd_system`,
+  `container-apiserver`, `container-runtime-linux`, or a `container-network-vmnet`
+  process. Recover a crash-looping network only with
+  `node scripts/ops/micropod-net-recover.mjs`.
+- Never force-delete containers while API calls are timing out, and never create
+  ad-hoc vmnet networks for experiments.
+- Full runbook and escalation ladder: `docs/micropod-recovery.md`.

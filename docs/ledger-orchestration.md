@@ -228,3 +228,26 @@ worker                  1     0     6746  123.4s  123.4s
 - The harness verifier only executes stdin-format public tests; call-based
   (LeetCode-style) tests need a different runner before they can veto `done`.
 - No resume yet: a failed or interrupted run starts from scratch.
+
+### Prompt experiment: THINKING_BUDGET (2026-09-14)
+
+Motivation: with reasoning enabled at an 8k cap, every ledger role truncated at
+the cap (baseline: manager 4/4, worker 4/4, ideation 2/2 truncated), so the
+ledger never emitted a parseable plan or solution.
+
+Change (`ledger-prompts/v2-thinking-budget`, PromptVersion hashes
+15d24bcd -> 22ad362d): a shared `THINKING_BUDGET` directive telling every role
+to commit to one approach within ~1200 reasoning tokens and emit sections
+immediately.
+
+Result (local qwen3.8:27b-mlx-64k, arc196_b/c, hidden grading):
+- 8k thinking-on: both prompts pinned at the floor -- baseline and v2 both
+  0/2 with (nearly) every call truncated. The cap dominates; prompts cannot
+  matter at this budget.
+- 8k thinking-off: equal pass rate (0/2 both arms on both prompts), but v2
+  cut ledger cost roughly in half (11 calls / 10.1k worker tokens vs 22 calls
+  / 24.4k worker tokens). Neither prompt reproduced the OpenRouter 8k rescue
+  on this model -- the local MLX stack is weaker than the hosted qwen3.8-27b.
+
+Kept: v2 is not worse and is materially cheaper. Not declared better; a real
+reasoning-on comparison needs the OpenRouter top-up (128k condition).

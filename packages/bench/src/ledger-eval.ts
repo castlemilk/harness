@@ -82,6 +82,7 @@ export interface LedgerEvalReport {
   finishedAt: string;
   model: string;
   grading: 'public' | 'hidden';
+  think: boolean;
   results: LedgerEvalRow[];
   summary: Partial<Record<LedgerEvalMode, LedgerEvalSummary>>;
   paired?: LedgerEvalPaired;
@@ -107,7 +108,11 @@ export interface LedgerEvalOptions {
 
 const DEFAULT_CONTEXT_TOKENS = 65_536;
 
-function buildSend(provider: LedgerEvalProvider, onCall: LedgerEvalOptions['onCall']): LedgerSend {
+function buildSend(
+  provider: LedgerEvalProvider,
+  onCall: LedgerEvalOptions['onCall'],
+  extras?: { think?: boolean; timeoutMs?: number }
+): LedgerSend {
   const client = createProvider({
     id: 'ledger-eval',
     name: `ledger-eval-${provider.kind}`,
@@ -130,7 +135,8 @@ function buildSend(provider: LedgerEvalProvider, onCall: LedgerEvalOptions['onCa
       model: provider.model,
       temperature: request.temperature,
       maxOutputTokens: request.maxOutputTokens,
-      thinking: false,
+      thinking: extras?.think ?? false,
+      ...(extras?.timeoutMs !== undefined ? { timeoutMs: extras.timeoutMs } : {}),
       contextTokens: provider.contextTokens ?? DEFAULT_CONTEXT_TOKENS,
       onFinishReason: (reason, reportedUsage) => {
         finishReason = reason;
@@ -203,7 +209,7 @@ export async function runLedgerEval(options: LedgerEvalOptions): Promise<LedgerE
   await mkdir(root, { recursive: true });
   const send = options.createSend
     ? options.createSend(options.provider, options.onCall)
-    : buildSend(options.provider, options.onCall);
+    : buildSend(options.provider, options.onCall, { think: options.think, timeoutMs: options.timeoutMs });
   const spec = { kind: 'code' as const, solverSystem: DEFAULT_SOLVER_SYSTEM };
   const startedAt = new Date().toISOString();
   const results: LedgerEvalRow[] = [];
@@ -301,6 +307,7 @@ export async function runLedgerEval(options: LedgerEvalOptions): Promise<LedgerE
     finishedAt: new Date().toISOString(),
     model: options.provider.model,
     grading,
+    think: options.think ?? false,
     results,
     summary,
     paired,

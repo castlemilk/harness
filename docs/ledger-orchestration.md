@@ -139,6 +139,15 @@ paired passes) was run on 2026-09-13 (below).
 
 ### Full-conditions result (128k, reasoning on, five paired passes)
 
+> **Correction (2026-09-14):** the eval runner's `buildSend` hardcoded
+> `thinking: false` and dropped `--timeout-ms`, so this run (and the 8k
+> "reasoning on" attempt above) actually executed with provider reasoning
+> **disabled**, and calls were capped at the 120s fetch default. Fixed in
+> `packages/bench/src/ledger-eval.ts` (`think`/`timeoutMs` now threaded
+> through; reports record `think`). The numbers below are therefore a 128k
+> reasoning-*off* result; a true reasoning-on rerun needs an OpenRouter credit
+> top-up (balance covered only ~95.7k output tokens when last checked).
+
 Same model and grader, `--think --hidden`, 131072-token output cap,
 `maxIters=10`, 60-minute per-call timeout, all 4 LCB-hard problems x
 {single, ledger} x 5 passes (20 paired problem-instances). Reports:

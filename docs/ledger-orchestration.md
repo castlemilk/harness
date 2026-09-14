@@ -135,7 +135,40 @@ capability floor: `arc196_b` single failed on a truncated generation, and the
 ledger failed too (7 calls, 6 truncated, 49.7k completion tokens) because
 reasoning consumed the budget in every worker call. The paper's own result at
 this model needed a 128k cap; the full condition (128k, reasoning on, five
-paired passes) remains the outstanding run.
+paired passes) was run on 2026-09-13 (below).
+
+### Full-conditions result (128k, reasoning on, five paired passes)
+
+Same model and grader, `--think --hidden`, 131072-token output cap,
+`maxIters=10`, 60-minute per-call timeout, all 4 LCB-hard problems x
+{single, ledger} x 5 passes (20 paired problem-instances). Reports:
+`/tmp/ledger-eval-128k-pass{1..5}.json`.
+
+| Arm | pass@1 | calls | truncated calls | completion tokens |
+| --- | --- | --- | --- | --- |
+| single | 2/20 (10%) | 20 | 0 | 385,063 |
+| ledger | 3/20 (15%) | 257 | 0 | 666,272 |
+
+Per problem (solves / 5 passes):
+
+| Problem | single | ledger |
+| --- | --- | --- |
+| arc196_a | 0/5 | 0/5 |
+| arc196_b | 2/5 | 3/5 |
+| arc196_c | 0/5 | 0/5 |
+| arc196_d | 0/5 | 0/5 |
+
+Paired totals: discordants single-only 1, ledger-only 2, both 1, neither 16;
+mean delta +5pp; exact McNemar p=1.0, sign-flip p=1.0.
+
+At 128k with reasoning on, truncation disappears in both arms (0/20 single
+calls, 0/257 ledger calls), confirming the 8k failure mode was the cap rather
+than the scaffold. The ledger's advantage narrows to one extra solve on
+`arc196_b` and is not statistically significant at this sample size — `a`,
+`c`, and `d` sit below both arms' capability floor. This is consistent with
+the paper's conditional-gains framing: the scaffold's mechanism (bounded
+calls, state on disk) matters when budgets truncate single generations, and
+buys less headroom once a single call fits under the cap.
 
 ## Debugging a ledger run
 

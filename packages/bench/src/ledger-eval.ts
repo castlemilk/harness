@@ -125,9 +125,7 @@ function buildSend(
   });
 
   let index = 0;
-  return async (request) => {
-    index += 1;
-    const startedAt = Date.now();
+  const sendOnce = async (request: Parameters<LedgerSend>[0]) => {
     let finishReason: string | undefined;
     let usage: LedgerUsage | undefined;
     const text = await client.send(request.user, {
@@ -146,6 +144,24 @@ function buildSend(
         usage = reportedUsage;
       },
     });
+    return { text, finishReason, usage };
+  };
+  return async (request) => {
+    index += 1;
+    const startedAt = Date.now();
+    // Some free-tier providers return HTTP 200 with an empty completion (no
+    // text, no finish reason, no usage). Treating that as a real response
+    // corrupts the ledger workspace (empty plan/notes/solution), so retry
+    // briefly and then fail the call loudly instead.
+    let result = await sendOnce(request);
+    for (let attempt = 0; attempt < 2 && !result.text.trim() && !result.finishReason && !result.usage?.completionTokens; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 15_000 * (attempt + 1)));
+      result = await sendOnce(request);
+    }
+    if (!result.text.trim() && !result.finishReason && !result.usage?.completionTokens) {
+      throw new Error('Provider returned an empty completion (200 with no text/usage) after 3 attempts');
+    }
+    const { text, finishReason, usage } = result;
     const durationMs = Date.now() - startedAt;
     const costUsd = usage ? estimateCostUsd(provider.model, usage) : null;
     onCall?.({

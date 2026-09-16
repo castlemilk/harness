@@ -82,6 +82,7 @@ export interface LedgerEvalReport {
   finishedAt: string;
   model: string;
   grading: 'public' | 'hidden';
+  think: boolean;
   results: LedgerEvalRow[];
   summary: Partial<Record<LedgerEvalMode, LedgerEvalSummary>>;
   paired?: LedgerEvalPaired;
@@ -107,7 +108,11 @@ export interface LedgerEvalOptions {
 
 const DEFAULT_CONTEXT_TOKENS = 65_536;
 
-function buildSend(provider: LedgerEvalProvider, onCall: LedgerEvalOptions['onCall']): LedgerSend {
+function buildSend(
+  provider: LedgerEvalProvider,
+  onCall: LedgerEvalOptions['onCall'],
+  extras?: { think?: boolean; timeoutMs?: number }
+): LedgerSend {
   const client = createProvider({
     id: 'ledger-eval',
     name: `ledger-eval-${provider.kind}`,
@@ -120,9 +125,7 @@ function buildSend(provider: LedgerEvalProvider, onCall: LedgerEvalOptions['onCa
   });
 
   let index = 0;
-  return async (request) => {
-    index += 1;
-    const startedAt = Date.now();
+  const sendOnce = async (request: Parameters<LedgerSend>[0]) => {
     let finishReason: string | undefined;
     let usage: LedgerUsage | undefined;
     const text = await client.send(request.user, {
@@ -130,7 +133,8 @@ function buildSend(provider: LedgerEvalProvider, onCall: LedgerEvalOptions['onCa
       model: provider.model,
       temperature: request.temperature,
       maxOutputTokens: request.maxOutputTokens,
-      thinking: false,
+      thinking: extras?.think ?? false,
+      ...(extras?.timeoutMs !== undefined ? { timeoutMs: extras.timeoutMs } : {}),
       contextTokens: provider.contextTokens ?? DEFAULT_CONTEXT_TOKENS,
       onFinishReason: (reason, reportedUsage) => {
         finishReason = reason;
@@ -140,6 +144,24 @@ function buildSend(provider: LedgerEvalProvider, onCall: LedgerEvalOptions['onCa
         usage = reportedUsage;
       },
     });
+    return { text, finishReason, usage };
+  };
+  return async (request) => {
+    index += 1;
+    const startedAt = Date.now();
+    // Some free-tier providers return HTTP 200 with an empty completion (no
+    // text, no finish reason, no usage). Treating that as a real response
+    // corrupts the ledger workspace (empty plan/notes/solution), so retry
+    // briefly and then fail the call loudly instead.
+    let result = await sendOnce(request);
+    for (let attempt = 0; attempt < 2 && !result.text.trim() && !result.finishReason && !result.usage?.completionTokens; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 15_000 * (attempt + 1)));
+      result = await sendOnce(request);
+    }
+    if (!result.text.trim() && !result.finishReason && !result.usage?.completionTokens) {
+      throw new Error('Provider returned an empty completion (200 with no text/usage) after 3 attempts');
+    }
+    const { text, finishReason, usage } = result;
     const durationMs = Date.now() - startedAt;
     const costUsd = usage ? estimateCostUsd(provider.model, usage) : null;
     onCall?.({
@@ -203,7 +225,7 @@ export async function runLedgerEval(options: LedgerEvalOptions): Promise<LedgerE
   await mkdir(root, { recursive: true });
   const send = options.createSend
     ? options.createSend(options.provider, options.onCall)
-    : buildSend(options.provider, options.onCall);
+    : buildSend(options.provider, options.onCall, { think: options.think, timeoutMs: options.timeoutMs });
   const spec = { kind: 'code' as const, solverSystem: DEFAULT_SOLVER_SYSTEM };
   const startedAt = new Date().toISOString();
   const results: LedgerEvalRow[] = [];
@@ -301,6 +323,7 @@ export async function runLedgerEval(options: LedgerEvalOptions): Promise<LedgerE
     finishedAt: new Date().toISOString(),
     model: options.provider.model,
     grading,
+    think: options.think ?? false,
     results,
     summary,
     paired,

@@ -139,6 +139,15 @@ paired passes) was run on 2026-09-13 (below).
 
 ### Full-conditions result (128k, reasoning on, five paired passes)
 
+> **Correction (2026-09-14):** the eval runner's `buildSend` hardcoded
+> `thinking: false` and dropped `--timeout-ms`, so this run (and the 8k
+> "reasoning on" attempt above) actually executed with provider reasoning
+> **disabled**, and calls were capped at the 120s fetch default. Fixed in
+> `packages/bench/src/ledger-eval.ts` (`think`/`timeoutMs` now threaded
+> through; reports record `think`). The numbers below are therefore a 128k
+> reasoning-*off* result; a true reasoning-on rerun needs an OpenRouter credit
+> top-up (balance covered only ~95.7k output tokens when last checked).
+
 Same model and grader, `--think --hidden`, 131072-token output cap,
 `maxIters=10`, 60-minute per-call timeout, all 4 LCB-hard problems x
 {single, ledger} x 5 passes (20 paired problem-instances). Reports:
@@ -219,3 +228,52 @@ worker                  1     0     6746  123.4s  123.4s
 - The harness verifier only executes stdin-format public tests; call-based
   (LeetCode-style) tests need a different runner before they can veto `done`.
 - No resume yet: a failed or interrupted run starts from scratch.
+
+### Prompt experiment: THINKING_BUDGET (2026-09-14)
+
+Motivation: with reasoning enabled at an 8k cap, every ledger role truncated at
+the cap (baseline: manager 4/4, worker 4/4, ideation 2/2 truncated), so the
+ledger never emitted a parseable plan or solution.
+
+Change (`ledger-prompts/v2-thinking-budget`, PromptVersion hashes
+15d24bcd -> 22ad362d): a shared `THINKING_BUDGET` directive telling every role
+to commit to one approach within ~1200 reasoning tokens and emit sections
+immediately.
+
+Result (local qwen3.8:27b-mlx-64k, arc196_b/c, hidden grading):
+- 8k thinking-on: both prompts pinned at the floor -- baseline and v2 both
+  0/2 with (nearly) every call truncated. The cap dominates; prompts cannot
+  matter at this budget.
+- 8k thinking-off: equal pass rate (0/2 both arms on both prompts), but v2
+  cut ledger cost roughly in half (11 calls / 10.1k worker tokens vs 22 calls
+  / 24.4k worker tokens). Neither prompt reproduced the OpenRouter 8k rescue
+  on this model -- the local MLX stack is weaker than the hosted qwen3.8-27b.
+
+Kept: v2 is not worse and is materially cheaper. Not declared better; a real
+reasoning-on comparison needs the OpenRouter top-up (128k condition).
+
+### Full-conditions run on a free model (nemotron-3-super-120b, 128k, reasoning on)
+
+First run after fixing the eval runner (`--think` and `--timeout-ms` now
+actually threaded through; empty free-tier completions retried/failed loudly).
+Model `nvidia/nemotron-3-super-120b-a12b:free` via OpenRouter, 131072-token
+cap, `maxIters=10`, hidden grading, all 9 LCB-hard problems, single pass
+(report: `/tmp/ledger-eval-nemotron-pass1.json`, ~13.5h wall).
+
+| Arm | pass@1 | calls | truncated | completion tokens | avg wall/problem |
+| --- | --- | --- | --- | --- | --- |
+| single | 3/9 (33%) | 8 | 0 | 580,169 | 17 min |
+| ledger | 2/9 (22%) | 46 | 4 | 2,265,028 | 74 min |
+
+Per problem: `arc196_b` ledger-only (the rescue case again), `arc196_c` and
+`abc399_f` single-only, `abc400_e` both, 5 neither, 2 provider ERRs
+(`arc195_e` both arms, `abc399_f` ledger). Paired: discordants 2/1/1/5,
+mean delta -11pp, sign-flip p=1.0, McNemar p=1.0.
+
+Read: at a true 128k thinking-on budget, truncation nearly disappears for the
+single arm (0/8), and the ledger's decomposition overhead (~3.9x the tokens,
+~4.4x the wall time) no longer pays for itself except where a single
+generation would have lost the thread entirely (`arc196_b`). This sharpens
+the conditional-gains story: the ledger wins exactly when the single call
+would truncate or derail; at generous budgets on strong reasoning models,
+that window narrows to the hardest problems.

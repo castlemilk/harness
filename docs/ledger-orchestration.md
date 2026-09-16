@@ -251,3 +251,29 @@ Result (local qwen3.8:27b-mlx-64k, arc196_b/c, hidden grading):
 
 Kept: v2 is not worse and is materially cheaper. Not declared better; a real
 reasoning-on comparison needs the OpenRouter top-up (128k condition).
+
+### Full-conditions run on a free model (nemotron-3-super-120b, 128k, reasoning on)
+
+First run after fixing the eval runner (`--think` and `--timeout-ms` now
+actually threaded through; empty free-tier completions retried/failed loudly).
+Model `nvidia/nemotron-3-super-120b-a12b:free` via OpenRouter, 131072-token
+cap, `maxIters=10`, hidden grading, all 9 LCB-hard problems, single pass
+(report: `/tmp/ledger-eval-nemotron-pass1.json`, ~13.5h wall).
+
+| Arm | pass@1 | calls | truncated | completion tokens | avg wall/problem |
+| --- | --- | --- | --- | --- | --- |
+| single | 3/9 (33%) | 8 | 0 | 580,169 | 17 min |
+| ledger | 2/9 (22%) | 46 | 4 | 2,265,028 | 74 min |
+
+Per problem: `arc196_b` ledger-only (the rescue case again), `arc196_c` and
+`abc399_f` single-only, `abc400_e` both, 5 neither, 2 provider ERRs
+(`arc195_e` both arms, `abc399_f` ledger). Paired: discordants 2/1/1/5,
+mean delta -11pp, sign-flip p=1.0, McNemar p=1.0.
+
+Read: at a true 128k thinking-on budget, truncation nearly disappears for the
+single arm (0/8), and the ledger's decomposition overhead (~3.9x the tokens,
+~4.4x the wall time) no longer pays for itself except where a single
+generation would have lost the thread entirely (`arc196_b`). This sharpens
+the conditional-gains story: the ledger wins exactly when the single call
+would truncate or derail; at generous budgets on strong reasoning models,
+that window narrows to the hardest problems.

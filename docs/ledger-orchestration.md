@@ -89,6 +89,15 @@ harness ledger eval --problems scripts/fixtures/lcb-hard-sample.json \
 import { runLedgerEval, formatLedgerEvalSummary } from '@omega/bench';
 ```
 
+For full eval runs (paired passes, hidden grading, report files), use the
+wrapper, which sources `.env` and names reports
+`/tmp/ledger-eval-<tag>-pass<N>.json`:
+
+```bash
+scripts/run-ledger-eval.sh --model meta/muse-spark-1.3-contributor --passes 3
+scripts/run-ledger-eval.sh --model stealth/union-alpha --start-pass 2  # redo one pass
+```
+
 Both arms are graded with `runSampleTests` (stdin public tests). The report
 records pass@1, calls, truncated calls, tokens and wall time per problem/mode.
 

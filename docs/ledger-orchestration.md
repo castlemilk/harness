@@ -277,3 +277,25 @@ generation would have lost the thread entirely (`arc196_b`). This sharpens
 the conditional-gains story: the ledger wins exactly when the single call
 would truncate or derail; at generous budgets on strong reasoning models,
 that window narrows to the hardest problems.
+
+### Cross-model 128k thinking-on comparison (2026-09-17)
+
+Same 9 LCB-hard problems, hidden grading, 131k output cap, `maxIters=10`:
+
+| Model | Cost | single | ledger | discordants (s-only / l-only / both / neither) | read |
+| --- | --- | --- | --- | --- | --- |
+| meta/muse-spark-1.3-contributor | $0.2/M out | 6/9 (67%) | **8/9 (89%)** | 0 / 2 / 6 / 1 | ledger-only wins on `abc400_g`, `arc196_a`; +22pp, McNemar p=0.5 |
+| stealth/union-alpha | free | **6/9 (67%)** | 4/9 (44%) | 2 / 0 / 4 / 3 | ledger *hurts*: model is ultra-terse (5.6k total single tokens), decomposition only adds failure modes |
+| nvidia/nemotron-3-super-120b:free | free | 6/18 (33%) | 6/18 (33%) | 3 / 3 / 3 / 9 | tied across passes 1+3; ledger burns 3.4x tokens |
+
+Pass notes: nemotron pass 2 was lost to an accidental `pkill` (restarted);
+`arc196_b` was a ledger-only rescue in every nemotron pass and on muse.
+
+The pattern across four models now: the ledger's edge is **model-dependent**,
+not budget-dependent. When a model's single call already emits a tight,
+correct program (union-alpha), the manager/worker decomposition strictly
+subtracts. When a model rambles or derails on hard problems (muse, nemotron),
+the ledger's state-on-disk discipline converts two extra problems per nine.
+That is exactly the conditional-gains claim of the paper, now with a sharper
+predictor: run one single call first; if it emits a complete non-truncated
+solution, the ledger is unlikely to help on that model.

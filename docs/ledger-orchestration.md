@@ -89,6 +89,15 @@ harness ledger eval --problems scripts/fixtures/lcb-hard-sample.json \
 import { runLedgerEval, formatLedgerEvalSummary } from '@omega/bench';
 ```
 
+For full eval runs (paired passes, hidden grading, report files), use the
+wrapper, which sources `.env` and names reports
+`/tmp/ledger-eval-<tag>-pass<N>.json`:
+
+```bash
+scripts/run-ledger-eval.sh --model meta/muse-spark-1.3-contributor --passes 3
+scripts/run-ledger-eval.sh --model stealth/union-alpha --start-pass 2  # redo one pass
+```
+
 Both arms are graded with `runSampleTests` (stdin public tests). The report
 records pass@1, calls, truncated calls, tokens and wall time per problem/mode.
 
@@ -277,3 +286,46 @@ generation would have lost the thread entirely (`arc196_b`). This sharpens
 the conditional-gains story: the ledger wins exactly when the single call
 would truncate or derail; at generous budgets on strong reasoning models,
 that window narrows to the hardest problems.
+
+### Cross-model 128k thinking-on comparison (2026-09-17)
+
+Same 9 LCB-hard problems, hidden grading, 131k output cap, `maxIters=10`:
+
+| Model | Cost | single | ledger | discordants (s-only / l-only / both / neither) | read |
+| --- | --- | --- | --- | --- | --- |
+| meta/muse-spark-1.3-contributor | $0.2/M out | 6/9 (67%) | **8/9 (89%)** | 0 / 2 / 6 / 1 | ledger-only wins on `abc400_g`, `arc196_a`; +22pp, McNemar p=0.5 |
+| stealth/union-alpha | free | **6/9 (67%)** | 4/9 (44%) | 2 / 0 / 4 / 3 | ledger *hurts*: model is ultra-terse (5.6k total single tokens), decomposition only adds failure modes |
+| nvidia/nemotron-3-super-120b:free | free | 6/18 (33%) | 6/18 (33%) | 3 / 3 / 3 / 9 | tied across passes 1+3; ledger burns 3.4x tokens |
+
+Pass notes: nemotron pass 2 was lost to an accidental `pkill` (restarted);
+`arc196_b` was a ledger-only rescue in every nemotron pass and on muse.
+
+The pattern across four models now: the ledger's edge is **model-dependent**,
+not budget-dependent. When a model's single call already emits a tight,
+correct program (union-alpha), the manager/worker decomposition strictly
+subtracts. When a model rambles or derails on hard problems (muse, nemotron),
+the ledger's state-on-disk discipline converts two extra problems per nine.
+That is exactly the conditional-gains claim of the paper, now with a sharper
+predictor: run one single call first; if it emits a complete non-truncated
+solution, the ledger is unlikely to help on that model.
+
+### Muse contributor: statistically significant ledger advantage (3 passes)
+
+`meta/muse-spark-1.3-contributor`, 128k cap, thinking on, hidden grading,
+9 problems x 3 passes = 27 paired instances
+(`/tmp/ledger-eval-muse-contributor-pass{1,2,3}.json`):
+
+| Arm | pass@1 | ledger calls | completion tokens |
+| --- | --- | --- | --- |
+| single | 17/27 (63%) | 27 | 198,769 |
+| ledger | **23/27 (85%)** | 150 | 994,814 |
+
+Pooled discordants: single-only **0**, ledger-only **6**, both 17, neither 4;
+exact McNemar **p = 0.031**. Per-problem (solves/3): `arc196_c` 0 vs 3,
+`abc400_g` 1 vs 3, `arc196_d` 0 vs 1, everything else tied. The ledger never
+lost a problem the single arm solved, on any pass.
+
+This is the first run where the scaffold's advantage clears p<0.05, and it
+fits the model-dependence story: muse's single call rambles on the hardest
+problems (`arc196_c/d`), and the ledger's plan-notes-retry loop converts
+exactly those.

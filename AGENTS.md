@@ -22,6 +22,7 @@ Agent benchmark runs and self-improvement loops must operate on isolated state:
 - If worktree creation fails, the runner falls back to a branch named `agent/<task-id>` in the project directory.
 - Never commit directly to `main` or to the user's current working branch.
 - Worktrees are removed after the run; branches may be kept for inspection.
+- Failed tasks RETAIN their worktree for inspection (~670MB each after pnpm install). These accumulate without bound and filled the disk (ENOSPC mid-run) on 2026-09-18. Prune them regularly: `git worktree remove --force ~/.omega/work/worktrees/<dir>` for any directory whose task has finished; keep only in-flight ones.
 
 ## 3. Checkpoint before long-running work
 

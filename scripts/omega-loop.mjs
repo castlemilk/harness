@@ -34,6 +34,7 @@ export function createLoopConfig(env = process.env, homeDir = os.homedir(), proj
     provider: env.OMEGA_LOOP_PROVIDER,
     model: env.OMEGA_LOOP_MODEL,
     tokenBudget: parseInteger(env.OMEGA_LOOP_TOKEN_BUDGET, undefined),
+    complexity: env.OMEGA_LOOP_COMPLEXITY ?? 'simple',
     thinking: parseBoolean(env.OMEGA_LOOP_THINKING),
     autoPublish: env.OMEGA_LOOP_AUTO_PUBLISH === 'true',
     validate: env.OMEGA_LOOP_VALIDATE !== 'false',
@@ -97,10 +98,10 @@ export async function submitSelfImproveTask(projectId, loopConfig = config) {
       projectId,
       title,
       description: loopConfig.defaultPrompt,
-      // One focused improvement per iteration: 'simple' keeps the agent's
-      // exploration budget (beforeFirstEdit=8) matched to the focused prompt,
-      // so wandering is curbed before a small local model exhausts its tokens.
-      complexity: 'simple',
+      // One focused improvement per iteration: 'simple' (60 tool steps) keeps
+      // the agent's exploration budget matched to the focused prompt for small
+      // local models; hosted models can afford 'medium' (180).
+      complexity: loopConfig.complexity,
       tags,
     }),
   });

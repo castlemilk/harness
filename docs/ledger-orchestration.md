@@ -329,3 +329,34 @@ This is the first run where the scaffold's advantage clears p<0.05, and it
 fits the model-dependence story: muse's single call rambles on the hardest
 problems (`arc196_c/d`), and the ledger's plan-notes-retry loop converts
 exactly those.
+
+### Completed 3-pass sets: pareto and nemotron (2026-09-18)
+
+`unbiased/pareto` (the model that ran as `stealth/union-alpha`), 27 paired
+instances: single **26/27 (96%)**, ledger **27/27 (100%)**, discordants
+0 / 1 / 26 / 0 (McNemar p=1.0). Single-arm total across all 27 runs: 43,952
+completion tokens — by far the strongest and most token-frugal model on this
+set; the ledger added one rescue and cost 20x the tokens.
+
+`nvidia/nemotron-3-super-120b-a12b:free`, 27 paired instances (pass 2
+re-run after the accidental kill): single **9/27 (33%)**, ledger
+**9/27 (33%)**, discordants 4 / 4 / 5 / 14 — perfectly symmetric; the ledger's
+5.9M tokens (3.9x single) bought nothing net on this model.
+
+Final cross-model table (128k, thinking on, hidden, n=27 paired each):
+
+| Model | single | ledger | McNemar p | read |
+| --- | --- | --- | --- | --- |
+| unbiased/pareto | 96% | **100%** | 1.0 | ceiling; ledger adds 1 rescue at 20x tokens |
+| meta/muse-spark-1.3-contributor | 63% | **85%** | **0.031** | ledger converts the rambling-prone hardest problems |
+| nvidia/nemotron-3-super-120b:free | 33% | 33% | 1.0 | symmetric; decomposition buys nothing |
+
+### Loop note: muse contributor agent tasks (2026-09-18)
+
+The self-improve loop pinned to `openrouter/muse-spark-1.3-contributor` runs
+at full speed, but every iteration eventually dies with
+`400: No function call found for function call output with call_id ...` —
+when the harness's stuck-solver/EDIT-FIRST conversation reset rebuilds
+history, it can leave tool-call outputs whose matching tool call was dropped,
+which Meta's function-calling API rejects. Next harness fix: keep tool-call /
+output pairs consistent when pruning conversation history.

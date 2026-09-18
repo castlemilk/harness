@@ -308,3 +308,24 @@ the ledger's state-on-disk discipline converts two extra problems per nine.
 That is exactly the conditional-gains claim of the paper, now with a sharper
 predictor: run one single call first; if it emits a complete non-truncated
 solution, the ledger is unlikely to help on that model.
+
+### Muse contributor: statistically significant ledger advantage (3 passes)
+
+`meta/muse-spark-1.3-contributor`, 128k cap, thinking on, hidden grading,
+9 problems x 3 passes = 27 paired instances
+(`/tmp/ledger-eval-muse-contributor-pass{1,2,3}.json`):
+
+| Arm | pass@1 | ledger calls | completion tokens |
+| --- | --- | --- | --- |
+| single | 17/27 (63%) | 27 | 198,769 |
+| ledger | **23/27 (85%)** | 150 | 994,814 |
+
+Pooled discordants: single-only **0**, ledger-only **6**, both 17, neither 4;
+exact McNemar **p = 0.031**. Per-problem (solves/3): `arc196_c` 0 vs 3,
+`abc400_g` 1 vs 3, `arc196_d` 0 vs 1, everything else tied. The ledger never
+lost a problem the single arm solved, on any pass.
+
+This is the first run where the scaffold's advantage clears p<0.05, and it
+fits the model-dependence story: muse's single call rambles on the hardest
+problems (`arc196_c/d`), and the ledger's plan-notes-retry loop converts
+exactly those.

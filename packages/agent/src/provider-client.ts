@@ -131,6 +131,44 @@ export function trackProviderEvents(span: Span, telemetry?: ProviderTelemetry): 
 
 // --- Message truncation ---
 
+/**
+ * Strict function-calling providers (e.g. Meta via OpenRouter) reject any
+ * `tool` message whose tool_call_id has no matching assistant tool_calls in
+ * the same request, and vice versa. Truncation can orphan pairs: a
+ * forced-edit or repair `user` message lands between an assistant's
+ * tool_calls and its tool outputs, and the window cut drops one side. Repair
+ * by dropping orphan outputs and synthesizing outputs for orphan calls.
+ */
+function repairToolCallPairs(messages: Message[]): Message[] {
+  const callIds = new Set<string>();
+  const outputIds = new Set<string>();
+  for (const m of messages) {
+    if (m.role === 'assistant' && m.tool_calls) {
+      for (const tc of m.tool_calls) if (tc.id) callIds.add(tc.id);
+    }
+    if (m.role === 'tool' && m.tool_call_id) outputIds.add(m.tool_call_id);
+  }
+  const repaired: Message[] = [];
+  for (const m of messages) {
+    if (m.role === 'tool' && m.tool_call_id && !callIds.has(m.tool_call_id)) {
+      continue;
+    }
+    repaired.push(m);
+    if (m.role === 'assistant' && m.tool_calls) {
+      for (const tc of m.tool_calls) {
+        if (tc.id && !outputIds.has(tc.id)) {
+          repaired.push({
+            role: 'tool',
+            tool_call_id: tc.id,
+            content: 'Tool result unavailable: conversation history was truncated.',
+          });
+        }
+      }
+    }
+  }
+  return repaired;
+}
+
 function truncateMessages(
   messages: Message[],
   maxTotal = 16,
@@ -167,7 +205,7 @@ function truncateMessages(
   }
 
   const windowStart = Math.max(0, working.length - fullWindow);
-  return working.map((m, idx) => {
+  const mapped = working.map((m, idx) => {
     const boundedReasoning = trimContent({
       ...m,
       content: undefined,
@@ -177,6 +215,7 @@ function truncateMessages(
     }
     return trimContent(m);
   });
+  return repairToolCallPairs(mapped);
 }
 
 // --- Provider send ---

@@ -168,6 +168,43 @@ describe('provider context bounds', () => {
     expect(sent.messages?.at(-1)?.content).toBe('continue-9');
   });
 
+  it('repairs tool-call/output pairs orphaned by truncation at mid-turn user messages', async () => {
+    const sendWithTools = vi.fn().mockResolvedValue('done');
+    const provider = {
+      config: { name: 'tools' },
+      send: vi.fn(),
+      sendWithTools,
+    } as unknown as Provider;
+    // Forced-edit / repair user messages land between an assistant's
+    // tool_calls and its tool output. When truncation cuts at such a user
+    // boundary the output loses its call (Meta rejects the whole request
+    // with "No function call found for function call output").
+    const filler = Array.from({ length: 7 }, (_, index) => [
+      { role: 'assistant' as const, content: `a-${String(index)}` },
+      { role: 'user' as const, content: `continue-${String(index)}` },
+    ]).flat();
+    const messages = [
+      { role: 'user' as const, content: 'original task' },
+      { role: 'assistant' as const, content: '', tool_calls: [{ id: 'call-orphan', type: 'function', function: { name: 'read_file', arguments: '{}' } }] },
+      { role: 'user' as const, content: 'some notice' },
+      { role: 'user' as const, content: 'FORCED EDIT MODE' },
+      { role: 'assistant' as const, content: 'a-mid' },
+      { role: 'tool' as const, tool_call_id: 'call-orphan', content: 'result-orphan' },
+      ...filler,
+      { role: 'assistant' as const, content: '', tool_calls: [{ id: 'call-missing', type: 'function', function: { name: 'edit_file', arguments: '{}' } }] },
+    ];
+
+    await sendToProvider(providerContext(provider, Date.now() + 1_600_000), messages);
+
+    const sent = (sendWithTools.mock.calls[0]?.[2] as { messages?: { role?: string; tool_call_id?: string; tool_calls?: { id?: string }[]; content?: string }[] }).messages ?? [];
+    const callIds = new Set(sent.flatMap((m) => (m.tool_calls ?? []).map((tc) => tc.id)));
+    const toolIds = new Set(sent.filter((m) => m.role === 'tool').map((m) => m.tool_call_id));
+    // Orphaned output dropped; no tool message without its call.
+    for (const id of toolIds) expect(callIds.has(id)).toBe(true);
+    // Orphaned call given a synthetic output so strict providers accept the history.
+    expect(toolIds.has('call-missing')).toBe(true);
+  });
+
   it('trims older tool results while preserving the recent conversation window', async () => {
     const sendWithTools = vi.fn().mockResolvedValue('done');
     const provider = {
@@ -177,26 +214,26 @@ describe('provider context bounds', () => {
     } as unknown as Provider;
     const oldOutput = 'o'.repeat(5_000);
     const recentOutput = 'r'.repeat(5_000);
+    const paired = (id: string, content: string) => [
+      {
+        role: 'assistant' as const,
+        content: '',
+        tool_calls: [{ id, type: 'function', function: { name: 'read_file', arguments: '{}' } }],
+      },
+      { role: 'tool' as const, tool_call_id: id, content },
+    ];
     const messages = [
-      ...Array.from({ length: 5 }, (_, index) => ({
-        role: 'tool' as const,
-        tool_call_id: `old-${String(index)}`,
-        content: oldOutput,
-      })),
-      ...Array.from({ length: 6 }, (_, index) => ({
-        role: 'tool' as const,
-        tool_call_id: `recent-${String(index)}`,
-        content: recentOutput,
-      })),
+      ...Array.from({ length: 5 }, (_, index) => paired(`old-${String(index)}`, oldOutput)).flat(),
+      ...Array.from({ length: 6 }, (_, index) => paired(`recent-${String(index)}`, recentOutput)).flat(),
     ];
 
     await sendToProvider(providerContext(provider, Date.now() + 1_600_000), messages);
 
     const sent = sendWithTools.mock.calls[0]?.[2] as { messages?: { content?: string }[] };
-    expect(sent.messages?.[0]?.content).toContain('[truncated]');
-    expect(sent.messages?.[4]?.content).toContain('[truncated]');
-    expect(sent.messages?.[5]?.content).toBe(recentOutput);
-    expect(sent.messages?.[10]?.content).toBe(recentOutput);
+    expect(sent.messages?.[1]?.content).toContain('[truncated]');
+    expect(sent.messages?.[9]?.content).toContain('[truncated]');
+    expect(sent.messages?.[17]?.content).toBe(recentOutput);
+    expect(sent.messages?.[21]?.content).toBe(recentOutput);
   });
 
   it('bounds reasoning from older assistant turns as well as tool output', async () => {
@@ -208,7 +245,12 @@ describe('provider context bounds', () => {
     } as unknown as Provider;
 
     await sendToProvider(providerContext(provider, Date.now() + 1_600_000), [
-      { role: 'assistant', content: 'old', reasoning_content: 'x'.repeat(5_000) },
+      {
+        role: 'assistant',
+        content: 'old',
+        reasoning_content: 'x'.repeat(5_000),
+        tool_calls: [{ id: 'old', type: 'function', function: { name: 'read_file', arguments: '{}' } }],
+      },
       { role: 'tool', tool_call_id: 'old', content: 'result' },
       { role: 'assistant', content: 'recent', reasoning_content: 'y'.repeat(5_000) },
     ]);

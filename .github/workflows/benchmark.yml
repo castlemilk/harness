@@ -55,29 +55,40 @@ jobs:
 
       - run: corepack pnpm@10.18.0 install --frozen-lockfile
 
+      # Migration and the CLI import workspace dist/ entries. The db prebuild
+      # also generates the Prisma client for this runner's platform.
+      - name: Build CLI and dependencies
+        run: pnpm --filter '@omega/cli...' --workspace-concurrency=1 build
+
       - run: pnpm db:migrate
 
       - name: Run benchmark
         id: bench
+        shell: bash
         run: |
           SUITE="${{ inputs.suite || 'fast' }}"
-          npx omega bench run --suite "$SUITE" --output-dir .omega/reports 2>&1 | tee bench-output.txt
+          node apps/cli/dist/index.js bench run --suite "$SUITE" --output-dir .omega/reports 2>&1 | tee bench-output.txt
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
       - name: Compare against baseline
         if: hashFiles('.omega/reports/baseline.json') != ''
+        shell: bash
         run: |
-          LATEST=$(ls -t .omega/reports/benchmark-*.json 2>/dev/null | head -1)
+          # Report filenames are generated timestamps without whitespace.
+          # shellcheck disable=SC2012
+          LATEST=$(ls -t .omega/reports/benchmark-*.json 2>/dev/null | head -1 || true)
           if [ -n "$LATEST" ]; then
-            npx omega bench compare --baseline .omega/reports/baseline.json --candidate "$LATEST" | tee compare-output.txt
+            node apps/cli/dist/index.js bench compare --baseline .omega/reports/baseline.json --candidate "$LATEST" | tee compare-output.txt
           fi
 
       - name: Check for regression
         if: inputs.fail_on_regression == 'true' || inputs.fail_on_regression == true
+        shell: bash
         run: |
-          LATEST=$(ls -t .omega/reports/benchmark-*.json 2>/dev/null | head -1)
+          # shellcheck disable=SC2012
+          LATEST=$(ls -t .omega/reports/benchmark-*.json 2>/dev/null | head -1 || true)
           if [ -n "$LATEST" ] && [ -f .omega/reports/baseline.json ]; then
-            npx omega bench run --suite "${{ inputs.suite || 'fast' }}" --baseline .omega/reports/baseline.json --fail-on-regression --output-dir .omega/reports
+            node apps/cli/dist/index.js bench run --suite "${{ inputs.suite || 'fast' }}" --baseline .omega/reports/baseline.json --fail-on-regression --output-dir .omega/reports
           fi
 
       - name: Upload report
@@ -94,8 +105,10 @@ jobs:
 
       - name: Post summary
         if: always()
+        shell: bash
         run: |
-          LATEST=$(ls -t .omega/reports/benchmark-*.json 2>/dev/null | head -1)
+          # shellcheck disable=SC2012
+          LATEST=$(ls -t .omega/reports/benchmark-*.json 2>/dev/null | head -1 || true)
           if [ -n "$LATEST" ]; then
             echo "## Benchmark Report" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"

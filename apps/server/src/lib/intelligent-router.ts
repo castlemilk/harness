@@ -6,6 +6,10 @@
 
 import { IntelligentRouter, saveRouterState, loadRouterState } from '@omega/router';
 import type { PrismaClient } from '@omega/db';
+import { omegaStorageRoot } from '@omega/core';
+import path from 'node:path';
+
+const routerStatePath = () => path.join(omegaStorageRoot(), 'router-state.json');
 
 let router: IntelligentRouter | null = null;
 let routerPromise: Promise<IntelligentRouter> | null = null;
@@ -19,7 +23,7 @@ export async function getRouter(prisma: PrismaClient): Promise<IntelligentRouter
     const r = new IntelligentRouter();
 
     // Restore persisted state (health, performance, strategy scores)
-    await loadRouterState(r);
+    await loadRouterState(r, routerStatePath());
 
     // Load historical performance data (last 1000 agent runs)
     try {
@@ -82,7 +86,7 @@ export async function getRouter(prisma: PrismaClient): Promise<IntelligentRouter
 
     // Periodically persist state (every 5 minutes)
     persistInterval = setInterval(() => {
-      void saveRouterState(r);
+      void saveRouterState(r, routerStatePath());
     }, 5 * 60 * 1000);
 
     return r;
@@ -101,7 +105,7 @@ export async function shutdownRouter(): Promise<void> {
     persistInterval = null;
   }
   if (router) {
-    await saveRouterState(router);
+    await saveRouterState(router, routerStatePath());
   }
 }
 

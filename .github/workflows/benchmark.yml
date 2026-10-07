@@ -23,6 +23,8 @@ on:
 env:
   OMEGA_STORAGE_ROOT: ${{ github.workspace }}/.omega
   DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/omega'
+  DATABASE_DIR: ${{ github.workspace }}/.omega/cli-db
+  HARNESS_API_URL: 'http://127.0.0.1:4000'
 
 jobs:
   bench:
@@ -57,8 +59,8 @@ jobs:
 
       # Migration and the CLI import workspace dist/ entries. The db prebuild
       # also generates the Prisma client for this runner's platform.
-      - name: Build CLI and dependencies
-        run: pnpm --filter '@omega/cli...' --workspace-concurrency=1 build
+      - name: Build CLI and server dependencies
+        run: pnpm --filter '@omega/cli...' --filter '@omega/server...' --workspace-concurrency=1 build
 
       - run: pnpm db:migrate
 
@@ -67,7 +69,7 @@ jobs:
         shell: bash
         run: |
           SUITE="${{ inputs.suite || 'fast' }}"
-          node apps/cli/dist/index.js bench run --suite "$SUITE" --output-dir .omega/reports 2>&1 | tee bench-output.txt
+          node scripts/ci/with-harness-api.mjs node apps/cli/dist/index.js --api "$HARNESS_API_URL" bench run --suite "$SUITE" --output-dir .omega/reports 2>&1 | tee bench-output.txt
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
       - name: Compare against baseline
@@ -88,7 +90,7 @@ jobs:
           # shellcheck disable=SC2012
           LATEST=$(ls -t .omega/reports/benchmark-*.json 2>/dev/null | head -1 || true)
           if [ -n "$LATEST" ] && [ -f .omega/reports/baseline.json ]; then
-            node apps/cli/dist/index.js bench run --suite "${{ inputs.suite || 'fast' }}" --baseline .omega/reports/baseline.json --fail-on-regression --output-dir .omega/reports
+            node scripts/ci/with-harness-api.mjs node apps/cli/dist/index.js --api "$HARNESS_API_URL" bench run --suite "${{ inputs.suite || 'fast' }}" --baseline .omega/reports/baseline.json --fail-on-regression --output-dir .omega/reports
           fi
 
       - name: Upload report
@@ -101,6 +103,7 @@ jobs:
             .omega/reports/benchmark-*.md
             bench-output.txt
             compare-output.txt
+            harness-api-output.txt
           retention-days: 30
 
       - name: Post summary

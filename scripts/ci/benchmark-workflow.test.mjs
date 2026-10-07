@@ -52,6 +52,7 @@ exit "\${BENCH_EXIT:-0}"
           COMMAND_LOG: path.join(cwd, 'commands.log'),
           GITHUB_OUTPUT: path.join(cwd, 'output'),
           GITHUB_STEP_SUMMARY: path.join(cwd, 'summary'),
+          HARNESS_API_URL: 'http://127.0.0.1:4000',
           ...env,
         },
       });
@@ -64,9 +65,11 @@ exit "\${BENCH_EXIT:-0}"
   };
 }
 
-test('build CLI dependency closure before migration; never resolve a registry CLI', () => {
-  const build = step('Build CLI and dependencies');
-  assert.match(build.run, /pnpm --filter ['"]?@omega\/cli\.\.\.['"]? --workspace-concurrency=1 build/);
+test('build CLI and server closures before migration; never resolve a registry CLI', () => {
+  const build = step('Build CLI and server dependencies');
+  assert.match(build.run, /pnpm --filter ['"]?@omega\/cli\.\.\.['"]? --filter ['"]?@omega\/server\.\.\.['"]? --workspace-concurrency=1 build/);
+  assert.equal(workflow.env.HARNESS_API_URL, 'http://127.0.0.1:4000');
+  assert.match(workflow.env.DATABASE_DIR, /\.omega\/cli-db$/);
   const installIndex = steps.findIndex((entry) => entry.run?.includes('install --frozen-lockfile'));
   const buildIndex = steps.indexOf(build);
   const migrateIndex = steps.findIndex((entry) => entry.run === 'pnpm db:migrate');
@@ -82,7 +85,7 @@ for (const suite of ['fast', 'hard']) {
   test(`runs checked-out CLI for ${suite} and captures output`, (t) => {
     const f = fixture(t);
     assert.equal(f.run('Run benchmark', { suite }).status, 0);
-    assert.deepEqual(f.commands(), [`apps/cli/dist/index.js bench run --suite ${suite} --output-dir .omega/reports`]);
+    assert.deepEqual(f.commands(), [`scripts/ci/with-harness-api.mjs node apps/cli/dist/index.js --api http://127.0.0.1:4000 bench run --suite ${suite} --output-dir .omega/reports`]);
     assert.match(f.read('bench-output.txt'), /fixture-cli-output/);
     assert.equal(f.read('output'), 'exit_code=0\n');
   });
@@ -106,7 +109,7 @@ test('requested regression gate keeps baseline, suite and nonzero exit', (t) => 
   const f = fixture(t);
   assert.equal(step('Check for regression').if, "inputs.fail_on_regression == 'true' || inputs.fail_on_regression == true");
   assert.equal(f.run('Check for regression', { suite: 'hard', REGRESSION_EXIT: '23' }).status, 23);
-  assert.deepEqual(f.commands(), ['apps/cli/dist/index.js bench run --suite hard --baseline .omega/reports/baseline.json --fail-on-regression --output-dir .omega/reports']);
+  assert.deepEqual(f.commands(), ['scripts/ci/with-harness-api.mjs node apps/cli/dist/index.js --api http://127.0.0.1:4000 bench run --suite hard --baseline .omega/reports/baseline.json --fail-on-regression --output-dir .omega/reports']);
 });
 
 test('absent report or baseline skips optional commands without a shell failure', (t) => {
@@ -124,7 +127,7 @@ test('reports upload even after failure and summary includes the Markdown report
   const f = fixture(t);
   const upload = step('Upload report');
   assert.equal(upload.if, 'always()');
-  for (const file of ['benchmark-*.json', 'benchmark-*.md', 'bench-output.txt', 'compare-output.txt']) {
+  for (const file of ['benchmark-*.json', 'benchmark-*.md', 'bench-output.txt', 'compare-output.txt', 'harness-api-output.txt']) {
     assert.ok(upload.with.path.includes(file), `Missing artifact: ${file}`);
   }
   assert.equal(step('Post summary').if, 'always()');

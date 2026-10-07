@@ -25,6 +25,8 @@ jobs:
       # materializes a server install and is not needed for lint/tests.
       - run: pnpm --filter @omega-harness/usecase-kit build
       - run: pnpm -r --filter '!@castlemilk/omega' build
+      - name: Test benchmark API lifecycle and offline handoff
+        run: node --test scripts/ci/with-harness-api.test.mjs
       - run: pnpm lint
       - run: pnpm db:migrate
       - run: pnpm db:seed

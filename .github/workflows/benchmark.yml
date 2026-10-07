@@ -47,6 +47,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Hard uses the repository-pinned DeepSWE corpus; fast needs none.
+          submodules: ${{ inputs.suite == 'hard' }}
 
       - uses: pnpm/action-setup@v4
 
@@ -69,7 +72,11 @@ jobs:
         shell: bash
         run: |
           SUITE="${{ inputs.suite || 'fast' }}"
-          node scripts/ci/with-harness-api.mjs node apps/cli/dist/index.js --api "$HARNESS_API_URL" bench run --suite "$SUITE" --output-dir .omega/reports 2>&1 | tee bench-output.txt
+          TASK_ARGS=()
+          if [ "$SUITE" = hard ]; then
+            TASK_ARGS=(--path "$GITHUB_WORKSPACE/deep-swe/tasks")
+          fi
+          node scripts/ci/with-harness-api.mjs node apps/cli/dist/index.js --api "$HARNESS_API_URL" bench run --suite "$SUITE" "${TASK_ARGS[@]}" --output-dir .omega/reports 2>&1 | tee bench-output.txt
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
 
       - name: Compare against baseline
@@ -90,7 +97,12 @@ jobs:
           # shellcheck disable=SC2012
           LATEST=$(ls -t .omega/reports/benchmark-*.json 2>/dev/null | head -1 || true)
           if [ -n "$LATEST" ] && [ -f .omega/reports/baseline.json ]; then
-            node scripts/ci/with-harness-api.mjs node apps/cli/dist/index.js --api "$HARNESS_API_URL" bench run --suite "${{ inputs.suite || 'fast' }}" --baseline .omega/reports/baseline.json --fail-on-regression --output-dir .omega/reports
+            SUITE="${{ inputs.suite || 'fast' }}"
+            TASK_ARGS=()
+            if [ "$SUITE" = hard ]; then
+              TASK_ARGS=(--path "$GITHUB_WORKSPACE/deep-swe/tasks")
+            fi
+            node scripts/ci/with-harness-api.mjs node apps/cli/dist/index.js --api "$HARNESS_API_URL" bench run --suite "$SUITE" "${TASK_ARGS[@]}" --baseline .omega/reports/baseline.json --fail-on-regression --output-dir .omega/reports
           fi
 
       - name: Upload report

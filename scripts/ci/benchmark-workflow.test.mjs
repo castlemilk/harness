@@ -52,6 +52,7 @@ exit "\${BENCH_EXIT:-0}"
           COMMAND_LOG: path.join(cwd, 'commands.log'),
           GITHUB_OUTPUT: path.join(cwd, 'output'),
           GITHUB_STEP_SUMMARY: path.join(cwd, 'summary'),
+          GITHUB_WORKSPACE: cwd,
           HARNESS_API_URL: 'http://127.0.0.1:4000',
           ...env,
         },
@@ -79,13 +80,16 @@ test('build CLI and server closures before migration; never resolve a registry C
   assert.equal(workflow.on.schedule[0].cron, '0 6 * * *');
   assert.deepEqual(workflow.on.workflow_dispatch.inputs.suite.options, ['fast', 'hard']);
   assert.equal(workflow.on.workflow_dispatch.inputs.fail_on_regression.default, true);
+  const checkout = steps.find((entry) => entry.uses === 'actions/checkout@v4');
+  assert.equal(checkout.with.submodules, "${{ inputs.suite == 'hard' }}");
 });
 
 for (const suite of ['fast', 'hard']) {
   test(`runs checked-out CLI for ${suite} and captures output`, (t) => {
     const f = fixture(t);
     assert.equal(f.run('Run benchmark', { suite }).status, 0);
-    assert.deepEqual(f.commands(), [`scripts/ci/with-harness-api.mjs node apps/cli/dist/index.js --api http://127.0.0.1:4000 bench run --suite ${suite} --output-dir .omega/reports`]);
+    const taskArgs = suite === 'hard' ? ` --path ${f.cwd}/deep-swe/tasks` : '';
+    assert.deepEqual(f.commands(), [`scripts/ci/with-harness-api.mjs node apps/cli/dist/index.js --api http://127.0.0.1:4000 bench run --suite ${suite}${taskArgs} --output-dir .omega/reports`]);
     assert.match(f.read('bench-output.txt'), /fixture-cli-output/);
     assert.equal(f.read('output'), 'exit_code=0\n');
   });
@@ -109,7 +113,7 @@ test('requested regression gate keeps baseline, suite and nonzero exit', (t) => 
   const f = fixture(t);
   assert.equal(step('Check for regression').if, "inputs.fail_on_regression == 'true' || inputs.fail_on_regression == true");
   assert.equal(f.run('Check for regression', { suite: 'hard', REGRESSION_EXIT: '23' }).status, 23);
-  assert.deepEqual(f.commands(), ['scripts/ci/with-harness-api.mjs node apps/cli/dist/index.js --api http://127.0.0.1:4000 bench run --suite hard --baseline .omega/reports/baseline.json --fail-on-regression --output-dir .omega/reports']);
+  assert.deepEqual(f.commands(), [`scripts/ci/with-harness-api.mjs node apps/cli/dist/index.js --api http://127.0.0.1:4000 bench run --suite hard --path ${f.cwd}/deep-swe/tasks --baseline .omega/reports/baseline.json --fail-on-regression --output-dir .omega/reports`]);
 });
 
 test('absent report or baseline skips optional commands without a shell failure', (t) => {

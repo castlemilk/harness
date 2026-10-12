@@ -44,6 +44,9 @@ exporters:
       insecure: true
   prometheusremotewrite/mimir:
     endpoint: ${env:MIMIR_REMOTE_WRITE_URL}
+    # Mimir rejects remote writes without a tenant header (401 "no org id").
+    headers:
+      X-Scope-OrgID: ${env:MIMIR_ORG_ID}
     tls:
       insecure: true
     resource_to_telemetry_conversion:

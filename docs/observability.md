@@ -26,7 +26,7 @@ Stack (started by `docker compose`):
 | Tempo | 3200 | `TEMPO_QUERY_PORT` (13200) |
 | OTel collector OTLP gRPC | 4317 | `OTEL_GRPC_PORT` (14317) |
 | OTel collector OTLP HTTP | 4318 | `OTEL_HTTP_PORT` (14318) |
-| Mimir (existing local stack) | 9009 | 9009 |
+| Mimir | 9009 | `MIMIR_PORT` (9009) |
 
 ## Harness instrumentation
 
@@ -42,8 +42,12 @@ Stack (started by `docker compose`):
 - **`task.run`** — local agent/provider runs emit their own trace (not joined
   to the request trace in detached mode).
 - **Database mirror** — node attempts and the per-flow step stay in
-  `TraceSpan`/`TaskStep` and are merged into the flow trace response, covering
-  the runner tier which is not OTel-instrumented yet.
+  `TraceSpan`/`TaskStep` and are merged into the flow trace response. The
+  runner tier *is* OTel-instrumented (`attempt.execute`, `runner.lease_acquire`,
+  `container.setup/create/copy_in/run/stats_wait/finalize`, `cache.resolve`,
+  `attempt.report`, `signal.received`), but those spans do **not** join the
+  flow trace — see "Runner trace-context gap" below. The mirror is what makes
+  runner activity visible from `/v1/flows/:id/trace` today.
 
 Tracing is off unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set. The SDK registers
 `AsyncLocalStorage` context, a W3C propagator, and a batch exporter; spans are
@@ -100,14 +104,14 @@ cuttlefish honors the parent decision.
 | `OTEL_TRACES_SAMPLER` | `parentbased_always_on` | SDK sampler. |
 | `TEMPO_QUERY_URL` | `http://127.0.0.1:13200` | Tempo query base URL (`http://tempo:3200` in Docker). |
 | `MIMIR_QUERY_URL` | `http://127.0.0.1:9009` | Prometheus-compatible query base URL. |
-| `MIMIR_REMOTE_WRITE_URL` | `http://host.docker.internal:9009/api/v1/push` | Collector remote-write target. |
-| `TEMPO_QUERY_PORT`, `OTEL_GRPC_PORT`, `OTEL_HTTP_PORT` | 13200/14317/14318 | Host port mappings. |
+| `MIMIR_REMOTE_WRITE_URL` | `http://mimir:9009/api/v1/push` | Collector remote-write target. Point at an external Mimir by overriding. |
+| `TEMPO_QUERY_PORT`, `OTEL_GRPC_PORT`, `OTEL_HTTP_PORT`, `MIMIR_PORT` | 13200/14317/14318/9009 | Host port mappings. |
 
-## Cuttlefish propagation requirement
+## Cuttlefish propagation (done)
 
-Cuttlefish's `initOTEL` sets a `TracerProvider` but no `TextMapPropagator`, so
-incoming `traceparent` headers are ignored and its spans start new traces. The
-required addition in `cmd/controlplane/main.go` is:
+Cuttlefish's `initOTEL` originally set a `TracerProvider` but no
+`TextMapPropagator`, so incoming `traceparent` headers were ignored and its
+spans started new traces. That is fixed — `cmd/controlplane/main.go` now sets:
 
 ```go
 otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
@@ -115,6 +119,23 @@ otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
     propagation.Baggage{},
 ))
 ```
+
+With it, `flow.dispatch` → `controlplane.http` share one trace id.
+
+## Runner trace-context gap (open)
+
+Propagation stops at the control plane. `runner.Poll()` returns a work item
+carrying `RunID`/`AttemptID`/`NodeID`/`Image` but **no `traceparent`**, and the
+worker's long-lived context has no remote parent. Every runner span is therefore
+rooted in a fresh trace instead of nesting under `flow.run`, so runner spans are
+unreachable from `FlowRun.traceId` and don't appear in Tempo for that flow.
+
+Closing it needs three coordinated changes in the cuttlefish repo: a traceparent
+column on the work item, the control plane stamping the flow's span context when
+dispatching, and the runner extracting it into the attempt context so
+`attempt.execute` and the `container.*` spans nest underneath. Until then the DB
+mirror plus the control plane's span store (`getWorkflowRunTrace`) remain the
+paths for seeing runner activity.
 
 Micropod cannot build images (the Docker shim's buildx container cannot run in
 the Apple VM), so `scripts/e2e/cuttlefish-otel-up.sh` builds the image on

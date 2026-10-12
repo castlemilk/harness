@@ -195,6 +195,51 @@ describe('getHotspots', () => {
     expect(result.byService[0]?.service).toBe('omega-harness');
   });
 
+  it('sends the Mimir tenant header on every query', async () => {
+    // Mimir answers any request without X-Scope-OrgID with 401 "no org id",
+    // which silently degraded /hotspots to "series not found (yet)".
+    process.env.MIMIR_QUERY_URL = 'http://mimir.test:9009';
+    delete process.env.MIMIR_ORG_ID;
+    const fetchMock = vi.fn(async (url: string | URL, _init?: RequestInit) => {
+      const href = String(url);
+      if (href.endsWith('/ready')) return new Response('ready', { status: 200 });
+      if (href.includes('/label/__name__/values')) {
+        return new Response(JSON.stringify({ status: 'success', data: ['traces_spanmetrics_calls_total'] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ status: 'success', data: { result: [] } }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await getHotspots();
+
+    const mimirCalls = fetchMock.mock.calls.filter(([url]) => !String(url).endsWith('/ready'));
+    expect(mimirCalls.length).toBeGreaterThan(0);
+    for (const [, init] of mimirCalls) {
+      const headers = (init as RequestInit | undefined)?.headers as Record<string, string> | undefined;
+      expect(headers?.['X-Scope-OrgID']).toBe('omega');
+    }
+  });
+
+  it('honours MIMIR_ORG_ID over the default tenant', async () => {
+    process.env.MIMIR_QUERY_URL = 'http://mimir.test:9009';
+    process.env.MIMIR_ORG_ID = 'team-a';
+    const fetchMock = vi.fn(async (url: string | URL, _init?: RequestInit) => {
+      const href = String(url);
+      if (href.endsWith('/ready')) return new Response('ready', { status: 200 });
+      if (href.includes('/label/__name__/values')) {
+        return new Response(JSON.stringify({ status: 'success', data: ['traces_spanmetrics_calls_total'] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ status: 'success', data: { result: [] } }), { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await getHotspots();
+
+    const namesCall = fetchMock.mock.calls.find(([url]) => String(url).includes('/label/__name__/values'));
+    const headers = (namesCall?.[1] as RequestInit | undefined)?.headers as Record<string, string> | undefined;
+    expect(headers?.['X-Scope-OrgID']).toBe('team-a');
+  });
+
   it('reports Mimir as unavailable when /ready fails', async () => {
     process.env.MIMIR_QUERY_URL = 'http://mimir.test:9009';
     vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 503 })));

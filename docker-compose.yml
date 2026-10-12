@@ -38,7 +38,8 @@ services:
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-omega-harness}
       OTEL_TRACES_SAMPLER: ${OTEL_TRACES_SAMPLER:-parentbased_always_on}
       TEMPO_QUERY_URL: ${TEMPO_QUERY_URL:-http://tempo:3200}
-      MIMIR_QUERY_URL: ${MIMIR_QUERY_URL:-http://host.docker.internal:9009}
+      MIMIR_QUERY_URL: ${MIMIR_QUERY_URL:-http://mimir:9009}
+      MIMIR_ORG_ID: ${MIMIR_ORG_ID:-omega}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -64,11 +65,33 @@ services:
       - "${TEMPO_QUERY_PORT:-13200}:3200"
     restart: unless-stopped
 
+  # Span-derived metrics (the collector's spanmetrics connector remote-writes
+  # here). Tempo keeps the traces; this keeps the latency histograms.
+  # Monolithic single-tenant mode — local dev only, no auth (auth is off by
+  # default here; Mimir 3.x dropped the -auth.enabled flag). Mimir defaults to
+  # :8080, so pin it to the 9009 the rest of the stack is documented against.
+  # The command drops replication to 1 so a single ingester accepts remote
+  # writes; the default of 3 makes Mimir reject them with "at least 2 live
+  # replicas required".
+  mimir:
+    image: grafana/mimir:3.2.2
+    command:
+      - "-target=all"
+      - "-server.http-listen-port=9009"
+      - "-ingester.ring.replication-factor=1"
+      - "-ingester.ring.zone-awareness-enabled=false"
+    volumes:
+      - mimir-data:/mimir
+    ports:
+      - "${MIMIR_PORT:-9009}:9009"
+    restart: unless-stopped
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     environment:
-      MIMIR_REMOTE_WRITE_URL: ${MIMIR_REMOTE_WRITE_URL:-http://host.docker.internal:9009/api/v1/push}
+      MIMIR_REMOTE_WRITE_URL: ${MIMIR_REMOTE_WRITE_URL:-http://mimir:9009/api/v1/push}
+      MIMIR_ORG_ID: ${MIMIR_ORG_ID:-omega}
     volumes:
       - ./deploy/observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
@@ -78,8 +101,10 @@ services:
       - "host.docker.internal:host-gateway"
     depends_on:
       - tempo
+      - mimir
     restart: unless-stopped
 
 volumes:
   harness-data:
   tempo-data:
+  mimir-data:

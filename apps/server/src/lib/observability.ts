@@ -19,8 +19,18 @@ export function mimirQueryUrl(): string {
   return (configured && configured.length > 0 ? configured : 'http://127.0.0.1:9009').replace(/\/+$/, '');
 }
 
-async function fetchJson<T>(url: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+/**
+ * Mimir is multi-tenant and rejects every request — query or read — that
+ * carries no `X-Scope-OrgID`, answering 401 "no org id". Matches the tenant the
+ * collector remote-writes under.
+ */
+function mimirHeaders(): Record<string, string> {
+  const org = process.env.MIMIR_ORG_ID?.trim();
+  return { 'X-Scope-OrgID': org && org.length > 0 ? org : 'omega' };
+}
+
+async function fetchJson<T>(url: string, timeoutMs = DEFAULT_TIMEOUT_MS, headers?: Record<string, string>): Promise<T> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), ...(headers ? { headers } : {}) });
   if (!res.ok) throw new Error(`${url} -> HTTP ${String(res.status)}`);
   return (await res.json()) as T;
 }
@@ -201,14 +211,14 @@ interface PromVectorSample {
 
 async function mimirQuery(expr: string): Promise<PromVectorSample[]> {
   const url = `${mimirQueryUrl()}/prometheus/api/v1/query?query=${encodeURIComponent(expr)}`;
-  const payload = await fetchJson<{ status: string; data?: { result?: PromVectorSample[] } }>(url);
+  const payload = await fetchJson<{ status: string; data?: { result?: PromVectorSample[] } }>(url, DEFAULT_TIMEOUT_MS, mimirHeaders());
   return payload.data?.result ?? [];
 }
 
 async function mimirMetricNames(): Promise<string[]> {
   const match = encodeURIComponent('{__name__=~"traces_spanmetrics.*"}');
   const url = `${mimirQueryUrl()}/prometheus/api/v1/label/__name__/values?match[]=${match}`;
-  const payload = await fetchJson<{ status: string; data?: string[] }>(url);
+  const payload = await fetchJson<{ status: string; data?: string[] }>(url, DEFAULT_TIMEOUT_MS, mimirHeaders());
   return payload.data ?? [];
 }
 

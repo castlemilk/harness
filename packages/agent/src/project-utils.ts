@@ -10,7 +10,7 @@ const execFileAsync = promisify(execFile);
 export { execFileAsync };
 
 export function maxStepsForComplexity(complexity: string | undefined): number {
-  switch (complexity) {
+  switch (complexity?.trim().toLowerCase()) {
     case 'simple':
       return 60;
     case 'medium':
@@ -295,13 +295,10 @@ export function boundedExecutionTimeoutMs(
     : Math.min(maximumMs, remainingDeadlineMs(options.deadlineMs));
 }
 
-export function explorationBudgetForComplexity(complexity: string | undefined): { beforeFirstEdit: number; betweenEdits: number } {
-  switch (complexity) {
-    case 'simple': return { beforeFirstEdit: 3, betweenEdits: 5 };
-    case 'medium': return { beforeFirstEdit: 3, betweenEdits: 5 };
-    case 'complex': return { beforeFirstEdit: 3, betweenEdits: 5 };
-    default: return { beforeFirstEdit: 3, betweenEdits: 5 };
-  }
+export function explorationBudgetForComplexity(_complexity: string | undefined): { beforeFirstEdit: number; betweenEdits: number } {
+  // Every complexity tier currently resolves to the same budget; keep the
+  // signature so tiers can diverge later without touching call sites.
+  return { beforeFirstEdit: 3, betweenEdits: 5 };
 }
 
 export function taskMentionsPublicApi(task: Task): boolean {

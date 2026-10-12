@@ -8,6 +8,8 @@ import {
   isReliableTestCommand,
   looksLikeTestCommand,
   boundedProviderRequestTimeoutMs,
+  explorationBudgetForComplexity,
+  maxStepsForComplexity,
   resolveExistingProjectPath,
   taskLikelyRequiresChanges,
   verificationCommandFromDescription,
@@ -98,6 +100,34 @@ describe('verification command guidance', () => {
 
   it('returns no guidance when the description has no executable verification lines', () => {
     expect(verificationCommandFromDescription('Implement the requested change.')).toBeUndefined();
+  });
+});
+
+describe('complexity budgets', () => {
+  it('resolves step budgets regardless of case and surrounding whitespace', () => {
+    for (const [input, expected] of [
+      ['simple', 60],
+      ['medium', 180],
+      ['complex', 350],
+    ] as const) {
+      expect(maxStepsForComplexity(input)).toBe(expected);
+      expect(maxStepsForComplexity(input.toUpperCase())).toBe(expected);
+      expect(maxStepsForComplexity(` ${input} `)).toBe(expected);
+    }
+  });
+
+  it('falls back to the default budget for unknown or missing complexity', () => {
+    expect(maxStepsForComplexity(undefined)).toBe(120);
+    expect(maxStepsForComplexity('trivial')).toBe(120);
+    expect(maxStepsForComplexity('')).toBe(120);
+  });
+
+  it('returns the same exploration budget for every complexity tier', () => {
+    const tiers = ['simple', 'medium', 'complex', undefined, 'anything'];
+    const budgets = tiers.map((tier) => explorationBudgetForComplexity(tier));
+    for (const budget of budgets) {
+      expect(budget).toEqual({ beforeFirstEdit: 3, betweenEdits: 5 });
+    }
   });
 });
 

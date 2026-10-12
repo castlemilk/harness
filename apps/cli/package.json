@@ -17,6 +17,7 @@
     "@omega/db": "workspace:*",
     "@omega/mcp": "workspace:*",
     "@omega/providers": "workspace:*",
+    "@omega/server": "workspace:*",
     "@omega/skills": "workspace:*",
     "commander": "^12.1.0",
     "ink": "^7.1.0",

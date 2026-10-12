@@ -53,6 +53,9 @@ importers:
       '@omega/providers':
         specifier: workspace:*
         version: link:../../packages/providers
+      '@omega/server':
+        specifier: workspace:*
+        version: link:../server
       '@omega/skills':
         specifier: workspace:*
         version: link:../../packages/skills

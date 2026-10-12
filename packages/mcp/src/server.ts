@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { HarnessApiClient, HarnessApiError, type HarnessApiClientOptions } from './api-client.js';
+import { waitForTaskTerminal } from './execution-loop.js';
 
 export interface CreateHarnessMcpServerOptions {
   client: HarnessApiClient;
@@ -163,16 +164,35 @@ export function createHarnessMcpServer(options: CreateHarnessMcpServerOptions): 
     {
       title: 'Run task',
       description:
-        'Start a task. If its project has an auto-routed cuttlefish runtime or the task carries flow tags, execution is dispatched to cuttlefish; otherwise it runs locally.',
+        'Start a task. If its project has an auto-routed cuttlefish runtime or the task carries flow tags, execution is dispatched to cuttlefish; otherwise it runs locally. ' +
+        'Set wait=true to block until the task reaches a terminal state (done, failed or cancelled) instead of returning as soon as it is queued.',
       inputSchema: {
         taskId: z.string(),
         tokenBudget: z.number().int().positive().optional(),
         timeoutMs: z.number().int().positive().optional(),
+        wait: z.boolean().optional(),
+        waitTimeoutMs: z.number().int().positive().optional(),
+        pollIntervalMs: z.number().int().positive().optional(),
       },
     },
-    async ({ taskId, ...rest }) => {
+    async ({ taskId, wait, pollIntervalMs, waitTimeoutMs, ...rest }) => {
       try {
-        return ok(await client.runTask(taskId, rest));
+        const started = await client.runTask(taskId, rest);
+        if (!wait) {
+          return ok(started);
+        }
+        // timeoutMs (above) bounds the run itself; waitTimeoutMs bounds only how
+        // long this call blocks watching for the terminal state.
+        const settled = await waitForTaskTerminal(client, taskId, {
+          pollIntervalMs,
+          timeoutMs: waitTimeoutMs,
+        });
+        return ok({
+          dispatch: started,
+          task: settled.task,
+          polls: settled.polls,
+          elapsedMs: settled.elapsedMs,
+        });
       } catch (err) {
         return fail(err);
       }

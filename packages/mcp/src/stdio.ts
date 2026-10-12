@@ -11,7 +11,13 @@ export async function runStdioServer(options: CreateHarnessMcpServerOptions): Pr
   await server.connect(transport);
 
   await new Promise<void>((resolve) => {
+    // server.close() closes the transport, which fires onclose again. Without
+    // this guard that recurses until the stack overflows — which is what a
+    // client hitting EOF (or a signal) used to trigger.
+    let closing = false;
     const shutdown = () => {
+      if (closing) return;
+      closing = true;
       void server.close().finally(resolve);
     };
     process.once('SIGINT', shutdown);

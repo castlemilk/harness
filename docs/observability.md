@@ -38,7 +38,9 @@ Stack (started by `docker compose`):
   on `FlowRun.traceId`, which is what the query API uses.
 - **`flow.dispatch`** — child span around `POST /api/runs/start`. The
   cuttlefish client injects W3C `traceparent` on every request, so the
-  controlplane's `controlplane.http` span is a child of it (same trace).
+  control plane's span for that call — named by route pattern, e.g.
+  `POST /api/runs/start`, not the otelhttp operation string — is a child of
+  it in the same trace.
 - **`task.run`** — local agent/provider runs emit their own trace (not joined
   to the request trace in detached mode).
 - **Database mirror** — node attempts and the per-flow step stay in

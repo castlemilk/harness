@@ -12,6 +12,8 @@ export default ts.config(
       'packages/db/prisma/generated/**',
       'packages/db/generated/**',
       'apps/server/web/assets/**',
+      // Third-party checkouts cloned into the worktree (own .git, not ours).
+      'colibri/**',
     ],
   },
   js.configs.recommended,

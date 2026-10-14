@@ -52,9 +52,13 @@ export async function seedDefaults(): Promise<void> {
   }
 
   if (process.env.KIMI_API_KEY) {
+    // Overridable so e2e suites can point the seeded provider at a local LLM
+    // stub instead of the real endpoint. Mirrors OLLAMA_BASE_URL above.
+    const kimiBaseUrl = process.env.KIMI_BASE_URL ?? 'https://api.kimi.com/coding/v1';
     await prisma.providerConfig.upsert({
       where: { name: 'kimi' },
       update: {
+        baseUrl: kimiBaseUrl,
         apiKey: process.env.KIMI_API_KEY,
         defaultModel: 'k3',
         enabled: true,
@@ -66,7 +70,7 @@ export async function seedDefaults(): Promise<void> {
       create: {
         name: 'kimi',
         kind: 'kimi',
-        baseUrl: 'https://api.kimi.com/coding/v1',
+        baseUrl: kimiBaseUrl,
         apiKey: process.env.KIMI_API_KEY,
         defaultModel: 'k3',
         enabled: true,

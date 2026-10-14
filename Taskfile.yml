@@ -215,6 +215,12 @@ tasks:
     cmds:
       - npx vitest run
 
+  test:e2e:mcp:
+    desc: Standalone MCP server + execution loop e2e (no Docker, no cuttlefish, no real API keys)
+    dir: apps/e2e
+    cmds:
+      - npx vitest run src/mcp-standalone.e2e.test.ts
+
   # ---------------------------------------------------------------- check --
 
   lint:

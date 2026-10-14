@@ -6,7 +6,8 @@ const args = process.argv.slice(2);
 const toolName = args[0] ?? 'omega_harness_info';
 const toolArgs = args[1] ? JSON.parse(args[1]) : {};
 
-const child = spawn(process.execPath, ['apps/cli/dist/index.js', 'mcp', ...process.env.MCP_ARGS.split(/\s+/).filter(Boolean)], {
+const extraArgs = (process.env.MCP_ARGS ?? '').split(/\s+/).filter(Boolean);
+const child = spawn(process.execPath, ['apps/cli/dist/index.js', 'mcp', ...extraArgs], {
   stdio: ['pipe', 'pipe', 'pipe'],
 });
 

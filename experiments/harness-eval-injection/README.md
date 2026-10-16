@@ -168,18 +168,19 @@ rather than the model:
 
 `scripts/gen-harness-eval.mjs` in benebsworth.com reads *every*
 `model-eval-*.json` in `~/.omega/reports` and merges it into the site's
-accumulated `results.json`. Two of its properties decide what gets published:
+accumulated `results.json`. The merge keeps one record per `suite|task`: a
+re-run replaces the previous record, and duplicate records collapse to the
+newest (reports load newest-report-first). The site's "tasks" are therefore
+tasks, and repeated sweeps can be ingested without inflating counts — the
+shrink guard compares distinct task keys, not record counts.
 
-- A model the site has not seen before is appended **without** per-task dedupe,
-  so two iterations of the same suite/task publish as two records — the model
-  page would then report 20 tasks for a suite that has 10.
-- A later build re-reads whatever is still in the reports directory, and merges
-  by `suite|task`. Leftover duplicates for a model that is since in the baseline
-  collapse, and the shrink guard refuses to write the file at all.
-
-So exactly one run per task is published: **iteration 1 of the baseline arm**,
-the pre-registered sweep. Later iterations and both treatment arms are archived
-under `results/reports/not-ingested/` as evidence. Ingest:
+What the public record carries is one run per task anyway, by choice rather
+than constraint: **iteration 1 of the baseline arm**, the pre-registered
+sweep. Later iterations and both treatment arms are archived under
+`results/reports/not-ingested/` as evidence. With the result null, three extra
+near-identical entries in the site's ranked model list would add noise rather
+than information; the arm-level analysis in `results/summary.json` is where
+they matter. Ingest:
 
 ```bash
 node archive-reports.mjs          # dry run: what stays, what moves

@@ -25,9 +25,6 @@ apps/server/web/
 # graphify knowledge graph (local exploration; regenerate with: graphify update . --code-only)
 graphify-out/
 
-# Third-party checkout cloned into the worktree (has its own .git; not ours).
-/colibri/
-
 # Session artifacts (screenshots, transcript exports, scratch checks) — root only.
 /.playwright-mcp/
 /*.png

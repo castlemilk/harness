@@ -9,6 +9,9 @@ export default ts.config(
       '**/node_modules/**',
       '**/coverage/**',
       '**/.git/**',
+      // Vendored + generated skill payloads: consumed verbatim by agents and
+      // seeded into the registry, not harness source that this config governs.
+      '.agents/skills/**',
       'packages/db/prisma/generated/**',
       'packages/db/generated/**',
       'apps/server/web/assets/**',

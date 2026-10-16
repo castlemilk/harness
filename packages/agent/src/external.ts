@@ -294,8 +294,16 @@ export function effectiveExternalModel(cli: ExternalCli, model?: string | null):
   const configured = model?.trim();
   if (configured !== undefined && configured.length > 0) return configured;
   // OpenCode has an explicit harness default; the other CLIs defer to their
-  // local configuration, so the CLI identity is the only truthful key.
-  return cli === 'opencode' ? 'opencode/big-pickle' : cli;
+  // local configuration, so the CLI identity is the only truthful key. The
+  // opencode default is the Zen free route of Nemotron 3.5 Lightning: $0
+  // marginal cost, and the highest-scored free route in Token Horizon's
+  // catalog that is not rate limited (swe 62 / lcb 58). The one free route
+  // that scores higher, deepseek-v4.1-flash-free (swe 78), answers
+  // FreeUsageLimitError under sustained use — as do space-bunny-free,
+  // mimo-v2.6-flash-free and nemotron-3.5-super-vl-free — so it fails the
+  // "unrate-limited" requirement. The previous default, opencode/big-pickle,
+  // is unscored there.
+  return cli === 'opencode' ? 'opencode/nemotron-3.5-lightning-free' : cli;
 }
 
 export function externalSessionKind(cli: ExternalCli): ExternalSessionKind | undefined {
@@ -468,8 +476,9 @@ function cliSpec(cli: ExternalCli, model?: string): CliSpec {
       // runner's poll-based timeout will eventually catch and report this.
       return {
         command: 'opencode',
-        // Model is caller-selectable (Task.model / options.model); big-pickle
-        // stays the default so existing runs keep their behaviour.
+        // Model is caller-selectable (Task.model / options.model); without
+        // one the run defaults to the free Zen route (see
+        // effectiveExternalModel).
         args: (prompt, cwd, session) => buildExternalCliArgs(cli, prompt, cwd, model, session),
         outputTransform: extractOpencodeResult,
         metricsParser: parseOpencodeMetrics,

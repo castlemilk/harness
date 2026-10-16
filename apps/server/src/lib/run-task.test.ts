@@ -10,11 +10,17 @@ const mocks = vi.hoisted(() => ({
   notifyFailure: vi.fn(),
 }));
 
-vi.mock('@omega/agent', () => ({
-  runExternalAgentTask: mocks.runExternalAgentTask,
-  runAgentTask: mocks.runAgentTask,
-  runOrchestratedTask: mocks.runOrchestratedTask,
-}));
+vi.mock('@omega/agent', async (importOriginal) => {
+  // Keep the real pure helpers (effectiveExternalModel drives the router's
+  // model identity) and stub only the executors.
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    runExternalAgentTask: mocks.runExternalAgentTask,
+    runAgentTask: mocks.runAgentTask,
+    runOrchestratedTask: mocks.runOrchestratedTask,
+  };
+});
 
 vi.mock('./intelligent-router.js', () => ({
   getRouter: mocks.getRouter,

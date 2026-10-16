@@ -131,8 +131,9 @@ export async function runBenchmark(
       if (options.externalCli) {
         // The external route is chosen by the `external:<cli>` tag above, so
         // only the model is set here. Without it the CLI runs its own default
-        // (opencode falls back to `opencode/big-pickle`) and the report
-        // attributes every result to that model instead of the intended one.
+        // (opencode falls back to `opencode/nemotron-3.5-lightning-free`, the
+        // free Zen route) and the report attributes every result to that
+        // model instead of the intended one.
         if (options.model) {
           await withRetry(() =>
             fetch(`${apiUrl}/tasks/${harnessTaskId}`, {

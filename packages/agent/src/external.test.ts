@@ -34,7 +34,7 @@ vi.mock('./project-utils.js', () => ({
   deriveVerificationCommand: mocks.deriveVerificationCommand,
 }));
 
-import { runExternalAgentTask } from './external.js';
+import { runExternalAgentTask, effectiveExternalModel } from './external.js';
 import * as externalModule from './external.js';
 
 const originalPath = process.env.PATH;
@@ -100,6 +100,30 @@ afterEach(() => {
   process.env.PATH = originalPath;
   delete process.env.FAKE_OPENCODE_MODE;
   vi.restoreAllMocks();
+});
+
+describe('effectiveExternalModel', () => {
+  it('passes a pinned model through untouched', () => {
+    expect(effectiveExternalModel('opencode', 'opencode/nemotron-3-ultra-free')).toBe(
+      'opencode/nemotron-3-ultra-free',
+    );
+  });
+
+  it('defaults opencode to the highest-scored free route that is not rate limited', () => {
+    // The default is a routing decision, not a fallback spelling: free at
+    // the margin, answers while the deepseek/space-bunny/mimo free routes
+    // return FreeUsageLimitError, swe 62 in Token Horizon's catalog.
+    expect(effectiveExternalModel('opencode')).toBe('opencode/nemotron-3.5-lightning-free');
+    expect(effectiveExternalModel('opencode', '')).toBe('opencode/nemotron-3.5-lightning-free');
+    expect(effectiveExternalModel('opencode', '   ')).toBe('opencode/nemotron-3.5-lightning-free');
+    expect(effectiveExternalModel('opencode', null)).toBe('opencode/nemotron-3.5-lightning-free');
+    expect(effectiveExternalModel('opencode', undefined)).toBe('opencode/nemotron-3.5-lightning-free');
+  });
+
+  it('keys the other CLIs by their identity, deferring to their local config', () => {
+    expect(effectiveExternalModel('agy')).toBe('agy');
+    expect(effectiveExternalModel('codex')).toBe('codex');
+  });
 });
 
 describe('runExternalAgentTask', () => {

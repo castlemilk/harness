@@ -1,0 +1,135 @@
+{
+  "timestamp": "2026-10-16T07:25:50.363Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "external",
+      "model": "opencode"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "external",
+      "model": "opencode",
+      "total": 1,
+      "passed": 0,
+      "failed": 1,
+      "timeouts": 0,
+      "passRate": 0,
+      "totalDurationMs": 1991,
+      "totalTokens": null,
+      "totalCostUsd": null,
+      "totalTurns": null,
+      "averageTurns": null,
+      "totalToolCalls": null,
+      "toolBreakdown": {}
+    }
+  ],
+  "results": [
+    {
+      "provider": "external",
+      "model": "opencode",
+      "report": {
+        "timestamp": "2026-10-16T07:25:48.369Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "timeouts": 0,
+        "totalDurationMs": 1991,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-debounce-cancel",
+              "name": "harder-v2-debounce-cancel",
+              "title": "Fix debounce cancel not clearing pending timeout",
+              "description": "The debounce function in src/debounce.js has a cancel() method that does not actually clear the pending timeout. Fix it so cancel() prevents the pending execution from firing. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "fa84bf00-94b9-4812-aab0-5d942666c23c",
+            "durationMs": 1991,
+            "status": "failed",
+            "taskError": "External agent (opencode) failed.\n\n{\"type\":\"step_start\",\"timestamp\":1792135550167,\"sessionID\":\"ses_ebc65b177ffeSuxhY5HyM8HM2Y\",\"part\":{\"id\":\"prt_1439a54d7001xtaXRMjxIa0D5X\",\"sessionID\":\"ses_ebc65b177ffeSuxhY5HyM8HM2Y\",\"messageID\":\"msg_1439a5393001zc3mfjEJ7UVTGG\",\"type\":\"step-start\",\"snapshot\":\"f42a321d43db59660d3b684577a1e505139fd9aa\"}}\n{\"type\":\"error\",\"timestamp\":1792135550186,\"sessionID\":\"ses_ebc65b177ffeSuxhY5HyM8HM2Y\",\"error\":{\"type\":\"provider.quota\",\"message\":\"Rate limit exceeded. Please try again later.\",\"status\":429,\"response\":{\"body\":\"{\\\"type\\\":\\\"error\\\",\\\"error\\\":{\\\"type\\\":\\\"FreeUsageLimitError\\\",\\\"message\\\":\\\"Rate limit exceeded. Please try again later.\\\"}}\"}}}\n\nopencode exited with code 1",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "agentRun": {
+              "id": "89b87f87-e843-42fb-9eed-0ba8336123cf",
+              "taskId": "fa84bf00-94b9-4812-aab0-5d942666c23c",
+              "promptVersionId": null,
+              "branch": "HEAD",
+              "baseCommit": "5141cdb2598d2498217d77f0dbb8b6cbcdb70ca3",
+              "resultStatus": "failed",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": null,
+              "completionTokens": null,
+              "totalTokens": null,
+              "costUsd": null,
+              "turnCount": null,
+              "toolCalls": "{}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebc65b177ffeSuxhY5HyM8HM2Y",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T07:25:49.757Z",
+              "updatedAt": "2026-10-16T07:25:50.284Z"
+            },
+            "diffs": [],
+            "spanCount": 4,
+            "traceSummary": {
+              "taskId": "fa84bf00-94b9-4812-aab0-5d942666c23c",
+              "agentRunId": "89b87f87-e843-42fb-9eed-0ba8336123cf",
+              "totalSpans": 4,
+              "totalDurationMs": 1764,
+              "promptTokens": null,
+              "completionTokens": null,
+              "totalTokens": null,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": null,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null,
+            "failureAnalysis": {
+              "category": "rate_limit",
+              "rootCause": "Provider rate limit or quota exceeded.",
+              "evidence": [
+                "External agent (opencode) failed.\n\n{\"type\":\"step_start\",\"timestamp\":1792135550167,\"sessionID\":\"ses_ebc65b177ffeSuxhY5HyM8HM2Y\",\"part\":{\"id\":\"prt_1439a54d7001xtaXRMjxIa0D5X\",\"sessionID\":\"ses_ebc65b177ffeSuxhY5HyM8HM2Y\",\"messageID\":\"msg_1439a5393001zc3mfjEJ7UVTGG\",\"type\":\"step-start\",\"snapshot\":\"f42a3"
+              ]
+            }
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

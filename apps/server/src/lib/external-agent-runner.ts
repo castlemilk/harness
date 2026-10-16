@@ -1,5 +1,6 @@
 import {
   runExternalAgentTask,
+  effectiveExternalModel,
   type ExternalAgentOptions,
   type ExternalAgentResult,
 } from '@omega/agent';
@@ -14,9 +15,10 @@ export interface ExternalRouterKeys {
 }
 
 function externalModelIdentity(options: Pick<ExternalAgentOptions, 'cli' | 'model'>): string {
-  const configured = options.model?.trim();
-  if (configured !== undefined && configured.length > 0) return configured;
-  return options.cli === 'opencode' ? 'opencode/big-pickle' : options.cli;
+  // One default, two callers: the health/scoring keys must agree with what
+  // the agent actually spawns, so delegate rather than duplicating the
+  // fallback.
+  return effectiveExternalModel(options.cli, options.model);
 }
 
 function externalWasRateLimited(output: string): boolean {

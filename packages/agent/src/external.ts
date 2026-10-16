@@ -294,16 +294,26 @@ export function effectiveExternalModel(cli: ExternalCli, model?: string | null):
   const configured = model?.trim();
   if (configured !== undefined && configured.length > 0) return configured;
   // OpenCode has an explicit harness default; the other CLIs defer to their
-  // local configuration, so the CLI identity is the only truthful key. The
-  // opencode default is the Zen free route of Nemotron 3.5 Lightning: $0
-  // marginal cost, and the highest-scored free route in Token Horizon's
-  // catalog that is not rate limited (swe 62 / lcb 58). The one free route
-  // that scores higher, deepseek-v4.1-flash-free (swe 78), answers
-  // FreeUsageLimitError under sustained use — as do space-bunny-free,
-  // mimo-v2.6-flash-free and nemotron-3.5-super-vl-free — so it fails the
-  // "unrate-limited" requirement. The previous default, opencode/big-pickle,
-  // is unscored there.
-  return cli === 'opencode' ? 'opencode/nemotron-3.5-lightning-free' : cli;
+  // local configuration, so the CLI identity is the only truthful key.
+  //
+  // The default is the strongest model the route can actually reach right now,
+  // ranked by the swe/lcb scores in Token Horizon's catalog (perfScore =
+  // swe×0.65 + lcb×0.35):
+  //   zai-coding-plan/glm-5.3            perf 66.25  $0, plan quota
+  //   opencode/nemotron-3.5-lightning-free perf 60.78  $0, free tier  ← fallback
+  //   minimax-coding-plan/MiniMax-M3      perf 60.60  $0, plan quota
+  // Everything above GLM-5.3 is unreachable from this account right now, and
+  // the reasons are account state rather than model quality — worth re-measuring
+  // when they change, since the ranking is not a property of the harness:
+  //   openrouter frontier (gpt-5.6-sol 80.3, claude-opus-5 81.0) — account
+  //     credits exhausted, and a 128k max_tokens request exceeds the balance
+  //   alibaba-token-plan/deepseek-v4.1-flash (76.6) — access denied
+  //   opencode-zen paid routes (70–85) — not entitled; only the free tier runs
+  //
+  // Measured on harder-v2-debounce-cancel: solved in 24.2s with 278 output
+  // tokens and $0. The free tier remains the documented fallback for when the
+  // coding-plan quota window is exhausted.
+  return cli === 'opencode' ? 'zai-coding-plan/glm-5.3' : cli;
 }
 
 export function externalSessionKind(cli: ExternalCli): ExternalSessionKind | undefined {

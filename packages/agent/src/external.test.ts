@@ -109,15 +109,15 @@ describe('effectiveExternalModel', () => {
     );
   });
 
-  it('defaults opencode to the highest-scored free route that is not rate limited', () => {
-    // The default is a routing decision, not a fallback spelling: free at
-    // the margin, answers while the deepseek/space-bunny/mimo free routes
-    // return FreeUsageLimitError, swe 62 in Token Horizon's catalog.
-    expect(effectiveExternalModel('opencode')).toBe('opencode/nemotron-3.5-lightning-free');
-    expect(effectiveExternalModel('opencode', '')).toBe('opencode/nemotron-3.5-lightning-free');
-    expect(effectiveExternalModel('opencode', '   ')).toBe('opencode/nemotron-3.5-lightning-free');
-    expect(effectiveExternalModel('opencode', null)).toBe('opencode/nemotron-3.5-lightning-free');
-    expect(effectiveExternalModel('opencode', undefined)).toBe('opencode/nemotron-3.5-lightning-free');
+  it('defaults opencode to the strongest route the account can actually reach', () => {
+    // A routing decision, not a fallback spelling: GLM-5.3 is the top-scored
+    // model that answers today (perf 66.25, $0). The free Zen tier is the
+    // documented fallback when the coding-plan quota window is exhausted.
+    expect(effectiveExternalModel('opencode')).toBe('zai-coding-plan/glm-5.3');
+    expect(effectiveExternalModel('opencode', '')).toBe('zai-coding-plan/glm-5.3');
+    expect(effectiveExternalModel('opencode', '   ')).toBe('zai-coding-plan/glm-5.3');
+    expect(effectiveExternalModel('opencode', null)).toBe('zai-coding-plan/glm-5.3');
+    expect(effectiveExternalModel('opencode', undefined)).toBe('zai-coding-plan/glm-5.3');
   });
 
   it('keys the other CLIs by their identity, deferring to their local config', () => {

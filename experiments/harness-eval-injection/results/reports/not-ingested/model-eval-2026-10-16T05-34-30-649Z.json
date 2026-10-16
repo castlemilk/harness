@@ -1,0 +1,135 @@
+{
+  "timestamp": "2026-10-16T05:34:30.649Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "total": 1,
+      "passed": 0,
+      "failed": 1,
+      "timeouts": 0,
+      "passRate": 0,
+      "totalDurationMs": 507,
+      "totalTokens": null,
+      "totalCostUsd": null,
+      "totalTurns": null,
+      "averageTurns": null,
+      "totalToolCalls": null,
+      "toolBreakdown": {}
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "report": {
+        "timestamp": "2026-10-16T05:34:30.139Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "timeouts": 0,
+        "totalDurationMs": 507,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-deep-clone-circular",
+              "name": "harder-v2-deep-clone-circular",
+              "title": "Fix deep clone to handle circular references",
+              "description": "The deepClone function in src/clone.js crashes on circular references. Fix it to detect and handle circular references by using a WeakSet to track visited objects. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "5305c2a2-4ee1-4b7b-ba81-c3adb9c68e96",
+            "durationMs": 507,
+            "status": "failed",
+            "taskError": "External agent (opencode) failed.\n\nw thinking blocks\n  --auto                  Auto-approve permissions that are not explicitly denied\n\nGLOBAL FLAGS\n  --help, -h                                                          Show help information\n  --version, -v                                                       Show version information\n  --wizard                                                            Start wizard mode for a command\n  --completions <bash|zsh|fish|sh>                                    Print shell completion script (choices: bash, zsh, fish, sh)\n  --log-level <all|trace|debug|info|warn|warning|error|fatal|none>    Sets the minimum log level (choices: all, trace, debug, info, warn, warning, error, fatal, none)\n  --print-logs                                                        Print logs to stderr (server logs require --standalone)\n\n\nERRORS\n  Unrecognized flag: --port in command opencode run\n\n  Did you mean this?\n    --fork\n  Unrecognized flag: --dir in command opencode run\n\nopencode exited with code 1",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "agentRun": {
+              "id": "d3b60301-55f3-4c68-89dc-34f85e9f29d7",
+              "taskId": "5305c2a2-4ee1-4b7b-ba81-c3adb9c68e96",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "c15afeb00d895e1d46b71ce429c177eafc41ca8a",
+              "resultStatus": "failed",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": null,
+              "completionTokens": null,
+              "totalTokens": null,
+              "costUsd": null,
+              "turnCount": null,
+              "toolCalls": "{}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": null,
+              "sessionKind": null,
+              "createdAt": "2026-10-16T05:34:30.246Z",
+              "updatedAt": "2026-10-16T05:34:30.384Z"
+            },
+            "diffs": [],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "5305c2a2-4ee1-4b7b-ba81-c3adb9c68e96",
+              "agentRunId": "d3b60301-55f3-4c68-89dc-34f85e9f29d7",
+              "totalSpans": 2,
+              "totalDurationMs": 91,
+              "promptTokens": null,
+              "completionTokens": null,
+              "totalTokens": null,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": null,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null,
+            "failureAnalysis": {
+              "category": "unknown",
+              "rootCause": "Failure cause could not be classified: No diff patch available to evaluate.",
+              "evidence": [
+                "No diff patch available to evaluate"
+              ]
+            }
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

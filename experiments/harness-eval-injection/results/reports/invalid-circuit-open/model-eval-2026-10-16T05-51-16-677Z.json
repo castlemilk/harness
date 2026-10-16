@@ -1,0 +1,571 @@
+{
+  "timestamp": "2026-10-16T05:51:16.677Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "total": 10,
+      "passed": 1,
+      "failed": 9,
+      "timeouts": 0,
+      "passRate": 0.1,
+      "totalDurationMs": 28645,
+      "totalTokens": 1668,
+      "totalCostUsd": null,
+      "totalTurns": 3,
+      "averageTurns": 0.3,
+      "totalToolCalls": 4,
+      "toolBreakdown": {
+        "read": 1,
+        "shell": 2,
+        "edit": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "report": {
+        "timestamp": "2026-10-16T05:50:48.024Z",
+        "suite": "harder-v2",
+        "total": 10,
+        "passed": 1,
+        "failed": 9,
+        "timeouts": 0,
+        "totalDurationMs": 28645,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-event-emitter-leak",
+              "name": "harder-v2-event-emitter-leak",
+              "title": "Fix event emitter memory leak from wrong listener reference",
+              "description": "Fix the memory leak in EventEmitter. The issue: off() is called with a NEW function reference instead of the original listener, so the listener is never removed. Fix src/emitter.js so listeners are properly removed. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "e37b0709-7b89-4454-ad0e-69376994907c",
+            "durationMs": 27606,
+            "status": "failed",
+            "taskError": "External agent (opencode) failed.\n\nses_ebcbcac1effepFPBbnYz3CoLyb.\nThe fix is already in place from my previous work. Let me verify the current state and re-run the test.\nThe file was reset to the buggy state. Let me apply the fix again and verify.\nFixed and passing.\n\n**Change in `src/emitter.js` (line 10):**\n\n```js\n// before — creates a brand-new function each time, so it never matches\nthis._events.set(event, listeners.filter(l => l !== (() => fn())));\n\n// after — compares against the original listener reference\nthis._events.set(event, listeners.filter(l => l !== fn));\n```\n\nThe buggy version constructed a fresh arrow function (`() => fn()`) on every comparison. Since that new reference could never equal the stored listener, `off()` removed nothing and the listener array grew unbounded — the leak. Comparing directly against `fn` removes the correct listener.\n\nTest result (no `package.json` in the repo, so the entry point runs directly with Node):\n\n```\ncalled\nlisteners after off: 0\nPASS\n```\n\n`test.js` was left unchanged.",
+            "evaluation": {
+              "passed": true,
+              "message": "Event emitter leak fixed"
+            },
+            "agentRun": {
+              "id": "57da9c45-fd47-4487-95f3-ae43be341fe8",
+              "taskId": "e37b0709-7b89-4454-ad0e-69376994907c",
+              "promptVersionId": null,
+              "branch": "HEAD",
+              "baseCommit": "34ac157ed8d77ba1a9a891d6a1cc51c829594b57",
+              "resultStatus": "failed",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 1226,
+              "completionTokens": 442,
+              "totalTokens": 1668,
+              "costUsd": null,
+              "turnCount": 3,
+              "toolCalls": "{\"read\":1,\"shell\":2,\"edit\":1}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebcbcac1effepFPBbnYz3CoLyb",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T05:51:02.216Z",
+              "updatedAt": "2026-10-16T05:51:15.144Z"
+            },
+            "diffs": [
+              {
+                "id": "2c850254-4db3-4666-8b13-1a648142ebf7",
+                "taskId": "e37b0709-7b89-4454-ad0e-69376994907c",
+                "branch": "HEAD",
+                "commitSha": null,
+                "patch": "diff --git a/src/emitter.js b/src/emitter.js\nindex eabd894..7e46ba7 100644\n--- a/src/emitter.js\n+++ b/src/emitter.js\n@@ -7,7 +7,7 @@ export class EventEmitter {\n   }\n   off(event, fn) {\n     const listeners = this._events.get(event) || [];\n-    this._events.set(event, listeners.filter(l => l !== (() => fn())));\n+    this._events.set(event, listeners.filter(l => l !== fn));\n     return this;\n   }\n   emit(event, ...args) {\n",
+                "createdAt": "2026-10-16T05:51:15.119Z"
+              },
+              {
+                "id": "c46d2847-27d9-4ee3-a797-382ecfac174e",
+                "taskId": "e37b0709-7b89-4454-ad0e-69376994907c",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/emitter.js b/src/emitter.js\nindex eabd894..7e46ba7 100644\n--- a/src/emitter.js\n+++ b/src/emitter.js\n@@ -7,7 +7,7 @@ export class EventEmitter {\n   }\n   off(event, fn) {\n     const listeners = this._events.get(event) || [];\n-    this._events.set(event, listeners.filter(l => l !== (() => fn())));\n+    this._events.set(event, listeners.filter(l => l !== fn));\n     return this;\n   }\n   emit(event, ...args) {\n",
+                "createdAt": "2026-10-16T05:51:02.186Z"
+              }
+            ],
+            "spanCount": 4,
+            "traceSummary": {
+              "taskId": "e37b0709-7b89-4454-ad0e-69376994907c",
+              "agentRunId": "57da9c45-fd47-4487-95f3-ae43be341fe8",
+              "totalSpans": 4,
+              "totalDurationMs": 26882,
+              "promptTokens": 1226,
+              "completionTokens": 442,
+              "totalTokens": 1668,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 1668,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          },
+          {
+            "task": {
+              "id": "harder-v2-promise-all-race",
+              "name": "harder-v2-promise-all-race",
+              "title": "Fix Promise.allSettled error propagation",
+              "description": "The parallelFetch() function swallows errors from failed promises. Fix src/parallel.js so that when ALL promises fail, the error is properly thrown. When SOME succeed, return the successful results. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "611f5a7f-07bc-43c5-8cc5-9beef4b78ed7",
+            "durationMs": 153,
+            "status": "failed",
+            "taskError": "External CLI external:opencode circuit is open; skipped opencode before process start.",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "diffs": [],
+            "spanCount": 0,
+            "traceSummary": {
+              "taskId": "611f5a7f-07bc-43c5-8cc5-9beef4b78ed7",
+              "totalSpans": 0,
+              "totalDurationMs": 0,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "exceeded": false
+              }
+            },
+            "failureAnalysis": {
+              "category": "unknown",
+              "rootCause": "Failure cause could not be classified: No diff patch available to evaluate.",
+              "evidence": [
+                "No diff patch available to evaluate"
+              ]
+            }
+          },
+          {
+            "task": {
+              "id": "harder-v2-lru-cache-eviction",
+              "name": "harder-v2-lru-cache-eviction",
+              "title": "Fix LRU cache max size eviction",
+              "description": "The LRU cache in src/lru.js does not evict the oldest entry when max size is reached. Fix it so that get() and set() both update access order, and the oldest entry is evicted when capacity is exceeded. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "b810872f-8e97-4137-8d2d-c40053b73891",
+            "durationMs": 152,
+            "status": "failed",
+            "taskError": "External CLI external:opencode circuit is open; skipped opencode before process start.",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "diffs": [],
+            "spanCount": 0,
+            "traceSummary": {
+              "taskId": "b810872f-8e97-4137-8d2d-c40053b73891",
+              "totalSpans": 0,
+              "totalDurationMs": 0,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "exceeded": false
+              }
+            },
+            "failureAnalysis": {
+              "category": "unknown",
+              "rootCause": "Failure cause could not be classified: No diff patch available to evaluate.",
+              "evidence": [
+                "No diff patch available to evaluate"
+              ]
+            }
+          },
+          {
+            "task": {
+              "id": "harder-v2-debounce-cancel",
+              "name": "harder-v2-debounce-cancel",
+              "title": "Fix debounce cancel not clearing pending timeout",
+              "description": "The debounce function in src/debounce.js has a cancel() method that does not actually clear the pending timeout. Fix it so cancel() prevents the pending execution from firing. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "984d6798-5c79-48a3-983e-0c71b1a65d5b",
+            "durationMs": 125,
+            "status": "failed",
+            "taskError": "External CLI external:opencode circuit is open; skipped opencode before process start.",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "diffs": [],
+            "spanCount": 0,
+            "traceSummary": {
+              "taskId": "984d6798-5c79-48a3-983e-0c71b1a65d5b",
+              "totalSpans": 0,
+              "totalDurationMs": 0,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "exceeded": false
+              }
+            },
+            "failureAnalysis": {
+              "category": "unknown",
+              "rootCause": "Failure cause could not be classified: No diff patch available to evaluate.",
+              "evidence": [
+                "No diff patch available to evaluate"
+              ]
+            }
+          },
+          {
+            "task": {
+              "id": "harder-v2-deep-clone-circular",
+              "name": "harder-v2-deep-clone-circular",
+              "title": "Fix deep clone to handle circular references",
+              "description": "The deepClone function in src/clone.js crashes on circular references. Fix it to detect and handle circular references by using a WeakSet to track visited objects. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "8d9f8523-548f-4274-8105-d22fcca37d07",
+            "durationMs": 116,
+            "status": "failed",
+            "taskError": "External CLI external:opencode circuit is open; skipped opencode before process start.",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "diffs": [],
+            "spanCount": 0,
+            "traceSummary": {
+              "taskId": "8d9f8523-548f-4274-8105-d22fcca37d07",
+              "totalSpans": 0,
+              "totalDurationMs": 0,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "exceeded": false
+              }
+            },
+            "failureAnalysis": {
+              "category": "unknown",
+              "rootCause": "Failure cause could not be classified: No diff patch available to evaluate.",
+              "evidence": [
+                "No diff patch available to evaluate"
+              ]
+            }
+          },
+          {
+            "task": {
+              "id": "harder-v2-rate-limiter",
+              "name": "harder-v2-rate-limiter",
+              "title": "Fix rate limiter to properly limit concurrent requests",
+              "description": "The rate limiter in src/ratelimit.js allows unlimited concurrent executions. Fix it so at most N functions run at the same time. Queued functions should wait for a slot. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "16a6c607-7e43-4478-b762-4e967ad9363a",
+            "durationMs": 98,
+            "status": "failed",
+            "taskError": "External CLI external:opencode circuit is open; skipped opencode before process start.",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "diffs": [],
+            "spanCount": 0,
+            "traceSummary": {
+              "taskId": "16a6c607-7e43-4478-b762-4e967ad9363a",
+              "totalSpans": 0,
+              "totalDurationMs": 0,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "exceeded": false
+              }
+            },
+            "failureAnalysis": {
+              "category": "unknown",
+              "rootCause": "Failure cause could not be classified: No diff patch available to evaluate.",
+              "evidence": [
+                "No diff patch available to evaluate"
+              ]
+            }
+          },
+          {
+            "task": {
+              "id": "harder-v2-config-merger",
+              "name": "harder-v2-config-merger",
+              "title": "Fix config merger to deep merge arrays",
+              "description": "The config merger in src/config.js replaces arrays instead of merging them. Fix merge() to concatenate arrays from both sources instead of overwriting. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "447ac55f-0a30-431f-ad3c-64bba22fd15f",
+            "durationMs": 91,
+            "status": "failed",
+            "taskError": "External CLI external:opencode circuit is open; skipped opencode before process start.",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "diffs": [],
+            "spanCount": 0,
+            "traceSummary": {
+              "taskId": "447ac55f-0a30-431f-ad3c-64bba22fd15f",
+              "totalSpans": 0,
+              "totalDurationMs": 0,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "exceeded": false
+              }
+            },
+            "failureAnalysis": {
+              "category": "unknown",
+              "rootCause": "Failure cause could not be classified: No diff patch available to evaluate.",
+              "evidence": [
+                "No diff patch available to evaluate"
+              ]
+            }
+          },
+          {
+            "task": {
+              "id": "harder-v2-async-queue",
+              "name": "harder-v2-async-queue",
+              "title": "Fix async queue to wait instead of dropping tasks",
+              "description": "The async queue in src/queue.js drops tasks when the queue is full. Fix it so tasks wait for a slot to open instead of being rejected. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "eb77cdab-1dcb-48dd-8502-9d09924c9783",
+            "durationMs": 110,
+            "status": "failed",
+            "taskError": "External CLI external:opencode circuit is open; skipped opencode before process start.",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "diffs": [],
+            "spanCount": 0,
+            "traceSummary": {
+              "taskId": "eb77cdab-1dcb-48dd-8502-9d09924c9783",
+              "totalSpans": 0,
+              "totalDurationMs": 0,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "exceeded": false
+              }
+            },
+            "failureAnalysis": {
+              "category": "unknown",
+              "rootCause": "Failure cause could not be classified: No diff patch available to evaluate.",
+              "evidence": [
+                "No diff patch available to evaluate"
+              ]
+            }
+          },
+          {
+            "task": {
+              "id": "harder-v2-retry-backoff",
+              "name": "harder-v2-retry-backoff",
+              "title": "Fix retry to use exponential backoff",
+              "description": "The retry function in src/retry.js uses a fixed delay for all retries. Fix it to use exponential backoff: delay doubles each attempt (base * 2^attempt). Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "914a3f47-f6b2-4a0b-876f-118667629f07",
+            "durationMs": 99,
+            "status": "failed",
+            "taskError": "External CLI external:opencode circuit is open; skipped opencode before process start.",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "diffs": [],
+            "spanCount": 0,
+            "traceSummary": {
+              "taskId": "914a3f47-f6b2-4a0b-876f-118667629f07",
+              "totalSpans": 0,
+              "totalDurationMs": 0,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "exceeded": false
+              }
+            },
+            "failureAnalysis": {
+              "category": "unknown",
+              "rootCause": "Failure cause could not be classified: No diff patch available to evaluate.",
+              "evidence": [
+                "No diff patch available to evaluate"
+              ]
+            }
+          },
+          {
+            "task": {
+              "id": "harder-v2-state-machine",
+              "name": "harder-v2-state-machine",
+              "title": "Fix state machine to reject invalid transitions",
+              "description": "The state machine in src/state.js accepts any transition without validation. Fix it to check a transition table and throw on invalid transitions. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "95da2cb5-ebaa-46ff-a4bc-69acd1ceb461",
+            "durationMs": 95,
+            "status": "failed",
+            "taskError": "External CLI external:opencode circuit is open; skipped opencode before process start.",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "diffs": [],
+            "spanCount": 0,
+            "traceSummary": {
+              "taskId": "95da2cb5-ebaa-46ff-a4bc-69acd1ceb461",
+              "totalSpans": 0,
+              "totalDurationMs": 0,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "exceeded": false
+              }
+            },
+            "failureAnalysis": {
+              "category": "unknown",
+              "rootCause": "Failure cause could not be classified: No diff patch available to evaluate.",
+              "evidence": [
+                "No diff patch available to evaluate"
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,138 @@
+{
+  "timestamp": "2026-10-16T05:41:56.363Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "total": 1,
+      "passed": 0,
+      "failed": 1,
+      "timeouts": 0,
+      "passRate": 0,
+      "totalDurationMs": 300225,
+      "totalTokens": 52056,
+      "totalCostUsd": null,
+      "totalTurns": 28,
+      "averageTurns": 28,
+      "totalToolCalls": 28,
+      "toolBreakdown": {
+        "shell": 25,
+        "read": 3
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "report": {
+        "timestamp": "2026-10-16T05:36:56.136Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "timeouts": 0,
+        "totalDurationMs": 300225,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-deep-clone-circular",
+              "name": "harder-v2-deep-clone-circular",
+              "title": "Fix deep clone to handle circular references",
+              "description": "The deepClone function in src/clone.js crashes on circular references. Fix it to detect and handle circular references by using a WeakSet to track visited objects. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "db2b4d51-fc5d-4ab9-a07d-7de9df0f6c33",
+            "durationMs": 300225,
+            "status": "failed",
+            "taskError": "External agent (opencode) failed.\n\nI found the task. Let me inspect the bench project directories that the harness created for this task.",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "agentRun": {
+              "id": "1a42b6ab-0846-4165-ac31-049943b7f872",
+              "taskId": "db2b4d51-fc5d-4ab9-a07d-7de9df0f6c33",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "558baf1a0160ea69110de7cae4f08517d802b544",
+              "resultStatus": "failed",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 49091,
+              "completionTokens": 2965,
+              "totalTokens": 52056,
+              "costUsd": null,
+              "turnCount": 28,
+              "toolCalls": "{\"shell\":25,\"read\":3}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebcc95dc0ffem3k7Y07eO2N5Bj",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T05:36:56.275Z",
+              "updatedAt": "2026-10-16T05:41:56.342Z"
+            },
+            "diffs": [],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "db2b4d51-fc5d-4ab9-a07d-7de9df0f6c33",
+              "agentRunId": "1a42b6ab-0846-4165-ac31-049943b7f872",
+              "totalSpans": 2,
+              "totalDurationMs": 300031,
+              "promptTokens": 49091,
+              "completionTokens": 2965,
+              "totalTokens": 52056,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 52056,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null,
+            "failureAnalysis": {
+              "category": "unknown",
+              "rootCause": "Failure cause could not be classified: No diff patch available to evaluate.",
+              "evidence": [
+                "No diff patch available to evaluate"
+              ]
+            }
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

@@ -46,12 +46,19 @@ export interface OpencodeMetrics {
  * Did this `opencode run` session end without the model actually finishing
  * its turn?
  *
- * A healthy session ends with a `step_finish` whose reason is `stop` (the
- * model concluded). Observed live on the free tier: the provider returns an
- * empty/broken stream mid-session, opencode emits a final `step_finish` with
- * reason `unknown` and no tokens — or nothing at all — and `opencode run`
- * EXITS 0 as if done. Recording that as "the model produced no patch" blames
- * the model for an infrastructure failure; callers should retry instead.
+ * A healthy session ends with a terminal event:
+ *   - OpenCode 1.x emitted a final `step_finish` with reason `stop`.
+ *   - OpenCode 2.x (`run --format json`) emits the assistant's final `text`
+ *     part last and no trailing `step_finish` — captured live 2026-10-16 on
+ *     2.x: `step_start, tool_use, step_finish(tool-calls), step_start, text`.
+ *     Nothing else follows that `text`; the CLI exits 0.
+ *
+ * Anything else is the gateway-drop shape observed live on the free tier: an
+ * empty or non-JSON capture, a stream cut while a step was opening
+ * (`step_start` last) or right after a tool ran (`tool_use` last), or a final
+ * `step_finish` with reason `unknown` and no tokens. `opencode run` still EXITS
+ * 0 for those, so recording them as "the model produced no patch" blames the
+ * model for an infrastructure failure; callers should retry instead.
  */
 export function opencodeRunLooksAborted(raw: string): boolean {
   let sawAnyEvent = false;
@@ -74,8 +81,8 @@ export function opencodeRunLooksAborted(raw: string): boolean {
     }
   }
   if (!sawAnyEvent) return true; // crashed before the stream started
-  if (lastEventType === 'step_start') return true; // died mid-stream
-  return lastFinishReason !== 'stop';
+  if (lastEventType === 'text') return false; // 2.x concluded normally
+  return !(lastEventType === 'step_finish' && lastFinishReason === 'stop'); // 1.x concluded normally
 }
 
 export function parseOpencodeMetrics(raw: string): OpencodeMetrics {

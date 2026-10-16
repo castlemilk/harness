@@ -1,0 +1,150 @@
+{
+  "corpus": "/Users/benebsworth/projects/benebsworth.com/public/lab-data/harness-eval",
+  "taskCount": 10,
+  "tasks": {
+    "harder-v2-event-emitter-leak": {
+      "class": "listener-identity",
+      "siblingTasks": [
+        "hard-targeting/hard-debug-event-listener-leak"
+      ],
+      "siblingRepairs": 5,
+      "operationTags": [
+        "callback-reference-captured",
+        "listener-removed-by-identity"
+      ],
+      "ownPatchesExcluded": 1,
+      "skillsChars": 888,
+      "kgChars": 1566,
+      "leakage": "clean"
+    },
+    "harder-v2-promise-all-race": {
+      "class": "error-aggregation",
+      "siblingTasks": [
+        "hard-targeting/hard-fix-async-race"
+      ],
+      "siblingRepairs": 4,
+      "operationTags": [
+        "queue-and-drain-loop",
+        "in-flight-guard-flag",
+        "caller-resolver-retained"
+      ],
+      "ownPatchesExcluded": 1,
+      "skillsChars": 885,
+      "kgChars": 1297,
+      "leakage": "clean"
+    },
+    "harder-v2-lru-cache-eviction": {
+      "class": "recency-ordering",
+      "siblingTasks": [
+        "hard-targeting/hard-fix-on2-regression"
+      ],
+      "siblingRepairs": 4,
+      "operationTags": [
+        "identity-keyed-memo",
+        "arrays-combined"
+      ],
+      "ownPatchesExcluded": 1,
+      "skillsChars": 900,
+      "kgChars": 1289,
+      "leakage": "clean"
+    },
+    "harder-v2-debounce-cancel": {
+      "class": "timer-cancellation",
+      "siblingTasks": [
+        "hard-targeting/hard-debug-event-listener-leak"
+      ],
+      "siblingRepairs": 5,
+      "operationTags": [
+        "callback-reference-captured",
+        "listener-removed-by-identity"
+      ],
+      "ownPatchesExcluded": 1,
+      "skillsChars": 851,
+      "kgChars": 1567,
+      "leakage": "clean"
+    },
+    "harder-v2-deep-clone-circular": {
+      "class": "graph-traversal-memo",
+      "siblingTasks": [],
+      "siblingRepairs": 0,
+      "operationTags": [],
+      "ownPatchesExcluded": 1,
+      "skillsChars": 829,
+      "kgChars": 621,
+      "leakage": "clean"
+    },
+    "harder-v2-rate-limiter": {
+      "class": "concurrency-gate",
+      "siblingTasks": [
+        "hard-targeting/hard-fix-async-race"
+      ],
+      "siblingRepairs": 4,
+      "operationTags": [
+        "queue-and-drain-loop",
+        "in-flight-guard-flag",
+        "caller-resolver-retained"
+      ],
+      "ownPatchesExcluded": 1,
+      "skillsChars": 802,
+      "kgChars": 1244,
+      "leakage": "clean"
+    },
+    "harder-v2-config-merger": {
+      "class": "merge-semantics",
+      "siblingTasks": [
+        "hard-targeting/hard-debug-config-drift",
+        "hard-targeting/hard-fix-subtle-type-coercion"
+      ],
+      "siblingRepairs": 8,
+      "operationTags": [
+        "numeric-coercion-removed",
+        "strict-identity-compare",
+        "loose-equality-removed"
+      ],
+      "ownPatchesExcluded": 1,
+      "skillsChars": 814,
+      "kgChars": 1718,
+      "leakage": "clean"
+    },
+    "harder-v2-async-queue": {
+      "class": "backpressure-wait",
+      "siblingTasks": [
+        "hard-targeting/hard-fix-async-race"
+      ],
+      "siblingRepairs": 4,
+      "operationTags": [
+        "queue-and-drain-loop",
+        "in-flight-guard-flag",
+        "caller-resolver-retained"
+      ],
+      "ownPatchesExcluded": 1,
+      "skillsChars": 815,
+      "kgChars": 1265,
+      "leakage": "clean"
+    },
+    "harder-v2-retry-backoff": {
+      "class": "retry-schedule",
+      "siblingTasks": [],
+      "siblingRepairs": 0,
+      "operationTags": [],
+      "ownPatchesExcluded": 1,
+      "skillsChars": 749,
+      "kgChars": 568,
+      "leakage": "clean"
+    },
+    "harder-v2-state-machine": {
+      "class": "transition-validation",
+      "siblingTasks": [
+        "hard-targeting/hard-spec-ambiguous-correctness"
+      ],
+      "siblingRepairs": 4,
+      "operationTags": [
+        "strict-identity-compare"
+      ],
+      "ownPatchesExcluded": 1,
+      "skillsChars": 911,
+      "kgChars": 994,
+      "leakage": "clean"
+    }
+  }
+}

@@ -1,0 +1,199 @@
+{
+  "meta": {
+    "purpose": "Curated skill procedures injected as the 'skills' arm of the harder-v2 context-injection experiment.",
+    "provenance": "Hand-authored general engineering procedure. Contains no corpus patches, no reference solutions, and no code from any benchmark task.",
+    "status": "experimental"
+  },
+  "siblings": {
+    "listener-identity": [
+      { "suite": "hard-targeting", "task": "hard-debug-event-listener-leak", "relation": "direct" }
+    ],
+    "concurrency-gate": [
+      { "suite": "hard-targeting", "task": "hard-fix-async-race", "relation": "direct" }
+    ],
+    "backpressure-wait": [
+      { "suite": "hard-targeting", "task": "hard-fix-async-race", "relation": "direct" }
+    ],
+    "merge-semantics": [
+      { "suite": "hard-targeting", "task": "hard-debug-config-drift", "relation": "adjacent" },
+      { "suite": "hard-targeting", "task": "hard-fix-subtle-type-coercion", "relation": "adjacent" }
+    ],
+    "error-aggregation": [
+      { "suite": "hard-targeting", "task": "hard-fix-async-race", "relation": "adjacent" }
+    ],
+    "timer-cancellation": [
+      { "suite": "hard-targeting", "task": "hard-debug-event-listener-leak", "relation": "adjacent" }
+    ],
+    "transition-validation": [
+      { "suite": "hard-targeting", "task": "hard-spec-ambiguous-correctness", "relation": "adjacent" }
+    ],
+    "recency-ordering": [
+      { "suite": "hard-targeting", "task": "hard-fix-on2-regression", "relation": "adjacent" }
+    ],
+    "retry-schedule": [],
+    "graph-traversal-memo": []
+  },
+  "shapes": {
+    "listener-identity": "Cleanup only works by identity. The registration and the removal must name the exact same function object; a fresh closure is a different object and removes nothing.",
+    "error-aggregation": "Decide the aggregate outcome for every-input-failed, some-failed and none-failed before writing code, collect all outcomes without short-circuiting, and throw a collected error only when nothing succeeded.",
+    "recency-ordering": "Separate capacity enforcement from recency bookkeeping, refresh recency on every read and write, and evict the single least-recent entry after the refresh, not before.",
+    "timer-cancellation": "Cancellation must clear the exact handle returned by the scheduling call, be idempotent, and reset any correlated bookkeeping so a later call cannot observe stale state.",
+    "graph-traversal-memo": "Identity-keyed memoisation must register a container before descending into it so that a reference back to an ancestor resolves inside the copy instead of recursing again.",
+    "concurrency-gate": "Model the limit as a running-count plus a pending queue, and release capacity on both success and failure paths so a rejected unit cannot permanently consume a slot.",
+    "merge-semantics": "Merge is type-directed: scalars replace, arrays combine, nested containers recurse. A generic shallow assign does none of this.",
+    "backpressure-wait": "Under saturation the caller's promise must still settle. Hold pending resolvers in a queue and admit work through one FIFO drain path shared by enqueue and completion.",
+    "retry-schedule": "Express the delay as a formula over base and attempt index computed per call, so concurrent retries cannot share mutable schedule state.",
+    "transition-validation": "Permitted transitions belong in one lookup table, consulted by a single decision point, and a rejected transition must leave observable state unchanged."
+  },
+  "tasks": {
+    "harder-v2-event-emitter-leak": {
+      "class": "listener-identity",
+      "classTitle": "Listener identity and cleanup",
+      "procedure": [
+        "Note the registration and the removal sites. A removal call only succeeds when it receives the same function object that was registered.",
+        "Reuse one named reference for both registration and removal, or keep a registry mapping an owner key to the exact callbacks it registered.",
+        "When a listener closes over per-call state, tie the registry entry to that call and delete it on the same path that removes the listener, so entries cannot accumulate.",
+        "Verify by asserting the listener count is stable across repeated register/remove cycles, not merely that no error was thrown."
+      ],
+      "traps": [
+        "Removing with fn.bind(this) or an inline arrow expression: both create a new identity.",
+        "Checking that the removal call happened rather than that the internal registry shrank."
+      ]
+    },
+    "harder-v2-promise-all-race": {
+      "class": "error-aggregation",
+      "classTitle": "Aggregating outcomes across parallel work",
+      "procedure": [
+        "Enumerate the required outcomes first: all inputs fail, some fail, none fail. Write down the expected return for each.",
+        "Collect every outcome without short-circuiting: await all work, then partition into fulfilled and rejected.",
+        "When every input rejected, throw the collected error (AggregateError, or the single error when only one exists).",
+        "Otherwise return the fulfilled values; keep rejections out of the successful return value.",
+        "Never let a rejection escape an await inside a loop that is meant to continue, and never let a catch turn 'all failed' into a silent success."
+      ],
+      "traps": [
+        "await inside try/catch that rethrows per item, or that swallows the only rejection.",
+        "Returning early on the first failure, so partial successes are lost."
+      ]
+    },
+    "harder-v2-lru-cache-eviction": {
+      "class": "recency-ordering",
+      "classTitle": "Recency bookkeeping and eviction",
+      "procedure": [
+        "Separate the two responsibilities: capacity enforcement and recency bookkeeping.",
+        "Make every read and write path refresh recency. A read that does not refresh order yields FIFO, not LRU.",
+        "Enforce capacity after the recency update, evicting exactly one least-recent entry per over-capacity insert.",
+        "Assert that the container's size stays bounded; growth past capacity means eviction is not running or picks the wrong end.",
+        "Verify with an interleaved sequence: fill to capacity, read one key, insert again, then assert the read key survived and the untouched key was evicted."
+      ],
+      "traps": [
+        "Tracking recency with a counter but comparing with >= or <=, so eviction removes the wrong entry.",
+        "Refreshing recency only in set(), leaving get() to look like a no-op for ordering."
+      ]
+    },
+    "harder-v2-debounce-cancel": {
+      "class": "timer-cancellation",
+      "classTitle": "Cancelling scheduled work",
+      "procedure": [
+        "Identify what the cancel path must stop: a scheduled callback, an in-flight loop, or both.",
+        "Clear the exact handle produced by the scheduling call, and make cancel safe to call more than once.",
+        "Reset the correlated bookkeeping (handle, deadline, pending flag) so a later invocation cannot read stale state.",
+        "Decide the post-cancel contract for the wrapped call: it must not fire, and it must not leave a caller waiting for a result that will never come.",
+        "Verify by cancelling and then waiting past the original delay, asserting the callback never ran."
+      ],
+      "traps": [
+        "Clearing a handle variable that was reassigned by a later schedule call.",
+        "Setting a cancelled boolean without clearing the timer, leaving the callback pending."
+      ]
+    },
+    "harder-v2-deep-clone-circular": {
+      "class": "graph-traversal-memo",
+      "classTitle": "Traversing self-referential structures",
+      "procedure": [
+        "Characterise the input domain: nested containers, and containers that reference themselves.",
+        "Add an identity-keyed memo (WeakMap for objects, Set for a visited path) recording containers already seen or already copied.",
+        "Check the memo before descending, and register the new container before visiting its children.",
+        "On re-entry return the already-produced copy, so internal references point into the copy rather than the original.",
+        "Verify with a self-referencing object and assert both termination and that the copy's back-reference resolves inside the copy."
+      ],
+      "traps": [
+        "Memoising only primitive values.",
+        "Registering the container after recursion, so the cycle is still re-entered once."
+      ]
+    },
+    "harder-v2-rate-limiter": {
+      "class": "concurrency-gate",
+      "classTitle": "Bounding concurrent execution",
+      "procedure": [
+        "State the invariant precisely: at most N units of work are in flight at any instant.",
+        "Model it with a running counter plus a queue of pending starters.",
+        "Start work through a single drain path: while capacity remains and work is pending, take one item and run it.",
+        "Release capacity on completion of every unit, including rejections, and attempt another drain each time.",
+        "Verify by submitting more work than the limit, observing the maximum concurrency reached, and asserting every unit eventually ran."
+      ],
+      "traps": [
+        "Releasing capacity only on the success path, which leaks slots on failure.",
+        "Draining only on enqueue, so the queue stalls when completions outpace submissions."
+      ]
+    },
+    "harder-v2-config-merger": {
+      "class": "merge-semantics",
+      "classTitle": "Type-directed merging",
+      "procedure": [
+        "Write down what merge means per type: scalars overwrite, arrays combine, nested objects recurse, order preserved left-then-right.",
+        "Find the actual collision: a generic assign/copy path that treats containers like scalars, so the right side replaces the left.",
+        "Special-case containers before the scalar path: recurse for objects, combine for arrays.",
+        "Do not mutate the inputs unless the previous behaviour did.",
+        "Verify with a key defined as a container on both sides, and assert non-conflicting keys from both sides survive."
+      ],
+      "traps": [
+        "Object.assign or spread, which is shallow and replaces arrays wholesale.",
+        "Recursing into the first differing type without checking both sides are containers."
+      ]
+    },
+    "harder-v2-async-queue": {
+      "class": "backpressure-wait",
+      "classTitle": "Waiting instead of rejecting under backpressure",
+      "procedure": [
+        "Establish the saturation contract: the caller's promise must settle only when its work has run or definitively failed.",
+        "Replace rejection-when-full with waiting: retain the caller's resolver in a pending queue.",
+        "Admit work through one drain path so ordering is FIFO and no item is admitted twice.",
+        "Run the drain on completion as well as on enqueue, so the queue empties even when no new submission arrives.",
+        "Verify by deliberately overflowing, then asserting every submitted item ran exactly once and in order."
+      ],
+      "traps": [
+        "Dropping the retained resolver, leaving the caller pending forever.",
+        "Keeping the old rejection path active as well, so overflow can still fail."
+      ]
+    },
+    "harder-v2-retry-backoff": {
+      "class": "retry-schedule",
+      "classTitle": "Computing a delay schedule",
+      "procedure": [
+        "Write out the required delay sequence for attempts 0..n before implementing.",
+        "Implement the sequence as one formula over base delay and attempt index, not a chain of special cases.",
+        "Keep schedule state per call, so concurrent retries cannot share mutable delay state.",
+        "Apply jitter or caps only if the specification asks for them.",
+        "Verify by recording the delays actually used and comparing them against the expected sequence."
+      ],
+      "traps": [
+        "Accumulating with delay += step (linear) when the specification asks for doubling from the base.",
+        "Reusing one mutable delay variable across attempts so the growth compounds incorrectly."
+      ]
+    },
+    "harder-v2-state-machine": {
+      "class": "transition-validation",
+      "classTitle": "Validating state transitions",
+      "procedure": [
+        "Extract the permitted transitions into data: a table keyed by current state (and event) whose values are the allowed next states.",
+        "Centralise the decision in one place: look up the table, then either advance or reject. No other path mutates state directly.",
+        "On rejection, throw with both the attempted transition and the current state in the message, and leave the state unchanged.",
+        "Treat unknown states and events as invalid rather than permissive.",
+        "Verify that a valid path advances, and that an invalid attempt throws and leaves the machine in its previous state."
+      ],
+      "traps": [
+        "Mutating state before validating, so a rejected transition still changes the machine.",
+        "Validating with a permissive default (allowing anything not explicitly forbidden) which accepts unknown events."
+      ]
+    }
+  }
+}

@@ -200,5 +200,5 @@ node ~/projects/benebsworth.com/scripts/gen-harness-eval.mjs
 | `archive-reports.mjs` | moves the reports the site should *not* ingest out of `~/.omega/reports` (dry run by default) |
 | `results/manifest.jsonl` | one line per run: arm, iteration, task, attempt, report path |
 | `results/logs/` | CLI output for every run attempt |
-| `results/reports/` | archived reports: `invalid-circuit-open/` (the discarded sweep) and `not-ingested/` (debug runs kept out of the site's ingestion) |
+| `results/reports/` | archived reports: `invalid-circuit-open/` (the discarded first sweep), and `not-ingested/` with `iter2/` (30 second-iteration reports), `arms/` (20 treatment-arm reports) and `validation/` (the pre-sweep smoke) |
 | `results/summary.json` | machine-readable analysis output |

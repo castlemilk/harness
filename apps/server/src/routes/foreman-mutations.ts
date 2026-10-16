@@ -607,6 +607,31 @@ async function unknownSkillNames(prisma: PrismaClient, names: string[]): Promise
 }
 
 export function registerForemanMutationRoutes(r: Router, prisma: PrismaClient): void {
+  /**
+   * Clear a provider's health samples and any open circuit.
+   *
+   * Circuits open on their own; this is the way back once the cause is known to
+   * be gone. The 30-minute sample window is cleared with them, because stale
+   * failures would otherwise re-open the circuit on the very next failure.
+   */
+  r.post('/providers/:name/health/reset', asyncHandler(async (req, res) => {
+    const router = await import('../lib/intelligent-router.js')
+      .then((m) => m.getRouter(prisma))
+      .catch(() => null);
+    if (!router) {
+      res.status(503).json({ error: 'Intelligent router is unavailable' });
+      return;
+    }
+    const provider = req.params.name;
+    const cleared = router.health.reset(provider);
+    res.json({
+      provider,
+      cleared,
+      circuitState: router.health.getCircuitState(provider),
+      health: router.health.getHealth(provider),
+    });
+  }));
+
   r.post('/objectives', asyncHandler(async (req, res) => {
     const body = createObjectiveSchema.parse(req.body);
     const project = await prisma.project.findUnique({ where: { id: body.projectId }, select: { id: true } });

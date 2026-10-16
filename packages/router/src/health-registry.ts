@@ -68,6 +68,24 @@ export class ProviderHealthRegistry {
     this.samples.set(providerKey, list);
   }
 
+  /**
+   * Forget a provider's samples and any open circuit.
+   *
+   * The operator escape hatch for a circuit opened by a cause that is since
+   * fixed (a rate limit that lifted, a gateway that was repaired). Waiting out
+   * the cooldown is not enough on its own: the failures still inside the
+   * 30-minute window re-open the circuit on the next failure, so a caller with
+   * ground truth about the outage clears the record instead.
+   *
+   * Returns true when there was something to clear.
+   */
+  reset(providerKey: string): boolean {
+    const hadSamples = this.samples.delete(providerKey);
+    const hadCircuit = this.circuits.delete(providerKey);
+    this.buckets.delete(providerKey);
+    return hadSamples || hadCircuit;
+  }
+
   getHealth(providerKey: string): ProviderHealth {
     const list = this.samples.get(providerKey) ?? [];
     if (list.length === 0) {

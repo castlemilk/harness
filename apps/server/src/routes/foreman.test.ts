@@ -177,6 +177,7 @@ describe('Foreman API registration', () => {
       'GET /objectives/:id/tickets',
       'GET /skills',
       'GET /providers/health',
+      'POST /providers/:name/health/reset',
       'GET /benchmarks',
       'GET /benchmarks/:id',
       'POST /objectives',

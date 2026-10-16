@@ -30,7 +30,33 @@ export interface RunnerOptions {
   thinking?: boolean;
   /** Run tasks via an external coding-agent CLI (e.g. codex, claude-code) instead of an internal model. */
   externalCli?: string;
+  /**
+   * Directory of per-task context blocks injected ahead of the task description.
+   * Read as `<dir>/<taskId>.md`, falling back to `<dir>/default.md`. Lets a run
+   * measure whether extra context (skills, a knowledge graph) lifts pass rates.
+   */
+  contextDir?: string;
   onProgress?: (result: BenchmarkResult) => void;
+}
+
+/**
+ * Reads the context block to inject ahead of a task's description.
+ *
+ * Returns '' when the directory holds no block for this task, and also when it
+ * holds no `default.md`: a missing file must degrade to the baseline prompt
+ * rather than silently injecting context meant for a different task, since that
+ * would quietly invalidate a baseline-vs-treatment comparison.
+ */
+async function loadInjectedContext(dir: string, taskId: string): Promise<string> {
+  for (const name of [`${taskId}.md`, 'default.md']) {
+    try {
+      const text = await fs.readFile(path.join(dir, name), 'utf-8');
+      return text.trim();
+    } catch {
+      // Fall through to the next candidate.
+    }
+  }
+  return '';
 }
 
 function countAllSpans(traceFlow?: TraceFlowInfo): number {
@@ -88,8 +114,13 @@ export async function runBenchmark(
 
       const project = await ensureProject(apiUrl, `${projectPrefix}-${task.id}`, projectPath);
       projectId = project.id;
+      const injectedContext = options.contextDir
+        ? await loadInjectedContext(options.contextDir, task.id)
+        : '';
       const harnessTask = await createTask(apiUrl, project.id, task.title, {
-        description: task.description,
+        description: injectedContext
+          ? `${injectedContext}\n\n${task.description ?? ''}`
+          : (task.description ?? ''),
         complexity: task.complexity ?? 'simple',
         tags: options.externalCli
           ? ['benchmark', `external:${options.externalCli}`, task.name, ...(task.tags ?? [])]
@@ -97,7 +128,21 @@ export async function runBenchmark(
       });
       harnessTaskId = harnessTask.id;
 
-      if (!options.externalCli && (options.provider || options.model)) {
+      if (options.externalCli) {
+        // The external route is chosen by the `external:<cli>` tag above, so
+        // only the model is set here. Without it the CLI runs its own default
+        // (opencode falls back to `opencode/big-pickle`) and the report
+        // attributes every result to that model instead of the intended one.
+        if (options.model) {
+          await withRetry(() =>
+            fetch(`${apiUrl}/tasks/${harnessTaskId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model: options.model }),
+            }),
+          );
+        }
+      } else if (options.provider || options.model) {
         await withRetry(() =>
           fetch(`${apiUrl}/tasks/${harnessTaskId}`, {
             method: 'PATCH',

@@ -17,6 +17,7 @@ import { buildCodexTaskPrompt } from './codex-prompt.js';
 import { validationSummaryWithPatchAudit } from './patch-audit.js';
 import { deriveVerificationCommand } from './project-utils.js';
 import { sanitizeForDb } from './utils.js';
+import { childProcessEnv } from './spawn-env.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -88,7 +89,7 @@ function spawnWithStdinClosed(
   return new Promise((resolve, reject) => {
     const child: ChildProcess = spawn(command, args, {
       cwd: options.cwd,
-      env: { ...process.env, ...options.env },
+      env: childProcessEnv(options.cwd, options.env),
       stdio: ['ignore', 'pipe', 'pipe'],
       // A separate process group lets cancellation terminate helper/server
       // children launched by the CLI instead of orphaning them.
@@ -403,13 +404,17 @@ export function buildExternalCliArgs(
         ...(cwd ? ['--add-dir', cwd] : []),
       ];
     case 'opencode':
+      // opencode v2 rejected the `run --port`/`--dir` flags this used to pass
+      // and exits 1 before doing any work, which surfaced as an instant
+      // "External agent (opencode) failed" with no patch and no tokens. A
+      // private server is now selected with `--standalone` instead of a random
+      // port, and the working directory comes from the spawn's own `cwd`
+      // (always set at both call sites), so `--dir` was redundant anyway.
       return [
         'run',
         '--format', 'json',
         '--model', effectiveExternalModel(cli, model),
         '--auto',
-        '--port', String(4096 + Math.floor(Math.random() * 1000)),
-        ...(cwd ? ['--dir', cwd] : []),
         ...(session ? ['--session', session.sessionId] : []),
         prompt,
       ];

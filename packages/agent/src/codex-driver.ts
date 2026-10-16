@@ -2,6 +2,7 @@ import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { promisify } from 'node:util';
 import readline from 'node:readline';
 import { abortableOperation } from './retry.js';
+import { childProcessEnv } from './spawn-env.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -238,7 +239,7 @@ class CodexAppServerClient {
   async initialize(): Promise<void> {
     const child = spawn('codex', ['app-server'], {
       cwd: this.cwd,
-      env: process.env,
+      env: childProcessEnv(this.cwd),
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
     });

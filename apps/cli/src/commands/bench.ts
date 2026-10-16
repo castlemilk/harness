@@ -9,6 +9,7 @@ import {
   runBenchmark,
   syntheticSuite,
   fastSuite,
+  harderV2Suite,
   deepSuite,
   hardSuite,
   hardTargetedSuite,
@@ -531,9 +532,11 @@ const compareCmd = new Command('compare')
 
 const evalCmd = new Command('eval')
   .description('Run a benchmark suite across multiple models and compare results')
-  .option('--suite <name>', 'suite name: synthetic | fast | deep | hard | harder | hard-targeting | deep-swe | swebench-lite', 'deep')
+  .option('--suite <name>', 'suite name: synthetic | fast | deep | hard | harder | harder-v2 | hard-targeting | deep-swe | swebench-lite', 'deep')
   .option('--models <list>', 'comma-separated models as provider/model or model (default provider kimi)', 'kimi/moonshot-v1-128k')
   .option('--harnesses <list>', 'comma-separated external agent harnesses (codex, claude-code, agy, opencode, cursor-cli, aider) to evaluate instead of internal models')
+  .option('--harness-model <model>', 'model the external harness should run (e.g. opencode/deepseek-v4.1-flash-free); without it the CLI uses its own default')
+  .option('--context-dir <dir>', 'directory of per-task context blocks (<taskId>.md, or default.md) injected ahead of the task description')
   .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
   .option('--repo <repo>', 'filter to specific repo (for swebench-lite, repeatable)', collectTaskIds, [])
   .option('--path <dir>', 'path to DeepSWE tasks directory (for hard/deep-swe) or SWE-bench JSON file (for swebench-lite)')
@@ -544,6 +547,8 @@ const evalCmd = new Command('eval')
     suite: string;
     models: string;
     harnesses?: string;
+    harnessModel?: string;
+    contextDir?: string;
     taskId: string[];
     repo: string[];
     path?: string;
@@ -566,6 +571,8 @@ const evalCmd = new Command('eval')
       tasks = await hardSuite(opts.path);
     } else if (opts.suite === 'harder') {
       tasks = harderSuite();
+    } else if (opts.suite === 'harder-v2') {
+      tasks = harderV2Suite();
     } else if (opts.suite === 'hard-targeting') {
       tasks = hardTargetedSuite();
     } else if (opts.suite === 'deep-swe') {
@@ -593,6 +600,8 @@ const evalCmd = new Command('eval')
       const results = await runHarnessEval(tasks, {
         apiUrl,
         harnesses,
+        model: opts.harnessModel,
+        contextDir: opts.contextDir,
         timeoutMs,
         tokenBudget: opts.tokenBudget,
         projectPrefix: opts.projectPrefix,

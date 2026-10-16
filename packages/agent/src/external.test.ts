@@ -587,6 +587,58 @@ describe('runExternalAgentTask', () => {
     });
   });
 
+  it('points PWD at the task project instead of the server working directory', async () => {
+    // OpenCode resolves its project from PWD rather than the process cwd, and
+    // /bin/sh rewrites PWD before a shell-script fixture could observe it, so
+    // this fixture is a node script with a real shebang.
+    const projectDir = fs.mkdtempSync(path.join(import.meta.dirname, 'test-fixtures', 'project-'));
+    const pwdBinDir = fs.mkdtempSync(path.join(import.meta.dirname, 'test-fixtures', 'pwd-bin-'));
+    fs.writeFileSync(
+      path.join(pwdBinDir, 'opencode'),
+      [
+        '#!/usr/bin/env node',
+        'console.log(JSON.stringify({ type: "text", sessionID: "pwd-session", part: { text: "PWD=" + process.env.PWD } }));',
+        'console.log(JSON.stringify({ type: "step_finish", sessionID: "pwd-session", part: { reason: "stop", tokens: { input: 1, output: 1, total: 2 } } }));',
+        '',
+      ].join('\n'),
+      { mode: 0o755 },
+    );
+    process.env.PATH = `${pwdBinDir}${path.delimiter}${fakeBinDir}${path.delimiter}${originalPath ?? ''}`;
+
+    const prisma = {
+      task: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          title: 'PWD task',
+          description: 'Report the working directory',
+          tags: null,
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      agentRun: {
+        create: vi.fn().mockResolvedValue({ id: 'run-1' }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      taskDiff: { create: vi.fn().mockResolvedValue({}) },
+      taskTrace: { create: vi.fn().mockResolvedValue({}) },
+      traceSpan: { create: vi.fn().mockResolvedValue({}) },
+    } as unknown as PrismaClient;
+
+    try {
+      const result = await runExternalAgentTask(prisma, 'task-1', {
+        cli: 'opencode',
+        projectPath: projectDir,
+        projectName: 'project',
+        timeoutMs: 10_000,
+      });
+
+      expect(result.output).toContain(`PWD=${projectDir}`);
+    } finally {
+      fs.rmSync(projectDir, { recursive: true, force: true });
+      fs.rmSync(pwdBinDir, { recursive: true, force: true });
+    }
+  });
+
   it('captures the OpenCode session before disclosing a transient nonzero exit', async () => {
     process.env.FAKE_OPENCODE_MODE = 'fail';
     const agentRunUpdate = vi.fn().mockResolvedValue({});

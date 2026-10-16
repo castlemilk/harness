@@ -49,6 +49,13 @@ export interface HarnessEvalOptions {
   projectPrefix?: string;
   tokenBudget?: number;
   suiteName?: string;
+  /**
+   * Model the external CLI should run, e.g. `opencode/deepseek-v4.1-flash-free`.
+   * Omitted, the CLI runs its own default and the report is attributed to it.
+   */
+  model?: string;
+  /** Per-task context blocks injected ahead of the description (see RunnerOptions). */
+  contextDir?: string;
   onHarnessProgress?: (cli: string, report: BenchmarkReport) => void;
 }
 
@@ -62,9 +69,21 @@ export async function runHarnessEval(tasks: BenchmarkTask[], options: HarnessEva
       timeoutMs: options.timeoutMs,
       projectPrefix: `${options.projectPrefix ?? 'eval'}-external-${safeCli}`,
       externalCli: cli,
+      model: options.model,
+      contextDir: options.contextDir,
       tokenBudget: options.tokenBudget,
     });
-    results.push({ provider: 'external', model: cli, report });
+    // Attribute to the pinned model, not the CLI, so a sweep across models of
+    // the same CLI stays distinguishable in reports and benchmark history.
+    // A model id that carries its provider prefix (`opencode/deepseek-v4.1-flash-free`)
+    // is split so downstream consumers key it as `opencode/deepseek-v4.1-flash-free`
+    // rather than the redundant `external/opencode/deepseek-v4.1-flash-free`.
+    // A bare CLI name (`agy`) keeps the `external/agy` identity it always had.
+    const pinned = options.model;
+    const [provider, model] = pinned?.includes('/')
+      ? [pinned.slice(0, pinned.indexOf('/')), pinned.slice(pinned.indexOf('/') + 1)]
+      : ['external', pinned ?? cli];
+    results.push({ provider, model, report });
     options.onHarnessProgress?.(cli, report);
   }
   return results;

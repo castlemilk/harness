@@ -1,5 +1,6 @@
 import type { IPty } from 'node-pty';
 import stripAnsi from 'strip-ansi';
+import { childProcessEnv } from './spawn-env.js';
 
 export interface PtyResult {
   stdout: string;
@@ -38,7 +39,7 @@ export async function spawnWithPty(
   // Dynamic import so non-PTY code paths don't require node-pty at all.
   const pty = await import('node-pty');
 
-  const env = { ...process.env, ...options.env };
+  const env = childProcessEnv(options.cwd, options.env);
   const rows = 24;
   const cols = 120;
 

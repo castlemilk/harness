@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-10-16T06:07:23.899Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 13057,
+      "totalTokens": 8753,
+      "totalCostUsd": null,
+      "totalTurns": 4,
+      "averageTurns": 4,
+      "totalToolCalls": 5,
+      "toolBreakdown": {
+        "read": 2,
+        "shell": 2,
+        "write": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "report": {
+        "timestamp": "2026-10-16T06:07:10.840Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 13057,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-config-merger",
+              "name": "harder-v2-config-merger",
+              "title": "Fix config merger to deep merge arrays",
+              "description": "The config merger in src/config.js replaces arrays instead of merging them. Fix merge() to concatenate arrays from both sources instead of overwriting. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "5ea66819-59a0-4355-b1d6-e073e8327094",
+            "durationMs": 13057,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "Config merger fixed"
+            },
+            "agentRun": {
+              "id": "2683a454-a6cc-415d-8d9c-5d465b47a6d7",
+              "taskId": "5ea66819-59a0-4355-b1d6-e073e8327094",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "36138c9888c3f428634af35c05754820f42d8fe9",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 8380,
+              "completionTokens": 373,
+              "totalTokens": 8753,
+              "costUsd": null,
+              "turnCount": 4,
+              "toolCalls": "{\"read\":2,\"shell\":2,\"write\":1}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebcadad7bffe8YruFNnMWhfwr0",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:07:10.899Z",
+              "updatedAt": "2026-10-16T06:07:23.645Z"
+            },
+            "diffs": [
+              {
+                "id": "b5573fff-fa40-4394-8e64-416e5ef76902",
+                "taskId": "5ea66819-59a0-4355-b1d6-e073e8327094",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/config.js b/src/config.js\nindex b894a23..0e714f7 100644\n--- a/src/config.js\n+++ b/src/config.js\n@@ -1,7 +1,20 @@\n+function isPlainObject(value) {\n+  return value !== null && typeof value === 'object' && !Array.isArray(value);\n+}\n+\n export function merge(defaults, overrides) {\n   const result = { ...defaults };\n   for (const key of Object.keys(overrides)) {\n-    result[key] = overrides[key];\n+    const left = defaults[key];\n+    const right = overrides[key];\n+\n+    if (Array.isArray(left) && Array.isArray(right)) {\n+      result[key] = [...left, ...right];\n+    } else if (isPlainObject(left) && isPlainObject(right)) {\n+      result[key] = merge(left, right);\n+    } else {\n+      result[key] = right;\n+    }\n   }\n   return result;\n }\n",
+                "createdAt": "2026-10-16T06:07:23.630Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "5ea66819-59a0-4355-b1d6-e073e8327094",
+              "agentRunId": "2683a454-a6cc-415d-8d9c-5d465b47a6d7",
+              "totalSpans": 2,
+              "totalDurationMs": 12677,
+              "promptTokens": 8380,
+              "completionTokens": 373,
+              "totalTokens": 8753,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 8753,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

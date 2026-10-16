@@ -1,0 +1,142 @@
+{
+  "timestamp": "2026-10-16T06:11:20.499Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+kg"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+kg",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 34074,
+      "totalTokens": 26198,
+      "totalCostUsd": null,
+      "totalTurns": 7,
+      "averageTurns": 7,
+      "totalToolCalls": 10,
+      "toolBreakdown": {
+        "read": 3,
+        "glob": 1,
+        "shell": 5,
+        "write": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+kg",
+      "report": {
+        "timestamp": "2026-10-16T06:10:46.423Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 34074,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-config-merger",
+              "name": "harder-v2-config-merger",
+              "title": "Fix config merger to deep merge arrays",
+              "description": "The config merger in src/config.js replaces arrays instead of merging them. Fix merge() to concatenate arrays from both sources instead of overwriting. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "dd81c768-989a-4677-b4ba-c953625b8277",
+            "durationMs": 34074,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "Config merger fixed"
+            },
+            "agentRun": {
+              "id": "727bfe18-cb55-48ee-badd-a1623565e745",
+              "taskId": "dd81c768-989a-4677-b4ba-c953625b8277",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "8d1532b17c34df74850f79e02a6bbaf52439c710",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 24757,
+              "completionTokens": 1441,
+              "totalTokens": 26198,
+              "costUsd": null,
+              "turnCount": 7,
+              "toolCalls": "{\"read\":3,\"glob\":1,\"shell\":5,\"write\":1}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebcaa62e8ffeEezyErzWyWVE78",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:10:46.572Z",
+              "updatedAt": "2026-10-16T06:11:20.206Z"
+            },
+            "diffs": [
+              {
+                "id": "fd6e79bf-48d7-4afe-8a4f-430d13d838bd",
+                "taskId": "dd81c768-989a-4677-b4ba-c953625b8277",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/config.js b/src/config.js\nindex b894a23..2098f01 100644\n--- a/src/config.js\n+++ b/src/config.js\n@@ -1,7 +1,42 @@\n+function isPlainObject(value) {\n+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {\n+    return false;\n+  }\n+  const proto = Object.getPrototypeOf(value);\n+  return proto === Object.prototype || proto === null;\n+}\n+\n+function clone(value) {\n+  if (Array.isArray(value)) {\n+    return value.map(clone);\n+  }\n+  if (isPlainObject(value)) {\n+    return merge({}, value);\n+  }\n+  return value;\n+}\n+\n+function mergeValues(base, override) {\n+  if (Array.isArray(base) && Array.isArray(override)) {\n+    return [...base.map(clone), ...override.map(clone)];\n+  }\n+  if (isPlainObject(base) && isPlainObject(override)) {\n+    return merge(base, override);\n+  }\n+  return clone(override);\n+}\n+\n export function merge(defaults, overrides) {\n-  const result = { ...defaults };\n+  const result = {};\n+  for (const key of Object.keys(defaults)) {\n+    result[key] = clone(defaults[key]);\n+  }\n   for (const key of Object.keys(overrides)) {\n-    result[key] = overrides[key];\n+    if (Object.prototype.hasOwnProperty.call(defaults, key)) {\n+      result[key] = mergeValues(defaults[key], overrides[key]);\n+    } else {\n+      result[key] = clone(overrides[key]);\n+    }\n   }\n   return result;\n }\n",
+                "createdAt": "2026-10-16T06:11:20.187Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "dd81c768-989a-4677-b4ba-c953625b8277",
+              "agentRunId": "727bfe18-cb55-48ee-badd-a1623565e745",
+              "totalSpans": 2,
+              "totalDurationMs": 33557,
+              "promptTokens": 24757,
+              "completionTokens": 1441,
+              "totalTokens": 26198,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 26198,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

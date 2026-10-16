@@ -1,0 +1,142 @@
+{
+  "timestamp": "2026-10-16T06:08:32.812Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 19569,
+      "totalTokens": 9044,
+      "totalCostUsd": null,
+      "totalTurns": 5,
+      "averageTurns": 5,
+      "totalToolCalls": 6,
+      "toolBreakdown": {
+        "read": 3,
+        "glob": 1,
+        "write": 1,
+        "shell": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "report": {
+        "timestamp": "2026-10-16T06:08:13.240Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 19569,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-state-machine",
+              "name": "harder-v2-state-machine",
+              "title": "Fix state machine to reject invalid transitions",
+              "description": "The state machine in src/state.js accepts any transition without validation. Fix it to check a transition table and throw on invalid transitions. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "1f23ccc5-6dc9-4fee-b898-06032479d492",
+            "durationMs": 19569,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "State machine validation fixed"
+            },
+            "agentRun": {
+              "id": "188176b7-f9cb-4d85-a6ba-79fc55652a30",
+              "taskId": "1f23ccc5-6dc9-4fee-b898-06032479d492",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "e8e283ab74fb28d47845bfb6a15db67bd7cef0ce",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 8578,
+              "completionTokens": 466,
+              "totalTokens": 9044,
+              "costUsd": null,
+              "turnCount": 5,
+              "toolCalls": "{\"read\":3,\"glob\":1,\"write\":1,\"shell\":1}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebcacb9b6ffenb69TLHXQBFSVP",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:08:13.305Z",
+              "updatedAt": "2026-10-16T06:08:32.726Z"
+            },
+            "diffs": [
+              {
+                "id": "42b441aa-437a-4d69-aff2-01105f882046",
+                "taskId": "1f23ccc5-6dc9-4fee-b898-06032479d492",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/state.js b/src/state.js\nindex 0029c65..4d33c6a 100644\n--- a/src/state.js\n+++ b/src/state.js\n@@ -4,6 +4,12 @@ export class StateMachine {\n     this.transitions = transitions;\n   }\n   transition(to) {\n+    const allowed = this.transitions[this.state];\n+    if (!Array.isArray(allowed) || !allowed.includes(to)) {\n+      throw new Error(\n+        `Invalid transition from \"${this.state}\" to \"${to}\"`,\n+      );\n+    }\n     this.state = to;\n     return this.state;\n   }\n",
+                "createdAt": "2026-10-16T06:08:32.701Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "1f23ccc5-6dc9-4fee-b898-06032479d492",
+              "agentRunId": "188176b7-f9cb-4d85-a6ba-79fc55652a30",
+              "totalSpans": 2,
+              "totalDurationMs": 19311,
+              "promptTokens": 8578,
+              "completionTokens": 466,
+              "totalTokens": 9044,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 9044,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

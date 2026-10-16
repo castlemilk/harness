@@ -1,0 +1,142 @@
+{
+  "timestamp": "2026-10-16T06:23:22.374Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 25738,
+      "totalTokens": 10340,
+      "totalCostUsd": null,
+      "totalTurns": 7,
+      "averageTurns": 7,
+      "totalToolCalls": 8,
+      "toolBreakdown": {
+        "read": 3,
+        "glob": 1,
+        "shell": 3,
+        "write": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "report": {
+        "timestamp": "2026-10-16T06:22:56.634Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 25738,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-rate-limiter",
+              "name": "harder-v2-rate-limiter",
+              "title": "Fix rate limiter to properly limit concurrent requests",
+              "description": "The rate limiter in src/ratelimit.js allows unlimited concurrent executions. Fix it so at most N functions run at the same time. Queued functions should wait for a slot. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "b6eb3d64-f344-4d15-82ed-d2c1945d8255",
+            "durationMs": 25738,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "Rate limiter fixed"
+            },
+            "agentRun": {
+              "id": "9f5925e0-4b5c-4265-bb2a-c2f1a105e1ee",
+              "taskId": "b6eb3d64-f344-4d15-82ed-d2c1945d8255",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "f6a678d50bda0619b8f6e2dd22e63c84f720fd89",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 9402,
+              "completionTokens": 938,
+              "totalTokens": 10340,
+              "costUsd": null,
+              "turnCount": 7,
+              "toolCalls": "{\"read\":3,\"glob\":1,\"shell\":3,\"write\":1}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebc9f3eb8ffe37LIODxFZzkG41",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:22:56.723Z",
+              "updatedAt": "2026-10-16T06:23:21.925Z"
+            },
+            "diffs": [
+              {
+                "id": "6e99bc4d-b9e0-43a0-a254-00d78eaf1b12",
+                "taskId": "b6eb3d64-f344-4d15-82ed-d2c1945d8255",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/ratelimit.js b/src/ratelimit.js\nindex 03b4f44..8f6f37b 100644\n--- a/src/ratelimit.js\n+++ b/src/ratelimit.js\n@@ -2,13 +2,27 @@ export class RateLimiter {\n   constructor(maxConcurrent) {\n     this.maxConcurrent = maxConcurrent;\n     this.running = 0;\n+    this.queue = [];\n   }\n-  async run(fn) {\n-    this.running++;\n-    try {\n-      return await fn();\n-    } finally {\n-      this.running--;\n+\n+  run(fn) {\n+    return new Promise((resolve, reject) => {\n+      this.queue.push({ fn, resolve, reject });\n+      this.drain();\n+    });\n+  }\n+\n+  drain() {\n+    while (this.running < this.maxConcurrent && this.queue.length > 0) {\n+      const { fn, resolve, reject } = this.queue.shift();\n+      this.running++;\n+      Promise.resolve()\n+        .then(fn)\n+        .then(resolve, reject)\n+        .finally(() => {\n+          this.running--;\n+          this.drain();\n+        });\n     }\n   }\n }\n",
+                "createdAt": "2026-10-16T06:23:21.906Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "b6eb3d64-f344-4d15-82ed-d2c1945d8255",
+              "agentRunId": "9f5925e0-4b5c-4265-bb2a-c2f1a105e1ee",
+              "totalSpans": 2,
+              "totalDurationMs": 25109,
+              "promptTokens": 9402,
+              "completionTokens": 938,
+              "totalTokens": 10340,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 10340,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "timestamp": "2026-10-16T06:15:16.237Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 16071,
+      "totalTokens": 9132,
+      "totalCostUsd": null,
+      "totalTurns": 5,
+      "averageTurns": 5,
+      "totalToolCalls": 6,
+      "toolBreakdown": {
+        "read": 3,
+        "glob": 1,
+        "write": 1,
+        "shell": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "report": {
+        "timestamp": "2026-10-16T06:15:00.164Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 16071,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-lru-cache-eviction",
+              "name": "harder-v2-lru-cache-eviction",
+              "title": "Fix LRU cache max size eviction",
+              "description": "The LRU cache in src/lru.js does not evict the oldest entry when max size is reached. Fix it so that get() and set() both update access order, and the oldest entry is evicted when capacity is exceeded. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "9a527219-2d02-45f7-8861-17084914f234",
+            "durationMs": 16071,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "LRU eviction fixed"
+            },
+            "agentRun": {
+              "id": "3b39c6db-c48a-47f9-b80d-83ab288aaaa1",
+              "taskId": "9a527219-2d02-45f7-8861-17084914f234",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "3e0f5e3822f4b701877b86dbc1143c92a3ffece5",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 8436,
+              "completionTokens": 696,
+              "totalTokens": 9132,
+              "costUsd": null,
+              "turnCount": 5,
+              "toolCalls": "{\"read\":3,\"glob\":1,\"write\":1,\"shell\":1}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebca68378ffez5HVOi9TGlbqtE",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:15:00.299Z",
+              "updatedAt": "2026-10-16T06:15:16.053Z"
+            },
+            "diffs": [
+              {
+                "id": "fd92596a-e9e7-4ee3-93c0-caf1cb1d31e1",
+                "taskId": "9a527219-2d02-45f7-8861-17084914f234",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/lru.js b/src/lru.js\nindex faa20a3..fb32fa8 100644\n--- a/src/lru.js\n+++ b/src/lru.js\n@@ -5,10 +5,23 @@ export class LRUCache {\n   }\n   get(key) {\n     if (!this.cache.has(key)) return -1;\n-    return this.cache.get(key);\n+    const value = this.cache.get(key);\n+    // Refresh recency: delete and re-insert so this key becomes newest.\n+    this.cache.delete(key);\n+    this.cache.set(key, value);\n+    return value;\n   }\n   set(key, value) {\n+    // If the key already exists, remove it first so it re-inserts as newest.\n+    if (this.cache.has(key)) {\n+      this.cache.delete(key);\n+    }\n     this.cache.set(key, value);\n+    // Evict the oldest entry (first inserted) when over capacity.\n+    if (this.cache.size > this.capacity) {\n+      const oldestKey = this.cache.keys().next().value;\n+      this.cache.delete(oldestKey);\n+    }\n   }\n   size() { return this.cache.size; }\n }\n",
+                "createdAt": "2026-10-16T06:15:16.034Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "9a527219-2d02-45f7-8861-17084914f234",
+              "agentRunId": "3b39c6db-c48a-47f9-b80d-83ab288aaaa1",
+              "totalSpans": 2,
+              "totalDurationMs": 15684,
+              "promptTokens": 8436,
+              "completionTokens": 696,
+              "totalTokens": 9132,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 9132,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

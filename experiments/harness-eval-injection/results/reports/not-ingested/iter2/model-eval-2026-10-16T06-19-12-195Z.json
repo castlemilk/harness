@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-10-16T06:19:12.195Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 21302,
+      "totalTokens": 7828,
+      "totalCostUsd": null,
+      "totalTurns": 4,
+      "averageTurns": 4,
+      "totalToolCalls": 6,
+      "toolBreakdown": {
+        "read": 4,
+        "edit": 1,
+        "shell": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "report": {
+        "timestamp": "2026-10-16T06:18:50.883Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 21302,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-debounce-cancel",
+              "name": "harder-v2-debounce-cancel",
+              "title": "Fix debounce cancel not clearing pending timeout",
+              "description": "The debounce function in src/debounce.js has a cancel() method that does not actually clear the pending timeout. Fix it so cancel() prevents the pending execution from firing. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "95354b6a-d32d-4274-9109-731cb30337fb",
+            "durationMs": 21302,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "Debounce cancel fixed"
+            },
+            "agentRun": {
+              "id": "5733ef6b-e6b1-45e1-ad25-79ba3f7644a2",
+              "taskId": "95354b6a-d32d-4274-9109-731cb30337fb",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "99bb8d0d52b110eb3eb285e74fedad4f1f61dd3b",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 7273,
+              "completionTokens": 555,
+              "totalTokens": 7828,
+              "costUsd": null,
+              "turnCount": 4,
+              "toolCalls": "{\"read\":4,\"edit\":1,\"shell\":1}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebca2fd4effe7VKYZzAO1yZNAI",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:18:51.111Z",
+              "updatedAt": "2026-10-16T06:19:11.094Z"
+            },
+            "diffs": [
+              {
+                "id": "10a28f0f-dfc1-4471-88ab-bb43b2653a6a",
+                "taskId": "95354b6a-d32d-4274-9109-731cb30337fb",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/debounce.js b/src/debounce.js\nindex 810d06d..0ba7426 100644\n--- a/src/debounce.js\n+++ b/src/debounce.js\n@@ -1,10 +1,17 @@\n export function debounce(fn, delay) {\n   let timer = null;\n   const debounced = (...args) => {\n-    timer = setTimeout(() => fn(...args), delay);\n+    if (timer !== null) clearTimeout(timer);\n+    timer = setTimeout(() => {\n+      timer = null;\n+      fn(...args);\n+    }, delay);\n   };\n   debounced.cancel = () => {\n-    timer = null;\n+    if (timer !== null) {\n+      clearTimeout(timer);\n+      timer = null;\n+    }\n   };\n   return debounced;\n }\n",
+                "createdAt": "2026-10-16T06:19:10.936Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "95354b6a-d32d-4274-9109-731cb30337fb",
+              "agentRunId": "5733ef6b-e6b1-45e1-ad25-79ba3f7644a2",
+              "totalSpans": 2,
+              "totalDurationMs": 19283,
+              "promptTokens": 7273,
+              "completionTokens": 555,
+              "totalTokens": 7828,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 7828,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

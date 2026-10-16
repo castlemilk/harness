@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-10-16T06:05:38.366Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 16542,
+      "totalTokens": 7679,
+      "totalCostUsd": null,
+      "totalTurns": 4,
+      "averageTurns": 4,
+      "totalToolCalls": 6,
+      "toolBreakdown": {
+        "read": 2,
+        "shell": 3,
+        "edit": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "report": {
+        "timestamp": "2026-10-16T06:05:21.822Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 16542,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-event-emitter-leak",
+              "name": "harder-v2-event-emitter-leak",
+              "title": "Fix event emitter memory leak from wrong listener reference",
+              "description": "Fix the memory leak in EventEmitter. The issue: off() is called with a NEW function reference instead of the original listener, so the listener is never removed. Fix src/emitter.js so listeners are properly removed. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "5ec9693b-fa31-4593-9cb7-93461969b836",
+            "durationMs": 16542,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "Event emitter leak fixed"
+            },
+            "agentRun": {
+              "id": "eba3d357-7ac0-4961-a226-2b2f4e374706",
+              "taskId": "5ec9693b-fa31-4593-9cb7-93461969b836",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "8d1424959c6ef7572b5457248f8ff65279a484f9",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 7144,
+              "completionTokens": 535,
+              "totalTokens": 7679,
+              "costUsd": null,
+              "turnCount": 4,
+              "toolCalls": "{\"read\":2,\"shell\":3,\"edit\":1}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebcaf575affe7EhYWDnXXydLbl",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:05:21.883Z",
+              "updatedAt": "2026-10-16T06:05:37.865Z"
+            },
+            "diffs": [
+              {
+                "id": "09178137-39e7-460d-8b27-239aeb517900",
+                "taskId": "5ec9693b-fa31-4593-9cb7-93461969b836",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/emitter.js b/src/emitter.js\nindex eabd894..7e46ba7 100644\n--- a/src/emitter.js\n+++ b/src/emitter.js\n@@ -7,7 +7,7 @@ export class EventEmitter {\n   }\n   off(event, fn) {\n     const listeners = this._events.get(event) || [];\n-    this._events.set(event, listeners.filter(l => l !== (() => fn())));\n+    this._events.set(event, listeners.filter(l => l !== fn));\n     return this;\n   }\n   emit(event, ...args) {\n",
+                "createdAt": "2026-10-16T06:05:37.849Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "5ec9693b-fa31-4593-9cb7-93461969b836",
+              "agentRunId": "eba3d357-7ac0-4961-a226-2b2f4e374706",
+              "totalSpans": 2,
+              "totalDurationMs": 15926,
+              "promptTokens": 7144,
+              "completionTokens": 535,
+              "totalTokens": 7679,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 7679,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

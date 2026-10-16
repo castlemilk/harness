@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-10-16T06:24:37.017Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 13559,
+      "totalTokens": 7869,
+      "totalCostUsd": null,
+      "totalTurns": 4,
+      "averageTurns": 4,
+      "totalToolCalls": 6,
+      "toolBreakdown": {
+        "read": 3,
+        "shell": 2,
+        "write": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "report": {
+        "timestamp": "2026-10-16T06:24:23.457Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 13559,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-state-machine",
+              "name": "harder-v2-state-machine",
+              "title": "Fix state machine to reject invalid transitions",
+              "description": "The state machine in src/state.js accepts any transition without validation. Fix it to check a transition table and throw on invalid transitions. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "c4faf1c7-1733-4456-86d8-fe64834d9399",
+            "durationMs": 13559,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "State machine validation fixed"
+            },
+            "agentRun": {
+              "id": "aa709238-be9a-46da-9e78-7afa0d5d720c",
+              "taskId": "c4faf1c7-1733-4456-86d8-fe64834d9399",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "53cf056e84df135f38621749b134ad9da45cee13",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 7303,
+              "completionTokens": 566,
+              "totalTokens": 7869,
+              "costUsd": null,
+              "turnCount": 4,
+              "toolCalls": "{\"read\":3,\"shell\":2,\"write\":1}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebc9debb6ffeV1fTfg9dPe5xkh",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:24:23.532Z",
+              "updatedAt": "2026-10-16T06:24:36.746Z"
+            },
+            "diffs": [
+              {
+                "id": "d51f1289-408c-4e2e-b8f4-2b39a8daff2d",
+                "taskId": "c4faf1c7-1733-4456-86d8-fe64834d9399",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/state.js b/src/state.js\nindex 0029c65..ef3db83 100644\n--- a/src/state.js\n+++ b/src/state.js\n@@ -1,9 +1,21 @@\n+// Permitted transitions are held as data, keyed by current state, with\n+// values listing the states that may be reached from it.\n export class StateMachine {\n-  constructor(initial, transitions) {\n+  constructor(initial, transitions = {}) {\n     this.state = initial;\n     this.transitions = transitions;\n   }\n+\n+  // Central validation point: look up the allowed next states for the\n+  // current state, then either advance or reject. State is only ever\n+  // mutated after the transition has been validated.\n   transition(to) {\n+    const allowed = this.transitions[this.state];\n+    if (!Array.isArray(allowed) || !allowed.includes(to)) {\n+      throw new Error(\n+        `Invalid transition from \"${this.state}\" to \"${to}\"`,\n+      );\n+    }\n     this.state = to;\n     return this.state;\n   }\n",
+                "createdAt": "2026-10-16T06:24:36.724Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "c4faf1c7-1733-4456-86d8-fe64834d9399",
+              "agentRunId": "aa709238-be9a-46da-9e78-7afa0d5d720c",
+              "totalSpans": 2,
+              "totalDurationMs": 13124,
+              "promptTokens": 7303,
+              "completionTokens": 566,
+              "totalTokens": 7869,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 7869,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

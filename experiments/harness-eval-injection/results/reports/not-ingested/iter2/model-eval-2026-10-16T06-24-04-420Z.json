@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-10-16T06:24:04.420Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 23119,
+      "totalTokens": 9594,
+      "totalCostUsd": null,
+      "totalTurns": 5,
+      "averageTurns": 5,
+      "totalToolCalls": 7,
+      "toolBreakdown": {
+        "read": 3,
+        "write": 1,
+        "shell": 3
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "report": {
+        "timestamp": "2026-10-16T06:23:41.300Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 23119,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-async-queue",
+              "name": "harder-v2-async-queue",
+              "title": "Fix async queue to wait instead of dropping tasks",
+              "description": "The async queue in src/queue.js drops tasks when the queue is full. Fix it so tasks wait for a slot to open instead of being rejected. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "714e31b0-dcda-4897-ad2c-83cd738b68c1",
+            "durationMs": 23119,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "Async queue fixed"
+            },
+            "agentRun": {
+              "id": "b2903fd7-9f3e-460a-987b-08c1d37579d5",
+              "taskId": "714e31b0-dcda-4897-ad2c-83cd738b68c1",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "a461f6a8175b40cebd75d0932e698c279a3bb3ce",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 8477,
+              "completionTokens": 1117,
+              "totalTokens": 9594,
+              "costUsd": null,
+              "turnCount": 5,
+              "toolCalls": "{\"read\":3,\"write\":1,\"shell\":3}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebc9e9063ffe9mH9A5R6e6q9Ak",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:23:41.378Z",
+              "updatedAt": "2026-10-16T06:24:04.138Z"
+            },
+            "diffs": [
+              {
+                "id": "e7d34930-8a31-465b-8764-cd1249dd5349",
+                "taskId": "714e31b0-dcda-4897-ad2c-83cd738b68c1",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/queue.js b/src/queue.js\nindex 66cc5fe..0b1eccb 100644\n--- a/src/queue.js\n+++ b/src/queue.js\n@@ -5,21 +5,30 @@ export class AsyncQueue {\n     this.running = 0;\n     this.queue = [];\n   }\n-  async push(fn) {\n-    if (this.running >= this.concurrency) {\n-      if (this.queue.length >= this.maxSize) {\n-        throw new Error('Queue full');\n-      }\n-      this.queue.push(fn);\n-      return;\n-    }\n-    this.running++;\n-    try { await fn(); } finally {\n-      this.running--;\n-      if (this.queue.length > 0) {\n-        const next = this.queue.shift();\n-        this.push(next);\n-      }\n+\n+  push(fn) {\n+    return new Promise((resolve, reject) => {\n+      // Retain the caller's resolver so the returned promise stays pending\n+      // until this task actually runs (or definitively fails) instead of\n+      // being rejected when the queue is saturated.\n+      this.queue.push({ fn, resolve, reject });\n+      this.drain();\n+    });\n+  }\n+\n+  drain() {\n+    while (this.running < this.concurrency && this.queue.length > 0) {\n+      const { fn, resolve, reject } = this.queue.shift();\n+      this.running++;\n+      Promise.resolve()\n+        .then(fn)\n+        .then(resolve, reject)\n+        .finally(() => {\n+          this.running--;\n+          // Drain on completion too, so the queue empties even when no new\n+          // submission arrives to trigger admission.\n+          this.drain();\n+        });\n     }\n   }\n }\n",
+                "createdAt": "2026-10-16T06:24:04.118Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "714e31b0-dcda-4897-ad2c-83cd738b68c1",
+              "agentRunId": "b2903fd7-9f3e-460a-987b-08c1d37579d5",
+              "totalSpans": 2,
+              "totalDurationMs": 22680,
+              "promptTokens": 8477,
+              "completionTokens": 1117,
+              "totalTokens": 9594,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 9594,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

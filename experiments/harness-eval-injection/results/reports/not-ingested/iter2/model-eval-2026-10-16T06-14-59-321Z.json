@@ -1,0 +1,142 @@
+{
+  "timestamp": "2026-10-16T06:14:59.321Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 17089,
+      "totalTokens": 8241,
+      "totalCostUsd": null,
+      "totalTurns": 5,
+      "averageTurns": 5,
+      "totalToolCalls": 7,
+      "toolBreakdown": {
+        "read": 3,
+        "glob": 1,
+        "shell": 2,
+        "edit": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "report": {
+        "timestamp": "2026-10-16T06:14:42.230Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 17089,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-promise-all-race",
+              "name": "harder-v2-promise-all-race",
+              "title": "Fix Promise.allSettled error propagation",
+              "description": "The parallelFetch() function swallows errors from failed promises. Fix src/parallel.js so that when ALL promises fail, the error is properly thrown. When SOME succeed, return the successful results. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "5e3d17e0-dabd-4086-a7a7-d2e6a5f8fc77",
+            "durationMs": 17089,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "Promise error propagation fixed"
+            },
+            "agentRun": {
+              "id": "77afdc29-53e1-42a2-9cbe-e0f6ead7b8a7",
+              "taskId": "5e3d17e0-dabd-4086-a7a7-d2e6a5f8fc77",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "19b4068cb5b440613e3800df81356684a951f136",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 7687,
+              "completionTokens": 554,
+              "totalTokens": 8241,
+              "costUsd": null,
+              "turnCount": 5,
+              "toolCalls": "{\"read\":3,\"glob\":1,\"shell\":2,\"edit\":1}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebca6c9b4ffezcL9iK8PKFo7IL",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:14:42.348Z",
+              "updatedAt": "2026-10-16T06:14:58.980Z"
+            },
+            "diffs": [
+              {
+                "id": "09399d04-7fe0-4b28-a06f-6c051b0c5a82",
+                "taskId": "5e3d17e0-dabd-4086-a7a7-d2e6a5f8fc77",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/parallel.js b/src/parallel.js\nindex 6896135..244693d 100644\n--- a/src/parallel.js\n+++ b/src/parallel.js\n@@ -2,5 +2,14 @@ export async function parallelFetch(urls) {\n   const results = await Promise.allSettled(\n     urls.map(url => fetch(url).then(r => r.json()))\n   );\n-  return results.map(r => r.value);\n+\n+  const successes = results\n+    .filter(r => r.status === 'fulfilled')\n+    .map(r => r.value);\n+\n+  if (successes.length === 0 && results.length > 0) {\n+    throw results.find(r => r.status === 'rejected').reason;\n+  }\n+\n+  return successes;\n }\n",
+                "createdAt": "2026-10-16T06:14:58.952Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "5e3d17e0-dabd-4086-a7a7-d2e6a5f8fc77",
+              "agentRunId": "77afdc29-53e1-42a2-9cbe-e0f6ead7b8a7",
+              "totalSpans": 2,
+              "totalDurationMs": 16527,
+              "promptTokens": 7687,
+              "completionTokens": 554,
+              "totalTokens": 8241,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 8241,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

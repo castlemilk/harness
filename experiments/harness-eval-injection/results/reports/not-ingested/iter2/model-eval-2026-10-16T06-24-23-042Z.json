@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-10-16T06:24:23.043Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 18175,
+      "totalTokens": 7994,
+      "totalCostUsd": null,
+      "totalTurns": 5,
+      "averageTurns": 5,
+      "totalToolCalls": 6,
+      "toolBreakdown": {
+        "read": 3,
+        "edit": 1,
+        "shell": 2
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+skills",
+      "report": {
+        "timestamp": "2026-10-16T06:24:04.865Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 18175,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-retry-backoff",
+              "name": "harder-v2-retry-backoff",
+              "title": "Fix retry to use exponential backoff",
+              "description": "The retry function in src/retry.js uses a fixed delay for all retries. Fix it to use exponential backoff: delay doubles each attempt (base * 2^attempt). Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "8efc7f36-c638-49d4-8419-7899c33bf030",
+            "durationMs": 18175,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "Retry backoff fixed"
+            },
+            "agentRun": {
+              "id": "349845de-fddc-4568-a235-838f0090d215",
+              "taskId": "8efc7f36-c638-49d4-8419-7899c33bf030",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "cc68cfee34b73a172ade6abe7c65d8a61354e680",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 7482,
+              "completionTokens": 512,
+              "totalTokens": 7994,
+              "costUsd": null,
+              "turnCount": 5,
+              "toolCalls": "{\"read\":3,\"edit\":1,\"shell\":2}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebc9e3429ffecZxIkTgFDNK9y5",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:24:04.979Z",
+              "updatedAt": "2026-10-16T06:24:21.620Z"
+            },
+            "diffs": [
+              {
+                "id": "b6f96350-8252-4fcc-9a20-77958e4dd545",
+                "taskId": "8efc7f36-c638-49d4-8419-7899c33bf030",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/retry.js b/src/retry.js\nindex d593f86..040f8ca 100644\n--- a/src/retry.js\n+++ b/src/retry.js\n@@ -5,7 +5,8 @@ export async function retry(fn, { maxAttempts = 3, baseDelay = 100 } = {}) {\n       return await fn();\n     } catch (e) {\n       lastError = e;\n-      await new Promise(r => setTimeout(r, baseDelay));\n+      const delay = baseDelay * 2 ** i;\n+      await new Promise(r => setTimeout(r, delay));\n     }\n   }\n   throw lastError;\n",
+                "createdAt": "2026-10-16T06:24:21.602Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "8efc7f36-c638-49d4-8419-7899c33bf030",
+              "agentRunId": "349845de-fddc-4568-a235-838f0090d215",
+              "totalSpans": 2,
+              "totalDurationMs": 16570,
+              "promptTokens": 7482,
+              "completionTokens": 512,
+              "totalTokens": 7994,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 7994,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-10-16T06:17:15.625Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 31130,
+      "totalTokens": 11358,
+      "totalCostUsd": null,
+      "totalTurns": 7,
+      "averageTurns": 7,
+      "totalToolCalls": 8,
+      "toolBreakdown": {
+        "read": 3,
+        "shell": 4,
+        "write": 1
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "report": {
+        "timestamp": "2026-10-16T06:16:44.490Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 31130,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-async-queue",
+              "name": "harder-v2-async-queue",
+              "title": "Fix async queue to wait instead of dropping tasks",
+              "description": "The async queue in src/queue.js drops tasks when the queue is full. Fix it so tasks wait for a slot to open instead of being rejected. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "3bdfe529-6578-4382-8b62-a8d8d2e5b42c",
+            "durationMs": 31130,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "Async queue fixed"
+            },
+            "agentRun": {
+              "id": "8b64c9a6-5326-4b0a-8db2-a4e0dd3172f7",
+              "taskId": "3bdfe529-6578-4382-8b62-a8d8d2e5b42c",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "b26b2454e0350f59ea664f9531ffcbd3af451810",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 10478,
+              "completionTokens": 880,
+              "totalTokens": 11358,
+              "costUsd": null,
+              "turnCount": 7,
+              "toolCalls": "{\"read\":3,\"shell\":4,\"write\":1}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebca4eb1affe075digDbyYfUlL",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:16:44.771Z",
+              "updatedAt": "2026-10-16T06:17:15.293Z"
+            },
+            "diffs": [
+              {
+                "id": "400e76cb-1b79-450e-a4a7-8b0d556855d7",
+                "taskId": "3bdfe529-6578-4382-8b62-a8d8d2e5b42c",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/queue.js b/src/queue.js\nindex 66cc5fe..c9245c5 100644\n--- a/src/queue.js\n+++ b/src/queue.js\n@@ -5,21 +5,25 @@ export class AsyncQueue {\n     this.running = 0;\n     this.queue = [];\n   }\n-  async push(fn) {\n-    if (this.running >= this.concurrency) {\n-      if (this.queue.length >= this.maxSize) {\n-        throw new Error('Queue full');\n-      }\n-      this.queue.push(fn);\n-      return;\n-    }\n-    this.running++;\n-    try { await fn(); } finally {\n-      this.running--;\n-      if (this.queue.length > 0) {\n-        const next = this.queue.shift();\n-        this.push(next);\n-      }\n+\n+  push(fn) {\n+    return new Promise((resolve, reject) => {\n+      this.queue.push({ fn, resolve, reject });\n+      this._drain();\n+    });\n+  }\n+\n+  _drain() {\n+    while (this.running < this.concurrency && this.queue.length > 0) {\n+      const { fn, resolve, reject } = this.queue.shift();\n+      this.running++;\n+      Promise.resolve()\n+        .then(fn)\n+        .then(resolve, reject)\n+        .finally(() => {\n+          this.running--;\n+          this._drain();\n+        });\n     }\n   }\n }\n",
+                "createdAt": "2026-10-16T06:17:15.250Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "3bdfe529-6578-4382-8b62-a8d8d2e5b42c",
+              "agentRunId": "8b64c9a6-5326-4b0a-8db2-a4e0dd3172f7",
+              "totalSpans": 2,
+              "totalDurationMs": 30379,
+              "promptTokens": 10478,
+              "completionTokens": 880,
+              "totalTokens": 11358,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 11358,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

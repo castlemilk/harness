@@ -1,0 +1,137 @@
+{
+  "timestamp": "2026-10-16T06:17:41.512Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "total": 1,
+      "passed": 0,
+      "failed": 1,
+      "timeouts": 0,
+      "passRate": 0,
+      "totalDurationMs": 25117,
+      "totalTokens": 7439,
+      "totalCostUsd": null,
+      "totalTurns": 2,
+      "averageTurns": 2,
+      "totalToolCalls": 3,
+      "toolBreakdown": {
+        "read": 3
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free",
+      "report": {
+        "timestamp": "2026-10-16T06:17:16.384Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 0,
+        "failed": 1,
+        "timeouts": 0,
+        "totalDurationMs": 25117,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-retry-backoff",
+              "name": "harder-v2-retry-backoff",
+              "title": "Fix retry to use exponential backoff",
+              "description": "The retry function in src/retry.js uses a fixed delay for all retries. Fix it to use exponential backoff: delay doubles each attempt (base * 2^attempt). Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "7fa35c7a-ca64-41a5-927b-2ddbcadbecce",
+            "durationMs": 25117,
+            "status": "failed",
+            "taskError": "External agent (opencode) failed.\n\n/harder-v2-retry-backoff/test.js\\\"}\"},\"time\":{\"start\":1792131442457,\"end\":1792131442508}}}}\n{\"type\":\"step_finish\",\"timestamp\":1792131442527,\"sessionID\":\"ses_ebca46f2fffeYk6GrrjoTAD7mz\",\"part\":{\"id\":\"prt_1435ba75f001GtrAl7bJ6DapKf\",\"sessionID\":\"ses_ebca46f2fffeYk6GrrjoTAD7mz\",\"messageID\":\"msg_1435b9ffa001uyLmpDNYRK3Pxc\",\"type\":\"step-finish\",\"reason\":\"tool-calls\",\"snapshot\":\"f023a17fcf0a52f6e1fdf37c7902b69a6d050d48\",\"cost\":0,\"tokens\":{\"input\":2319,\"output\":119,\"reasoning\":7,\"cache\":{\"read\":11008,\"write\":0}}}}\n{\"type\":\"step_start\",\"timestamp\":1792131443972,\"sessionID\":\"ses_ebca46f2fffeYk6GrrjoTAD7mz\",\"part\":{\"id\":\"prt_1435bad04001JwVIpjzP81yOi5\",\"sessionID\":\"ses_ebca46f2fffeYk6GrrjoTAD7mz\",\"messageID\":\"msg_1435ba76f001MD04d3OT1n6Lts\",\"type\":\"step-start\",\"snapshot\":\"f023a17fcf0a52f6e1fdf37c7902b69a6d050d48\"}}\n{\"type\":\"error\",\"timestamp\":1792131459804,\"sessionID\":\"ses_ebca46f2fffeYk6GrrjoTAD7mz\",\"error\":{\"type\":\"unknown\",\"message\":\"Failed to execute statement\"}}\n\nopencode exited with code 1",
+            "evaluation": {
+              "passed": false,
+              "message": "No diff patch available to evaluate"
+            },
+            "agentRun": {
+              "id": "9db418c3-e480-43ee-9c3d-a8c52aef8160",
+              "taskId": "7fa35c7a-ca64-41a5-927b-2ddbcadbecce",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "d10723403fd4ce4b1e2c3001928eb19ba10d6cff",
+              "resultStatus": "failed",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 7259,
+              "completionTokens": 180,
+              "totalTokens": 7439,
+              "costUsd": null,
+              "turnCount": 2,
+              "toolCalls": "{\"read\":3}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebca46f2fffeYk6GrrjoTAD7mz",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:17:16.606Z",
+              "updatedAt": "2026-10-16T06:17:41.112Z"
+            },
+            "diffs": [],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "7fa35c7a-ca64-41a5-927b-2ddbcadbecce",
+              "agentRunId": "9db418c3-e480-43ee-9c3d-a8c52aef8160",
+              "totalSpans": 2,
+              "totalDurationMs": 24340,
+              "promptTokens": 7259,
+              "completionTokens": 180,
+              "totalTokens": 7439,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 7439,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null,
+            "failureAnalysis": {
+              "category": "unknown",
+              "rootCause": "Failure cause could not be classified: No diff patch available to evaluate.",
+              "evidence": [
+                "No diff patch available to evaluate"
+              ]
+            }
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

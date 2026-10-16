@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-10-16T06:27:22.966Z",
+  "suite": "harder-v2",
+  "models": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+kg"
+    }
+  ],
+  "summaries": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+kg",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "timeouts": 0,
+      "passRate": 1,
+      "totalDurationMs": 21097,
+      "totalTokens": 8340,
+      "totalCostUsd": null,
+      "totalTurns": 6,
+      "averageTurns": 6,
+      "totalToolCalls": 7,
+      "toolBreakdown": {
+        "read": 4,
+        "write": 1,
+        "shell": 2
+      }
+    }
+  ],
+  "results": [
+    {
+      "provider": "opencode",
+      "model": "deepseek-v4.1-flash-free+kg",
+      "report": {
+        "timestamp": "2026-10-16T06:27:01.847Z",
+        "suite": "harder-v2",
+        "total": 1,
+        "passed": 1,
+        "failed": 0,
+        "timeouts": 0,
+        "totalDurationMs": 21097,
+        "results": [
+          {
+            "task": {
+              "id": "harder-v2-config-merger",
+              "name": "harder-v2-config-merger",
+              "title": "Fix config merger to deep merge arrays",
+              "description": "The config merger in src/config.js replaces arrays instead of merging them. Fix merge() to concatenate arrays from both sources instead of overwriting. Do NOT change test.js.",
+              "complexity": "medium"
+            },
+            "harnessTaskId": "7b9384d0-3ac6-440e-a015-c552a6162dd5",
+            "durationMs": 21097,
+            "status": "done",
+            "taskError": null,
+            "evaluation": {
+              "passed": true,
+              "message": "Config merger fixed"
+            },
+            "agentRun": {
+              "id": "6b0758dc-7905-4173-9e03-6f404af09780",
+              "taskId": "7b9384d0-3ac6-440e-a015-c552a6162dd5",
+              "promptVersionId": null,
+              "branch": "master",
+              "baseCommit": "7f4b88de232054e2e02ca3a06af261e3b15847e3",
+              "resultStatus": "done",
+              "validationSummary": null,
+              "publishedVersion": null,
+              "promptTokens": 7705,
+              "completionTokens": 635,
+              "totalTokens": 8340,
+              "costUsd": null,
+              "turnCount": 6,
+              "toolCalls": "{\"read\":4,\"write\":1,\"shell\":2}",
+              "turnDurationMs": null,
+              "phaseTimings": null,
+              "currentPhase": null,
+              "currentPhaseStartedAt": null,
+              "currentTurn": 1,
+              "providerCalls": 0,
+              "providerRetries": 0,
+              "providerRateLimitRetries": 0,
+              "providerRotations": 0,
+              "providerLastStatus": null,
+              "effectiveModel": null,
+              "modelsTried": null,
+              "tokenBudget": null,
+              "tokenBudgetExceeded": false,
+              "deadlineMs": null,
+              "deadlineRemainingMs": null,
+              "sessionId": "ses_ebc9b809bffeBh3o8ssG3PH8N2",
+              "sessionKind": "opencode-session",
+              "createdAt": "2026-10-16T06:27:02.006Z",
+              "updatedAt": "2026-10-16T06:27:21.281Z"
+            },
+            "diffs": [
+              {
+                "id": "0a90d8b9-8aef-4ffb-9c0f-c0f03e244d88",
+                "taskId": "7b9384d0-3ac6-440e-a015-c552a6162dd5",
+                "branch": "master",
+                "commitSha": null,
+                "patch": "diff --git a/src/config.js b/src/config.js\nindex b894a23..d98f35d 100644\n--- a/src/config.js\n+++ b/src/config.js\n@@ -1,7 +1,24 @@\n+function isPlainObject(value) {\n+  return (\n+    value !== null &&\n+    typeof value === 'object' &&\n+    !Array.isArray(value)\n+  );\n+}\n+\n export function merge(defaults, overrides) {\n   const result = { ...defaults };\n   for (const key of Object.keys(overrides)) {\n-    result[key] = overrides[key];\n+    const overrideValue = overrides[key];\n+    const defaultValue = defaults[key];\n+\n+    if (Array.isArray(defaultValue) && Array.isArray(overrideValue)) {\n+      result[key] = defaultValue.concat(overrideValue);\n+    } else if (isPlainObject(defaultValue) && isPlainObject(overrideValue)) {\n+      result[key] = merge(defaultValue, overrideValue);\n+    } else {\n+      result[key] = overrideValue;\n+    }\n   }\n   return result;\n }\n",
+                "createdAt": "2026-10-16T06:27:21.246Z"
+              }
+            ],
+            "spanCount": 2,
+            "traceSummary": {
+              "taskId": "7b9384d0-3ac6-440e-a015-c552a6162dd5",
+              "agentRunId": "6b0758dc-7905-4173-9e03-6f404af09780",
+              "totalSpans": 2,
+              "totalDurationMs": 19174,
+              "promptTokens": 7705,
+              "completionTokens": 635,
+              "totalTokens": 8340,
+              "toolSummary": [],
+              "topErrors": [],
+              "phaseDurations": {},
+              "providerSummary": {
+                "calls": 0,
+                "errors": 0,
+                "retries": 0,
+                "rateLimitRetries": 0,
+                "rotations": 0,
+                "durationMs": 0,
+                "requestedModels": [],
+                "effectiveModels": []
+              },
+              "budget": {
+                "tokenBudgetUsed": 8340,
+                "exceeded": false
+              }
+            },
+            "promptVersionId": null
+          }
+        ],
+        "promptVersionId": null
+      }
+    }
+  ]
+}

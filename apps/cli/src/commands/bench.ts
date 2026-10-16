@@ -536,6 +536,7 @@ const evalCmd = new Command('eval')
   .option('--models <list>', 'comma-separated models as provider/model or model (default provider kimi)', 'kimi/moonshot-v1-128k')
   .option('--harnesses <list>', 'comma-separated external agent harnesses (codex, claude-code, agy, opencode, cursor-cli, aider) to evaluate instead of internal models')
   .option('--harness-model <model>', 'model the external harness should run (e.g. opencode/deepseek-v4.1-flash-free); without it the CLI uses its own default')
+  .option('--harness-label <label>', 'override how the run is attributed in reports, e.g. opencode/deepseek-v4.1-flash-free+skills; the model that runs is still --harness-model')
   .option('--context-dir <dir>', 'directory of per-task context blocks (<taskId>.md, or default.md) injected ahead of the task description')
   .option('--task-id <id>', 'run only specific task(s) by id (repeatable)', collectTaskIds, [])
   .option('--repo <repo>', 'filter to specific repo (for swebench-lite, repeatable)', collectTaskIds, [])
@@ -548,6 +549,7 @@ const evalCmd = new Command('eval')
     models: string;
     harnesses?: string;
     harnessModel?: string;
+    harnessLabel?: string;
     contextDir?: string;
     taskId: string[];
     repo: string[];
@@ -601,6 +603,7 @@ const evalCmd = new Command('eval')
         apiUrl,
         harnesses,
         model: opts.harnessModel,
+        label: opts.harnessLabel,
         contextDir: opts.contextDir,
         timeoutMs,
         tokenBudget: opts.tokenBudget,

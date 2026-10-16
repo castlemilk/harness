@@ -56,7 +56,35 @@ export interface HarnessEvalOptions {
   model?: string;
   /** Per-task context blocks injected ahead of the description (see RunnerOptions). */
   contextDir?: string;
+  /**
+   * Attribution override for the report entry, e.g.
+   * `opencode/deepseek-v4.1-flash-free+skills`. Lets the same model run under
+   * named conditions without their reports colliding downstream. Defaults to
+   * `model`.
+   */
+  label?: string;
   onHarnessProgress?: (cli: string, report: BenchmarkReport) => void;
+}
+
+/**
+ * Split what a harness run is attributed to into the `provider`/`model` pair
+ * that reports, history and the lab site are keyed by.
+ *
+ * A value carrying a provider prefix (`opencode/deepseek-v4.1-flash-free`) is
+ * split, so downstream consumers do not end up with the redundant
+ * `external/opencode/deepseek-v4.1-flash-free`. A bare CLI name (`agy`) keeps
+ * the `external/agy` identity it always had.
+ */
+export function attributeHarnessRun(
+  attribution: string | undefined,
+  cli: string,
+): { provider: string; model: string } {
+  const value = attribution?.trim();
+  const slash = value?.indexOf('/') ?? -1;
+  if (value !== undefined && slash > 0 && slash < value.length - 1) {
+    return { provider: value.slice(0, slash), model: value.slice(slash + 1) };
+  }
+  return { provider: 'external', model: value !== undefined && value.length > 0 ? value : cli };
 }
 
 export async function runHarnessEval(tasks: BenchmarkTask[], options: HarnessEvalOptions): Promise<ModelEvalResult[]> {
@@ -75,14 +103,12 @@ export async function runHarnessEval(tasks: BenchmarkTask[], options: HarnessEva
     });
     // Attribute to the pinned model, not the CLI, so a sweep across models of
     // the same CLI stays distinguishable in reports and benchmark history.
-    // A model id that carries its provider prefix (`opencode/deepseek-v4.1-flash-free`)
-    // is split so downstream consumers key it as `opencode/deepseek-v4.1-flash-free`
-    // rather than the redundant `external/opencode/deepseek-v4.1-flash-free`.
-    // A bare CLI name (`agy`) keeps the `external/agy` identity it always had.
-    const pinned = options.model;
-    const [provider, model] = pinned?.includes('/')
-      ? [pinned.slice(0, pinned.indexOf('/')), pinned.slice(pinned.indexOf('/') + 1)]
-      : ['external', pinned ?? cli];
+    // `label` overrides the attribution only — the model that runs is still
+    // `options.model` — so named conditions (prompt-injection arms) do not
+    // collide downstream. See attributeHarnessRun for the provider split.
+    const label = options.label?.trim();
+    const attribution = label !== undefined && label.length > 0 ? label : options.model;
+    const { provider, model } = attributeHarnessRun(attribution, cli);
     results.push({ provider, model, report });
     options.onHarnessProgress?.(cli, report);
   }

@@ -1210,7 +1210,18 @@ async function usagePayload(
   };
 }
 
-export function foremanRoutes(prisma: PrismaClient): Router {
+export type ForemanStreamScheduler = (callback: () => void | Promise<void>, intervalMs: number) => () => void;
+
+/** Production timer adapter; tests can explicitly drive ticks without faking DB clocks. */
+export const scheduleForemanStreamInterval: ForemanStreamScheduler = (callback, intervalMs) => {
+  const timer = setInterval(() => { void callback(); }, intervalMs);
+  return () => { clearInterval(timer); };
+};
+
+export function foremanRoutes(prisma: PrismaClient, options: {
+  scheduleStreamInterval?: ForemanStreamScheduler;
+} = {}): Router {
+  const scheduleStreamInterval = options.scheduleStreamInterval ?? scheduleForemanStreamInterval;
   const r = Router();
 
   r.get('/objectives', asyncHandler(async (req, res) => {
@@ -1680,15 +1691,15 @@ export function foremanRoutes(prisma: PrismaClient): Router {
         polling = false;
       }
     };
-    const poll = setInterval(() => { void tick(); }, streamPollMs);
-    const heartbeat = setInterval(() => {
+    const cancelPoll = scheduleStreamInterval(tick, streamPollMs);
+    const cancelHeartbeat = scheduleStreamInterval(() => {
       if (!streamClosed()) res.write(': ping\n\n');
     }, 15_000);
     const close = (): void => {
       if (closed) return;
       closed = true;
-      clearInterval(poll);
-      clearInterval(heartbeat);
+      cancelPoll();
+      cancelHeartbeat();
       req.off('close', close);
       res.end();
     };

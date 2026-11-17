@@ -30,3 +30,4 @@ jobs:
       # apps/e2e drives a running harness server (and real providers), so it is
       # not part of the hermetic unit suite. Run it locally with `task test:e2e`.
       - run: pnpm -r --filter '!@omega/e2e' test
+      - run: node --test scripts/run-e2e-report.test.mjs

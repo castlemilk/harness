@@ -180,10 +180,10 @@ tasks:
   # ----------------------------------------------------------------- test --
 
   test:
-    desc: Run every package's tests
+    desc: Run root regression scripts and every package's tests
     deps: [build:kit]
     cmds:
-      - pnpm -r test
+      - pnpm test
 
   test:server:
     desc: API tests (against a throwaway database)

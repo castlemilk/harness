@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "pnpm --filter @omega/server dev & pnpm --filter @omega/web dev",
     "build": "pnpm -r build",
-    "test": "pnpm -r test",
+    "test": "pnpm test:scripts && pnpm -r test",
+    "test:scripts": "vitest run scripts/omega-loop.test.mjs scripts/self-improve-gates.test.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "db:generate": "pnpm --filter @omega/db generate",

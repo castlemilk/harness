@@ -8,12 +8,12 @@
 
 # syntax=docker/dockerfile:1
 
-FROM node:20-bookworm AS build
+FROM node:26.13.1-bookworm AS build
 ENV PNPM_HOME=/pnpm
 ENV PATH=/pnpm:$PATH
 ENV DATABASE_URL=postgresql://localhost:5432/omega
 WORKDIR /app
-RUN corepack enable
+RUN npm install --global pnpm@10.18.0
 
 # Workspace manifests first for install-layer caching.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json foreman-plugins.json ./
@@ -29,7 +29,7 @@ RUN pnpm install --frozen-lockfile
 # Build the server and everything it imports, plus the web UI.
 RUN pnpm -r --filter "@omega/server..." --filter "@omega/web..." build
 
-FROM node:20-bookworm-slim AS runtime
+FROM node:26.13.1-bookworm-slim AS runtime
 ENV NODE_ENV=production
 # Prisma detects the query-engine binary target from the installed OpenSSL; the
 # slim image ships without the openssl CLI, so install it or Prisma looks for

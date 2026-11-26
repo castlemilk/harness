@@ -7,7 +7,7 @@ setup and the commands.
 
 ## What you need
 
-- **Node >= 20 and pnpm 10.x** (`corepack enable` gets you the pinned pnpm)
+- **Node from `.nvmrc` and pnpm 10.18.0** (`npm install --global pnpm@10.18.0`)
 - **Docker** running (verifier containers; the adapter builds missing task
   images on demand, but warming them first keeps builds out of timed runs)
 - **~2 GB disk** for mirrors + checkouts (more if you run the whole

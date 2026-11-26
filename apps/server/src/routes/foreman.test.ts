@@ -148,6 +148,29 @@ async function createHarnessFixture(
   });
 }
 
+describe('Foreman stream production scheduler', () => {
+  it('uses real intervals, invokes the callback and cancels its exact timer', () => {
+    const interval = vi.spyOn(globalThis, 'setInterval');
+    const clear = vi.spyOn(globalThis, 'clearInterval');
+    const callback = vi.fn();
+    const cancel = foremanModule.scheduleForemanStreamInterval(callback, 15_000);
+    try {
+      expect(interval).toHaveBeenCalledWith(expect.any(Function), 15_000);
+      const timer = interval.mock.results[0]?.value as ReturnType<typeof setInterval>;
+      const invoke = interval.mock.calls[0]?.[0];
+      if (typeof invoke !== 'function') throw new Error('Production interval was not registered');
+      invoke();
+      expect(callback).toHaveBeenCalledOnce();
+      cancel();
+      expect(clear).toHaveBeenCalledWith(timer);
+    } finally {
+      cancel();
+      interval.mockRestore();
+      clear.mockRestore();
+    }
+  });
+});
+
 describe('Foreman API registration', () => {
   it('mounts the Foreman router at /foreman', () => {
     const stack = (app as unknown as { _router?: { stack: ExpressLayer[] } })._router?.stack ?? [];
@@ -2162,7 +2185,13 @@ describe('Foreman routes with PGlite', () => {
   });
 
   it('streams a full init snapshot before scoped change events and cleans up on close', async () => {
-    const handler = findRouteHandler(router, 'get', '/stream');
+    const scheduled: { callback: () => void | Promise<void>; intervalMs: number; cancelled: boolean }[] = [];
+    const streamRouter = foremanRoutes(prisma, { scheduleStreamInterval(callback, intervalMs) {
+      const entry = { callback, intervalMs, cancelled: false };
+      scheduled.push(entry);
+      return () => { entry.cancelled = true; };
+    } });
+    const handler = findRouteHandler(streamRouter, 'get', '/stream');
     const request = new EventEmitter() as EventEmitter & {
       query: Record<string, string>;
       params: Record<string, string>;
@@ -2177,10 +2206,6 @@ describe('Foreman routes with PGlite', () => {
     const chunks: string[] = [];
     let headers: Record<string, string> = {};
     let ended = false;
-    let resolveHarnessEvent: (() => void) | undefined;
-    const harnessEvent = new Promise<void>((resolve) => {
-      resolveHarnessEvent = resolve;
-    });
     const response = {
       writeHead(_status: number, nextHeaders: Record<string, string>) {
         headers = nextHeaders;
@@ -2191,7 +2216,6 @@ describe('Foreman routes with PGlite', () => {
       },
       write(chunk: string) {
         chunks.push(chunk);
-        if (chunks.join('').includes('event: harness\n')) resolveHarnessEvent?.();
         return true;
       },
       end() {
@@ -2212,6 +2236,13 @@ describe('Foreman routes with PGlite', () => {
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
     });
+
+    expect(scheduled.map((entry) => entry.intervalMs)).toEqual([15_000, 15_000]);
+    const [poll, heartbeat] = scheduled;
+    if (!poll || !heartbeat) throw new Error('Stream did not schedule poll and heartbeat');
+    expect(chunks[0]).toMatch(/^event: init\n/);
+    await heartbeat.callback();
+    expect(chunks.at(-1)).toBe(': ping\n\n');
 
     const initFrame = chunks.join('').split('\n\n').find((frame) => frame.startsWith('event: init\n'));
     const initData = initFrame?.split('\ndata: ')[1];
@@ -2248,14 +2279,7 @@ describe('Foreman routes with PGlite', () => {
         spendUsd: { increment: spendIncrement },
       },
     });
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    await Promise.race([
-      harnessEvent,
-      new Promise<never>((_resolve, reject) => {
-        timeout = setTimeout(() => reject(new Error('Timed out waiting for harness SSE event')), 20_000);
-      }),
-    ]);
-    if (timeout) clearTimeout(timeout);
+    await poll.callback();
     expect(chunks.join('')).toContain('Emitting a descendant stream update');
     const harnessPayloads = chunks.join('').split('\n\n').flatMap((frame) => {
       if (!frame.startsWith('event: harness\n')) return [];
@@ -2302,9 +2326,8 @@ describe('Foreman routes with PGlite', () => {
     });
     // Find the frame for *this* pulse rather than the last one written: several
     // pulses can land in one poll, and they go out newest-startedAt first.
-    await vi.waitFor(() => {
-      expect(chunks.join('')).toContain(`"pulse":{"id":"${streamedPulse.id}"`);
-    }, { timeout: 20_000 });
+    await poll.callback();
+    expect(chunks.join('')).toContain(`"pulse":{"id":"${streamedPulse.id}"`);
     const pulseFrame = chunks
       .join('')
       .split('\n\n')
@@ -2314,6 +2337,12 @@ describe('Foreman routes with PGlite', () => {
 
     request.emit('close');
     expect(ended).toBe(true);
+    expect(scheduled.map((entry) => entry.cancelled)).toEqual([true, true]);
+    expect(request.listenerCount('close')).toBe(0);
+    const closedChunks = [...chunks];
+    await poll.callback();
+    await heartbeat.callback();
+    expect(chunks).toEqual(closedChunks);
   }, 45_000);
 });
 
